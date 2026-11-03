@@ -10,7 +10,7 @@ function viewVehicles(){
     const st = vehicleState(v); const nd = nextDeadline(v.id); const ds = nd && dlState(nd);
     return `<tr class="click" data-card="${esc(v.id)}" tabindex="0" title="Otwórz kartę pojazdu">
       <td>${plate(v.plate)}</td>
-      <td><b>${esc(v.make)} ${esc(v.model)}</b><span class="sub">${esc([v.year, v.fuel].filter(Boolean).join(' · '))}</span></td>
+      <td><b>${esc(v.make)} ${esc(v.model)}</b><span class="sub">${esc([v.year, v.fuel].filter(Boolean).join(' · '))}${v.hasTacho ? ' · tachograf' : ''}</span></td>
       <td class="r num">${km(v.km)}</td>
       <td>${v.driverId?esc(dName(v.driverId)):'<span class="muted">—</span>'}</td>
       <td><span class="pill ${st.cls}">${esc(st.txt)}</span></td>

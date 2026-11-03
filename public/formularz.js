@@ -15,6 +15,7 @@ const FORMS = {
     {k:'km',l:'Przebieg (km)',t:'number'},
     {k:'vin',l:'VIN',ph:'17 znaków'},
     {k:'policyNo',l:'Numer polisy',ph:'np. 123/2026'},
+    ...(P().manage ? [{k:'hasTacho',l:'Auto ma tachograf',t:'check'}] : []),
     {k:'driverId',l:'Stały kierowca',t:'select',o:drvOpts()},
     {k:'status',l:'Status',t:'select',o:[['aktywny','Aktywny'],['serwis','W serwisie'],['wycofany','Wycofany']]},
     {k:'monthlyLimit',l:'Limit kosztów / mies. (zł)',t:'number',ph:'np. 2500'},
@@ -154,6 +155,8 @@ function bookingCheck(){
     const c = S.bookings.find(b => b.id!==editing.id && !b.returned && b.vehicleId===v && b.from<=t && f<=b.to);
     if (c) msg = 'Ten pojazd jest już zarezerwowany '+fdate(c.from)+'–'+fdate(c.to)+' ('+dName(c.driverId)+').';
   }
+  const r = routeById(g('routeId')), veh = byId('vehicles', v);
+  if (!msg && r && r.tacho && veh && !veh.hasTacho) msg = `Uwaga: trasa ${r.code} wymaga tachografu, a ${veh.plate} nie ma tachografu. Możesz zapisać – to tylko informacja.`;
   w.textContent=msg; w.hidden=!msg;
 }
 function closeForm(){ $('#scrim').hidden = true; editing = null; $('#dlg-save').textContent = 'Zapisz'; $('#dialog').removeEventListener('input', bookingCheck); }
