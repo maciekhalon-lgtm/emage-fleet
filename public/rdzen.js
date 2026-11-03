@@ -1,7 +1,7 @@
 /* Emage FLEET — rdzeń: stan danych, pomocnicze funkcje dat i formatowania, logika domenowa */
 'use strict';
-const COLS = ['vehicles','drivers','deadlines','bookings','costs','issues','docs','settings','requests','crewChanges','routes'];
-const S = {vehicles:[],drivers:[],deadlines:[],bookings:[],costs:[],issues:[],docs:[],settings:[],requests:[],crewChanges:[],routes:[]};
+const COLS = ['vehicles','drivers','deadlines','bookings','costs','issues','docs','settings','requests','crewChanges','routes','serviceEntries'];
+const S = {vehicles:[],drivers:[],deadlines:[],bookings:[],costs:[],issues:[],docs:[],settings:[],requests:[],crewChanges:[],routes:[],serviceEntries:[]};
 const got = {};
 let db = null, canWrite = true, dbState = 'loading';
 let myId = null;
@@ -41,9 +41,10 @@ function dlState(dl){
   const dd = diffDays(today(), dl.date);
   const veh = dl.kmDue ? byId('vehicles', dl.vehicleId) : null;
   const left = veh && veh.km ? Number(dl.kmDue) - Number(veh.km) : null;
-  const kmEq = left===null ? Infinity : left<=0 ? 0 : left<=1000 ? 7 : left<=3000 ? 20 : Infinity;
+  const warnAt = Number(dl.remindKm) || 1000, soonAt = Math.max(3000, warnAt + 1000);   // przypomnienie N km przed
+  const kmEq = left===null ? Infinity : left<=0 ? 0 : left<=warnAt ? 7 : left<=soonAt ? 20 : Infinity;
   if (kmEq < dd || (kmEq===0 && dd>0)){
-    const cls = left<=0 ? 'bad' : left<=1000 ? 'warn' : 'soon';
+    const cls = left<=0 ? 'bad' : left<=warnAt ? 'warn' : 'soon';
     return {cls, txt: left<=0 ? 'Przebieg przekroczony o '+new Intl.NumberFormat('pl-PL').format(-left)+' km' : 'Zostało '+new Intl.NumberFormat('pl-PL').format(left)+' km', d:kmEq, byKm:true};
   }
   const d = dd;

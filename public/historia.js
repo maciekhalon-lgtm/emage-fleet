@@ -3,7 +3,7 @@
 let LOG = [];
 let histWho = '', histCol = '';
 const LOG_KEEP_DAYS = 365;
-const COL_NAMES = {vehicles:'Pojazd', drivers:'Kierowca', deadlines:'Termin', bookings:'Rezerwacja', costs:'Koszt', issues:'Usterka', docs:'Dokument', members:'Rola', settings:'Ustawienia', routes:'Trasa'};
+const COL_NAMES = {vehicles:'Pojazd', drivers:'Kierowca', deadlines:'Termin', bookings:'Rezerwacja', costs:'Koszt', issues:'Usterka', docs:'Dokument', members:'Rola', settings:'Ustawienia', routes:'Trasa', serviceEntries:'Serwis'};
 const ACT_NAMES = {add:'dodał(a)', edit:'zmienił(a)', delete:'usunął/usunęła', status:'zmienił(a) status', pickup:'wydał(a) auto', return:'przyjął/przyjęła zwrot', role:'zmienił(a) rolę', import:'zaimportował(a)', done:'oznaczył(a) jako wykonane'};
 
 function labelFor(col, d){
@@ -18,6 +18,7 @@ function labelFor(col, d){
     case 'issues':    return `${d.title||''} · ${p}${d.status?' → '+(ISSUE_ST[d.status]||{}).l:''}`;
     case 'docs':      return `${d.kind||''} · ${p}`;
     case 'routes':    return `${d.code||''} · ${d.name||''}`;
+    case 'serviceEntries': return `${d.description||''} · ${p}`;
     case 'settings':  return d.monthly ? 'Budżet floty: '+zl(d.monthly)+' / mies.' : 'Budżet floty';
     case 'members':   return `${(ROLES[d.role]||{}).name || 'bez roli'} · ${(STATUS[d.status]||{}).l || ''}`;
     default: return d.label || '';

@@ -545,3 +545,8 @@ details.few summary{padding:12px 16px;cursor:pointer;color:var(--muted);font-wei
 .drv.off{opacity:.6}
 .crew-hist{margin-top:20px}
 .fx-prev{padding:8px 10px;background:var(--sunk);border-radius:8px}
+.checks{display:flex;flex-direction:column;gap:6px;max-height:180px;overflow:auto;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--sunk)}
+.svc-tags{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}.svc-tags:empty{display:none}
+.mini.svc{align-items:start}
+.mini.svc b{display:block}
+.mini.svc .sub{display:block;color:var(--muted);font-size:12.5px}

@@ -40,6 +40,7 @@ const FORMS = {
     {k:'kmDue',l:'Lub przy przebiegu (km)',t:'number'},
     {k:'intervalMonths',l:'Powtarzaj co (miesięcy)',t:'number',ph:'np. 12'},
     {k:'intervalKm',l:'Powtarzaj co (km)',t:'number',ph:'np. 15000'},
+    {k:'remindKm',l:'Przypomnij … km przed',t:'number',ph:'domyślnie 1000'},
     {k:'note',l:'Notatka',ph:'np. polisa nr, warsztat',full:1},
   ]},
   bookings: { title:['Nowa rezerwacja','Edytuj rezerwację'], fields: () => [
@@ -80,6 +81,19 @@ const FORMS = {
     ] : []),
     {k:'photos',t:'photos'},
   ]},
+  serviceEntries: { title:['Nowy wpis serwisowy','Edytuj wpis serwisowy'], fields: () => [
+    {k:'vehicleId',l:'Pojazd',t:'select',o:vehOpts(),req:1,full:1},
+    {k:'date',l:'Data',t:'date',req:1},
+    {k:'km',l:'Przebieg (km)',t:'number'},
+    {k:'workshop',l:'Warsztat',ph:'np. Auto-Serwis Kowalski'},
+    {k:'cost',l:'Koszt brutto (zł)',t:'number',step:'0.01',hint:'doda się sam do kosztów'},
+    {k:'description',l:'Co zrobiono',t:'textarea',req:1,full:1,ph:'np. wymiana oleju i filtrów, klocki przód'},
+    {k:'oilChange',l:'Wymiana oleju – następna za 12 000 km (przypomnienie 2 000 km wcześniej)',t:'check'},
+    {k:'deadlineId',l:'Odnów termin',t:'select',o:svcDeadlineOpts(),full:1},
+    {k:'issueIds',l:'Naprawione usterki',t:'checks',o:svcIssueOpts(),full:1},
+    {k:'note',l:'Uwagi',full:1},
+    {k:'file',l:'Faktura lub protokół (PDF albo zdjęcie, do 20 MB)',t:'file',full:1},
+  ]},
   routes: { title:['Nowa trasa','Edytuj trasę'], fields: () => [
     {k:'code',l:'Kod',req:1,ph:'np. R12'},
     {k:'name',l:'Nazwa',req:1,ph:'np. Wrocław – Praga'},
@@ -99,6 +113,7 @@ const DEFAULTS = {
   vehicles: () => ({status:'aktywny', fuel:'Diesel'}),
   drivers: () => ({active:true}),
   routes: () => ({active:true}),
+  serviceEntries: () => ({date: today()}),
   deadlines: () => ({type:'Przegląd techniczny', date: addDays(today(),30), intervalMonths:12}),
   bookings: () => ({from: today(), to: today(), driverId: P().bookings==='own' ? myDriverId() : ''}),
   costs: () => {
@@ -123,6 +138,21 @@ const FORM_VIEW = {
     const st = d.station || '', known = STATIONS.includes(st) && st!=='Inna';
     return {...d, currency: d.currency || 'PLN', amount: foreign ? (d.amountOrig ?? '') : d.amount, stationSel: !st ? '' : known ? st : 'Inna', stationOther: !st || known ? '' : st}; },
 };
+/* ---------- książka serwisowa: terminy i usterki auta wybranego w formularzu ---------- */
+const svcDeadlineOpts = () => [['','— nie odnawiaj —'], ...S.deadlines.slice().sort((a,b) => a.date<b.date?-1:1)
+  .map(d => [d.id, `${byId('vehicles', d.vehicleId)?.plate || ''} · ${d.type} · ${fdate(d.date)}${d.kmDue ? ' / '+km(d.kmDue) : ''}`, d.vehicleId])];
+const svcIssueOpts = () => { const keep = (editing && editing.base && editing.base.issueIds) || [];
+  return S.issues.filter(i => i.status!=='naprawione' || keep.includes(i.id)).sort((a,b) => a.date<b.date?1:-1)
+    .map(i => [i.id, `${fdate(i.date)} · ${i.title}${i.status==='naprawione' ? ' (naprawione)' : ''}`, i.vehicleId]); };
+function svcUi(e){
+  if (!editing || editing.col!=='serviceEntries') return;
+  const veh = $('#f-serviceEntries-vehicleId')?.value || '';
+  const sel = $('#f-serviceEntries-deadlineId');
+  if (sel){ const opts = svcDeadlineOpts(); [...sel.options].forEach((o, i) => { if (!i) return; const show = opts[i] && opts[i][2]===veh; o.hidden = !show; o.disabled = !show; });
+    if (sel.selectedOptions[0] && sel.selectedOptions[0].disabled) sel.value = ''; }
+  document.querySelectorAll('#f-serviceEntries-issueIds label').forEach(l => { const show = l.dataset.veh===veh; l.hidden = !show; if (!show) l.querySelector('input').checked = false; });
+  if (e && e.target && e.target.id==='f-serviceEntries-vehicleId'){ const v = byId('vehicles', veh); const k = $('#f-serviceEntries-km'); if (v && v.km && k && !k.value) k.value = v.km; }
+}
 const fxCache = {};
 async function fxRate(cur, date){
   const k = cur+':'+date;
@@ -165,11 +195,13 @@ function openForm(col, id, preset){
   const doc = id ? byId(col, id) : {...DEFAULTS[col](), ...(preset||{})};
   editing = {col, id: id||null, base: doc||{}};
   const vw = FORM_VIEW[col] ? FORM_VIEW[col](doc || {}) : doc;
-  if (col==='issues' && !id && preset && preset.vehicleId){ const v=byId('vehicles',preset.vehicleId); if (v && v.km) doc.km = v.km; }
+  if ((col==='issues' || col==='serviceEntries') && !id && preset && preset.vehicleId){ const v=byId('vehicles',preset.vehicleId); if (v && v.km) doc.km = v.km; }
   $('#dlg-title').textContent = cfg.title[id?1:0];
   $('#dlg-body').innerHTML = cfg.fields().map(f => {
     if (f.t==='photos') return photoField('f-'+col, (doc && doc.photos) || []);
     if (f.t==='html') return `<div class="field full" id="wrap-${col}-${f.k}">${f.html}</div>`;
+    if (f.t==='checks'){ const cur = (vw && vw[f.k]) || [];
+      return `<div class="field full" id="wrap-${col}-${f.k}"><span class="label">${esc(f.l)}</span><div class="checks" id="f-${col}-${f.k}">${f.o.map(([val, lab, veh]) => `<label class="check" data-veh="${esc(veh||'')}"><input type="checkbox" value="${esc(val)}" ${cur.includes(val)?'checked':''}> ${esc(lab)}</label>`).join('') || '<span class="muted small">Brak otwartych usterek.</span>'}</div></div>`; }
     if (f.t==='check') return `<div class="field full" id="wrap-${col}-${f.k}"><label class="check"><input id="f-${col}-${f.k}" type="checkbox" ${vw && vw[f.k] ? 'checked' : ''}> ${esc(f.l)}</label></div>`;
     const v = vw?.[f.k] ?? '';
     const fid = 'f-'+col+'-'+f.k;
@@ -190,6 +222,7 @@ function openForm(col, id, preset){
     const d = (b && b.driverId) || (v && v.driverId) || ''; const sel = $('#f-costs-driverId'); if (sel && d) sel.value = d;
   });
   if (col==='costs'){ $('#dialog').addEventListener('input', costFxUi); costFxUi(); }
+  if (col==='serviceEntries'){ $('#dialog').addEventListener('input', svcUi); svcUi(); }
   if (col==='deadlines') $('#f-deadlines-type')?.addEventListener('change', e => {
     const d = DL_INTERVALS[e.target.value]; if (!d) return;
     $('#f-deadlines-intervalMonths').value = d[0] ?? ''; $('#f-deadlines-intervalKm').value = d[1] ?? '';
@@ -209,7 +242,7 @@ function bookingCheck(){
   if (!msg && r && r.tacho && veh && !veh.hasTacho) msg = `Uwaga: trasa ${r.code} wymaga tachografu, a ${veh.plate} nie ma tachografu. Możesz zapisać – to tylko informacja.`;
   w.textContent=msg; w.hidden=!msg;
 }
-function closeForm(){ $('#scrim').hidden = true; editing = null; $('#dlg-save').textContent = 'Zapisz'; $('#dialog').removeEventListener('input', bookingCheck); $('#dialog').removeEventListener('input', costFxUi); }
+function closeForm(){ $('#scrim').hidden = true; editing = null; $('#dlg-save').textContent = 'Zapisz'; $('#dialog').removeEventListener('input', bookingCheck); $('#dialog').removeEventListener('input', costFxUi); $('#dialog').removeEventListener('input', svcUi); }
 
 $('#dialog').addEventListener('submit', async e => {
   e.preventDefault();
@@ -222,6 +255,7 @@ $('#dialog').addEventListener('submit', async e => {
   for (const f of fields){
     const el = $('#f-'+col+'-'+f.k);
     if (f.t==='photos' || f.t==='html') continue;
+    if (f.t==='checks'){ data[f.k] = [...el.querySelectorAll('input:checked')].map(i => i.value); continue; }
     if (f.t==='check'){ data[f.k] = !!el.checked; continue; }
     if (f.t==='file'){ file = el.files && el.files[0]; if (f.req && !file){ toast('Wybierz plik do wgrania'); return; } continue; }
     let v = el.value.trim();
@@ -283,6 +317,7 @@ $('#dialog').addEventListener('submit', async e => {
       for (const v of same) await db.collection('vehicles').doc(v.id).update({consGood: data.consGood, consOk: data.consOk});
       if (same.length) okMsg = `Zapisano – poziomy spalania ustawione także dla ${same.length} ${isPlural(same.length,'auta','aut','aut')} ${data.make} ${data.model}`;
     }
+    if (col==='serviceEntries'){ await Promise.all(['costs','issues','deadlines','vehicles'].map(refresh)); okMsg = 'Zapisano wpis serwisowy'; }
     if (col==='costs' && data.confirmStatus==='pending') okMsg = 'Zapisano – tankowanie czeka na potwierdzenie drugiego kierowcy';
     if (col==='costs' && data.odometer){
       const v = byId('vehicles', data.vehicleId);

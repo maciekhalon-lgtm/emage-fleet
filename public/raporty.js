@@ -144,6 +144,14 @@ async function exportXlsx(){
   const ws2 = X.utils.json_to_sheet(entries.length ? entries : [{'Informacja':'Brak kosztów w okresie'}]);
   ws2['!cols'] = [{wch:12},{wch:12},{wch:18},{wch:16},{wch:12},{wch:16},{wch:26},{wch:12},{wch:8},{wch:14},{wch:10},{wch:12},{wch:16},{wch:36},{wch:22}];
   X.utils.book_append_sheet(wb, ws2, 'Koszty');
+  if (P().service){
+    const se = S.serviceEntries.filter(x => x.date >= a && x.date <= b).sort((x,y) => x.date<y.date?-1:1).map(x => ({'Data': fdate(x.date), 'Rejestracja': byId('vehicles', x.vehicleId)?.plate || '',
+      'Przebieg (km)': x.km || '', 'Warsztat': x.workshop || '', 'Co zrobiono': x.description || '', 'Koszt brutto (zł)': x.cost ? Number(x.cost) : '', 'Wymiana oleju': x.oilChange ? 'tak' : '',
+      'Naprawione usterki': (x.issueIds||[]).map(id => byId('issues', id)?.title || '').filter(Boolean).join('; '), 'Uwagi': x.note || ''}));
+    const wsS = X.utils.json_to_sheet(se.length ? se : [{'Informacja':'Brak wpisów serwisowych w okresie'}]);
+    wsS['!cols'] = [{wch:12},{wch:12},{wch:13},{wch:22},{wch:44},{wch:16},{wch:13},{wch:36},{wch:24}];
+    X.utils.book_append_sheet(wb, wsS, 'Serwis');
+  }
   if (S.routes.length){
     const rr = routeReportRows(a, b).map(x => ({'Kod trasy': x.r ? x.r.code : 'bez trasy', 'Nazwa': x.r ? x.r.name : '', 'Dni pracy': x.days, 'Przejechane km': x.km || '',
       'Koszty brutto (zł)': +x.cost.toFixed(2), 'Paliwo (zł)': +x.fuelCost.toFixed(2), 'Paliwo (l)': +x.liters.toFixed(1), 'Spalanie orient. (l/100 km)': x.cons ? +x.cons.toFixed(1) : '', 'Koszt na km (zł)': x.perKm ? +x.perKm.toFixed(2) : ''}));

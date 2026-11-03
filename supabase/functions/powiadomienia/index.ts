@@ -62,7 +62,7 @@ export function itemsFor(p: Row, d: Data, today: string): {pri: number; text: st
       if (t.km_due && v.km){
         const left = t.km_due - v.km;
         if (left <= 0) out.push({pri: 0, text: `${v.plate}: ${t.type} – przebieg przekroczony o ${kmf(-left)}`});
-        else if (left <= 1000) out.push({pri: 1, text: `${v.plate}: ${t.type} za ${kmf(left)}`});
+        else if (left <= (t.remind_km || 1000)) out.push({pri: 1, text: `${v.plate}: ${t.type} za ${kmf(left)}`});
       }
     });
     d.issues.filter(i => i.status !== 'naprawione' && i.severity === 'stop')

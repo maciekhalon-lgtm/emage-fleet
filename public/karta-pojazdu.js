@@ -51,6 +51,12 @@ function viewCard(){
   const histHtml = hist.filter(h => h.d).sort((a,b) => a.d<b.d?1:a.d>b.d?-1:0).slice(0,40).map(h =>
     `<div class="tl"><span class="num muted">${fdate(h.d)}</span><span class="pill ${h.cls}">${esc(h.kind)}</span><span class="tl-txt">${h.txt}${h.extra?` <span class="muted">${h.extra}</span>`:''}</span><span class="num tl-amt">${h.amt||''}</span></div>`).join('');
 
+  const svc = S.serviceEntries.filter(x => x.vehicleId===v.id).sort((a,b) => a.date<b.date?1:a.date>b.date?-1:0);
+  const svcHtml = svc.map(x => `<div class="mini svc ${canEditDoc('serviceEntries',x)?'click':''}" ${canEditDoc('serviceEntries',x)?`data-edit="serviceEntries" data-id="${esc(x.id)}"`:''}>
+      <span class="num">${fdate(x.date)}${x.km ? `<span class="sub">${km(x.km)}</span>` : ''}</span>
+      <span style="min-width:0"><b>${esc(x.description)}</b><span class="sub">${[x.workshop, x.note].filter(Boolean).map(esc).join(' · ')}</span>
+        <span class="svc-tags">${x.oilChange ? '<span class="pill soon">olej</span>' : ''}${(x.issueIds||[]).length ? `<span class="pill ok">usterki: ${x.issueIds.length}</span>` : ''}${x.deadlineId && byId('deadlines', x.deadlineId) ? `<span class="pill info">${esc(byId('deadlines', x.deadlineId).type)}</span>` : ''}</span></span>
+      <span class="mini-r">${x.cost ? `<b class="num">${zl2(x.cost)}</b>` : ''}${x.assetId ? `<a class="btn small" data-file="${esc(x.assetId)}" href="#" target="_blank" rel="noopener">Faktura</a>` : ''}</span></div>`).join('');
   const sec = (title, btn, body, empty) => `<div class="panel"><div class="sec-head"><h3>${title}</h3>${btn||''}</div>${body || `<p class="muted sec-empty">${empty}</p>`}</div>`;
 
   return `<div class="section">
@@ -60,6 +66,7 @@ function viewCard(){
     <div class="facts">${facts}</div>
     <div class="grid2">
       <div class="section">
+        ${P().service ? sec('Książka serwisowa', add('serviceEntries','+ Wpis serwisowy'), svcHtml, 'Brak wpisów – zapisuj tu naprawy i wymiany: co zrobiono, przy jakim przebiegu, gdzie i za ile.') : ''}
         ${sec('Historia', add('costs','+ Koszt'), histHtml ? `<div class="tlist">${histHtml}</div>` : '', 'Brak wpisów – tu pojawią się koszty, usterki, naprawy i wyjazdy tego auta.')}
       </div>
       <div class="section">
