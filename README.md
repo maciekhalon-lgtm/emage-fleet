@@ -5,4 +5,7 @@ System zarządzania flotą firmy Emage Group.
 - `supabase/migrations/` – schemat bazy danych z regułami ról (Supabase, region Frankfurt)
 - `INSTRUKCJA-KONTA.md` – zakładanie kont i pierwszego administratora
 
-Aplikacja (PWA hostowane na Cloudflare Pages) zostanie dodana w kolejnym kroku.
+- `public/` – aplikacja (PWA), publikowana przez Cloudflare Pages
+- `URUCHOMIENIE.md` – co zrobić po wgraniu aplikacji (drugi skrypt bazy, adres strony, pierwszy administrator)
+
+Struktura aplikacji: `index.html` + `style.css`, wspólne moduły (`config.js`, `baza.js`, `auth.js`, `role.js`, `rdzen.js`, `formularz.js`, `app.js`) i osobny plik na każdą podstronę (`pojazdy.js`, `karta-pojazdu.js`, `terminy.js`, `usterki.js`, `rezerwacje.js`, `kalendarz.js`, `wydania.js`, `koszty.js`, `statystyki.js`, `raporty.js`, `historia.js`, `import.js`, `uzytkownicy.js`, `kierowca.js`).

@@ -1,0 +1,81 @@
+/* Emage FLEET — karta pojazdu: pełna historia i dokumenty jednego auta */
+'use strict';
+let cardId = null;
+const DOC_KINDS = ['Dowód rejestracyjny','Polisa OC','Polisa AC','Umowa leasingu','Faktura','Protokół przeglądu','Instrukcja','Inne'];
+const DOC_TYPES = ['application/pdf','image/png','image/jpeg','image/webp','image/gif'];
+
+function viewCard(){
+  const v = byId('vehicles', cardId);
+  if (!v){ cardId = null; return viewVehicles(); }
+  const st = vehicleState(v);
+  const t = today(), yr = t.slice(0,4);
+  const VC = visibleCosts().filter(c => c.vehicleId===v.id);
+  const yearCost = VC.filter(c => (c.date||'').startsWith(yr)).reduce((s,c) => s+Number(c.amount||0), 0);
+  const cons = consumption(v.id);
+  const add = (col, label) => canCreate(col) ? `<button class="small" data-new="${col}" data-veh="${esc(v.id)}">${label}</button>` : '';
+
+  const facts = [
+    ['Przebieg', km(v.km)], ['Rok', esc(v.year||'—')], ['Napęd', esc(v.fuel||'—')], ['Stały kierowca', v.driverId?esc(dName(v.driverId)):'—'],
+    ['VIN', `<span class="num">${esc(v.vin||'—')}</span>`], ['Śr. zużycie', cons ? cons.val.toFixed(1).replace('.',',')+' '+cons.unit : '—'],
+    [P().costs==='own'?'Moje koszty '+yr:'Koszty '+yr, zl(yearCost)], ['Status', `<span class="pill ${st.cls}">${esc(st.txt)}</span>`],
+  ].map(([l,val]) => `<div><span class="label">${l}</span><span class="fv">${val}</span></div>`).join('');
+
+  const dls = S.deadlines.filter(d => d.vehicleId===v.id).sort((a,b) => a.date<b.date?-1:1);
+  const dlHtml = dls.map(d => { const s = dlState(d); return `<div class="mini ${canEditDoc('deadlines',d)?'click':''}" ${canEditDoc('deadlines',d)?`data-edit="deadlines" data-id="${esc(d.id)}"`:''}><span class="num">${fdate(d.date)}</span><span>${esc(d.type)}</span><span class="pill ${s.cls}">${esc(s.txt)}</span></div>`; }).join('');
+
+  const iss = S.issues.filter(i => i.vehicleId===v.id).sort((a,b) => (a.status==='naprawione') - (b.status==='naprawione') || (a.date<b.date?1:-1)).slice(0,6);
+  needProfiles(iss.map(i => i.createdBy));
+
+  const bks = S.bookings.filter(b => b.vehicleId===v.id).map(b => ({b, s:bookingState(b)}))
+    .sort((x,y) => x.s.key-y.s.key || (x.s.key===2 ? (x.b.from<y.b.from?1:-1) : (x.b.from<y.b.from?-1:1)));
+  const bkShow = bks.filter(x => x.s.key<2).concat(bks.filter(x => x.s.key===2).slice(0,3));
+  const bkHtml = bkShow.map(({b,s}) => `<div class="mini ${canEditDoc('bookings',b)?'click':''}" ${canEditDoc('bookings',b)?`data-edit="bookings" data-id="${esc(b.id)}"`:''}><span class="num">${fdate(b.from)}${b.to!==b.from?'–'+fdate(b.to).slice(0,5):''}</span><span>${esc(dName(b.driverId))}${b.purpose?' · '+esc(b.purpose):''}</span><span class="mini-r"><span class="pill ${s.cls}">${s.txt}</span>${handoverBtn(b)}</span>${b.pickup?`<span class="mini-full">${handoverInfo(b)}</span>`:''}</div>`).join('');
+
+  const docs = S.docs.filter(d => d.vehicleId===v.id).sort((a,b) => String(a.kind).localeCompare(b.kind,'pl'));
+  const docHtml = docs.map(d => {
+    const exp = d.validUntil ? diffDays(t, d.validUntil) : null;
+    const pill = exp===null ? '' : exp<0 ? '<span class="pill bad">Nieważny</span>' : exp<=30 ? `<span class="pill warn">do ${fdate(d.validUntil)}</span>` : `<span class="pill off">do ${fdate(d.validUntil)}</span>`;
+    return `<div class="mini doc"><span class="doc-ico" aria-hidden="true">${d.contentType==='application/pdf'?'PDF':'IMG'}</span>
+      <span style="min-width:0"><b>${esc(d.kind)}</b><span class="sub">${esc(d.name||d.fileName||'')}</span></span>
+      <span class="doc-act">${pill}${d.assetId?`<a class="btn small" data-file="${esc(d.assetId)}" href="#" target="_blank" rel="noopener">Otwórz</a>`:''}${canEditDoc('docs',d)?`<button class="small ghost" data-edit="docs" data-id="${esc(d.id)}" aria-label="Edytuj dokument">Edytuj</button>`:''}</span></div>`;
+  }).join('');
+  const canUpload = canCreate('docs');
+
+  const hist = [];
+  VC.forEach(c => hist.push({d:c.date, kind:c.category, cls:'soon', txt:esc(c.note||''), amt:zl2(c.amount), extra:c.liters?String(c.liters).replace('.',',')+(c.category==='Ładowanie'?' kWh':' l'):''}));
+  S.issues.filter(i => i.vehicleId===v.id).forEach(i => {
+    hist.push({d:i.date, kind:'Usterka', cls:'bad', txt:esc(i.title)});
+    if (i.resolvedAt) hist.push({d:i.resolvedAt, kind:'Naprawa', cls:'ok', txt:esc(i.title)+(i.repairNote?' · '+esc(i.repairNote):'')});
+  });
+  S.bookings.filter(b => b.vehicleId===v.id && b.from<=t).forEach(b => hist.push({d:b.from, kind:'Rezerwacja', cls:'info', txt:esc(dName(b.driverId))+(b.purpose?' · '+esc(b.purpose):'')}));
+  const histHtml = hist.filter(h => h.d).sort((a,b) => a.d<b.d?1:a.d>b.d?-1:0).slice(0,40).map(h =>
+    `<div class="tl"><span class="num muted">${fdate(h.d)}</span><span class="pill ${h.cls}">${esc(h.kind)}</span><span class="tl-txt">${h.txt}${h.extra?` <span class="muted">${h.extra}</span>`:''}</span><span class="num tl-amt">${h.amt||''}</span></div>`).join('');
+
+  const sec = (title, btn, body, empty) => `<div class="panel"><div class="sec-head"><h3>${title}</h3>${btn||''}</div>${body || `<p class="muted sec-empty">${empty}</p>`}</div>`;
+
+  return `<div class="section">
+    <div class="bar"><button class="ghost" data-back="1">← Wszystkie pojazdy</button>
+      <div class="tools">${canEditDoc('vehicles',v)?`<button data-edit="vehicles" data-id="${esc(v.id)}">Edytuj dane</button>`:''}</div></div>
+    <div class="card-head">${plate(v.plate)}<div><h2>${esc(v.make)} ${esc(v.model)}</h2>${v.notes?`<span class="muted">${esc(v.notes)}</span>`:''}</div></div>
+    <div class="facts">${facts}</div>
+    <div class="grid2">
+      <div class="section">
+        ${sec('Historia', add('costs','+ Koszt'), histHtml ? `<div class="tlist">${histHtml}</div>` : '', 'Brak wpisów – tu pojawią się koszty, usterki, naprawy i wyjazdy tego auta.')}
+      </div>
+      <div class="section">
+        ${sec('Terminy', add('deadlines','+ Termin'), dlHtml, 'Brak zapisanych terminów.')}
+        ${sec('Usterki', add('issues','+ Zgłoś'), iss.length ? `<div class="dl">${iss.map(i => issueRow(i, false)).join('')}</div>` : '', 'Brak zgłoszonych usterek.')}
+        ${sec('Rezerwacje', add('bookings','+ Rezerwuj'), bkHtml, 'Brak rezerwacji.')}
+        ${sec('Dokumenty', canUpload ? `<button class="small" data-new="docs" data-veh="${esc(v.id)}">+ Dodaj plik</button>` : '', docHtml,
+          'Brak dokumentów – dodaj skan dowodu rejestracyjnego, polisy lub umowy (PDF albo zdjęcie).')}
+      </div>
+    </div>
+  </div>`;
+}
+
+async function uploadDocFile(file){
+  if (!assetsNS) throw {code:'no_assets'};
+  if (!DOC_TYPES.includes(file.type)) throw {code:'bad_type'};
+  if (file.size > 20*1024*1024) throw {code:'too_big'};
+  return assetsNS.upload(file, {type: file.type});
+}
