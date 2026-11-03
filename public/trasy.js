@@ -9,6 +9,16 @@ const routeOpts = () => { const keep = editing && editing.base ? editing.base.ro
   return [['','— bez trasy —'], ...S.routes.filter(r => r.active!==false || r.id===keep).sort((a, b) => String(a.code).localeCompare(b.code, 'pl', {numeric:true}))
     .map(r => [r.id, `${r.code} · ${r.name}${r.active===false ? ' (nieaktywna)' : ''}`])]; };
 
+/* Wybór trasy dla kierowcy: aktywne trasy + ta, która jest już wpisana */
+function routeSelect(id, cur, attrs = ''){
+  const list = S.routes.filter(r => r.active!==false || r.id===cur).sort((a, b) => String(a.code).localeCompare(b.code, 'pl', {numeric:true}));
+  return `<select id="${id}" ${attrs}><option value="">— bez trasy —</option>${list.map(r => `<option value="${esc(r.id)}" ${r.id===cur?'selected':''}>${esc(r.code)} · ${esc(r.name)}</option>`).join('')}</select>`;
+}
+document.addEventListener('change', async e => {
+  const bid = e.target.dataset && e.target.dataset.routeFor; if (!bid) return;
+  try { await db.collection('bookings').doc(bid).update({routeId: e.target.value || null}); toast(e.target.value ? 'Zmieniono trasę: ' + rLabel(e.target.value) : 'Usunięto trasę'); }
+  catch(err){ handleWriteErr(err); }
+});
 function viewRoutes(){
   const head = `<div class="bar"><h2>Trasy</h2><div class="tools">${canCreate('routes') ? `<button class="primary" data-new="routes">${ic('plus')}Dodaj trasę</button>` : ''}</div></div>`;
   if (!S.routes.length) return head + loadingOr('routes', emptyBlock('Brak tras',
