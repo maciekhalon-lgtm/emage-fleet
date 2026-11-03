@@ -361,3 +361,17 @@ a.tile.primary:hover{filter:brightness(.96);background:var(--accent)}
 .phone-edit input{max-width:240px}
 .pend{display:flex;gap:8px;align-items:center;flex-wrap:wrap;color:var(--warn);font-size:14px}
 @media (max-width:520px){.mydata{grid-template-columns:minmax(0,1fr)}}
+
+/* ---- podwójna obsada i ranking ---- */
+.confirms{border-color:var(--warn)}
+.confirm{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;padding:12px 14px;border-bottom:1px solid var(--line)}
+.confirm:last-child{border-bottom:0}
+.confirm .sub{display:block;color:var(--muted);font-size:13px}
+.disp{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.disp input{min-width:220px;max-width:100%}
+.lvbar{display:flex;height:10px;border-radius:5px;overflow:hidden;background:var(--sunk);border:1px solid var(--line)}
+.lvbar i{display:block;height:100%}
+.lvbar .vg{background:var(--ok)} .lvbar .gd{background:var(--accent)} .lvbar .wk{background:var(--bad)}
+td.rank{font-family:var(--f-display);font-weight:700;font-size:18px;color:var(--muted);width:32px}
+details.few{padding:0}
+details.few summary{padding:12px 14px;cursor:pointer;color:var(--muted);font-weight:600}

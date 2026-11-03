@@ -15,6 +15,9 @@ const FORMS = {
     {k:'driverId',l:'Stały kierowca',t:'select',o:drvOpts()},
     {k:'status',l:'Status',t:'select',o:[['aktywny','Aktywny'],['serwis','W serwisie'],['wycofany','Wycofany']]},
     {k:'monthlyLimit',l:'Limit kosztów / mies. (zł)',t:'number',ph:'np. 2500'},
+    {k:'consGood',l:'Spalanie bardzo dobre – do (l/100 km)',t:'number',step:'0.1',ph:'np. 9,5'},
+    {k:'consOk',l:'Spalanie dobre – do (l/100 km)',t:'number',step:'0.1',ph:'np. 11,0 (powyżej = słabe)'},
+    {k:'applyModel',l:'Zastosuj te poziomy spalania do wszystkich aut tego samego modelu',t:'check'},
     {k:'notes',l:'Notatki',t:'textarea',full:1},
   ]},
   drivers: { title:['Nowy kierowca','Edytuj kierowcę'], fields: () => [
@@ -160,8 +163,17 @@ $('#dialog').addEventListener('submit', async e => {
     data[f.k] = v;
   }
   if (col==='bookings' && data.to < data.from){ toast('Data końca jest przed początkiem'); return; }
+  if (col==='vehicles'){
+    if ((data.consGood && !data.consOk) || (!data.consGood && data.consOk)){ const w = $('#dlg-warn'); w.textContent = 'Podaj oba progi spalania albo żaden.'; w.hidden = false; return; }
+    if (data.consGood && data.consOk && data.consGood >= data.consOk){ const w = $('#dlg-warn'); w.textContent = 'Próg „bardzo dobre” musi być niższy niż próg „dobre”.'; w.hidden = false; return; }
+  }
   if (col==='costs'){
     if (P().costs==='own' && myDriverId()) data.driverId = myDriverId();
+    // podwójna obsada: tankowanie w trakcie wspólnego dnia pracy potwierdza drugi kierowca
+    if (P().costs==='own' && FUEL_CATS.includes(data.category) && !id){
+      const act = S.bookings.find(b => holds(b) && !b.returned && b.coDriverId && b.vehicleId===data.vehicleId && crewOf(b).includes(myDriverId()));
+      if (act){ data.coDriverId = act.driverId===myDriverId() ? act.coDriverId : act.driverId; data.confirmStatus = 'pending'; }
+    }
     if (FUEL_CATS.includes(data.category)){
       const w = $('#dlg-warn');
       if (!data.odometer){ w.textContent = 'Przy tankowaniu wpisz stan licznika – bez niego nie policzymy kilometrów ani spalania.'; w.hidden = false; $('#f-costs-odometer').focus(); return; }
@@ -187,12 +199,19 @@ $('#dialog').addEventListener('submit', async e => {
     }
     const ref = id ? db.collection(col).doc(id) : db.collection(col).doc();
     await ref.set(data);
+    let okMsg = '';
     logChange(editing && editing.renew ? 'done' : id ? 'edit' : 'add', col, {...data, id: ref.id});
+    if (col==='vehicles' && data.applyModel && data.consGood && data.consOk){
+      const same = S.vehicles.filter(v => v.id!==ref.id && String(v.make).trim().toUpperCase()===String(data.make).trim().toUpperCase() && String(v.model).trim().toUpperCase()===String(data.model).trim().toUpperCase());
+      for (const v of same) await db.collection('vehicles').doc(v.id).update({consGood: data.consGood, consOk: data.consOk});
+      if (same.length) okMsg = `Zapisano – poziomy spalania ustawione także dla ${same.length} ${isPlural(same.length,'auta','aut','aut')} ${data.make} ${data.model}`;
+    }
+    if (col==='costs' && data.confirmStatus==='pending') okMsg = 'Zapisano – tankowanie czeka na potwierdzenie drugiego kierowcy';
     if (col==='costs' && data.odometer){
       const v = byId('vehicles', data.vehicleId);
       if (v && (!v.km || data.odometer > v.km)) await refresh('vehicles');   // przebieg podnosi baza (wyzwalacz)
     }
-    closeForm(); toast(id ? 'Zapisano zmiany' : 'Dodano');
+    closeForm(); toast(okMsg || (id ? 'Zapisano zmiany' : 'Dodano'));
   } catch(err){ handleWriteErr(err); }
   finally { btn.disabled = false; }
 });

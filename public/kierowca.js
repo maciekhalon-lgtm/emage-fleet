@@ -1,6 +1,7 @@
 /* Emage FLEET — kierowca: ekran startowy, wybór auta, moje dane i statystyki */
 'use strict';
-const myActive = () => S.bookings.find(b => b.driverId===myDriverId() && b.pickup && !b.returned);
+const myActive = () => S.bookings.find(b => holds(b) && crewOf(b).includes(myDriverId()));
+const partnerOf = b => crewOf(b).find(d => d!==myDriverId());
 const meDriver = () => byId('drivers', myDriverId());
 /* Auto przydzielone przez kierownika: rezerwacja na dziś bez przejęcia albo auto stałe */
 function myAssigned(){
@@ -16,8 +17,8 @@ function takeState(v){
   if (v.status==='wycofany') return null;
   if (v.status==='serwis') return {ok:false, why:'w serwisie'};
   if (stopIssue(v.id)) return {ok:false, why:'niesprawne – usterka'};
-  const out = S.bookings.find(b => b.vehicleId===v.id && b.pickup && !b.returned);
-  if (out) return {ok:false, why: out.driverId===myDriverId() ? 'masz je teraz' : 'w użyciu – '+dName(out.driverId)};
+  const out = S.bookings.find(b => b.vehicleId===v.id && holds(b));
+  if (out) return {ok:false, why: crewOf(out).includes(myDriverId()) ? 'masz je teraz' : out.returned ? 'zdawanie – czeka na potwierdzenie' : 'w użyciu – '+crewName(out)};
   const res = S.bookings.find(b => b.vehicleId===v.id && !b.pickup && !b.returned && b.from<=t && b.to>=t && b.driverId!==myDriverId());
   if (res) return {ok:false, why:'zarezerwowane dziś dla: '+dName(res.driverId)};
   return {ok:true};
@@ -47,11 +48,16 @@ function viewMyCar(){
   const active = myActive();
   const hello = `<div class="hello"><h2>Dzień dobry, ${esc((me.full_name || '').split(' ')[0] || 'kierowco')}</h2><span class="muted">${fdate(today())}</span></div>`;
   let carTile;
-  if (active){
+  if (active && active.returned){
+    const v = byId('vehicles', active.vehicleId) || {};
+    carTile = `<div class="panel mycar"><div class="mycar-head">${plate(v.plate)}<div><h2>${esc(v.make||'')} ${esc(v.model||'')}</h2><span class="muted">Zdane ${fdate(active.returned.at)} przy ${km(active.returned.km)}</span></div><span class="pill warn">czeka na potwierdzenie</span></div>
+      <p class="muted" style="margin:0">${active.returned.by===myId ? `Zdanie musi jeszcze potwierdzić <b>${esc(dName(partnerOf(active)))}</b>. Do tego czasu auto jest zajęte.` : 'Potwierdź zdanie pojazdu w sekcji „Do potwierdzenia” powyżej.'}</p></div>`;
+  } else if (active){
     const v = byId('vehicles', active.vehicleId) || {};
     const since = v.km && active.pickup.km ? v.km - active.pickup.km : 0;
     carTile = `<div class="panel mycar">
       <div class="mycar-head">${plate(v.plate)}<div><h2>${esc(v.make||'')} ${esc(v.model||'')}</h2><span class="muted">Przejęte ${fdate(active.pickup.at)} przy ${km(active.pickup.km)}${since>0?' · od tego czasu '+km(since):''}</span></div><span class="pill info">Twoje auto</span></div>
+      ${active.coDriverId ? `<div class="mycar-booking"><span>Podwójna obsada: <b>${esc(crewName(active))}</b>${!active.pickupConfirmedAt ? ` · <span style="color:var(--warn)">przejęcie czeka na potwierdzenie (${esc(dName(active.coDriverId))})</span>` : ''}</span></div>` : ''}
       ${checklistSummary(active.pickup.checklist) ? `<div class="mycar-booking">${checklistSummary(active.pickup.checklist)}</div>` : ''}
       <div class="big-grid">
         ${big(`data-new="costs" data-veh="${esc(v.id)}"`, 'Zatankuj', 'litry, kwota, licznik')}
@@ -64,6 +70,7 @@ function viewMyCar(){
     carTile = `<a class="tile primary" href="#wybierz"><b>Wybierz auto</b><span>${asgOk ? `Czeka na Ciebie: ${esc(asg.vehicle.plate)} · ${esc(asg.vehicle.make)} ${esc(asg.vehicle.model)}` : 'Wybierz wolne auto na dziś, wypełnij checklistę i podaj przebieg'}</span></a>`;
   }
   return `<div class="section driver">${hello}${myExpiryNotes()}
+    ${toConfirmPanel()}
     ${carTile}
     <a class="tile" href="#moje-dane"><b>Moje dane i statystyki</b><span>Kilometry, spalanie, dni pracy, tankowania, zgłoszenia i dane kontaktowe</span></a>
   </div>`;
@@ -168,4 +175,50 @@ async function cancelRequest(id){
 document.addEventListener('click', e => {
   if (e.target.closest('[data-action="req-phone"]')) return requestPhone();
   const c = e.target.closest('[data-req-cancel]'); if (c) cancelRequest(c.dataset.reqCancel);
+});
+
+/* ---------- podwójna obsada: sprawy do potwierdzenia przez drugiego kierowcę ---------- */
+function myConfirmations(){
+  const me_ = myDriverId(), out = [];
+  const openDispute = (b, st) => b.disputeStage===st && !b.disputeResolvedAt;
+  S.bookings.forEach(b => {
+    if (!b.coDriverId || !crewOf(b).includes(me_)) return;
+    if (b.coDriverId===me_ && b.pickup && !b.pickupConfirmedAt && !openDispute(b,'pickup')) out.push({kind:'pickup', b});
+    if (b.returned && !b.returnConfirmedAt && b.returned.by!==myId && !openDispute(b,'return')) out.push({kind:'return', b});
+  });
+  S.costs.filter(c => c.coDriverId===me_ && c.confirmStatus==='pending').forEach(c => out.push({kind:'cost', c}));
+  return out;
+}
+let disputeOpen = null;
+function toConfirmPanel(){
+  const list = myConfirmations(); if (!list.length) return '';
+  const item = x => {
+    const key = x.kind + ':' + (x.b ? x.b.id : x.c.id);
+    let what;
+    if (x.kind==='pickup'){ const p = x.b.pickup; what = `<b>Przejęcie auta</b> ${vPlate(x.b.vehicleId)} przez ${esc(dName(x.b.driverId))}<span class="sub">Licznik ${km(p.km)} · paliwo ${fuelLabel(p.fuel)}</span>${checklistSummary(p.checklist)}`; }
+    else if (x.kind==='return'){ const r = x.b.returned; what = `<b>Zdanie pojazdu</b> ${vPlate(x.b.vehicleId)}<span class="sub">Licznik ${km(r.km)} · paliwo ${fuelLabel(r.fuel)}${x.b.pickup ? ' · przejechane '+km(r.km - x.b.pickup.km) : ''}</span>${r.note ? `<span class="sub">Uwagi: ${esc(r.note)}</span>` : ''}`; }
+    else { const c = x.c; what = `<b>Tankowanie</b> ${vPlate(c.vehicleId)} – wpisał(a) ${esc(dName(c.driverId))}<span class="sub">${fdate(c.date)} · ${String(c.liters).replace('.',',')} ${c.category==='Ładowanie'?'kWh':'l'} · ${zl2(c.amount)} · licznik ${km(c.odometer)}${c.full?' · do pełna':''}</span>`; }
+    const acts = disputeOpen===key
+      ? `<span class="disp"><input id="disp-note" type="text" placeholder="Co się nie zgadza? np. było 62 l" maxlength="300"><button class="small danger" data-disp-send="${esc(key)}">Wyślij do kierownika</button><button class="small ghost" data-disp-cancel="1">Anuluj</button></span>`
+      : `<button class="small primary" data-conf-ok="${esc(key)}">Potwierdzam</button><button class="small" data-conf-no="${esc(key)}">Nie zgadzam się</button>`;
+    return `<div class="confirm"><div style="min-width:0">${what}</div><div class="row-act">${acts}</div></div>`;
+  };
+  return `<div class="panel confirms"><div class="sec-head"><h3>Do potwierdzenia</h3><span class="pill warn">${list.length}</span></div>${list.map(item).join('')}</div>`;
+}
+async function confirmItem(key, accept, reason){
+  const [kind, id] = key.split(':');
+  const {error} = kind==='cost'
+    ? await sb.rpc('confirm_cost', {cost_id:id, accept, reason: reason || null})
+    : await sb.rpc('confirm_booking', {booking_id:id, stage:kind, accept, reason: reason || null});
+  if (error) return toast(dbErr(error).message || 'Nie udało się zapisać potwierdzenia');
+  disputeOpen = null;
+  await refresh(kind==='cost' ? 'costs' : 'bookings');
+  if (kind==='cost') await refresh('bookings');
+  toast(accept ? 'Potwierdzono' : 'Wysłano do kierownika floty');
+}
+document.addEventListener('click', e => {
+  const ok = e.target.closest('[data-conf-ok]'); if (ok) return confirmItem(ok.dataset.confOk, true);
+  const no = e.target.closest('[data-conf-no]'); if (no){ disputeOpen = no.dataset.confNo; render(); setTimeout(() => $('#disp-note')?.focus(), 30); return; }
+  const send = e.target.closest('[data-disp-send]'); if (send){ const n = ($('#disp-note')||{}).value?.trim() || ''; if (n.length < 3) return toast('Napisz krótko, co się nie zgadza'); return confirmItem(send.dataset.dispSend, false, n); }
+  if (e.target.closest('[data-disp-cancel]')){ disputeOpen = null; render(); }
 });

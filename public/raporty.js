@@ -143,11 +143,17 @@ async function exportXlsx(){
   ws2['!cols'] = [{wch:12},{wch:12},{wch:18},{wch:16},{wch:12},{wch:16},{wch:36},{wch:22}];
   X.utils.book_append_sheet(wb, ws2, 'Koszty');
   if (P().manage){
-    const ds = driverStats(a, b).map(r => ({'Kierowca': dName(r.driverId), 'Przejechane km': Math.round(r.km)||'', 'Tankowania': r.fills, 'Koszt paliwa (zł)': +r.fuelCost.toFixed(2),
-      'Spalanie vs średnia aut (%)': r.vs===null ? '' : Math.round(r.vs*100), 'Auta': r.vehicles.map(x => (byId('vehicles',x.vid)?.plate||'')+': '+(x.rate?x.rate.toFixed(1)+' '+x.unit:'—')).join('; ')}));
+    const pct = (r, k) => r.levelKm ? Math.round(r.lv[k] / r.levelKm * 100) : '';
+    const ds = driverStats(a, b).map(r => ({...r, ex: driverExtras(r.driverId, a, b)}))
+      .sort((x, y) => (y.km >= RANK_MIN_KM) - (x.km >= RANK_MIN_KM) || (y.score ?? -1) - (x.score ?? -1))
+      .map(r => ({'Kierowca': dName(r.driverId), 'Przejechane km': Math.round(r.km)||'', 'Dni pracy': r.ex.days, 'Wynik (0–100)': r.score ?? '',
+        'Km bardzo dobre (%)': pct(r,'vgood'), 'Km dobre (%)': pct(r,'good'), 'Km słabe (%)': pct(r,'weak'),
+        'Spalanie vs średnia aut (%)': r.vs===null ? '' : Math.round(r.vs*100), 'Spóźnione zdania': r.ex.late, 'Uwagi w checkliście': r.ex.ck, 'Zgłoszone usterki': r.ex.iss,
+        'Tankowania': r.fills, 'Koszt paliwa (zł)': +r.fuelCost.toFixed(2), 'W rankingu': r.km >= RANK_MIN_KM ? 'tak' : 'nie (< 300 km)',
+        'Auta': r.vehicles.map(x => (byId('vehicles',x.vid)?.plate||'')+': '+(x.rate?x.rate.toFixed(1)+' '+x.unit:'—')+(x.level?' ('+LEVELS[x.level].l+')':'')).join('; ')}));
     const ws3 = X.utils.json_to_sheet(ds.length ? ds : [{'Informacja':'Brak danych kierowców w okresie'}]);
-    ws3['!cols'] = [{wch:24},{wch:14},{wch:12},{wch:16},{wch:24},{wch:50}];
-    X.utils.book_append_sheet(wb, ws3, 'Kierowcy');
+    ws3['!cols'] = [{wch:24},{wch:14},{wch:10},{wch:12},{wch:16},{wch:12},{wch:12},{wch:22},{wch:14},{wch:16},{wch:14},{wch:11},{wch:15},{wch:16},{wch:60}];
+    X.utils.book_append_sheet(wb, ws3, 'Ranking kierowców');
   }
   const data = X.write(wb, {type:'array', bookType:'xlsx'});
   const tag = repMode==='year' ? repYear : repMonth;

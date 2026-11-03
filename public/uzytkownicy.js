@@ -4,6 +4,32 @@ const STATUS = {pending:{l:'Oczekuje', cls:'warn'}, active:{l:'Aktywne', cls:'ok
 const pendingUsers = () => profiles.filter(p => p.status==='pending');
 const pendingRequests = () => S.requests.filter(r => r.status==='pending');
 const FIELD_NAMES = {phone:'Telefon'};
+/* Spory w podwójnej obsadzie: drugi kierowca nie zgodził się z wpisem */
+const openDisputes = () => [
+  ...S.bookings.filter(b => b.disputeStage && !b.disputeResolvedAt).map(b => ({kind:'booking', b})),
+  ...S.costs.filter(c => c.confirmStatus==='disputed').map(c => ({kind:'cost', c})),
+];
+function disputesPanel(){
+  const list = openDisputes(); if (!list.length) return '';
+  return `<div class="panel"><div class="sec-head"><h3>Sporne wpisy w podwójnej obsadzie</h3><span class="pill bad">${list.length}</span></div>
+    ${list.map(x => x.kind==='booking' ? `<div class="mini"><span class="num">${fdate((x.b.disputeAt||'').slice(0,10))}</span>
+        <span><b>${x.b.disputeStage==='pickup' ? 'Przejęcie' : 'Zdanie'} ${esc(byId('vehicles', x.b.vehicleId)?.plate || '')}</b> · ${esc(crewName(x.b))}
+        <span class="sub">Licznik ${km((x.b.disputeStage==='pickup' ? x.b.pickup : x.b.returned)?.km)} · uwaga: „${esc(x.b.disputeNote || '')}”</span></span>
+        <span class="mini-r"><button class="small primary" data-disp-ok="booking:${esc(x.b.id)}">Zatwierdź</button>${x.b.disputeStage==='return' || x.b.disputeStage==='pickup' ? `<button class="small" data-edit="bookings" data-id="${esc(x.b.id)}">Szczegóły</button>` : ''}</span></div>`
+      : `<div class="mini"><span class="num">${fdate(x.c.date)}</span>
+        <span><b>Tankowanie ${esc(byId('vehicles', x.c.vehicleId)?.plate || '')}</b> · wpisał(a) ${esc(dName(x.c.driverId))}, nie zgadza się ${esc(dName(x.c.coDriverId))}
+        <span class="sub">${String(x.c.liters).replace('.',',')} l · ${zl2(x.c.amount)} · licznik ${km(x.c.odometer)} · uwaga: „${esc(x.c.disputeNote || '')}”</span></span>
+        <span class="mini-r"><button class="small" data-edit="costs" data-id="${esc(x.c.id)}">Popraw wpis</button><button class="small primary" data-disp-ok="cost:${esc(x.c.id)}">Zatwierdź</button></span></div>`).join('')}
+    <p class="muted small sec-empty">„Zatwierdź” przyjmuje wpis w obecnej postaci (po ewentualnej poprawce) i liczy go do statystyk. Zdane auto staje się wolne.</p></div>`;
+}
+async function resolveDispute(key){
+  const [kind, id] = key.split(':');
+  const {error} = await sb.rpc('resolve_dispute', {kind, item_id:id});
+  if (error) return toast(dbErr(error).message);
+  await refresh(kind==='cost' ? 'costs' : 'bookings'); toast('Rozstrzygnięto');
+}
+document.addEventListener('click', e => { const d = e.target.closest('[data-disp-ok]'); if (d) resolveDispute(d.dataset.dispOk); });
+
 function requestsPanel(){
   const list = pendingRequests(); if (!list.length) return '';
   return `<div class="panel"><div class="sec-head"><h3>Zmiany danych do akceptacji</h3><span class="pill warn">${list.length}</span></div>
@@ -60,6 +86,7 @@ function viewUsers(){
   }).join('');
   const pend = pendingUsers().length;
   return `<div class="section">
+    ${disputesPanel()}
     ${requestsPanel()}
     <div class="bar"><h2>Użytkownicy i role</h2>${pend ? `<span class="pill warn">${pend} ${isPlural(pend,'konto czeka','konta czekają','kont czeka')} na zatwierdzenie</span>` : ''}</div>
     <div class="panel tablewrap"><table><thead><tr><th>Osoba</th><th>Status</th><th>Rola</th><th>Powiązany kierowca</th><th></th></tr></thead>

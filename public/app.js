@@ -41,7 +41,7 @@ function render(){
   if ((tab==='uzytkownicy' && !manage) || (tab==='raporty' && !P().reports) || (tab==='historia' && !P().history)) tab = 'pojazdy';
   document.querySelectorAll('#tabs a').forEach(a => { if (a.dataset.tab===tab) a.setAttribute('aria-current','page'); else a.removeAttribute('aria-current'); });
   renderStrip(); renderNotices();
-  if (manage){ const pend = pendingUsers().length + pendingRequests().length; const cu=$('#c-uzytkownicy'); cu.textContent = pend; cu.classList.toggle('bad', pend>0); cu.hidden = !pend; }
+  if (manage){ const pend = pendingUsers().length + pendingRequests().length + openDisputes().length; const cu=$('#c-uzytkownicy'); cu.textContent = pend; cu.classList.toggle('bad', pend>0); cu.hidden = !pend; }
   if (tab==='uzytkownicy'){ $('#view').innerHTML = viewUsers(); updateCounts(); return; }
   updateCounts();
   const v = $('#view');
@@ -91,6 +91,7 @@ function renderStrip(){
 function renderNotices(){
   const n = $('#notices'); let h='';
   if (dbState==='slow') h += `<div class="notice err"><span>Nie udało się połączyć z bazą danych. Sprawdź internet – strona spróbuje ponownie sama.</span></div>`;
+  if (P().manage && openDisputes().length && tab!=='uzytkownicy') h += `<div class="notice err"><span>${openDisputes().length} ${isPlural(openDisputes().length,'sporny wpis','sporne wpisy','spornych wpisów')} w podwójnej obsadzie czeka na Twoją decyzję.</span><button class="small" data-go="uzytkownicy">Rozstrzygnij</button></div>`;
   if (P().manage && pendingRequests().length && tab!=='uzytkownicy') h += `<div class="notice"><span>${pendingRequests().length} ${isPlural(pendingRequests().length,'zmiana danych czeka','zmiany danych czekają','zmian danych czeka')} na akceptację.</span><button class="small" data-go="uzytkownicy">Sprawdź</button></div>`;
   if (P().manage && pendingUsers().length && tab!=='uzytkownicy') h += `<div class="notice"><span>${pendingUsers().length} ${isPlural(pendingUsers().length,'konto czeka','konta czekają','kont czeka')} na zatwierdzenie.</span><button class="small" data-go="uzytkownicy">Zatwierdź</button></div>`;
   if (P().reports && tab!=='raporty'){

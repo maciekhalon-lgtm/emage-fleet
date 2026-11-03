@@ -19,7 +19,7 @@ const canCreate = col => canWrite && ['rw','own'].includes(P()[col]);
 function mine(col, doc){
   if (!doc) return false;
   if (col==='costs' || col==='issues') return !!myId && doc.createdBy===myId;
-  if (col==='bookings') return (!!myId && doc.createdBy===myId) || (!!myDriverId() && doc.driverId===myDriverId());
+  if (col==='bookings') return (!!myId && doc.createdBy===myId) || (!!myDriverId() && (doc.driverId===myDriverId() || doc.coDriverId===myDriverId()));
   return false;
 }
 const canEditDoc = (col, doc) => canWrite && (P()[col]==='rw' || (P()[col]==='own' && mine(col, doc) && !(col==='issues' && doc.status && doc.status!=='nowe')));
