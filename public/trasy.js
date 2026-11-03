@@ -14,11 +14,28 @@ function routeSelect(id, cur, attrs = ''){
   const list = S.routes.filter(r => r.active!==false || r.id===cur).sort((a, b) => String(a.code).localeCompare(b.code, 'pl', {numeric:true}));
   return `<select id="${id}" ${attrs}><option value="">— bez trasy —</option>${list.map(r => `<option value="${esc(r.id)}" ${r.id===cur?'selected':''}>${esc(r.code)} · ${esc(r.name)}</option>`).join('')}</select>`;
 }
-document.addEventListener('change', async e => {
+/* Zmiana trasy na karcie auta – najpierw pytanie „czy na pewno” */
+document.addEventListener('change', e => {
   const bid = e.target.dataset && e.target.dataset.routeFor; if (!bid) return;
-  try { await db.collection('bookings').doc(bid).update({routeId: e.target.value || null}); toast(e.target.value ? 'Zmieniono trasę: ' + rLabel(e.target.value) : 'Usunięto trasę'); }
-  catch(err){ handleWriteErr(err); }
+  const b = byId('bookings', bid); if (!b) return;
+  const from = b.routeId || '', to = e.target.value || '';
+  e.target.value = from;   // bez potwierdzenia nic się nie zmienia
+  if (from===to) return;
+  editing = {col:'route-change', id: bid, base:{}, special: () => saveRouteChange(bid, to)};
+  $('#dlg-title').textContent = 'Zmiana trasy';
+  $('#dlg-body').innerHTML = `<div class="field full"><p style="margin:0">Czy na pewno zmienić trasę?</p>
+      <p style="margin:6px 0 0"><span class="muted">Teraz:</span> <b>${from ? esc(rLabel(from)) : 'bez trasy'}</b><br><span class="muted">Nowa:</span> <b>${to ? esc(rLabel(to)) : 'bez trasy'}</b></p>
+      ${routeById(to)?.tacho ? '<p class="muted small" style="margin:6px 0 0">Ta trasa wymaga tachografu.</p>' : ''}</div><div class="warnline" id="dlg-warn" hidden></div>`;
+  $('#dlg-save').textContent = 'Tak, zmień trasę';
+  $('#dlg-del').hidden = true;
+  $('#scrim').hidden = false;
 });
+async function saveRouteChange(bid, to){
+  const btn = $('#dlg-save'); btn.disabled = true;
+  try { await db.collection('bookings').doc(bid).update({routeId: to || null}); closeForm(); toast(to ? 'Zmieniono trasę: ' + rLabel(to) : 'Usunięto trasę'); }
+  catch(err){ handleWriteErr(err); }
+  finally { btn.disabled = false; }
+}
 function viewRoutes(){
   const head = `<div class="bar"><h2>Trasy</h2><div class="tools">${canCreate('routes') ? `<button class="primary" data-new="routes">${ic('plus')}Dodaj trasę</button>` : ''}</div></div>`;
   if (!S.routes.length) return head + loadingOr('routes', emptyBlock('Brak tras',
