@@ -32,21 +32,3 @@ create trigger bookings_one_driver before insert or update of pickup_km, return_
 drop policy if exists settings_select_push on public.settings;
 create policy settings_select_public on public.settings for select
   using (key in ('push', 'checklist') and public.is_active());
-
--- Wieczorne przypomnienie o zdaniu auta: kopia porannego harmonogramu z trybem "wieczor",
--- codziennie 17:00 UTC (18:00 zimą, 19:00 latem). Wymaga harmonogramu z kroku powiadomień.
-do $$
-declare cmd text;
-begin
-  if not exists (select 1 from pg_namespace where nspname = 'cron') then
-    raise notice 'Rozszerzenie pg_cron nie jest włączone – wieczorne przypomnienie pominięte.';
-    return;
-  end if;
-  select command into cmd from cron.job where jobname = 'emage-fleet-powiadomienia';
-  if cmd is null then
-    raise notice 'Brak porannego harmonogramu emage-fleet-powiadomienia – wieczorne przypomnienie pominięte.';
-  else
-    perform cron.unschedule(jobid) from cron.job where jobname = 'emage-fleet-wieczor';
-    perform cron.schedule('emage-fleet-wieczor', '0 17 * * *', replace(cmd, $q$'{}'::jsonb$q$, $q$'{"mode":"wieczor"}'::jsonb$q$));
-  end if;
-end $$;
