@@ -5,7 +5,7 @@ const sb = supabase.createClient(CONFIG.supabaseUrl, CONFIG.supabaseKey, {
 });
 
 /* nazwa w aplikacji → tabela w bazie */
-const TABLES = {vehicles:'vehicles', drivers:'drivers', deadlines:'deadlines', bookings:'bookings', costs:'costs', issues:'issues', docs:'documents', settings:'settings', members:'profiles'};
+const TABLES = {vehicles:'vehicles', drivers:'drivers', deadlines:'deadlines', bookings:'bookings', costs:'costs', issues:'issues', docs:'documents', settings:'settings', requests:'data_change_requests', members:'profiles'};
 const COL_OF = Object.fromEntries(Object.entries(TABLES).map(([a, b]) => [b, a]));
 
 /* pole w aplikacji → kolumna w bazie */
@@ -19,6 +19,7 @@ const FIELDS = {
   issues:    {vehicleId:'vehicle_id', repairNote:'repair_note', resolvedAt:'resolved_at'},
   docs:      {vehicleId:'vehicle_id', validUntil:'valid_until', assetId:'storage_path', fileName:'file_name', contentType:'content_type', size:'size_bytes'},
   members:   {driverId:'driver_id'},
+  requests:  {driverId:'driver_id', oldValue:'old_value', newValue:'new_value', decidedAt:'decided_at', decidedBy:'decided_by'},
 };
 /* kolumny, które aplikacja może zapisywać (reszta ustawia baza) */
 const WRITABLE = {
@@ -30,6 +31,7 @@ const WRITABLE = {
   issues:    ['id','vehicle_id','title','description','severity','status','date','km','repair_note','resolved_at','photos'],
   docs:      ['id','vehicle_id','kind','name','valid_until','storage_path','file_name','content_type','size_bytes'],
   settings:  ['key','value'],
+  requests:  ['id','driver_id','field','old_value','new_value','status'],
   members:   ['status','role','driver_id','approved_at','approved_by','full_name'],
 };
 const fieldMap = col => ({...FIELDS.common, ...(FIELDS[col] || {})});

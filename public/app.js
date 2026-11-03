@@ -1,7 +1,8 @@
 /* Emage FLEET — aplikacja: nawigacja, odświeżanie widoków i obsługa kliknięć */
 'use strict';
 /* ---------- routing ---------- */
-const TABS = ['moje','pojazdy','terminy','usterki','przydzial','koszty','raporty','historia','uzytkownicy'];
+const DRIVER_VIEWS = ['moje','wybierz','moje-dane'];
+const TABS = ['moje','wybierz','moje-dane','pojazdy','terminy','usterki','przydzial','koszty','raporty','historia','uzytkownicy'];
 const homeTab = () => P().mycar ? 'moje' : 'pojazdy';
 let pendingCard = null;
 let tab = 'pojazdy', q = '', costMonth = today().slice(0,7), dlFilter = 'all', assignView = 'kalendarz';
@@ -20,6 +21,17 @@ function render(){
     $('#view').innerHTML = !ready ? `<div class="panel empty"><p>Sprawdzanie uprawnień…</p></div>` : viewWaiting();
     return;
   }
+  if (P().mycar){
+    // kierowca: bez zakładek i paska podsumowania – ekran startowy i podstrony
+    $('#strip').hidden = true; $('#tabs').hidden = true;
+    if (!DRIVER_VIEWS.includes(tab)) tab = 'moje';
+    renderNotices();
+    const v = $('#view');
+    v.innerHTML = tab==='wybierz' ? viewPickCar() : tab==='moje-dane' ? viewMyData() : viewMyCar();
+    hydrateFiles(v);
+    return;
+  }
+  if (DRIVER_VIEWS.includes(tab)) tab = 'pojazdy';
   const manage = !!P().manage;
   $('#tab-users').hidden = !manage;
   $('#tab-moje').hidden = !P().mycar;
@@ -29,7 +41,7 @@ function render(){
   if ((tab==='uzytkownicy' && !manage) || (tab==='raporty' && !P().reports) || (tab==='historia' && !P().history)) tab = 'pojazdy';
   document.querySelectorAll('#tabs a').forEach(a => { if (a.dataset.tab===tab) a.setAttribute('aria-current','page'); else a.removeAttribute('aria-current'); });
   renderStrip(); renderNotices();
-  if (manage){ const pend = pendingUsers().length; const cu=$('#c-uzytkownicy'); cu.textContent = pend; cu.classList.toggle('bad', pend>0); cu.hidden = !pend; }
+  if (manage){ const pend = pendingUsers().length + pendingRequests().length; const cu=$('#c-uzytkownicy'); cu.textContent = pend; cu.classList.toggle('bad', pend>0); cu.hidden = !pend; }
   if (tab==='uzytkownicy'){ $('#view').innerHTML = viewUsers(); updateCounts(); return; }
   updateCounts();
   const v = $('#view');
@@ -79,6 +91,7 @@ function renderStrip(){
 function renderNotices(){
   const n = $('#notices'); let h='';
   if (dbState==='slow') h += `<div class="notice err"><span>Nie udało się połączyć z bazą danych. Sprawdź internet – strona spróbuje ponownie sama.</span></div>`;
+  if (P().manage && pendingRequests().length && tab!=='uzytkownicy') h += `<div class="notice"><span>${pendingRequests().length} ${isPlural(pendingRequests().length,'zmiana danych czeka','zmiany danych czekają','zmian danych czeka')} na akceptację.</span><button class="small" data-go="uzytkownicy">Sprawdź</button></div>`;
   if (P().manage && pendingUsers().length && tab!=='uzytkownicy') h += `<div class="notice"><span>${pendingUsers().length} ${isPlural(pendingUsers().length,'konto czeka','konta czekają','kont czeka')} na zatwierdzenie.</span><button class="small" data-go="uzytkownicy">Zatwierdź</button></div>`;
   if (P().reports && tab!=='raporty'){
     const la = limitAlerts();

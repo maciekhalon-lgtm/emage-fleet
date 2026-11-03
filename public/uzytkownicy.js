@@ -2,6 +2,25 @@
 'use strict';
 const STATUS = {pending:{l:'Oczekuje', cls:'warn'}, active:{l:'Aktywne', cls:'ok'}, blocked:{l:'Zablokowane', cls:'bad'}};
 const pendingUsers = () => profiles.filter(p => p.status==='pending');
+const pendingRequests = () => S.requests.filter(r => r.status==='pending');
+const FIELD_NAMES = {phone:'Telefon'};
+function requestsPanel(){
+  const list = pendingRequests(); if (!list.length) return '';
+  return `<div class="panel"><div class="sec-head"><h3>Zmiany danych do akceptacji</h3><span class="pill warn">${list.length}</span></div>
+    ${list.map(r => `<div class="mini"><span class="num">${fdate((r.createdAt||'').slice(0,10))}</span>
+      <span><b>${esc(dName(r.driverId))}</b> · ${esc(FIELD_NAMES[r.field]||r.field)}: <s class="muted">${esc(r.oldValue||'—')}</s> → <b>${esc(r.newValue)}</b></span>
+      <span class="mini-r"><button class="small primary" data-req-ok="${esc(r.id)}">Akceptuj</button><button class="small danger" data-req-no="${esc(r.id)}">Odrzuć</button></span></div>`).join('')}</div>`;
+}
+async function decideRequest(id, approve){
+  const {error} = await sb.rpc('decide_change_request', {request_id:id, approve});
+  if (error) return handleWriteErr(dbErr(error));
+  await refresh('requests'); await refresh('drivers');
+  toast(approve ? 'Zaakceptowano zmianę' : 'Odrzucono zmianę');
+}
+document.addEventListener('click', e => {
+  const a = e.target.closest('[data-req-ok],[data-req-no]'); if (!a) return;
+  if (a.dataset.reqOk) decideRequest(a.dataset.reqOk, true); else decideRequest(a.dataset.reqNo, false);
+});
 const pendingChoice = {};   // wybór roli/kierowcy dla oczekujących, zanim kliknie się „Zatwierdź”
 
 function viewWaiting(){
@@ -41,6 +60,7 @@ function viewUsers(){
   }).join('');
   const pend = pendingUsers().length;
   return `<div class="section">
+    ${requestsPanel()}
     <div class="bar"><h2>Użytkownicy i role</h2>${pend ? `<span class="pill warn">${pend} ${isPlural(pend,'konto czeka','konta czekają','kont czeka')} na zatwierdzenie</span>` : ''}</div>
     <div class="panel tablewrap"><table><thead><tr><th>Osoba</th><th>Status</th><th>Rola</th><th>Powiązany kierowca</th><th></th></tr></thead>
       <tbody>${rows || '<tr><td colspan="5" class="muted">Nikt się jeszcze nie zarejestrował. Wyślij pracownikom adres strony – po rejestracji pojawią się tutaj.</td></tr>'}</tbody></table></div>
