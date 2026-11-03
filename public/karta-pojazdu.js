@@ -16,7 +16,7 @@ function viewCard(){
 
   const facts = [
     ['Przebieg', km(v.km)], ['Rok', esc(v.year||'—')], ['Napęd', esc(v.fuel||'—')], ['Stały kierowca', v.driverId?esc(dName(v.driverId)):'—'],
-    ['VIN', `<span class="num">${esc(v.vin||'—')}</span>`], ['Numer polisy', esc(v.policyNo||'—')], ['Tachograf', v.hasTacho ? 'tak' : 'nie'], ['Śr. zużycie', cons ? cons.val.toFixed(1).replace('.',',')+' '+cons.unit : '—'],
+    ['VIN', `<span class="num">${esc(v.vin||'—')}</span>`], ['Numer polisy', esc(v.policyNo||'—')], ['Tachograf', v.hasTacho ? 'tak' : 'nie'], ...(P().service ? [['Inspekcja', (lastInspection(v.id) ? fdate(lastInspection(v.id).date)+' · ' : '')+`<span class="pill ${inspDue(v).cls}">${esc(inspDue(v).txt)}</span>`], ['Sprzątanie', (lastCleaning(v.id) ? fdate(lastCleaning(v.id).date)+' · ' : '')+`<span class="pill ${cleanDue(v).cls}">${esc(cleanDue(v).txt)}</span>`]] : []), ['Śr. zużycie', cons ? cons.val.toFixed(1).replace('.',',')+' '+cons.unit : '—'],
     [P().costs==='own'?'Moje koszty '+yr:'Koszty '+yr, zl(yearCost)], ['Status', `<span class="pill ${st.cls}">${esc(st.txt)}</span>`],
   ].map(([l,val]) => `<div><span class="label">${l}</span><span class="fv">${val}</span></div>`).join('');
 

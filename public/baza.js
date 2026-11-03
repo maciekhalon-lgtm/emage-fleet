@@ -5,13 +5,15 @@ const sb = supabase.createClient(CONFIG.supabaseUrl, CONFIG.supabaseKey, {
 });
 
 /* nazwa w aplikacji → tabela w bazie */
-const TABLES = {vehicles:'vehicles', drivers:'drivers', deadlines:'deadlines', bookings:'bookings', costs:'costs', issues:'issues', docs:'documents', settings:'settings', requests:'data_change_requests', crewChanges:'crew_changes', routes:'routes', serviceEntries:'service_entries', members:'profiles'};
+const TABLES = {vehicles:'vehicles', drivers:'drivers', deadlines:'deadlines', bookings:'bookings', costs:'costs', issues:'issues', docs:'documents', settings:'settings', requests:'data_change_requests', crewChanges:'crew_changes', routes:'routes', serviceEntries:'service_entries', inspections:'inspections', cleanings:'cleanings', members:'profiles'};
 const COL_OF = Object.fromEntries(Object.entries(TABLES).map(([a, b]) => [b, a]));
 
 /* pole w aplikacji → kolumna w bazie */
 const FIELDS = {
   common:    {createdBy:'created_by', createdAt:'created_at', updatedBy:'updated_by', updatedAt:'updated_at'},
-  vehicles:  {driverId:'driver_id', monthlyLimit:'monthly_limit', consGood:'cons_good', consOk:'cons_ok', policyNo:'policy_no', hasTacho:'has_tacho'},
+  vehicles:  {driverId:'driver_id', monthlyLimit:'monthly_limit', consGood:'cons_good', consOk:'cons_ok', policyNo:'policy_no', hasTacho:'has_tacho', lastClean:'last_clean'},
+  inspections: {vehicleId:'vehicle_id'},
+  cleanings: {vehicleId:'vehicle_id', driverId:'driver_id', decidedBy:'decided_by', decidedAt:'decided_at', rejectNote:'reject_note'},
   drivers:   {name:'full_name', licenseExpiry:'license_expiry', medicalExpiry:'medical_expiry', psychExpiry:'psych_expiry'},
   crewChanges: {vehicleId:'vehicle_id', bookingId:'booking_id', newBookingId:'new_booking_id', fromDriverId:'from_driver_id', fromCoDriverId:'from_co_driver_id', toDriverId:'to_driver_id'},
   deadlines: {vehicleId:'vehicle_id', kmDue:'km_due', intervalMonths:'interval_months', intervalKm:'interval_km', remindKm:'remind_km'},
@@ -29,6 +31,8 @@ const WRITABLE = {
   drivers:   ['id','full_name','phone','categories','license_expiry','medical_expiry','psych_expiry','active'],
   crewChanges: [],
   routes:    ['id','code','name','tacho','loading','active','note'],
+  inspections: ['id','vehicle_id','date','km','items','note','photos'],
+  cleanings: ['id','vehicle_id','date','kind','driver_id','note','photos','status','reject_note'],
   deadlines: ['id','vehicle_id','type','date','km_due','interval_months','interval_km','remind_km','note'],
   serviceEntries: ['id','vehicle_id','date','km','workshop','description','cost','oil_change','deadline_id','issue_ids','note','storage_path','file_name','content_type'],
   bookings:  ['id','vehicle_id','driver_id','date_from','date_to','purpose','route_id','pickup_at','pickup_km','pickup_fuel','pickup_note','pickup_photos','pickup_by','pickup_checklist','return_at','return_km','return_fuel','return_note','return_photos','return_by','co_driver_id'],
@@ -137,7 +141,7 @@ S.fuelAll = [];
 async function refresh(col){
   const table = TABLES[col]; if (!table) return;
   if ((col==='members' || col==='crewChanges') && !P().manage) return;
-  if (col==='serviceEntries' && !P().service) return;
+  if ((col==='serviceEntries' || col==='inspections') && !P().service) return;
   const {data, error} = await sb.from(table).select('*').limit(10000);
   if (error){ got[col] = true; return; }
   if (col==='members') profiles = data;

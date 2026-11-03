@@ -45,6 +45,12 @@ function attentionItems(serviceOnly){
       if (pr) out.push({w:3, html: attRow('info', '', `${pr} ${isPlural(pr,'zmiana danych','zmiany danych','zmian danych')} do akceptacji`, 'np. nowy numer telefonu kierowcy', `<button class="small" data-go="uzytkownicy">Sprawdź</button>`)});
       if (pu) out.push({w:3, html: attRow('info', '', `${pu} ${isPlural(pu,'nowe konto','nowe konta','nowych kont')} do zatwierdzenia`, 'nadaj rolę w Użytkownikach', `<button class="small" data-go="uzytkownicy">Zatwierdź</button>`)});
     }
+    if (P().manage){
+      const pc = pendingCleanings().length, oi = overdueInspections().length, oc = overdueCleanings().length;
+      if (pc) out.push({w:2, html: attRow('info', '', `${pc} ${isPlural(pc,'sprzątanie','sprzątania','sprzątań')} do potwierdzenia`, 'kierowcy zaznaczyli – potwierdź albo odrzuć', `<button class="small" data-go="kontrole">Sprawdź</button>`)});
+      if (oi) out.push({w:2, html: attRow('warn', '', `${oi} ${isPlural(oi,'auto','auta','aut')} bez inspekcji od ${checkSchedule().insp} dni`, overdueInspections().slice(0, 6).map(v => esc(v.plate)).join(', ') + (oi > 6 ? '…' : ''), `<button class="small" data-go="kontrole">Kontrole</button>`)});
+      if (oc) out.push({w:3, html: attRow('warn', '', `${oc} ${isPlural(oc,'auto','auta','aut')} do sprzątania`, `ostatnie sprzątanie ponad ${checkSchedule().clean} dni temu: ` + overdueCleanings().slice(0, 6).map(v => esc(v.plate)).join(', ') + (oc > 6 ? '…' : ''), `<button class="small" data-go="kontrole">Kontrole</button>`)});
+    }
     if (P().reports){
       const la = limitAlerts();
       if (la.fleet) out.push({w: la.fleet.over ? 1 : 3, html: attRow(la.fleet.over ? 'bad' : 'warn', '', la.fleet.over ? 'Budżet floty przekroczony' : 'Budżet floty blisko limitu', `${zl(la.fleet.sum)} z ${zl(la.fleet.lim)} w tym miesiącu`, `<button class="small ghost" data-go="raporty">Raporty</button>`)});

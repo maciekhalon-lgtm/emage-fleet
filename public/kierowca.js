@@ -62,10 +62,12 @@ function viewMyCar(){
       <div class="mycar-head">${plate(v.plate)}<div><h2>${esc(v.make||'')} ${esc(v.model||'')}</h2><span class="muted">Przejęte ${fdate(active.pickup.at)} przy ${km(active.pickup.km)}${since>0?' · od tego czasu '+km(since):''}</span></div><span class="pill info">Twoje auto</span>${v.hasTacho ? '<span class="pill off">tachograf</span>' : ''}</div>
       ${active.routeId ? `<div class="mycar-booking"><span>Trasa: <b>${esc(rLabel(active.routeId))}</b>${routeById(active.routeId)?.tacho ? ' · trasa wymaga tachografu' : ''}</span></div>` : ''}
       ${active.coDriverId ? `<div class="mycar-booking"><span>Podwójna obsada: <b>${esc(crewName(active))}</b>${!active.pickupConfirmedAt ? ` · <span style="color:var(--warn)">przejęcie czeka na potwierdzenie (${esc(dName(active.coDriverId))})</span>` : ''}</span></div>` : ''}
+      ${myCleaningNote(v.id)}
       ${checklistSummary(active.pickup.checklist) ? `<div class="mycar-booking">${checklistSummary(active.pickup.checklist)}</div>` : ''}
       <div class="big-grid">
         ${big(`data-new="costs" data-veh="${esc(v.id)}"`, 'Zatankuj', 'litry, kwota, licznik', '', 'fuel')}
         ${big(`data-new="issues" data-veh="${esc(v.id)}"`, 'Zgłoś usterkę', 'opis i zdjęcie', '', 'wrench')}
+        ${big(`data-new="cleanings" data-veh="${esc(v.id)}"`, 'Posprzątane / umyte', 'zaznacz – kierownik potwierdzi', 'wide', 'check')}
         ${big(`data-ho="return" data-id="${esc(active.id)}"`, 'Zdaj pojazd', 'koniec dnia: licznik, paliwo, uwagi', 'primary wide', 'key')}
       </div></div>`;
   } else if (meDriver() && meDriver().active===false){
