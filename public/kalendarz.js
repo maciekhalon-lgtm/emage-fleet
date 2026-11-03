@@ -19,7 +19,7 @@ function viewCalendar(){
     const bars = bs.map(b => {
       const s = Math.max(0, diffDays(calStart, b.from)), e = Math.min(CAL_DAYS-1, diffDays(calStart, b.to));
       const ed = canEditDoc('bookings', b);
-      const tip = `${dName(b.driverId)} · ${fdate(b.from)}–${fdate(b.to)}${b.purpose?' · '+b.purpose:''}`;
+      const tip = `${dName(b.driverId)} · ${fdate(b.from)}–${fdate(b.to)}${b.routeId?' · trasa '+rLabel(b.routeId):''}${b.purpose?' · '+b.purpose:''}`;
       return `<div class="cal-bar ${conf.has(b.id)?'bad':''} ${mine('bookings',b)?'mine':''} ${b.pickup&&!b.returned?'out':''} ${b.returned?'back':''}" style="grid-column:${s+1}/${e+2}" ${ed?`data-edit="bookings" data-id="${esc(b.id)}" tabindex="0"`:'data-noop="1"'} title="${esc(tip)}">${b.pickup&&!b.returned?'<i class="dot"></i>':''}<b>${esc(dName(b.driverId))}</b> <span>${esc(b.purpose||'')}</span></div>`;
     }).join('');
     const stop = stopIssue(v.id);

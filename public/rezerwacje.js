@@ -13,7 +13,7 @@ function viewAssign(){
         <td class="num"><b>${fdate(b.from)}</b>${b.to!==b.from?`<span class="sub">do ${fdate(b.to)}</span>`:''}</td>
         <td>${vPlate(b.vehicleId)}<span class="sub">${esc(vName(b.vehicleId))}</span></td>
         <td>${esc(dName(b.driverId))}${P().bookings==='own'&&mine('bookings',b)?' <span class="pill soon">Twoja</span>':''}</td>
-        <td style="min-width:200px">${esc(b.purpose||'')}${handoverInfo(b)}</td>
+        <td style="min-width:200px">${routePill(b.routeId)} ${esc(b.purpose||'')}${handoverInfo(b)}</td>
         <td>${conf.has(b.id)?'<span class="pill bad">Konflikt</span>':`<span class="pill ${s.cls}">${s.txt}</span>`} ${handoverBtn(b)}</td>
       </tr>`).join('')}</tbody></table></div>`;
   }

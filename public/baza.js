@@ -5,7 +5,7 @@ const sb = supabase.createClient(CONFIG.supabaseUrl, CONFIG.supabaseKey, {
 });
 
 /* nazwa w aplikacji → tabela w bazie */
-const TABLES = {vehicles:'vehicles', drivers:'drivers', deadlines:'deadlines', bookings:'bookings', costs:'costs', issues:'issues', docs:'documents', settings:'settings', requests:'data_change_requests', crewChanges:'crew_changes', members:'profiles'};
+const TABLES = {vehicles:'vehicles', drivers:'drivers', deadlines:'deadlines', bookings:'bookings', costs:'costs', issues:'issues', docs:'documents', settings:'settings', requests:'data_change_requests', crewChanges:'crew_changes', routes:'routes', members:'profiles'};
 const COL_OF = Object.fromEntries(Object.entries(TABLES).map(([a, b]) => [b, a]));
 
 /* pole w aplikacji → kolumna w bazie */
@@ -15,8 +15,8 @@ const FIELDS = {
   drivers:   {name:'full_name', licenseExpiry:'license_expiry', medicalExpiry:'medical_expiry', psychExpiry:'psych_expiry'},
   crewChanges: {vehicleId:'vehicle_id', bookingId:'booking_id', newBookingId:'new_booking_id', fromDriverId:'from_driver_id', fromCoDriverId:'from_co_driver_id', toDriverId:'to_driver_id'},
   deadlines: {vehicleId:'vehicle_id', kmDue:'km_due', intervalMonths:'interval_months', intervalKm:'interval_km'},
-  bookings:  {vehicleId:'vehicle_id', driverId:'driver_id', from:'date_from', to:'date_to', coDriverId:'co_driver_id', pickupConfirmedAt:'pickup_confirmed_at', returnConfirmedAt:'return_confirmed_at', disputeStage:'dispute_stage', disputeNote:'dispute_note', disputeAt:'dispute_at', disputeResolvedAt:'dispute_resolved_at'},
-  costs:     {vehicleId:'vehicle_id', driverId:'driver_id', full:'full_tank', coDriverId:'co_driver_id', confirmStatus:'confirm_status', confirmedAt:'confirmed_at', disputeNote:'dispute_note'},
+  bookings:  {vehicleId:'vehicle_id', driverId:'driver_id', routeId:'route_id', from:'date_from', to:'date_to', coDriverId:'co_driver_id', pickupConfirmedAt:'pickup_confirmed_at', returnConfirmedAt:'return_confirmed_at', disputeStage:'dispute_stage', disputeNote:'dispute_note', disputeAt:'dispute_at', disputeResolvedAt:'dispute_resolved_at'},
+  costs:     {vehicleId:'vehicle_id', driverId:'driver_id', routeId:'route_id', full:'full_tank', coDriverId:'co_driver_id', confirmStatus:'confirm_status', confirmedAt:'confirmed_at', disputeNote:'dispute_note'},
   issues:    {vehicleId:'vehicle_id', repairNote:'repair_note', resolvedAt:'resolved_at'},
   docs:      {vehicleId:'vehicle_id', validUntil:'valid_until', assetId:'storage_path', fileName:'file_name', contentType:'content_type', size:'size_bytes'},
   members:   {driverId:'driver_id'},
@@ -27,8 +27,9 @@ const WRITABLE = {
   vehicles:  ['id','plate','make','model','year','vin','fuel','km','driver_id','status','monthly_limit','notes','cons_good','cons_ok','policy_no'],
   drivers:   ['id','full_name','phone','categories','license_expiry','medical_expiry','psych_expiry','active'],
   crewChanges: [],
+  routes:    ['id','code','name','tacho','loading','active','note'],
   deadlines: ['id','vehicle_id','type','date','km_due','interval_months','interval_km','note'],
-  bookings:  ['id','vehicle_id','driver_id','date_from','date_to','purpose','pickup_at','pickup_km','pickup_fuel','pickup_note','pickup_photos','pickup_by','pickup_checklist','return_at','return_km','return_fuel','return_note','return_photos','return_by','co_driver_id'],
+  bookings:  ['id','vehicle_id','driver_id','date_from','date_to','purpose','route_id','pickup_at','pickup_km','pickup_fuel','pickup_note','pickup_photos','pickup_by','pickup_checklist','return_at','return_km','return_fuel','return_note','return_photos','return_by','co_driver_id'],
   costs:     ['id','date','vehicle_id','driver_id','category','amount','liters','odometer','full_tank','note','photos','co_driver_id','confirm_status'],
   issues:    ['id','vehicle_id','title','description','severity','status','date','km','repair_note','resolved_at','photos'],
   docs:      ['id','vehicle_id','kind','name','valid_until','storage_path','file_name','content_type','size_bytes'],
@@ -79,7 +80,7 @@ const CHECK_MSG = {
 function dbErr(e){
   const msg = e && e.message || '';
   if (e && (e.code==='42501' || /row-level security/i.test(msg))) return {code:'invalid_argument', message:msg};
-  if (e && e.code==='23505') return {code:'duplicate', message: /plate/.test(msg) ? 'Pojazd o takim numerze rejestracyjnym już jest w ewidencji.' : 'Taki wpis już istnieje.'};
+  if (e && e.code==='23505') return {code:'duplicate', message: /plate/.test(msg) ? 'Pojazd o takim numerze rejestracyjnym już jest w ewidencji.' : /routes_code/.test(msg) ? 'Trasa o takim kodzie już istnieje.' : 'Taki wpis już istnieje.'};
   if (e && (e.code==='23514' || e.code==='P0001')){
     const c = Object.keys(CHECK_MSG).find(k => msg.includes(k));
     return {code:'check', message: c ? CHECK_MSG[c] : msg};

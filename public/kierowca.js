@@ -60,6 +60,7 @@ function viewMyCar(){
     const since = v.km && active.pickup.km ? v.km - active.pickup.km : 0;
     carTile = `<div class="panel mycar">
       <div class="mycar-head">${plate(v.plate)}<div><h2>${esc(v.make||'')} ${esc(v.model||'')}</h2><span class="muted">Przejęte ${fdate(active.pickup.at)} przy ${km(active.pickup.km)}${since>0?' · od tego czasu '+km(since):''}</span></div><span class="pill info">Twoje auto</span></div>
+      ${active.routeId ? `<div class="mycar-booking"><span>Trasa: <b>${esc(rLabel(active.routeId))}</b>${routeById(active.routeId)?.tacho ? ' · <span class="pill info">tachograf</span>' : ''}</span></div>` : ''}
       ${active.coDriverId ? `<div class="mycar-booking"><span>Podwójna obsada: <b>${esc(crewName(active))}</b>${!active.pickupConfirmedAt ? ` · <span style="color:var(--warn)">przejęcie czeka na potwierdzenie (${esc(dName(active.coDriverId))})</span>` : ''}</span></div>` : ''}
       ${checklistSummary(active.pickup.checklist) ? `<div class="mycar-booking">${checklistSummary(active.pickup.checklist)}</div>` : ''}
       <div class="big-grid">
@@ -90,7 +91,7 @@ function viewPickCar(){
   const asgOk = asg && asg.vehicle && takeState(asg.vehicle) && takeState(asg.vehicle).ok;
   const asgHtml = asgOk ? `<div class="panel mycar assigned">
       <span class="label">${asg.booking ? 'Kierownik przydzielił Ci na dziś' : 'Twoje auto stałe'}</span>
-      <div class="mycar-head">${plate(asg.vehicle.plate)}<div><h2>${esc(asg.vehicle.make)} ${esc(asg.vehicle.model)}</h2><span class="muted">Ostatni stan licznika: ${km(lastKm(asg.vehicle.id))}${asg.booking && asg.booking.purpose ? ' · '+esc(asg.booking.purpose) : ''}</span></div></div>
+      <div class="mycar-head">${plate(asg.vehicle.plate)}<div><h2>${esc(asg.vehicle.make)} ${esc(asg.vehicle.model)}</h2><span class="muted">Ostatni stan licznika: ${km(lastKm(asg.vehicle.id))}${asg.booking && asg.booking.routeId ? ' · trasa '+esc(rLabel(asg.booking.routeId)) : ''}${asg.booking && asg.booking.purpose ? ' · '+esc(asg.booking.purpose) : ''}</span></div></div>
       <div class="big-grid">${asg.booking ? big(`data-ho="pickup" data-id="${esc(asg.booking.id)}"`, 'Przyjmij auto', 'checklista i przebieg', 'primary wide', 'key') : big(`data-take="${esc(asg.vehicle.id)}"`, 'Przyjmij auto', 'checklista i przebieg', 'primary wide', 'key')}</div>
     </div>` : '';
   const list = S.vehicles.filter(v => !asgOk || v.id!==asg.vehicle.id)

@@ -2,7 +2,7 @@
 'use strict';
 /* ---------- routing ---------- */
 const DRIVER_VIEWS = ['moje','wybierz','moje-dane'];
-const TABS = ['moje','wybierz','moje-dane','pulpit','pojazdy','terminy','usterki','przydzial','koszty','raporty','historia','uzytkownicy'];
+const TABS = ['moje','wybierz','moje-dane','pulpit','pojazdy','trasy','terminy','usterki','przydzial','koszty','raporty','historia','uzytkownicy'];
 const homeTab = () => P().mycar ? 'moje' : 'pulpit';
 let pendingCard = null;
 let tab = 'pulpit', q = '', costMonth = today().slice(0,7), dlFilter = 'all', assignView = 'kalendarz';
@@ -35,11 +35,11 @@ function render(){
   }
   if (DRIVER_VIEWS.includes(tab)) tab = 'pulpit';
   const manage = !!P().manage;
-  $('#tab-users').hidden = !manage; $('#grp-adm').hidden = !manage;
+  $('#tab-users').hidden = !manage; $('#grp-adm').hidden = !manage; $('#tab-routes').hidden = !manage;
   $('#tab-reports').hidden = !P().reports;
   $('#tab-history').hidden = !P().history;
   $('#grp-an').hidden = !P().reports && !P().history;
-  if ((tab==='uzytkownicy' && !manage) || (tab==='raporty' && !P().reports) || (tab==='historia' && !P().history)) tab = 'pulpit';
+  if ((tab==='uzytkownicy' && !manage) || (tab==='trasy' && !manage) || (tab==='raporty' && !P().reports) || (tab==='historia' && !P().history)) tab = 'pulpit';
   document.querySelectorAll('#tabs a, #bottombar a').forEach(a => { if (a.dataset.tab===tab) a.setAttribute('aria-current','page'); else a.removeAttribute('aria-current'); });
   renderNotices();
   if (manage){ const pend = pendingUsers().length + pendingRequests().length + openDisputes().length; const cu=$('#c-uzytkownicy'); cu.textContent = pend; cu.classList.toggle('bad', pend>0); cu.hidden = !pend; }
@@ -47,6 +47,7 @@ function render(){
   updateCounts();
   const v = $('#view');
   if (tab==='pulpit') v.innerHTML = viewDashboard();
+  else if (tab==='trasy') v.innerHTML = viewRoutes();
   else if (tab==='pojazdy') v.innerHTML = cardId ? viewCard() : viewVehicles();
   else if (tab==='terminy') v.innerHTML = viewDeadlines();
   else if (tab==='usterki') v.innerHTML = viewIssues();

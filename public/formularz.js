@@ -46,7 +46,8 @@ const FORMS = {
     {k:'driverId',l:'Kierowca',t:'select',o: P().bookings==='own' ? drvOpts('— wybierz kierowcę —').filter(([id])=>id===myDriverId()) : drvOpts('— wybierz kierowcę —'),req:1,full:1},
     {k:'from',l:'Od',t:'date',req:1},
     {k:'to',l:'Do',t:'date',req:1},
-    {k:'purpose',l:'Cel / trasa',full:1,ph:'np. Klient w Gnieźnie'},
+    ...(P().bookings==='rw' ? [{k:'routeId',l:'Trasa',t:'select',o:routeOpts(),full:1}] : []),
+    {k:'purpose',l:'Cel / uwagi',full:1,ph:'np. Klient w Gnieźnie'},
   ]},
   costs: { title:['Nowy koszt','Edytuj koszt'], fields: () => [
     {k:'date',l:'Data',t:'date',req:1},
@@ -73,6 +74,14 @@ const FORMS = {
     ] : []),
     {k:'photos',t:'photos'},
   ]},
+  routes: { title:['Nowa trasa','Edytuj trasę'], fields: () => [
+    {k:'code',l:'Kod',req:1,ph:'np. R12'},
+    {k:'name',l:'Nazwa',req:1,ph:'np. Wrocław – Praga'},
+    {k:'tacho',l:'Wymaga tachografu (tylko informacja)',t:'check'},
+    {k:'loading',l:'Trasa załadunkowa',t:'check'},
+    {k:'active',l:'Aktywna (można ją przypisywać)',t:'check'},
+    {k:'note',l:'Notatka',t:'textarea',full:1},
+  ]},
   docs: { title:['Dodaj dokument','Edytuj dokument'], fields: () => [
     {k:'kind',l:'Rodzaj',t:'select',o:DOC_KINDS.map(k=>[k,k]),req:1},
     {k:'validUntil',l:'Ważny do',t:'date'},
@@ -83,6 +92,7 @@ const FORMS = {
 const DEFAULTS = {
   vehicles: () => ({status:'aktywny', fuel:'Diesel'}),
   drivers: () => ({active:true}),
+  routes: () => ({active:true}),
   deadlines: () => ({type:'Przegląd techniczny', date: addDays(today(),30), intervalMonths:12}),
   bookings: () => ({from: today(), to: today(), driverId: P().bookings==='own' ? myDriverId() : ''}),
   costs: () => {

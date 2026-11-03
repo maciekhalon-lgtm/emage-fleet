@@ -65,7 +65,7 @@ function fleetNowCard(){
   const rows = list.slice(0, 8).map(b => {
     const st = bookingState(b), v = byId('vehicles', b.vehicleId) || {};
     const since = v.km && b.pickup.km ? v.km - b.pickup.km : 0;
-    return `<div class="fl-row" data-card-go="${esc(b.vehicleId)}" tabindex="0">${vPlate(b.vehicleId)}<div class="att-t"><b>${esc(crewName(b))}</b><span class="sub">od ${fdate(b.pickup.at)}${since > 0 ? ' · ' + km(since) : ''}</span></div><span class="pill ${st.cls}" title="${esc(st.txt)}">${st.cls==='warn' ? 'Do potwierdzenia' : st.cls==='bad' ? 'Nie zdane' : b.coDriverId ? 'Obsada' : 'W trasie'}</span></div>`;
+    return `<div class="fl-row" data-card-go="${esc(b.vehicleId)}" tabindex="0">${vPlate(b.vehicleId)}<div class="att-t"><b>${esc(crewName(b))}</b><span class="sub">${b.routeId ? esc(rLabel(b.routeId)) + ' · ' : ''}od ${fdate(b.pickup.at)}${since > 0 ? ' · ' + km(since) : ''}</span></div><span class="pill ${st.cls}" title="${esc(st.txt)}">${st.cls==='warn' ? 'Do potwierdzenia' : st.cls==='bad' ? 'Nie zdane' : b.coDriverId ? 'Obsada' : 'W trasie'}</span></div>`;
   }).join('');
   return card('Flota teraz', list.length ? list.length + ' w trasie' : 'w trasie',
     rows ? `<div class="fl">${rows}</div>${list.length > 8 ? `<p class="muted small more">i ${list.length - 8} więcej – zobacz Rezerwacje.</p>` : ''}` : '<p class="muted sec-empty">Żadne auto nie jest teraz w trasie.</p>');
