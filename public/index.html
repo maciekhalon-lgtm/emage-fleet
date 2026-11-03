@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex">
-<meta name="theme-color" content="#0e131a">
+<meta name="theme-color" content="#f3f4f7">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Emage FLEET">
@@ -14,50 +14,70 @@
 <link rel="apple-touch-icon" href="ikona-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@600;700&family=Onest:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="style.css">
+<script src="motyw.js"></script>
 </head>
 <body>
 <div class="auth" id="auth" hidden>
   <div class="auth-card">
-    <div class="auth-brand"><h1 class="wordmark"><span>Emage</span> <b>FLEET</b></h1><small>Flota firmowa Emage Group</small></div>
-    <form id="auth-form" novalidate></form>
+    <div class="auth-brand">
+      <div><h1 class="wordmark"><span>Emage</span> <b>FLEET</b></h1><p>Flota firmowa Emage Group. Przejęcie auta, tankowania, usterki i rozliczenia w jednym miejscu.</p></div>
+      <div class="road" aria-hidden="true"><i></i><i></i></div>
+    </div>
+    <div class="auth-side">
+      <button type="button" class="ghost icon auth-theme" data-action="theme-toggle" aria-label="Zmień motyw"></button>
+      <form id="auth-form" novalidate></form>
+    </div>
   </div>
 </div>
 
-<div class="wrap" id="app" hidden>
-  <header class="top">
-    <div class="brand">
-      <div class="brand-mark" aria-hidden="true">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M3 15.5V12l2-5h10l3.5 5H21v3.5" stroke="#f0b429" stroke-width="2" stroke-linejoin="round"/><circle cx="7.5" cy="16.5" r="2" fill="#f0b429"/><circle cx="16.5" cy="16.5" r="2" fill="#f0b429"/></svg>
-      </div>
-      <div><h1 class="wordmark"><span>Emage</span> <b>FLEET</b></h1><small>Flota firmowa Emage Group</small></div>
+<div class="shell" id="app" hidden>
+  <aside class="side" id="side" aria-label="Menu">
+    <div class="side-brand"><span class="wordmark"><span>Emage</span> <b>FLEET</b></span><button type="button" class="ghost icon side-close" data-action="nav-close" aria-label="Zamknij menu"></button></div>
+    <nav class="nav" id="tabs" aria-label="Sekcje">
+      <a href="#pulpit" data-tab="pulpit" data-ic="home">Pulpit</a>
+      <a href="#pojazdy" data-tab="pojazdy" data-ic="truck">Pojazdy <span class="count" id="c-pojazdy">0</span></a>
+      <a href="#przydzial" data-tab="przydzial" data-ic="cal">Rezerwacje <span class="count" id="c-przydzial">0</span></a>
+      <a href="#terminy" data-tab="terminy" data-ic="clip">Terminy <span class="count" id="c-terminy">0</span></a>
+      <a href="#usterki" data-tab="usterki" data-ic="wrench">Usterki <span class="count" id="c-usterki">0</span></a>
+      <a href="#koszty" data-tab="koszty" data-ic="fuel">Koszty i paliwo</a>
+      <span class="grp" id="grp-an">Analiza</span>
+      <a href="#raporty" data-tab="raporty" id="tab-reports" data-ic="chart" hidden>Raporty</a>
+      <a href="#historia" data-tab="historia" id="tab-history" data-ic="hist" hidden>Historia</a>
+      <span class="grp" id="grp-adm">Administracja</span>
+      <a href="#uzytkownicy" data-tab="uzytkownicy" id="tab-users" data-ic="users" hidden>Użytkownicy <span class="count" id="c-uzytkownicy" hidden></span></a>
+    </nav>
+    <div class="side-foot">
+      <div class="theme-sw" role="group" aria-label="Motyw"><button type="button" data-theme-set="light"></button><button type="button" data-theme-set="dark"></button></div>
+      <div class="who" id="who" hidden></div>
+      <div class="sync" id="sync"><i></i><span>Łączenie…</span></div>
     </div>
-    <div class="top-right"><div class="who" id="who" hidden></div><div class="sync" id="sync"><i></i><span>Łączenie…</span></div></div>
-  </header>
+  </aside>
+  <div class="nav-scrim" data-action="nav-close"></div>
 
-  <div id="notices"></div>
+  <div class="main">
+    <header class="mtop">
+      <span class="wordmark"><span>Emage</span> <b>FLEET</b></span>
+      <div class="mtop-r" id="mtop-r"></div>
+    </header>
+    <div id="notices"></div>
+    <section class="strip" id="strip" aria-label="Podsumowanie"></section>
+    <main id="view"></main>
+  </div>
 
-  <section class="strip" id="strip" aria-label="Podsumowanie"></section>
-
-  <nav class="tabs" id="tabs" aria-label="Sekcje">
-    <a href="#moje" data-tab="moje" id="tab-moje" hidden>Moje auto</a>
-    <a href="#pojazdy" data-tab="pojazdy">Pojazdy <span class="count" id="c-pojazdy">0</span></a>
-    <a href="#terminy" data-tab="terminy">Terminy <span class="count" id="c-terminy">0</span></a>
-    <a href="#usterki" data-tab="usterki">Usterki <span class="count" id="c-usterki">0</span></a>
-    <a href="#przydzial" data-tab="przydzial">Przydział i rezerwacje <span class="count" id="c-przydzial">0</span></a>
-    <a href="#koszty" data-tab="koszty">Koszty i paliwo</a>
-    <a href="#raporty" data-tab="raporty" id="tab-reports" hidden>Raporty</a>
-    <a href="#historia" data-tab="historia" id="tab-history" hidden>Historia</a>
-    <a href="#uzytkownicy" data-tab="uzytkownicy" id="tab-users" hidden>Użytkownicy <span class="count" id="c-uzytkownicy" hidden></span></a>
+  <nav class="bottombar" id="bottombar" aria-label="Szybkie menu">
+    <a href="#pulpit" data-tab="pulpit" data-ic="home">Pulpit</a>
+    <a href="#pojazdy" data-tab="pojazdy" data-ic="truck">Pojazdy</a>
+    <a href="#przydzial" data-tab="przydzial" data-ic="cal">Rezerwacje</a>
+    <a href="#usterki" data-tab="usterki" data-ic="wrench">Usterki</a>
+    <button type="button" data-action="nav-open" data-ic="menu">Więcej</button>
   </nav>
-
-  <main id="view"></main>
 </div>
 
 <div class="scrim" id="scrim" hidden>
   <form class="dialog" id="dialog" role="dialog" aria-modal="true" aria-labelledby="dlg-title" novalidate>
-    <header><h2 id="dlg-title">Formularz</h2><button type="button" class="ghost" data-action="close" aria-label="Zamknij">✕</button></header>
+    <header><h2 id="dlg-title">Formularz</h2><button type="button" class="ghost icon" data-action="close" aria-label="Zamknij"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></header>
     <div class="body" id="dlg-body"></div>
     <footer>
       <button type="button" class="danger" id="dlg-del" hidden>Usuń</button>
@@ -86,6 +106,7 @@
 <script src="import.js"></script>
 <script src="uzytkownicy.js"></script>
 <script src="kierowca.js"></script>
+<script src="pulpit.js"></script>
 <script src="powiadomienia.js"></script>
 <script src="app.js"></script>
 <script src="baza.js"></script>

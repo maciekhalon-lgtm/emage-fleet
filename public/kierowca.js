@@ -23,8 +23,8 @@ function takeState(v){
   if (res) return {ok:false, why:'zarezerwowane dziś dla: '+dName(res.driverId)};
   return {ok:true};
 }
-const big = (attrs, label, sub, cls = '') => `<button class="big ${cls}" ${attrs}><b>${label}</b><span>${sub}</span></button>`;
-const backBtn = () => `<div class="bar"><a class="btn ghost" href="#moje">← Wróć</a></div>`;
+const big = (attrs, label, sub, cls = '', icon = '') => `<button class="big ${cls}" ${attrs}>${icon ? ic(icon) : ''}<b>${label}</b><span>${sub}</span></button>`;
+const backBtn = () => `<div class="bar"><a class="btn ghost" href="#moje">${ic('back')}Wróć</a></div>`;
 
 /* Ostrzeżenie o kończącej się ważności prawa jazdy lub badań (30 dni) */
 function myExpiryNotes(){
@@ -46,7 +46,7 @@ function notLinked(){
 function viewMyCar(){
   if (!myDriverId()) return notLinked();
   const active = myActive();
-  const hello = `<div class="hello"><h2>Dzień dobry, ${esc((me.full_name || '').split(' ')[0] || 'kierowco')}</h2><span class="muted">${fdate(today())}</span></div>`;
+  const hello = `<div class="hello"><h2>Dzień dobry, ${esc((me.full_name || '').split(' ')[0] || 'kierowco')}</h2><span class="muted">${esc(new Date().toLocaleDateString('pl-PL', {weekday:'long', day:'numeric', month:'long'}))}</span></div>`;
   let carTile;
   if (active && active.returned){
     const v = byId('vehicles', active.vehicleId) || {};
@@ -60,19 +60,19 @@ function viewMyCar(){
       ${active.coDriverId ? `<div class="mycar-booking"><span>Podwójna obsada: <b>${esc(crewName(active))}</b>${!active.pickupConfirmedAt ? ` · <span style="color:var(--warn)">przejęcie czeka na potwierdzenie (${esc(dName(active.coDriverId))})</span>` : ''}</span></div>` : ''}
       ${checklistSummary(active.pickup.checklist) ? `<div class="mycar-booking">${checklistSummary(active.pickup.checklist)}</div>` : ''}
       <div class="big-grid">
-        ${big(`data-new="costs" data-veh="${esc(v.id)}"`, 'Zatankuj', 'litry, kwota, licznik')}
-        ${big(`data-new="issues" data-veh="${esc(v.id)}"`, 'Zgłoś usterkę', 'opis i zdjęcie')}
-        ${big(`data-ho="return" data-id="${esc(active.id)}"`, 'Zdaj pojazd', 'koniec dnia: licznik, paliwo, uwagi', 'primary')}
+        ${big(`data-new="costs" data-veh="${esc(v.id)}"`, 'Zatankuj', 'litry, kwota, licznik', '', 'fuel')}
+        ${big(`data-new="issues" data-veh="${esc(v.id)}"`, 'Zgłoś usterkę', 'opis i zdjęcie', '', 'wrench')}
+        ${big(`data-ho="return" data-id="${esc(active.id)}"`, 'Zdaj pojazd', 'koniec dnia: licznik, paliwo, uwagi', 'primary wide', 'key')}
       </div></div>`;
   } else {
     const asg = myAssigned();
     const asgOk = asg && asg.vehicle && takeState(asg.vehicle) && takeState(asg.vehicle).ok;
-    carTile = `<a class="tile primary" href="#wybierz"><b>Wybierz auto</b><span>${asgOk ? `Czeka na Ciebie: ${esc(asg.vehicle.plate)} · ${esc(asg.vehicle.make)} ${esc(asg.vehicle.model)}` : 'Wybierz wolne auto na dziś, wypełnij checklistę i podaj przebieg'}</span></a>`;
+    carTile = `<a class="tile primary" href="#wybierz"><span class="t-ic">${ic('key')}</span><span class="t-txt"><b>Wybierz auto</b><span>${asgOk ? `Czeka na Ciebie: ${esc(asg.vehicle.plate)} · ${esc(asg.vehicle.make)} ${esc(asg.vehicle.model)}` : 'Wybierz wolne auto na dziś, wypełnij checklistę i podaj przebieg'}</span></span>${ic('chev','chev')}</a>`;
   }
   return `<div class="section driver">${hello}${myExpiryNotes()}
     ${toConfirmPanel()}
     ${carTile}
-    <a class="tile" href="#moje-dane"><b>Moje dane i statystyki</b><span>Kilometry, spalanie, dni pracy, tankowania, zgłoszenia i dane kontaktowe</span></a>
+    <a class="tile" href="#moje-dane"><span class="t-ic">${ic('chart')}</span><span class="t-txt"><b>Moje dane i statystyki</b><span>Kilometry, spalanie, dni pracy, tankowania, zgłoszenia i dane kontaktowe</span></span>${ic('chev','chev')}</a>
   </div>`;
 }
 
@@ -85,7 +85,7 @@ function viewPickCar(){
   const asgHtml = asgOk ? `<div class="panel mycar assigned">
       <span class="label">${asg.booking ? 'Kierownik przydzielił Ci na dziś' : 'Twoje auto stałe'}</span>
       <div class="mycar-head">${plate(asg.vehicle.plate)}<div><h2>${esc(asg.vehicle.make)} ${esc(asg.vehicle.model)}</h2><span class="muted">Ostatni stan licznika: ${km(lastKm(asg.vehicle.id))}${asg.booking && asg.booking.purpose ? ' · '+esc(asg.booking.purpose) : ''}</span></div></div>
-      <div class="big-grid">${asg.booking ? big(`data-ho="pickup" data-id="${esc(asg.booking.id)}"`, 'Przyjmij auto', 'checklista i przebieg', 'primary') : big(`data-take="${esc(asg.vehicle.id)}"`, 'Przyjmij auto', 'checklista i przebieg', 'primary')}</div>
+      <div class="big-grid">${asg.booking ? big(`data-ho="pickup" data-id="${esc(asg.booking.id)}"`, 'Przyjmij auto', 'checklista i przebieg', 'primary wide', 'key') : big(`data-take="${esc(asg.vehicle.id)}"`, 'Przyjmij auto', 'checklista i przebieg', 'primary wide', 'key')}</div>
     </div>` : '';
   const list = S.vehicles.filter(v => !asgOk || v.id!==asg.vehicle.id)
     .map(v => ({v, st: takeState(v)})).filter(x => x.st)

@@ -2,11 +2,11 @@
 'use strict';
 /* ---------- routing ---------- */
 const DRIVER_VIEWS = ['moje','wybierz','moje-dane'];
-const TABS = ['moje','wybierz','moje-dane','pojazdy','terminy','usterki','przydzial','koszty','raporty','historia','uzytkownicy'];
-const homeTab = () => P().mycar ? 'moje' : 'pojazdy';
+const TABS = ['moje','wybierz','moje-dane','pulpit','pojazdy','terminy','usterki','przydzial','koszty','raporty','historia','uzytkownicy'];
+const homeTab = () => P().mycar ? 'moje' : 'pulpit';
 let pendingCard = null;
-let tab = 'pojazdy', q = '', costMonth = today().slice(0,7), dlFilter = 'all', assignView = 'kalendarz';
-function route(){ const h = location.hash.slice(1); tab = TABS.includes(h) ? h : homeTab(); cardId = pendingCard; pendingCard = null; render(); window.scrollTo(0,0); }
+let tab = 'pulpit', q = '', costMonth = today().slice(0,7), dlFilter = 'all', assignView = 'kalendarz';
+function route(){ const h = location.hash.slice(1); tab = TABS.includes(h) ? h : homeTab(); cardId = pendingCard; pendingCard = null; $('#app').classList.remove('nav-open'); render(); window.scrollTo(0,0); }
 window.addEventListener('hashchange', route);
 
 /* ---------- render ---------- */
@@ -15,7 +15,10 @@ function render(){
   renderWho(role);
   const ready = !!me;
   const gate = !role;
-  $('#strip').hidden = gate; $('#tabs').hidden = gate;
+  const shell = $('#app');
+  shell.classList.toggle('bare', gate || !!P().mycar);
+  $('#strip').hidden = true;
+  renderTop(role);
   if (gate){
     renderNotices();
     $('#view').innerHTML = !ready ? `<div class="panel empty"><p>Sprawdzanie uprawnień…</p></div>` : viewWaiting();
@@ -23,7 +26,6 @@ function render(){
   }
   if (P().mycar){
     // kierowca: bez zakładek i paska podsumowania – ekran startowy i podstrony
-    $('#strip').hidden = true; $('#tabs').hidden = true;
     if (!DRIVER_VIEWS.includes(tab)) tab = 'moje';
     renderNotices();
     const v = $('#view');
@@ -31,21 +33,20 @@ function render(){
     hydrateFiles(v);
     return;
   }
-  if (DRIVER_VIEWS.includes(tab)) tab = 'pojazdy';
+  if (DRIVER_VIEWS.includes(tab)) tab = 'pulpit';
   const manage = !!P().manage;
-  $('#tab-users').hidden = !manage;
-  $('#tab-moje').hidden = !P().mycar;
-  if (tab==='moje' && !P().mycar) tab = 'pojazdy';
+  $('#tab-users').hidden = !manage; $('#grp-adm').hidden = !manage;
   $('#tab-reports').hidden = !P().reports;
   $('#tab-history').hidden = !P().history;
-  if ((tab==='uzytkownicy' && !manage) || (tab==='raporty' && !P().reports) || (tab==='historia' && !P().history)) tab = 'pojazdy';
-  document.querySelectorAll('#tabs a').forEach(a => { if (a.dataset.tab===tab) a.setAttribute('aria-current','page'); else a.removeAttribute('aria-current'); });
-  renderStrip(); renderNotices();
+  $('#grp-an').hidden = !P().reports && !P().history;
+  if ((tab==='uzytkownicy' && !manage) || (tab==='raporty' && !P().reports) || (tab==='historia' && !P().history)) tab = 'pulpit';
+  document.querySelectorAll('#tabs a, #bottombar a').forEach(a => { if (a.dataset.tab===tab) a.setAttribute('aria-current','page'); else a.removeAttribute('aria-current'); });
+  renderNotices();
   if (manage){ const pend = pendingUsers().length + pendingRequests().length + openDisputes().length; const cu=$('#c-uzytkownicy'); cu.textContent = pend; cu.classList.toggle('bad', pend>0); cu.hidden = !pend; }
   if (tab==='uzytkownicy'){ $('#view').innerHTML = viewUsers(); updateCounts(); return; }
   updateCounts();
   const v = $('#view');
-  if (tab==='moje') v.innerHTML = viewMyCar();
+  if (tab==='pulpit') v.innerHTML = viewDashboard();
   else if (tab==='pojazdy') v.innerHTML = cardId ? viewCard() : viewVehicles();
   else if (tab==='terminy') v.innerHTML = viewDeadlines();
   else if (tab==='usterki') v.innerHTML = viewIssues();
@@ -68,29 +69,23 @@ function renderWho(role){
   const el = $('#who');
   if (!me){ el.hidden = true; return; }
   el.hidden = false;
-  el.innerHTML = `<b>${esc(me.full_name || me.email)}</b><span class="pill ${role?'info':'off'}">${role?esc(ROLES[role].name):'Bez roli'}</span>${role ? '<button class="small ghost" data-action="push-open" title="Powiadomienia">Powiadomienia</button>' : ''}<button class="small ghost" data-action="logout">Wyloguj</button>`;
+  const name = me.full_name || me.email || '';
+  const ini = name.split(/[\s@.]+/).filter(Boolean).slice(0,2).map(x => x[0].toUpperCase()).join('');
+  el.innerHTML = `<span class="ava">${esc(ini)}</span><div class="who-t"><b>${esc(name)}</b><span>${role?esc(ROLES[role].name):'Bez roli'}</span></div>
+    <div class="who-act">${role ? `<button type="button" class="ghost icon" data-action="push-open" title="Powiadomienia" aria-label="Powiadomienia">${ic('bell')}</button>` : ''}<button type="button" class="ghost icon" data-action="logout" title="Wyloguj" aria-label="Wyloguj">${ic('out')}</button></div>`;
 }
-
-function renderStrip(){
-  const active = S.vehicles.filter(v => v.status!=='wycofany');
-  const avail = active.filter(v => vehicleState(v).cls==='ok').length;
-  const inUse = active.filter(v => vehicleState(v).cls==='info').length;
-  const svc = active.filter(v => v.status==='serwis' || vehicleState(v).cls==='bad').length;
-  const over = S.deadlines.filter(d => dlState(d).d <= 0).length;
-  const soon = S.deadlines.filter(d => { const x=dlState(d).d; return x>0 && x<=30; }).length;
-  const m = today().slice(0,7);
-  const own = P().costs==='own';
-  const mc = visibleCosts().filter(c => (c.date||'').startsWith(m)).reduce((s,c)=>s+Number(c.amount||0),0);
-  $('#strip').innerHTML = `
-    <button class="stat" data-go="pojazdy"><span class="label">Pojazdy</span><b>${active.length}</b><span class="sub">${avail} dostępne · ${inUse} w użyciu · ${svc} w serwisie lub niesprawne</span></button>
-    <button class="stat ${over?'bad':''}" data-go="terminy" data-dl="over"><span class="label">Po terminie / dziś</span><b>${over}</b><span class="sub">${over?'wymagają reakcji':'wszystko na czas'}</span></button>
-    <button class="stat ${soon?'warn':''}" data-go="terminy" data-dl="soon"><span class="label">Terminy w 30 dni</span><b>${soon}</b><span class="sub">przeglądy, polisy, serwisy</span></button>
-    <button class="stat" data-go="koszty"><span class="label">${own?'Moje koszty':'Koszty'} – ${MONTHS_FULL[Number(m.slice(5))-1]}</span><b>${zl(mc)}</b><span class="sub">${own?'Twoje wpisy, brutto':'brutto, wszystkie pojazdy'}</span></button>`;
+/* Nagłówek na telefonie (i zawsze u kierowcy): motyw, powiadomienia, wylogowanie */
+function renderTop(role){
+  const t = currentTheme()==='dark' ? 'sun' : 'moon';
+  $('#mtop-r').innerHTML = `<button type="button" class="ghost icon" data-action="theme-toggle" aria-label="Zmień motyw" title="Zmień motyw">${ic(t)}</button>`
+    + (role ? `<button type="button" class="ghost icon" data-action="push-open" aria-label="Powiadomienia" title="Powiadomienia">${ic('bell')}</button>` : '')
+    + `<button type="button" class="ghost icon" data-action="logout" aria-label="Wyloguj" title="Wyloguj">${ic('out')}</button>`;
 }
 
 function renderNotices(){
   const n = $('#notices'); let h='';
   if (dbState==='slow') h += `<div class="notice err"><span>Nie udało się połączyć z bazą danych. Sprawdź internet – strona spróbuje ponownie sama.</span></div>`;
+  if (tab==='pulpit' && !P().mycar){ n.innerHTML = h; return; }   // na Pulpicie wszystko jest w „Wymaga uwagi”
   if (P().manage && openDisputes().length && tab!=='uzytkownicy') h += `<div class="notice err"><span>${openDisputes().length} ${isPlural(openDisputes().length,'sporny wpis','sporne wpisy','spornych wpisów')} w podwójnej obsadzie czeka na Twoją decyzję.</span><button class="small" data-go="uzytkownicy">Rozstrzygnij</button></div>`;
   if (P().manage && pendingRequests().length && tab!=='uzytkownicy') h += `<div class="notice"><span>${pendingRequests().length} ${isPlural(pendingRequests().length,'zmiana danych czeka','zmiany danych czekają','zmian danych czeka')} na akceptację.</span><button class="small" data-go="uzytkownicy">Sprawdź</button></div>`;
   if (P().manage && pendingUsers().length && tab!=='uzytkownicy') h += `<div class="notice"><span>${pendingUsers().length} ${isPlural(pendingUsers().length,'konto czeka','konta czekają','kont czeka')} na zatwierdzenie.</span><button class="small" data-go="uzytkownicy">Zatwierdź</button></div>`;
@@ -105,7 +100,7 @@ function renderNotices(){
 
 function emptyBlock(title, text, btn, extra='', col=''){
   const show = btn && (col ? canCreate(col) : canWrite);
-  return `<div class="panel empty"><h3>${title}</h3><p>${text}</p><div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center">${show?btn:''}${extra}</div></div>`;
+  return `<div class="panel empty"><h3>${title}</h3><p>${text}</p><div class="empty-act">${show?btn:''}${extra}</div></div>`;
 }
 function loadingOr(col, html){ return (!got[col] && db) ? `<div class="panel empty"><p>Wczytywanie danych…</p></div>` : html; }
 
@@ -136,7 +131,7 @@ document.addEventListener('click', e => {
   if (t.dataset.dlf){ dlFilter = t.dataset.dlf; render(); return; }
 });
 document.addEventListener('keydown', e => {
-  if ((e.key==='Enter'||e.key===' ') && e.target.matches('.dl-row,.drv,.is-row,.cal-bar,tr[data-card]')){ e.preventDefault(); e.target.click(); }
+  if ((e.key==='Enter'||e.key===' ') && e.target.matches('.dl-row,.drv,.is-row,.cal-bar,tr[data-card],.fl-row')){ e.preventDefault(); e.target.click(); }
 });
 document.addEventListener('input', e => {
   if (e.target.id==='search'){ q = e.target.value; const pos=e.target.selectionStart; render(); const s=$('#search'); s.focus(); s.setSelectionRange(pos,pos); }
@@ -151,3 +146,22 @@ document.addEventListener('change', e => {
   if (e.target.dataset.drvFor) setDriverLink(e.target.dataset.drvFor, e.target.value);
 });
 
+
+/* ---------- wygląd: ikony w menu, motyw, menu na telefonie ---------- */
+document.querySelectorAll('[data-ic]').forEach(el => el.insertAdjacentHTML('afterbegin', ic(el.dataset.ic)));
+document.querySelectorAll('[data-theme-set]').forEach(b => { const d = b.dataset.themeSet==='dark'; b.innerHTML = ic(d?'moon':'sun') + (d?'Ciemny':'Jasny'); });
+document.querySelectorAll('.side-close').forEach(b => b.innerHTML = ic('x'));
+function syncThemeUi(){
+  const t = currentTheme();
+  document.querySelectorAll('[data-theme-set]').forEach(b => b.setAttribute('aria-pressed', b.dataset.themeSet===t));
+  document.querySelectorAll('[data-action="theme-toggle"]').forEach(b => b.innerHTML = ic(t==='dark'?'sun':'moon'));
+}
+syncThemeUi();
+try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => setTimeout(syncThemeUi, 0)); } catch(_){}
+document.addEventListener('click', e => {
+  const s = e.target.closest('[data-theme-set]'); if (s){ setTheme(s.dataset.themeSet); syncThemeUi(); return; }
+  if (e.target.closest('[data-action="theme-toggle"]')){ setTheme(currentTheme()==='dark' ? 'light' : 'dark'); syncThemeUi(); return; }
+  if (e.target.closest('[data-action="nav-open"]')){ $('#app').classList.add('nav-open'); return; }
+  if (e.target.closest('[data-action="nav-close"]') || e.target.closest('#tabs a')){ $('#app').classList.remove('nav-open'); }
+});
+document.addEventListener('keydown', e => { if (e.key==='Escape') $('#app').classList.remove('nav-open'); });
