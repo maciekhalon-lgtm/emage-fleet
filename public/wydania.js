@@ -58,6 +58,7 @@ function openHandover(id, kind, vehicleId){
       ${b ? `<span class="muted">${esc(dName(b.driverId))} · ${fdate(b.from)}${b.to!==b.from?'–'+fdate(b.to):''}${b.purpose?' · '+esc(b.purpose):''}</span>` : '<span class="muted">Auto na dzisiejszy dzień pracy</span>'}</div>
     <div class="field"><label for="ho-km">Stan licznika (km) *</label><input id="ho-km" type="number" inputmode="numeric" min="${minKm}" placeholder="${minKm ? 'co najmniej '+new Intl.NumberFormat('pl-PL').format(minKm) : ''}" required><span class="muted small">Ostatni zapis: ${km(minKm)}</span></div>
     <div class="field"><label for="ho-fuel">${ev?'Poziom baterii':'Poziom paliwa'} *</label><select id="ho-fuel">${FUEL_LV.map(([k,l]) => `<option value="${k}" ${k==='100'?'selected':''}>${ev && k!=='0' ? k+'%' : l}</option>`).join('')}</select></div>
+    ${kind==='pickup' ? crewField(b ? b.driverId : myDriverId(), b && b.coDriverId) : (b && b.coDriverId ? `<div class="field full"><span class="pill info">Podwójna obsada: ${esc(crewName(b))}</span><span class="muted small">Zdanie musi potwierdzić drugi kierowca – do tego czasu auto czeka.</span></div>` : '')}
     ${check}
     <div class="field full"><label for="ho-note">${kind==='pickup' ? 'Inne uwagi o stanie auta' : 'Uwagi po dniu pracy'}</label><textarea id="ho-note" placeholder="${kind==='pickup'?'np. rysa na tylnym zderzaku – już była':'np. kontrolka oleju, stuki z zawieszenia'}"></textarea></div>
     ${photoField('ho')}
@@ -76,9 +77,26 @@ document.addEventListener('change', e => {
   if (r.value==='bad') note.focus();
 });
 
+/* Wybór drugiego kierowcy (podwójna obsada) przy przejęciu */
+function crewField(mainDriver, current){
+  const busy = new Set(S.bookings.filter(holds).flatMap(crewOf));
+  const opts = S.drivers.filter(d => d.id!==mainDriver && (!busy.has(d.id) || d.id===current)).sort((a, c) => a.name.localeCompare(c.name, 'pl'));
+  return `<div class="field full"><label class="check"><input id="ho-crew" type="checkbox" ${current?'checked':''}> Podwójna obsada (drugi kierowca jedzie razem)</label>
+    <select id="ho-co" ${current?'':'hidden'} aria-label="Drugi kierowca"><option value="">— wybierz drugiego kierowcę —</option>${opts.map(d => `<option value="${esc(d.id)}" ${d.id===current?'selected':''}>${esc(d.name)}</option>`).join('')}</select>
+    <span class="muted small" id="ho-crew-info" ${current?'':'hidden'}>Drugi kierowca potwierdzi u siebie przejęcie, tankowania i zdanie pojazdu.</span></div>`;
+}
+document.addEventListener('change', e => {
+  if (e.target.id!=='ho-crew') return;
+  $('#ho-co').hidden = !e.target.checked; $('#ho-crew-info').hidden = !e.target.checked;
+  if (e.target.checked) $('#ho-co').focus();
+});
+
 async function saveHandover({id, kind, vehicleId, minKm, items}){
   const w = $('#dlg-warn');
   const warn = t => { w.textContent = t; w.hidden = false; };
+  const crew = kind==='pickup' && $('#ho-crew') && $('#ho-crew').checked;
+  const coDriverId = crew ? ($('#ho-co').value || '') : null;
+  if (crew && !coDriverId){ $('#ho-co').focus(); return warn('Wybierz drugiego kierowcę albo odznacz „Podwójna obsada”.'); }
   const kmV = Number(String($('#ho-km').value).replace(',','.'));
   if (!kmV){ $('#ho-km').focus(); return warn('Wpisz aktualny stan licznika – to pole jest obowiązkowe.'); }
   if (kmV < minKm) return warn(`Stan licznika nie może być niższy niż ostatni zapis (${km(minKm)}). Sprawdź licznik.`);
@@ -101,10 +119,10 @@ async function saveHandover({id, kind, vehicleId, minKm, items}){
     if (!bid){
       // przejęcie wolnego auta: rezerwacja na dziś tworzy się sama
       const ref = db.collection('bookings').doc();
-      await ref.set({vehicleId, driverId: myDriverId(), from: today(), to: today(), purpose: 'Dzień pracy', pickup: rec});
+      await ref.set({vehicleId, driverId: myDriverId(), coDriverId: coDriverId || null, from: today(), to: today(), purpose: 'Dzień pracy', pickup: rec});
       bid = ref.id;
     } else {
-      await db.collection('bookings').doc(bid).update({[kind==='pickup' ? 'pickup' : 'returned']: rec});
+      await db.collection('bookings').doc(bid).update(kind==='pickup' ? {pickup: rec, coDriverId: coDriverId || null} : {returned: rec});
     }
     const issues = [];
     if (kind==='pickup') checklist.filter(x => !x.ok).forEach(x => issues.push({title: `${x.item}: ${x.note}`.slice(0, 120), description: 'Zgłoszone z checklisty przy przejęciu auta.', severity: 'istotna', photos}));
@@ -112,6 +130,9 @@ async function saveHandover({id, kind, vehicleId, minKm, items}){
     for (const i of issues) await db.collection('issues').doc().set({vehicleId, status:'nowe', date: today(), km: kmV, ...i});
     await refresh('vehicles');
     closeForm();
+    const bk = byId('bookings', bid) || {};
+    const partner = coDriverId ? dName(coDriverId) : (bk.coDriverId ? dName(crewOf(bk).find(d => d!==myDriverId()) || bk.coDriverId) : '');
+    if (partner) return toast(kind==='pickup' ? `Przejęto auto – ${partner} musi potwierdzić przejęcie u siebie` : `Zdano pojazd – ${partner} musi potwierdzić zdanie u siebie`);
     toast(kind==='pickup' ? (issues.length ? `Przejęto auto · zgłoszono ${issues.length} ${isPlural(issues.length,'usterkę','usterki','usterek')}` : 'Przejęto auto – szerokiej drogi!') : (issues.length ? 'Zdano pojazd i zgłoszono usterkę' : 'Zdano pojazd – dziękujemy'));
   } catch(err){ handleWriteErr(err); }
   finally { btn.disabled = false; }

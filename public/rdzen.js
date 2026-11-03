@@ -55,24 +55,31 @@ function dlState(dl){
 }
 function bookingState(b){
   const t = today();
+  if (b.returned && b.coDriverId && !b.returnConfirmedAt) return {cls:'warn', txt:'Zdanie czeka na potwierdzenie', key:0};
   if (b.returned) return {cls:'off', txt:'Zwrócona', key:2};
+  if (b.pickup && b.coDriverId && !b.pickupConfirmedAt) return {cls:'warn', txt:'Przejęcie czeka na potwierdzenie', key:0};
   if (b.pickup) return b.to < t ? {cls:'bad', txt:'Nie zwrócono', key:0} : {cls:'info', txt:'W trasie', key:0};
   if (b.to < t) return {cls:'off', txt:'Zakończona', key:2};
   if (b.from <= t) return {cls:'info', txt:'Trwa', key:0};
   return {cls:'soon', txt:'Zaplanowana', key:1};
 }
-function activeBooking(vehId){ const t=today(); return S.bookings.find(b => b.vehicleId===vehId && !b.returned && (b.pickup || (b.from<=t && b.to>=t))); }
+/* Rezerwacja „trzyma” auto: przejęte i niezdane, albo zdane w obsadzie bez potwierdzenia drugiego kierowcy */
+const holds = b => !!b.pickup && (!b.returned || (!!b.coDriverId && !b.returnConfirmedAt));
+const crewOf = b => [b.driverId, b.coDriverId].filter(Boolean);
+const crewName = b => crewOf(b).map(dName).join(' + ');
+function activeBooking(vehId){ const t=today(); return S.bookings.find(b => b.vehicleId===vehId && (holds(b) || (!b.pickup && !b.returned && b.from<=t && b.to>=t))); }
 function vehicleState(v){
   if (v.status === 'wycofany') return {cls:'off', txt:'Wycofany'};
   if (v.status === 'serwis') return {cls:'warn', txt:'W serwisie'};
   if (typeof stopIssue==='function' && stopIssue(v.id)) return {cls:'bad', txt:'Niesprawny – usterka'};
   const b = activeBooking(v.id);
-  if (b) return {cls:'info', txt:'W użyciu – '+dName(b.driverId)};
+  if (b && b.returned) return {cls:'warn', txt:'Zdawanie – czeka na potwierdzenie'};
+  if (b) return {cls:'info', txt:'W użyciu – '+crewName(b)};
   return {cls:'ok', txt:'Dostępny'};
 }
 function conflicts(){
   const set = new Set();
-  const list = S.bookings.filter(b => !b.returned);   // zdane auto nie koliduje z kolejnym przejęciem
+  const list = S.bookings.filter(b => !b.returned || holds(b));   // zdane auto nie koliduje z kolejnym przejęciem
   for (let i=0;i<list.length;i++) for (let j=i+1;j<list.length;j++){
     const a=list[i], b=list[j];
     if (a.vehicleId===b.vehicleId && a.from<=b.to && b.from<=a.to){ set.add(a.id); set.add(b.id); }

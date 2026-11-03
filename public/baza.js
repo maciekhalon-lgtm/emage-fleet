@@ -11,11 +11,11 @@ const COL_OF = Object.fromEntries(Object.entries(TABLES).map(([a, b]) => [b, a])
 /* pole w aplikacji → kolumna w bazie */
 const FIELDS = {
   common:    {createdBy:'created_by', createdAt:'created_at', updatedBy:'updated_by', updatedAt:'updated_at'},
-  vehicles:  {driverId:'driver_id', monthlyLimit:'monthly_limit'},
+  vehicles:  {driverId:'driver_id', monthlyLimit:'monthly_limit', consGood:'cons_good', consOk:'cons_ok'},
   drivers:   {name:'full_name', licenseExpiry:'license_expiry', medicalExpiry:'medical_expiry'},
   deadlines: {vehicleId:'vehicle_id', kmDue:'km_due', intervalMonths:'interval_months', intervalKm:'interval_km'},
-  bookings:  {vehicleId:'vehicle_id', driverId:'driver_id', from:'date_from', to:'date_to'},
-  costs:     {vehicleId:'vehicle_id', driverId:'driver_id', full:'full_tank'},
+  bookings:  {vehicleId:'vehicle_id', driverId:'driver_id', from:'date_from', to:'date_to', coDriverId:'co_driver_id', pickupConfirmedAt:'pickup_confirmed_at', returnConfirmedAt:'return_confirmed_at', disputeStage:'dispute_stage', disputeNote:'dispute_note', disputeAt:'dispute_at', disputeResolvedAt:'dispute_resolved_at'},
+  costs:     {vehicleId:'vehicle_id', driverId:'driver_id', full:'full_tank', coDriverId:'co_driver_id', confirmStatus:'confirm_status', confirmedAt:'confirmed_at', disputeNote:'dispute_note'},
   issues:    {vehicleId:'vehicle_id', repairNote:'repair_note', resolvedAt:'resolved_at'},
   docs:      {vehicleId:'vehicle_id', validUntil:'valid_until', assetId:'storage_path', fileName:'file_name', contentType:'content_type', size:'size_bytes'},
   members:   {driverId:'driver_id'},
@@ -23,11 +23,11 @@ const FIELDS = {
 };
 /* kolumny, które aplikacja może zapisywać (reszta ustawia baza) */
 const WRITABLE = {
-  vehicles:  ['id','plate','make','model','year','vin','fuel','km','driver_id','status','monthly_limit','notes'],
+  vehicles:  ['id','plate','make','model','year','vin','fuel','km','driver_id','status','monthly_limit','notes','cons_good','cons_ok'],
   drivers:   ['id','full_name','phone','categories','license_expiry','medical_expiry'],
   deadlines: ['id','vehicle_id','type','date','km_due','interval_months','interval_km','note'],
-  bookings:  ['id','vehicle_id','driver_id','date_from','date_to','purpose','pickup_at','pickup_km','pickup_fuel','pickup_note','pickup_photos','pickup_by','pickup_checklist','return_at','return_km','return_fuel','return_note','return_photos','return_by'],
-  costs:     ['id','date','vehicle_id','driver_id','category','amount','liters','odometer','full_tank','note','photos'],
+  bookings:  ['id','vehicle_id','driver_id','date_from','date_to','purpose','pickup_at','pickup_km','pickup_fuel','pickup_note','pickup_photos','pickup_by','pickup_checklist','return_at','return_km','return_fuel','return_note','return_photos','return_by','co_driver_id'],
+  costs:     ['id','date','vehicle_id','driver_id','category','amount','liters','odometer','full_tank','note','photos','co_driver_id','confirm_status'],
   issues:    ['id','vehicle_id','title','description','severity','status','date','km','repair_note','resolved_at','photos'],
   docs:      ['id','vehicle_id','kind','name','valid_until','storage_path','file_name','content_type','size_bytes'],
   settings:  ['key','value'],
@@ -120,6 +120,8 @@ let pending = false;
 const schedule = () => { if (pending) return; pending = true; requestAnimationFrame(() => {
   pending = false;
   const a = document.activeElement;
+  // nie przerywaj pisania w polu na stronie – odśwież, gdy użytkownik skończy
+  if (a && a.id!=='search' && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) && a.closest && a.closest('#view')){ setTimeout(schedule, 1500); return; }
   if (a && a.id==='search'){ const pos = a.selectionStart; render(); const s = $('#search'); if (s){ s.focus(); s.setSelectionRange(pos, pos); } }
   else render();
 }); };
