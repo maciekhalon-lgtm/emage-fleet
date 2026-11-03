@@ -43,7 +43,7 @@ export function itemsFor(p: Row, d: Data, today: string): {pri: number; text: st
     mine.filter(b => b.pickup_km != null && b.return_km == null && b.date_to === today)
       .forEach(b => out.push({pri: 1, text: `Dziś oddajesz ${plate(b.vehicle_id)}`}));
     const me = d.drivers.find(x => x.id === p.driver_id);
-    for (const [k, label, lost, valid] of [['license_expiry', 'Prawo jazdy', 'straciło', 'ważne'], ['medical_expiry', 'Badania lekarskie', 'straciły', 'ważne']] as const){
+    for (const [k, label, lost, valid] of [['license_expiry', 'Prawo jazdy', 'straciło', 'ważne'], ['medical_expiry', 'Badania lekarskie', 'straciły', 'ważne'], ['psych_expiry', 'Badania psychologiczne', 'straciły', 'ważne']] as const){
       const x = me?.[k]; if (!x) continue;
       const dd = diffDays(today, x);
       if (dd < 0) out.push({pri: 0, text: `${label} ${lost} ważność ${dm(x)}`});

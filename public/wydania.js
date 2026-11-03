@@ -15,7 +15,7 @@ function lastKm(vehId){
 
 function handoverBtn(b){
   if (!canEditDoc('bookings', b) || b.returned) return '';
-  if (b.pickup) return `<button class="small primary" data-ho="return" data-id="${esc(b.id)}">Zdaj pojazd</button>`;
+  if (b.pickup) return (P().manage ? `<button class="small" data-transfer="${esc(b.id)}">Przekaż</button>` : '') + `<button class="small primary" data-ho="return" data-id="${esc(b.id)}">Zdaj pojazd</button>`;
   if (b.from <= addDays(today(), 1) && b.to >= today()) return `<button class="small" data-ho="pickup" data-id="${esc(b.id)}">Przyjmij auto</button>`;
   return '';
 }
@@ -80,7 +80,7 @@ document.addEventListener('change', e => {
 /* Wybór drugiego kierowcy (podwójna obsada) przy przejęciu */
 function crewField(mainDriver, current){
   const busy = new Set(S.bookings.filter(holds).flatMap(crewOf));
-  const opts = S.drivers.filter(d => d.id!==mainDriver && (!busy.has(d.id) || d.id===current)).sort((a, c) => a.name.localeCompare(c.name, 'pl'));
+  const opts = S.drivers.filter(d => d.id!==mainDriver && (d.active!==false || d.id===current) && (!busy.has(d.id) || d.id===current)).sort((a, c) => a.name.localeCompare(c.name, 'pl'));
   return `<div class="field full"><label class="check"><input id="ho-crew" type="checkbox" ${current?'checked':''}> Podwójna obsada (drugi kierowca jedzie razem)</label>
     <select id="ho-co" ${current?'':'hidden'} aria-label="Drugi kierowca"><option value="">— wybierz drugiego kierowcę —</option>${opts.map(d => `<option value="${esc(d.id)}" ${d.id===current?'selected':''}>${esc(d.name)}</option>`).join('')}</select>
     <span class="muted small" id="ho-crew-info" ${current?'':'hidden'}>Drugi kierowca potwierdzi u siebie przejęcie, tankowania i zdanie pojazdu.</span></div>`;
@@ -151,3 +151,69 @@ async function saveChecklist(){
   try { await db.collection('settings').doc('checklist').set({items}); toast('Zapisano checklistę'); } catch(err){ handleWriteErr(err); }
 }
 document.addEventListener('click', e => { if (e.target.closest('[data-action="save-checklist"]')) saveChecklist(); });
+
+/* ---------- przekazanie auta innemu kierowcy (kierownik floty) ---------- */
+const TRANSFER_REASONS = ['Awaria auta','Choroba kierowcy','Zmiana trasy','Koniec zmiany kierowcy','Inne'];
+function openTransfer(id){
+  const b = byId('bookings', id);
+  if (!b || !P().manage || !b.pickup || b.returned) return;
+  const v = byId('vehicles', b.vehicleId) || {};
+  const minKm = Math.max(Number(b.pickup.km) || 0, 0);
+  const busy = new Set(S.bookings.filter(x => holds(x) && x.id!==b.id).flatMap(crewOf));
+  const opts = S.drivers.filter(d => d.active!==false && !busy.has(d.id) && !(d.id===b.driverId && !b.coDriverId))
+    .sort((a, c) => a.name.localeCompare(c.name, 'pl'));
+  editing = {col:'transfer', id, base:{}, special: () => saveTransfer(b, minKm)};
+  $('#dlg-title').textContent = 'Przekaż auto innemu kierowcy';
+  $('#dlg-body').innerHTML = `
+    <div class="field full"><span class="ho-car">${plate(v.plate)} <b>${esc(v.make||'')} ${esc(v.model||'')}</b></span>
+      <span class="muted">Teraz: ${esc(crewName(b))} · przejęte ${fdate(b.pickup.at)} przy ${km(b.pickup.km)}</span></div>
+    <div class="field full"><label for="tr-to">Nowy kierowca *</label><select id="tr-to" required><option value="">— wybierz kierowcę —</option>${opts.map(d => `<option value="${esc(d.id)}">${esc(d.name)}</option>`).join('')}</select>
+      <span class="muted small">${opts.length ? 'Lista pokazuje aktywnych kierowców, którzy nie mają teraz innego auta.' : '<b>Wszyscy aktywni kierowcy mają teraz auto</b> – najpierw ktoś musi zdać swoje.'}</span></div>
+    <div class="field"><label for="tr-km">Stan licznika teraz (km) *</label><input id="tr-km" type="number" inputmode="numeric" min="${minKm}" value="${esc(v.km && v.km >= minKm ? v.km : '')}" required><span class="muted small">Przy przejęciu: ${km(minKm)}</span></div>
+    <div class="field"><label for="tr-why">Powód *</label><select id="tr-why">${TRANSFER_REASONS.map(r => `<option>${esc(r)}</option>`).join('')}</select></div>
+    <div class="field full"><label for="tr-note">Opis</label><input id="tr-note" type="text" placeholder="np. kontrolka silnika, auto jedzie na lawecie"></div>
+    <p class="muted small field full" style="margin:0">Dzień pracy obecnego kierowcy zakończy się na tym przebiegu${b.coDriverId ? ' (bez czekania na potwierdzenie drugiego kierowcy)' : ''}. Nowy kierowca zobaczy auto u siebie i przyjmie je z checklistą i przebiegiem.</p>
+    <div class="warnline" id="dlg-warn" hidden></div>`;
+  $('#dlg-save').textContent = 'Przekaż auto';
+  $('#dlg-del').hidden = true;
+  $('#scrim').hidden = false;
+  setTimeout(() => $('#tr-to')?.focus(), 20);
+}
+async function saveTransfer(b, minKm){
+  const w = $('#dlg-warn'); const warn = t => { w.textContent = t; w.hidden = false; };
+  const to = $('#tr-to').value;
+  const kmV = Number(String($('#tr-km').value).replace(',', '.'));
+  const why = $('#tr-why').value, note = $('#tr-note').value.trim();
+  if (!to){ $('#tr-to').focus(); return warn('Wybierz kierowcę, który przejmie auto.'); }
+  if (!kmV){ $('#tr-km').focus(); return warn('Wpisz aktualny stan licznika – to pole jest obowiązkowe.'); }
+  if (kmV < minKm) return warn(`Stan licznika nie może być niższy niż przy przejęciu (${km(minKm)}).`);
+  if (why==='Inne' && !note){ $('#tr-note').focus(); return warn('Przy powodzie „Inne” opisz, co się stało.'); }
+  const reason = note ? `${why} – ${note}` : why;
+  const btn = $('#dlg-save'); btn.disabled = true;
+  try {
+    const {error} = await sb.rpc('transfer_vehicle', {booking_id: b.id, new_driver: to, odometer: kmV, reason});
+    if (error) return warn(dbErr(error).message || 'Nie udało się przekazać auta.');
+    await Promise.all(['bookings', 'vehicles', 'crewChanges'].map(refresh));
+    closeForm();
+    toast(`Przekazano auto – ${dName(to)} przyjmie je u siebie`);
+  } catch(err){ handleWriteErr(err); }
+  finally { btn.disabled = false; }
+}
+
+/* Historia zmian obsady: przekazania i zdania wykonane przez kierownika (ostatnie 50) */
+function crewChangesPanel(){
+  if (!P().manage) return '';
+  const list = S.crewChanges.slice().sort((a, b) => a.at < b.at ? 1 : -1).slice(0, 50);
+  const rows = list.map(c => {
+    const from = [c.fromDriverId, c.fromCoDriverId].filter(Boolean).map(dName).join(' + ') || '—';
+    const d = new Date(c.at);
+    return `<tr><td class="num">${fdate(isoOf(d))}<span class="sub">${pad(d.getHours())}:${pad(d.getMinutes())}</span></td>
+      <td>${vPlate(c.vehicleId)}</td>
+      <td>${esc(from)}${c.kind==='przekazanie' ? ` → <b>${esc(dName(c.toDriverId))}</b>` : ''}<span class="sub">${c.kind==='przekazanie' ? 'przekazanie' : 'zdanie przez kierownika'}</span></td>
+      <td class="r num">${km(c.km)}</td>
+      <td>${esc(c.reason || '—')}<span class="sub">${esc(c.actor ? pName(c.actor) : '')}</span></td></tr>`;
+  }).join('');
+  return `<div class="section crew-hist"><div class="bar"><h2>Zmiany obsady</h2><span class="muted small">ostatnie 50 · widzi tylko kierownik floty</span></div>
+    ${rows ? `<div class="panel tablewrap"><table><thead><tr><th>Kiedy</th><th>Auto</th><th>Kierowca</th><th class="r">Przebieg</th><th>Powód / kto</th></tr></thead><tbody>${rows}</tbody></table></div>`
+      : '<div class="panel empty"><p>Brak zmian obsady. Przekazanie auta zrobisz przyciskiem „Przekaż” przy aucie w trasie (Rezerwacje albo karta pojazdu).</p></div>'}</div>`;
+}

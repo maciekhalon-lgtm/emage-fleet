@@ -29,7 +29,7 @@ const backBtn = () => `<div class="bar"><a class="btn ghost" href="#moje">${ic('
 /* Ostrzeżenie o kończącej się ważności prawa jazdy lub badań (30 dni) */
 function myExpiryNotes(){
   const d = meDriver(); if (!d) return '';
-  return [['licenseExpiry','Prawo jazdy'],['medicalExpiry','Badania lekarskie']].map(([k, l]) => {
+  return [['licenseExpiry','Prawo jazdy'],['medicalExpiry','Badania lekarskie'],['psychExpiry','Badania psychologiczne']].map(([k, l]) => {
     if (!d[k]) return '';
     const x = diffDays(today(), d[k]);
     if (x < 0) return `<div class="notice err"><span><b>${l}</b> – ważność minęła ${fdate(d[k])}. Zgłoś to kierownikowi floty.</span></div>`;
@@ -38,6 +38,9 @@ function myExpiryNotes(){
   }).join('');
 }
 
+function inactiveNote(){
+  return `<div class="panel empty wait"><h2>Konto kierowcy jest nieaktywne</h2><p>Kierownik floty oznaczył Cię jako nieaktywnego kierowcę, więc nie możesz teraz przejmować aut. Jeśli to pomyłka, skontaktuj się z nim.</p></div>`;
+}
 function notLinked(){
   return `<div class="panel empty wait"><h2>Konto nie jest powiązane z kierowcą</h2><p>Poproś kierownika floty, żeby w panelu Użytkownicy powiązał Twoje konto z Twoim wpisem na liście kierowców. Wtedy będziesz mógł przejmować auta.</p></div>`;
 }
@@ -64,6 +67,8 @@ function viewMyCar(){
         ${big(`data-new="issues" data-veh="${esc(v.id)}"`, 'Zgłoś usterkę', 'opis i zdjęcie', '', 'wrench')}
         ${big(`data-ho="return" data-id="${esc(active.id)}"`, 'Zdaj pojazd', 'koniec dnia: licznik, paliwo, uwagi', 'primary wide', 'key')}
       </div></div>`;
+  } else if (meDriver() && meDriver().active===false){
+    carTile = inactiveNote();
   } else {
     const asg = myAssigned();
     const asgOk = asg && asg.vehicle && takeState(asg.vehicle) && takeState(asg.vehicle).ok;
@@ -80,6 +85,7 @@ function viewMyCar(){
 function viewPickCar(){
   if (!myDriverId()) return notLinked();
   if (myActive()){ setTimeout(() => { location.hash = 'moje'; }, 0); return ''; }
+  if (meDriver() && meDriver().active===false) return `<div class="section driver">${backBtn()}${inactiveNote()}</div>`;
   const asg = myAssigned();
   const asgOk = asg && asg.vehicle && takeState(asg.vehicle) && takeState(asg.vehicle).ok;
   const asgHtml = asgOk ? `<div class="panel mycar assigned">
@@ -149,6 +155,7 @@ function viewMyData(){
       <div><span class="label">Kategorie prawa jazdy</span><span>${esc(d.categories || '—')}</span></div>
       <div><span class="label">Prawo jazdy ważne do</span><span>${exp('licenseExpiry')}</span></div>
       <div><span class="label">Badania lekarskie do</span><span>${exp('medicalExpiry')}</span></div>
+      <div><span class="label">Badania psychologiczne do</span><span>${exp('psychExpiry')}</span></div>
       <div class="full"><span class="label">Telefon</span>
         <span>${esc(d.phone || '—')}</span>
         ${pend ? `<span class="pend">Czeka na akceptację kierownika: <b>${esc(pend.newValue)}</b> <button class="small ghost" data-req-cancel="${esc(pend.id)}">Wycofaj</button></span>`

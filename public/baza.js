@@ -5,14 +5,15 @@ const sb = supabase.createClient(CONFIG.supabaseUrl, CONFIG.supabaseKey, {
 });
 
 /* nazwa w aplikacji → tabela w bazie */
-const TABLES = {vehicles:'vehicles', drivers:'drivers', deadlines:'deadlines', bookings:'bookings', costs:'costs', issues:'issues', docs:'documents', settings:'settings', requests:'data_change_requests', members:'profiles'};
+const TABLES = {vehicles:'vehicles', drivers:'drivers', deadlines:'deadlines', bookings:'bookings', costs:'costs', issues:'issues', docs:'documents', settings:'settings', requests:'data_change_requests', crewChanges:'crew_changes', members:'profiles'};
 const COL_OF = Object.fromEntries(Object.entries(TABLES).map(([a, b]) => [b, a]));
 
 /* pole w aplikacji → kolumna w bazie */
 const FIELDS = {
   common:    {createdBy:'created_by', createdAt:'created_at', updatedBy:'updated_by', updatedAt:'updated_at'},
-  vehicles:  {driverId:'driver_id', monthlyLimit:'monthly_limit', consGood:'cons_good', consOk:'cons_ok'},
-  drivers:   {name:'full_name', licenseExpiry:'license_expiry', medicalExpiry:'medical_expiry'},
+  vehicles:  {driverId:'driver_id', monthlyLimit:'monthly_limit', consGood:'cons_good', consOk:'cons_ok', policyNo:'policy_no'},
+  drivers:   {name:'full_name', licenseExpiry:'license_expiry', medicalExpiry:'medical_expiry', psychExpiry:'psych_expiry'},
+  crewChanges: {vehicleId:'vehicle_id', bookingId:'booking_id', newBookingId:'new_booking_id', fromDriverId:'from_driver_id', fromCoDriverId:'from_co_driver_id', toDriverId:'to_driver_id'},
   deadlines: {vehicleId:'vehicle_id', kmDue:'km_due', intervalMonths:'interval_months', intervalKm:'interval_km'},
   bookings:  {vehicleId:'vehicle_id', driverId:'driver_id', from:'date_from', to:'date_to', coDriverId:'co_driver_id', pickupConfirmedAt:'pickup_confirmed_at', returnConfirmedAt:'return_confirmed_at', disputeStage:'dispute_stage', disputeNote:'dispute_note', disputeAt:'dispute_at', disputeResolvedAt:'dispute_resolved_at'},
   costs:     {vehicleId:'vehicle_id', driverId:'driver_id', full:'full_tank', coDriverId:'co_driver_id', confirmStatus:'confirm_status', confirmedAt:'confirmed_at', disputeNote:'dispute_note'},
@@ -23,8 +24,9 @@ const FIELDS = {
 };
 /* kolumny, które aplikacja może zapisywać (reszta ustawia baza) */
 const WRITABLE = {
-  vehicles:  ['id','plate','make','model','year','vin','fuel','km','driver_id','status','monthly_limit','notes','cons_good','cons_ok'],
-  drivers:   ['id','full_name','phone','categories','license_expiry','medical_expiry'],
+  vehicles:  ['id','plate','make','model','year','vin','fuel','km','driver_id','status','monthly_limit','notes','cons_good','cons_ok','policy_no'],
+  drivers:   ['id','full_name','phone','categories','license_expiry','medical_expiry','psych_expiry','active'],
+  crewChanges: [],
   deadlines: ['id','vehicle_id','type','date','km_due','interval_months','interval_km','note'],
   bookings:  ['id','vehicle_id','driver_id','date_from','date_to','purpose','pickup_at','pickup_km','pickup_fuel','pickup_note','pickup_photos','pickup_by','pickup_checklist','return_at','return_km','return_fuel','return_note','return_photos','return_by','co_driver_id'],
   costs:     ['id','date','vehicle_id','driver_id','category','amount','liters','odometer','full_tank','note','photos','co_driver_id','confirm_status'],
@@ -131,7 +133,7 @@ function setSync(cls, txt){ const el = syncEl(); if (!el) return; el.className =
 S.fuelAll = [];
 async function refresh(col){
   const table = TABLES[col]; if (!table) return;
-  if (col==='members' && !P().manage) return;
+  if ((col==='members' || col==='crewChanges') && !P().manage) return;
   const {data, error} = await sb.from(table).select('*').limit(10000);
   if (error){ got[col] = true; return; }
   if (col==='members') profiles = data;

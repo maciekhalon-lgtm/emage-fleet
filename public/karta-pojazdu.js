@@ -16,7 +16,7 @@ function viewCard(){
 
   const facts = [
     ['Przebieg', km(v.km)], ['Rok', esc(v.year||'—')], ['Napęd', esc(v.fuel||'—')], ['Stały kierowca', v.driverId?esc(dName(v.driverId)):'—'],
-    ['VIN', `<span class="num">${esc(v.vin||'—')}</span>`], ['Śr. zużycie', cons ? cons.val.toFixed(1).replace('.',',')+' '+cons.unit : '—'],
+    ['VIN', `<span class="num">${esc(v.vin||'—')}</span>`], ['Numer polisy', esc(v.policyNo||'—')], ['Śr. zużycie', cons ? cons.val.toFixed(1).replace('.',',')+' '+cons.unit : '—'],
     [P().costs==='own'?'Moje koszty '+yr:'Koszty '+yr, zl(yearCost)], ['Status', `<span class="pill ${st.cls}">${esc(st.txt)}</span>`],
   ].map(([l,val]) => `<div><span class="label">${l}</span><span class="fv">${val}</span></div>`).join('');
 

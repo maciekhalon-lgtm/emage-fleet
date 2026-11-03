@@ -2,7 +2,9 @@
 'use strict';
 /* ---------- forms ---------- */
 const vehOpts = () => [['','— wybierz pojazd —'], ...S.vehicles.slice().sort((a,b)=>String(a.plate).localeCompare(b.plate)).map(v => [v.id, v.plate+' · '+v.make+' '+v.model])];
-const drvOpts = (blank='— brak —') => [['',blank], ...S.drivers.slice().sort((a,b)=>a.name.localeCompare(b.name,'pl')).map(d => [d.id, d.name])];
+/* Nieaktywni kierowcy nie pojawiają się w wyborze – chyba że są już wpisani w edytowanym wpisie */
+const drvOpts = (blank='— brak —') => { const keep = editing && editing.base ? editing.base.driverId : '';
+  return [['',blank], ...S.drivers.filter(d => d.active!==false || d.id===keep).sort((a,b)=>a.name.localeCompare(b.name,'pl')).map(d => [d.id, d.name + (d.active===false ? ' (nieaktywny)' : '')])]; };
 const FORMS = {
   vehicles: { title:['Nowy pojazd','Edytuj pojazd'], fields: () => [
     {k:'plate',l:'Numer rejestracyjny',req:1,ph:'np. PO 4K27R'},
@@ -11,7 +13,8 @@ const FORMS = {
     {k:'year',l:'Rok produkcji',t:'number'},
     {k:'fuel',l:'Napęd',t:'select',o:FUELS.map(f=>[f,f])},
     {k:'km',l:'Przebieg (km)',t:'number'},
-    {k:'vin',l:'VIN',full:1,ph:'17 znaków'},
+    {k:'vin',l:'VIN',ph:'17 znaków'},
+    {k:'policyNo',l:'Numer polisy',ph:'np. 123/2026'},
     {k:'driverId',l:'Stały kierowca',t:'select',o:drvOpts()},
     {k:'status',l:'Status',t:'select',o:[['aktywny','Aktywny'],['serwis','W serwisie'],['wycofany','Wycofany']]},
     {k:'monthlyLimit',l:'Limit kosztów / mies. (zł)',t:'number',ph:'np. 2500'},
@@ -26,6 +29,8 @@ const FORMS = {
     {k:'categories',l:'Kategorie prawa jazdy',ph:'np. B, C'},
     {k:'licenseExpiry',l:'Prawo jazdy ważne do',t:'date'},
     {k:'medicalExpiry',l:'Badania lekarskie do',t:'date'},
+    {k:'psychExpiry',l:'Badania psychologiczne do',t:'date'},
+    {k:'active',l:'Aktywny – może przejmować auta (odznacz, gdy kierowca już nie jeździ)',t:'check'},
   ]},
   deadlines: { title:['Nowy termin','Edytuj termin'], fields: () => [
     {k:'vehicleId',l:'Pojazd',t:'select',o:vehOpts(),req:1,full:1},
@@ -77,7 +82,7 @@ const FORMS = {
 };
 const DEFAULTS = {
   vehicles: () => ({status:'aktywny', fuel:'Diesel'}),
-  drivers: () => ({}),
+  drivers: () => ({active:true}),
   deadlines: () => ({type:'Przegląd techniczny', date: addDays(today(),30), intervalMonths:12}),
   bookings: () => ({from: today(), to: today(), driverId: P().bookings==='own' ? myDriverId() : ''}),
   costs: () => {
