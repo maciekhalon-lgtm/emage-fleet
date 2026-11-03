@@ -324,3 +324,21 @@ button.big.primary span{color:#3a2a00}
 .keyrow{display:grid;grid-template-columns:150px minmax(0,1fr) auto;gap:10px;align-items:center}
 .keyrow code{font-size:12px;background:var(--sunk);border:1px solid var(--line);border-radius:6px;padding:6px 8px;overflow-wrap:anywhere;max-height:120px;overflow:auto}
 @media (max-width:600px){.keyrow{grid-template-columns:1fr auto}.keyrow .label{grid-column:1/-1}}
+
+/* ---- dzień pracy: wybór auta i checklista ---- */
+.picks{display:flex;flex-direction:column}
+.pick{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 14px;border-bottom:1px solid var(--line)}
+.pick:last-child{border-bottom:0}
+.pick.off{opacity:.55}
+.pick-car{display:flex;align-items:center;gap:12px;min-width:0}
+.pick-car .sub{display:block;color:var(--muted);font-size:13px}
+.mycar.assigned{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+.ho-car{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.checklist{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.ck{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 10px;align-items:center;padding:9px 12px;border-bottom:1px solid var(--line)}
+.ck:last-child{border-bottom:0}
+.ck.bad{background:var(--warn-soft)}
+.ck-btns{display:flex;gap:12px}
+.ck-btns label{display:flex;gap:5px;align-items:center;font-weight:600;font-size:14px;color:var(--ink)!important;cursor:pointer}
+.ck-btns input{width:auto;accent-color:var(--accent)}
+.ck-note{grid-column:1/-1}

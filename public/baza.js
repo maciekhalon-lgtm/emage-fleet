@@ -25,7 +25,7 @@ const WRITABLE = {
   vehicles:  ['id','plate','make','model','year','vin','fuel','km','driver_id','status','monthly_limit','notes'],
   drivers:   ['id','full_name','phone','categories','license_expiry','medical_expiry'],
   deadlines: ['id','vehicle_id','type','date','km_due','interval_months','interval_km','note'],
-  bookings:  ['id','vehicle_id','driver_id','date_from','date_to','purpose','pickup_at','pickup_km','pickup_fuel','pickup_note','pickup_photos','pickup_by','return_at','return_km','return_fuel','return_note','return_photos','return_by'],
+  bookings:  ['id','vehicle_id','driver_id','date_from','date_to','purpose','pickup_at','pickup_km','pickup_fuel','pickup_note','pickup_photos','pickup_by','pickup_checklist','return_at','return_km','return_fuel','return_note','return_photos','return_by'],
   costs:     ['id','date','vehicle_id','driver_id','category','amount','liters','odometer','full_tank','note','photos'],
   issues:    ['id','vehicle_id','title','description','severity','status','date','km','repair_note','resolved_at','photos'],
   docs:      ['id','vehicle_id','kind','name','valid_until','storage_path','file_name','content_type','size_bytes'],
@@ -41,7 +41,7 @@ function toApp(col, r){
   const o = {};
   for (const [k, v] of Object.entries(r)) o[inv[k] || k] = v;
   if (col==='bookings'){
-    const part = p => r[p+'km']==null ? null : {at: r[p+'at'], km: r[p+'km'], fuel: r[p+'fuel']==null ? '' : String(r[p+'fuel']), note: r[p+'note'] || '', photos: r[p+'photos'] || [], by: r[p+'by']};
+    const part = p => r[p+'km']==null ? null : {at: r[p+'at'], km: r[p+'km'], fuel: r[p+'fuel']==null ? '' : String(r[p+'fuel']), note: r[p+'note'] || '', photos: r[p+'photos'] || [], by: r[p+'by'], checklist: p==='pickup_' ? (r.pickup_checklist || []) : undefined};
     o.pickup = part('pickup_'); o.returned = part('return_');
   }
   return o;
@@ -56,6 +56,7 @@ function toDb(col, o){
       out[p+'fuel'] = v && v.fuel!=='' && v.fuel!=null ? Number(v.fuel) : null;
       out[p+'note'] = v && v.note ? v.note : null; out[p+'photos'] = v ? (v.photos || []) : [];
       out[p+'by'] = v ? (v.by || myId) : null;
+      if (k==='pickup') out.pickup_checklist = v ? (v.checklist || []) : [];
       continue;
     }
     out[m[k] || k] = v==='' ? null : v;

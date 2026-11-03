@@ -88,7 +88,7 @@ export function itemsFor(p: Row, d: Data, today: string): {pri: number; text: st
       const s = inM.reduce((a, c) => a + Number(c.amount || 0), 0);
       if (s > budget) out.push({pri: 1, text: `Budżet floty przekroczony: ${zl(s)} z ${zl(budget)}`});
     }
-    const soon = d.bookings.filter(b => b.date_to >= today && b.date_from <= addDays(today, 7));
+    const soon = d.bookings.filter(b => b.return_km == null && b.date_to >= today && b.date_from <= addDays(today, 7));
     const clash = new Set<string>();
     for (let i = 0; i < soon.length; i++) for (let j = i + 1; j < soon.length; j++){
       const a = soon[i], b = soon[j];
@@ -99,14 +99,26 @@ export function itemsFor(p: Row, d: Data, today: string): {pri: number; text: st
   return out;
 }
 
+/* Wieczór: kto nie zdał auta (kierowca) i lista niezdanych aut (kierownik floty). */
+export function eveningItemsFor(p: Row, d: Data, today: string): {pri: number; text: string}[] {
+  const plate = (id: string) => d.vehicles.find(v => v.id === id)?.plate || 'auto';
+  const drvName = (id: string) => d.drivers.find(x => x.id === id)?.full_name || 'kierowca';
+  const out = d.bookings.filter(b => b.pickup_km != null && b.return_km == null && b.date_to <= today);
+  if (p.role === 'kierowca' && p.driver_id)
+    return out.filter(b => b.driver_id === p.driver_id).map(b => ({pri: 0, text: `Zdaj pojazd ${plate(b.vehicle_id)} w aplikacji – auto nie zostało jeszcze zdane`}));
+  if (p.role === 'floty' && out.length)
+    return [{pri: 1, text: `Niezdane auta (${out.length}): ` + out.map(b => `${plate(b.vehicle_id)} – ${drvName(b.driver_id)}`).join(', ')}];
+  return [];
+}
+
 /* Jedno powiadomienie z listy spraw. */
-export function digest(items: {pri: number; text: string}[]){
+export function digest(items: {pri: number; text: string}[], title?: string){
   const s = items.slice().sort((a, b) => a.pri - b.pri);
   const n = s.length;
   const word = n === 1 ? 'sprawa' : (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20)) ? 'sprawy' : 'spraw';
   const lines = s.slice(0, 4).map(x => '• ' + x.text);
   if (n > 4) lines.push(`…i ${n - 4} więcej`);
-  return {title: `Emage FLEET – ${n} ${word} na dziś`, body: lines.join('\n')};
+  return {title: title || `Emage FLEET – ${n} ${word} na dziś`, body: lines.join('\n')};
 }
 // ===== KONIEC LOGIKI =====
 
@@ -120,6 +132,8 @@ Deno.serve(async (req) => {
   webpush.setVapidDetails(env('VAPID_SUBJECT') || 'mailto:flota@example.com', env('VAPID_PUBLIC_KEY'), env('VAPID_PRIVATE_KEY'));
 
   const isCron = !!env('CRON_SECRET') && req.headers.get('x-cron-secret') === env('CRON_SECRET');
+  const body = await req.json().catch(() => ({}));
+  const evening = body && body.mode === 'wieczor';
   let testUser: string | null = null;
   if (!isCron){
     const token = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '');
@@ -158,10 +172,10 @@ Deno.serve(async (req) => {
   };
   const report: Record<string, unknown>[] = [];
   for (const p of d.profiles.filter(x => x.status === 'active')){
-    const items = itemsFor(p, d, today);
+    const items = evening ? eveningItemsFor(p, d, today) : itemsFor(p, d, today);
     if (!items.length) continue;
-    const r = await send(p.id, {...digest(items), url: './', tag: 'podsumowanie-' + today});
+    const r = await send(p.id, {...digest(items, evening ? (p.role === 'kierowca' ? 'Emage FLEET – zdaj pojazd' : 'Emage FLEET – niezdane auta') : undefined), url: './', tag: (evening ? 'wieczor-' : 'podsumowanie-') + today});
     report.push({user: p.id, items: items.length, ...r});
   }
-  return json({today, users: report.length, report});
+  return json({today, mode: evening ? 'wieczor' : 'rano', users: report.length, report});
 });

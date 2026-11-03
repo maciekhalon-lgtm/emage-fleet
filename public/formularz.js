@@ -133,7 +133,7 @@ function bookingCheck(){
   let msg='';
   if (f && t && t < f) msg='Data końca jest wcześniejsza niż początek.';
   else if (v && f && t){
-    const c = S.bookings.find(b => b.id!==editing.id && b.vehicleId===v && b.from<=t && f<=b.to);
+    const c = S.bookings.find(b => b.id!==editing.id && !b.returned && b.vehicleId===v && b.from<=t && f<=b.to);
     if (c) msg = 'Ten pojazd jest już zarezerwowany '+fdate(c.from)+'–'+fdate(c.to)+' ('+dName(c.driverId)+').';
   }
   w.textContent=msg; w.hidden=!msg;

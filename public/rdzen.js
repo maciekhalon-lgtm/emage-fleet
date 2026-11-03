@@ -72,7 +72,7 @@ function vehicleState(v){
 }
 function conflicts(){
   const set = new Set();
-  const list = S.bookings.slice();
+  const list = S.bookings.filter(b => !b.returned);   // zdane auto nie koliduje z kolejnym przejęciem
   for (let i=0;i<list.length;i++) for (let j=i+1;j<list.length;j++){
     const a=list[i], b=list[j];
     if (a.vehicleId===b.vehicleId && a.from<=b.to && b.from<=a.to){ set.add(a.id); set.add(b.id); }
