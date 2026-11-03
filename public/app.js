@@ -56,7 +56,7 @@ function renderWho(role){
   const el = $('#who');
   if (!me){ el.hidden = true; return; }
   el.hidden = false;
-  el.innerHTML = `<b>${esc(me.full_name || me.email)}</b><span class="pill ${role?'info':'off'}">${role?esc(ROLES[role].name):'Bez roli'}</span><button class="small ghost" data-action="logout">Wyloguj</button>`;
+  el.innerHTML = `<b>${esc(me.full_name || me.email)}</b><span class="pill ${role?'info':'off'}">${role?esc(ROLES[role].name):'Bez roli'}</span>${role ? '<button class="small ghost" data-action="push-open" title="Powiadomienia">Powiadomienia</button>' : ''}<button class="small ghost" data-action="logout">Wyloguj</button>`;
 }
 
 function renderStrip(){
