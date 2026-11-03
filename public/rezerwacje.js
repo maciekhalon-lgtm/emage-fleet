@@ -2,7 +2,7 @@
 'use strict';
 function viewAssign(){
   const conf = conflicts();
-  const head = `<div class="bar"><h2>Przydział i rezerwacje</h2><div class="tools"><div class="seg" role="group" aria-label="Widok"><button class="small ${assignView==='kalendarz'?'on':''}" data-av="kalendarz" aria-pressed="${assignView==='kalendarz'}">Kalendarz</button><button class="small ${assignView==='lista'?'on':''}" data-av="lista" aria-pressed="${assignView==='lista'}">Lista</button></div>${canCreate('bookings')?'<button class="primary" data-new="bookings">+ Nowa rezerwacja</button>':''}</div></div>`;
+  const head = `<div class="bar"><h2>Przydział i rezerwacje</h2><div class="tools"><div class="seg" role="group" aria-label="Widok"><button class="small ${assignView==='kalendarz'?'on':''}" data-av="kalendarz" aria-pressed="${assignView==='kalendarz'}">Kalendarz</button><button class="small ${assignView==='grafik'?'on':''}" data-av="grafik" aria-pressed="${assignView==='grafik'}">Grafik</button><button class="small ${assignView==='lista'?'on':''}" data-av="lista" aria-pressed="${assignView==='lista'}">Lista</button></div>${canCreate('bookings')?'<button class="primary" data-new="bookings">+ Nowa rezerwacja</button>':''}</div></div>`;
   let bk;
   if (!S.bookings.length) bk = loadingOr('bookings', emptyBlock('Brak rezerwacji','Zarezerwuj pojazd dla kierowcy na konkretne dni. Strona ostrzeże, jeśli auto jest już zajęte w tym czasie.','<button class="primary" data-new="bookings">+ Nowa rezerwacja</button>', '', 'bookings'));
   else {
@@ -27,6 +27,7 @@ function viewAssign(){
   const drvPanel = `<div class="section"><div class="bar"><h2>Kierowcy</h2>${canCreate('drivers')?'<button class="small" data-new="drivers">+ Dodaj kierowcę</button>':''}</div>
     ${S.drivers.length?`<div class="panel drivers">${drv}</div>`:loadingOr('drivers', emptyBlock('Brak kierowców','Dodaj osoby, które korzystają z aut służbowych – z kategorią i ważnością prawa jazdy.','<button class="primary" data-new="drivers">+ Dodaj kierowcę</button>', '', 'drivers'))}</div>`;
   const confNote = conf.size?`<div class="notice err"><span>Ten sam pojazd ma nakładające się rezerwacje (${conf.size}). Popraw daty lub zmień auto.</span></div>`:'';
+  if (assignView==='grafik') return `<div class="section">${head}${confNote}${viewSchedule()}</div><div class="drv-below">${drvPanel}</div>${crewChangesPanel()}`;
   if (assignView==='kalendarz') return `<div class="section">${head}${confNote}${viewCalendar()}</div><div class="drv-below">${drvPanel}</div>${crewChangesPanel()}`;
   return `<div class="grid2"><div class="section">${head}${confNote}${bk}</div>${drvPanel}</div>${crewChangesPanel()}`;
 }

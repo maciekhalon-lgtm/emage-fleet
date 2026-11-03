@@ -4,7 +4,9 @@
 //  • codziennie rano z harmonogramu (pg_cron) z nagłówkiem x-cron-secret
 //    → każda osoba dostaje jedno podsumowanie spraw na dziś (o ile coś jest),
 //  • z aplikacji przyciskiem „Wyślij test” (zalogowany użytkownik)
-//    → testowe powiadomienie tylko do tej osoby.
+//    → testowe powiadomienie tylko do tej osoby,
+//  • od razu z bazy przy zdarzeniu (auto niesprawne, podejrzane tankowanie, spory, sprawy do potwierdzenia)
+//    z nagłówkiem x-cron-secret i treścią {mode:'event', roles, users, title, body, tag}.
 //
 // Sekrety funkcji (Edge Functions → Secrets):
 //   VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT (np. mailto:flota@firma.pl), CRON_SECRET
@@ -53,6 +55,16 @@ export function itemsFor(p: Row, d: Data, today: string): {pri: number; text: st
   }
 
   if (p.role === 'floty' || p.role === 'serwisu'){
+    // auta zablokowane (przegląd / OC po terminie)
+    d.vehicles.filter(v => v.status !== 'wycofany').forEach(v => {
+      const late = d.deadlines.filter(t => t.vehicle_id === v.id && ['Przegląd techniczny', 'Ubezpieczenie OC'].includes(t.type) && t.date < today);
+      if (late.length) out.push({pri: 0, text: `${v.plate} zablokowane: ${late.map(t => t.type + ' po terminie').join(', ')}`});
+    });
+    // opony sezonowe
+    const md = today.slice(5);
+    const tl = md >= '10-01' && md <= '12-31' ? d.vehicles.filter(v => v.status !== 'wycofany' && v.tires === 'letnie')
+             : md >= '04-01' && md <= '05-31' ? d.vehicles.filter(v => v.status !== 'wycofany' && v.tires === 'zimowe') : [];
+    if (tl.length) out.push({pri: md >= '10-15' || (md >= '04-20' && md <= '05-31') ? 1 : 2, text: `${tl.length} ${tl.length === 1 ? 'auto' : 'aut(a)'} do wymiany opon na ${md >= '10-01' ? 'zimowe' : 'letnie'}: ${tl.slice(0, 5).map(v => v.plate).join(', ')}`});
     d.deadlines.forEach(t => {
       const v = veh(t.vehicle_id); if (!v || v.status === 'wycofany') return;
       const dd = diffDays(today, t.date);
@@ -74,6 +86,8 @@ export function itemsFor(p: Row, d: Data, today: string): {pri: number; text: st
   }
 
   if (p.role === 'floty'){
+    const fl = d.costs.filter(c => c.flag_state === 'open').length;
+    if (fl) out.push({pri: 1, text: `${fl} ${fl === 1 ? 'tankowanie' : 'tankowań/tankowania'} do wyjaśnienia`});
     const pend = d.profiles.filter(x => x.status === 'pending').length;
     if (pend) out.push({pri: 1, text: `${pend} ${pend === 1 ? 'konto czeka' : pend < 5 ? 'konta czekają' : 'kont czeka'} na zatwierdzenie`});
     const month = today.slice(0, 7);
@@ -155,6 +169,16 @@ Deno.serve(async (req) => {
     }
     return {devices: (subs || []).length, sent: ok};
   };
+
+  if (isCron && body && body.mode === 'event'){
+    const roles: string[] = Array.isArray(body.roles) ? body.roles : [];
+    const users: string[] = Array.isArray(body.users) ? body.users : [];
+    const {data: profs} = await sb.from('profiles').select('id, role, status').eq('status', 'active');
+    const to = (profs || []).filter((x: Row) => roles.includes(x.role) || users.includes(x.id));
+    const out: Record<string, unknown>[] = [];
+    for (const x of to) out.push({user: x.id, ...(await send(x.id, {title: String(body.title || 'Emage FLEET').slice(0, 120), body: String(body.body || '').slice(0, 300), url: './', tag: String(body.tag || 'zdarzenie')}))});
+    return json({event: true, users: out.length, report: out});
+  }
 
   if (testUser){
     const r = await send(testUser, {title: 'Emage FLEET', body: 'Powiadomienia działają na tym urządzeniu.', url: './', tag: 'test'});

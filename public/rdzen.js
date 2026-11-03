@@ -1,7 +1,7 @@
 /* Emage FLEET — rdzeń: stan danych, pomocnicze funkcje dat i formatowania, logika domenowa */
 'use strict';
-const COLS = ['vehicles','drivers','deadlines','bookings','costs','issues','docs','settings','requests','crewChanges','routes','serviceEntries','inspections','cleanings'];
-const S = {vehicles:[],drivers:[],deadlines:[],bookings:[],costs:[],issues:[],docs:[],settings:[],requests:[],crewChanges:[],routes:[],serviceEntries:[],inspections:[],cleanings:[]};
+const COLS = ['vehicles','drivers','deadlines','bookings','costs','issues','docs','settings','requests','crewChanges','routes','serviceEntries','inspections','cleanings','blockOverrides'];
+const S = {vehicles:[],drivers:[],deadlines:[],bookings:[],costs:[],issues:[],docs:[],settings:[],requests:[],crewChanges:[],routes:[],serviceEntries:[],inspections:[],cleanings:[],blockOverrides:[]};
 const got = {};
 let db = null, canWrite = true, dbState = 'loading';
 let myId = null;
@@ -76,7 +76,9 @@ function vehicleState(v){
   const b = activeBooking(v.id);
   if (b && b.returned) return {cls:'warn', txt:'Zdawanie – czeka na potwierdzenie'};
   if (b) return {cls:'info', txt:'W użyciu – '+crewName(b)};
-  return {cls:'ok', txt:'Dostępny'};
+  const bl = typeof vehicleBlock==='function' ? vehicleBlock(v) : null;
+  if (bl && !bl.override) return {cls:'bad', txt:'Zablokowane – '+bl.reason};
+  return {cls:'ok', txt: bl ? 'Dostępny dziś (zgoda kierownika)' : 'Dostępny'};
 }
 function conflicts(){
   const set = new Set();

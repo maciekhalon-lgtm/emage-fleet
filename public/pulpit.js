@@ -20,9 +20,15 @@ function attentionItems(serviceOnly){
   const out = [];
   const canDl = d => canEditDoc('deadlines', d);
   const canIs = P().issues==='rw' && canWrite;
+  blockedVehicles().forEach(({v, bl}) => out.push({w: bl.override ? 3 : 0, html: attRow(bl.override ? 'warn' : 'bad', v.id, bl.override ? 'Zgoda na wyjazd dziś' : 'Auto zablokowane', esc(bl.reason) + (bl.override ? ' · „' + esc(bl.override.reason) + '”' : ''),
+    (!bl.override && P().manage ? `<button class="small" data-override="${esc(v.id)}">Zezwól dziś</button>` : '')
+    + S.deadlines.filter(d => d.vehicleId===v.id && BLOCK_TYPES.includes(d.type) && d.date < today() && canEditDoc('deadlines', d)).map(d => `<button class="small" data-renew="${esc(d.id)}">${d.type==='Ubezpieczenie OC' ? 'OC odnowione' : 'Przegląd zrobiony'}</button>`).join(''))}));
+  const tr = tireReminder();
+  if (tr) out.push({w: tr.urgent ? 1 : 3, html: attRow(tr.urgent ? 'bad' : 'warn', '', `${tr.list.length} ${isPlural(tr.list.length,'auto','auta','aut')} ${tr.txt}`, tr.list.slice(0, 8).map(v => esc(v.plate)).join(', ') + (tr.list.length > 8 ? '…' : ''), canCreate('serviceEntries') ? `<button class="small" data-new="serviceEntries">Wpis serwisowy</button>` : '')});
   S.deadlines.forEach(d => {
     const s = dlState(d);
     if (s.cls!=='bad' && s.cls!=='warn') return;
+    if (BLOCK_TYPES.includes(d.type) && d.date < today()) return;   // pokazane wyżej jako blokada auta
     out.push({w: s.cls==='bad' ? 0 : 2, html: attRow(s.cls, d.vehicleId, esc(d.type), `${fdate(d.date)} · ${esc(s.txt.toLowerCase())}`,
       canDl(d) ? `<button class="small" data-renew="${esc(d.id)}">Wykonane</button>` : '')});
   });
@@ -45,6 +51,8 @@ function attentionItems(serviceOnly){
       if (pr) out.push({w:3, html: attRow('info', '', `${pr} ${isPlural(pr,'zmiana danych','zmiany danych','zmian danych')} do akceptacji`, 'np. nowy numer telefonu kierowcy', `<button class="small" data-go="uzytkownicy">Sprawdź</button>`)});
       if (pu) out.push({w:3, html: attRow('info', '', `${pu} ${isPlural(pu,'nowe konto','nowe konta','nowych kont')} do zatwierdzenia`, 'nadaj rolę w Użytkownikach', `<button class="small" data-go="uzytkownicy">Zatwierdź</button>`)});
     }
+    if (P().manage) flaggedCosts().slice(0, 6).forEach(c => out.push({w: c.flagState==='explain' ? 3 : 1, html: flagRow(c, true)}));
+    if (flaggedCosts().length > 6) out.push({w:3, html: attRow('warn', '', `i ${flaggedCosts().length - 6} innych tankowań do wyjaśnienia`, 'pełna lista w Koszty i paliwo', `<button class="small" data-go="koszty">Pokaż</button>`)});
     if (P().manage){
       const pc = pendingCleanings().length, oi = overdueInspections().length, oc = overdueCleanings().length;
       if (pc) out.push({w:2, html: attRow('info', '', `${pc} ${isPlural(pc,'sprzątanie','sprzątania','sprzątań')} do potwierdzenia`, 'kierowcy zaznaczyli – potwierdź albo odrzuć', `<button class="small" data-go="kontrole">Sprawdź</button>`)});

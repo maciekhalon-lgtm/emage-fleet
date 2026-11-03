@@ -4,6 +4,7 @@ const CLEAN_KINDS = {sprzatanie:'Sprzątanie', mycie:'Mycie', oba:'Sprzątanie i
 const INSPECTION_DEFAULT = ['Opony (bieżnik, ciśnienie)','Oświetlenie','Hamulce','Płyny (olej, chłodzący, spryskiwacze)','Wycieraczki','Szyby i lusterka','Karoseria (uszkodzenia)',
   'Wyposażenie (gaśnica, trójkąt, apteczka, kamizelka)','Dokumenty w aucie','Tachograf (jeśli jest)','Czystość kabiny','Czystość przestrzeni ładunkowej'];
 const checkSchedule = () => { const s = S.settings.find(x => x.id==='schedule') || {}; return {insp: Number(s.inspectionDays) || 14, clean: Number(s.cleaningDays) || 14}; };
+const receiptPercent = () => { const s = S.settings.find(x => x.id==='receipts'); return s && s.percent!=null ? Number(s.percent) : 20; };
 const inspectionItems = () => { const s = S.settings.find(x => x.id==='inspection'); return (s && Array.isArray(s.items) && s.items.length) ? s.items : INSPECTION_DEFAULT; };
 const activeVehicles = () => S.vehicles.filter(v => v.status!=='wycofany');
 const lastInspection = vid => S.inspections.filter(x => x.vehicleId===vid).sort((a, b) => a.date<b.date?1:-1)[0];
@@ -44,7 +45,9 @@ function viewChecks(){
   const settings = fleet ? `<div class="panel"><div class="sec-head"><h3>Ustawienia kontroli</h3><button class="small" data-action="save-checks">Zapisz</button></div>
     <div style="padding:14px 16px;display:flex;flex-direction:column;gap:12px">
       <div class="budget-edit" style="flex-wrap:wrap;gap:12px"><label class="field" style="display:flex;flex-direction:column;gap:4px"><span class="label">Inspekcja co (dni)</span><input id="sch-insp" type="number" min="1" value="${sc.insp}" style="width:120px"></label>
-        <label class="field" style="display:flex;flex-direction:column;gap:4px"><span class="label">Sprzątanie co (dni)</span><input id="sch-clean" type="number" min="1" value="${sc.clean}" style="width:120px"></label></div>
+        <label class="field" style="display:flex;flex-direction:column;gap:4px"><span class="label">Sprzątanie co (dni)</span><input id="sch-clean" type="number" min="1" value="${sc.clean}" style="width:120px"></label>
+        <label class="field" style="display:flex;flex-direction:column;gap:4px"><span class="label">Kontrola paragonów (% dni pracy)</span><input id="sch-rcp" type="number" min="0" max="100" value="${receiptPercent()}" style="width:120px"></label></div>
+      <span class="muted small">Kontrola paragonów: system codziennie losuje kierowców, którzy muszą dodać zdjęcie paragonu do tankowania. 0 = wyłączone.</span>
       <label class="muted small" for="insp-edit">Punkty inspekcji – jeden w linii. Punkt z uwagą trafi do serwisu jako usterka.</label>
       <textarea id="insp-edit" rows="8">${esc(inspectionItems().join('\n'))}</textarea></div></div>` : '';
   return `<div class="section">${head}${pendHtml}
@@ -129,6 +132,8 @@ async function saveChecks(){
   try {
     await db.collection('settings').doc('schedule').set({inspectionDays: insp, cleaningDays: clean});
     await db.collection('settings').doc('inspection').set({items});
+    const rp = Math.min(100, Math.max(0, Math.round(Number($('#sch-rcp').value))));
+    if (!Number.isNaN(rp)) await db.collection('settings').doc('receipts').set({percent: rp});
     toast('Zapisano ustawienia kontroli');
   } catch(err){ handleWriteErr(err); }
 }
@@ -149,6 +154,6 @@ function myCleaningNote(vid){
   if (mineL && mineL.status==='pending') return `<div class="mycar-booking"><span>${ic('clip')} Zaznaczone sprzątanie ${fdate(mineL.date)} czeka na potwierdzenie kierownika.</span></div>`;
   if (mineL && mineL.status==='rejected' && diffDays(mineL.date, today()) <= 7) return `<div class="mycar-booking" style="border-color:var(--bad)"><span>Kierownik nie potwierdził sprzątania z ${fdate(mineL.date)}. Posprzątaj auto i zaznacz ponownie.</span></div>`;
   const st = cleanDue(v);
-  if (st.over) return `<div class="mycar-booking" style="border-color:var(--warn)"><span><b>Auto do sprzątania</b> – ${lastCleaning(vid) ? 'ostatnio '+fdate(lastCleaning(vid).date) : 'brak zapisu sprzątania'}. Po sprzątaniu kliknij „Posprzątane”.</span></div>`;
+  if (st.over) return `<div class="mycar-booking" style="border-color:var(--warn)"><span><b>Auto do sprzątania</b> – ${lastCleaning(vid) ? 'ostatnio '+fdate(lastCleaning(vid).date) : 'brak zapisu sprzątania'}. </span><button class="small" data-new="cleanings" data-veh="${esc(vid)}">${ic('check')}Posprzątane</button></div>`;
   return '';
 }

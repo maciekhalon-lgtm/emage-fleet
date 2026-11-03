@@ -19,6 +19,8 @@ const FORMS = {
     {k:'driverId',l:'Stały kierowca',t:'select',o:drvOpts()},
     {k:'status',l:'Status',t:'select',o:[['aktywny','Aktywny'],['serwis','W serwisie'],['wycofany','Wycofany']]},
     {k:'monthlyLimit',l:'Limit kosztów / mies. (zł)',t:'number',ph:'np. 2500'},
+    {k:'tankL',l:'Pojemność baku (l)',t:'number',ph:'np. 90'},
+    {k:'tires',l:'Założone opony',t:'select',o:[['','— nie wiadomo —'],...Object.entries(TIRES)]},
     {k:'consGood',l:'Spalanie bardzo dobre – do (l/100 km)',t:'number',step:'0.1',ph:'np. 9,5'},
     {k:'consOk',l:'Spalanie dobre – do (l/100 km)',t:'number',step:'0.1',ph:'np. 11,0 (powyżej = słabe)'},
     {k:'applyModel',l:'Zastosuj te poziomy spalania do wszystkich aut tego samego modelu',t:'check'},
@@ -51,7 +53,7 @@ const FORMS = {
     ...(P().bookings==='rw' ? [{k:'routeId',l:'Trasa',t:'select',o:routeOpts(),full:1}] : []),
     {k:'purpose',l:'Cel / uwagi',full:1,ph:'np. Klient w Gnieźnie'},
   ]},
-  costs: { title:['Nowy koszt','Edytuj koszt'], fields: () => [
+  costs: { title:['Nowy koszt','Edytuj koszt'], fields: () => costFieldsFor([
     {k:'date',l:'Data',t:'date',req:1},
     {k:'category',l:'Kategoria',t:'select',o:(P().costs==='own'?DRIVER_CATS:COST_CATS).map(c=>[c,c]),req:1},
     {k:'vehicleId',l:'Pojazd',t:'select',o:vehOpts(),req:1,full:1},
@@ -67,7 +69,7 @@ const FORMS = {
     ...(P().costs==='rw' ? [{k:'driverId',l:'Kierowca',t:'select',o:drvOpts('— nie dotyczy —')}] : []),
     {k:'note',l:'Opis',ph:'np. stacja, faktura nr'},
     {k:'photos',t:'photos'},
-  ]},
+  ])},
   issues: { title:['Zgłoś usterkę','Edytuj zgłoszenie'], fields: () => [
     {k:'vehicleId',l:'Pojazd',t:'select',o:vehOpts(),req:1,full:1},
     {k:'title',l:'Co się dzieje?',req:1,full:1,ph:'np. stuk z przedniego zawieszenia'},
@@ -97,6 +99,7 @@ const FORMS = {
     {k:'cost',l:'Koszt brutto (zł)',t:'number',step:'0.01',hint:'doda się sam do kosztów'},
     {k:'description',l:'Co zrobiono',t:'textarea',req:1,full:1,ph:'np. wymiana oleju i filtrów, klocki przód'},
     {k:'oilChange',l:'Wymiana oleju – następna za 12 000 km (przypomnienie 2 000 km wcześniej)',t:'check'},
+    {k:'tiresSet',l:'Założono opony',t:'select',o:[['','— bez zmiany opon —'],...Object.entries(TIRES)]},
     {k:'deadlineId',l:'Odnów termin',t:'select',o:svcDeadlineOpts(),full:1},
     {k:'issueIds',l:'Naprawione usterki',t:'checks',o:svcIssueOpts(),full:1},
     {k:'note',l:'Uwagi',full:1},
@@ -118,7 +121,7 @@ const FORMS = {
   ]},
 };
 const DEFAULTS = {
-  vehicles: () => ({status:'aktywny', fuel:'Diesel'}),
+  vehicles: () => ({status:'aktywny', fuel:'Diesel', tankL:90}),
   drivers: () => ({active:true}),
   routes: () => ({active:true}),
   serviceEntries: () => ({date: today()}),
@@ -162,6 +165,51 @@ function svcUi(e){
   document.querySelectorAll('#f-serviceEntries-issueIds label').forEach(l => { const show = l.dataset.veh===veh; l.hidden = !show; if (!show) l.querySelector('input').checked = false; });
   if (e && e.target && e.target.id==='f-serviceEntries-vehicleId'){ const v = byId('vehicles', veh); const k = $('#f-serviceEntries-km'); if (v && v.km && k && !k.value) k.value = v.km; }
 }
+/* Kierowca: szybkie tankowanie (tylko litry, kwota, licznik) i „Inny wydatek” – reszta uzupełnia się sama */
+const QUICK_FIELDS = ['liters','amount','currency','fxPrev','odometer','full','stationSel','stationOther','photos'];
+const OTHER_FIELDS = ['category','amount','currency','fxPrev','note','photos'];
+function costFieldsFor(all){
+  const mode = editing && editing.base && editing.base.mode;
+  if (!mode) return all;
+  const keys = mode==='quick' ? QUICK_FIELDS : OTHER_FIELDS;
+  return keys.map(k => all.find(f => f.k===k)).filter(Boolean).map(f => {
+    if (mode==='quick' && f.k==='liters') return {...f, l:'Litry', req:1, hint:''};
+    if (mode==='quick' && f.k==='odometer') return {...f, l:'Stan licznika (km)', req:1, ph: editing.base.vehicleId ? 'ostatni: ' + new Intl.NumberFormat('pl-PL').format(lastKm(editing.base.vehicleId) || 0) : ''};
+    if (mode==='other' && f.k==='category') return {...f, o: DRIVER_CATS.filter(c => !FUEL_CATS.includes(c)).map(c => [c, c])};
+    return f;
+  });
+}
+const FUEL_PREFS = 'ef-fuel-last';
+const fuelPrefs = () => { try { return JSON.parse(localStorage.getItem(FUEL_PREFS) || '{}'); } catch(_){ return {}; } };
+let receiptCache = null;
+async function receiptToday(){
+  if (receiptCache && receiptCache.d===today()) return receiptCache.v;
+  if (!navigator.onLine) return false;
+  try { const {data, error} = await sb.rpc('my_receipt_today'); if (error) return false; receiptCache = {d: today(), v: !!data}; return !!data; } catch(_){ return false; }
+}
+async function openQuickFuel(vid){
+  const v = byId('vehicles', vid), pf = fuelPrefs();
+  openForm('costs', null, {vehicleId: vid, mode:'quick', category: v && v.fuel==='Elektryczny' ? 'Ładowanie' : 'Paliwo', currency: pf.currency || 'PLN', station: pf.station || '', full: true});
+  if (!editing) return;
+  $('#dlg-title').textContent = 'Tankowanie';
+  if (await receiptToday() && editing && editing.base.mode==='quick'){
+    editing.receipt = true;
+    $('#dlg-body').insertAdjacentHTML('afterbegin', '<div class="field full"><div class="notice"><span><b>Dziś wylosowano Cię do kontroli paragonów</b> – dodaj zdjęcie paragonu.</span></div></div>');
+  }
+}
+function openOtherCost(vid){
+  openForm('costs', null, {vehicleId: vid, mode:'other', category:'Myjnia', currency: fuelPrefs().currency || 'PLN'});
+  if (editing) $('#dlg-title').textContent = 'Inny wydatek';
+}
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-fuel],[data-other-cost],[data-action="more"],[data-ck-expand]');
+  if (!t) return;
+  if (t.dataset.ckExpand!==undefined){ const box = t.closest('.ck-wrap'); box.querySelector('.checklist').hidden = false; t.closest('.ck-all').hidden = true; return; }
+  if (t.closest('#dialog')) return;
+  if (t.dataset.fuel) return openQuickFuel(t.dataset.fuel);
+  if (t.dataset.otherCost) return openOtherCost(t.dataset.otherCost);
+  if (t.dataset.action==='more'){ driverMore = !driverMore; render(); return; }
+});
 const fxCache = {};
 async function fxRate(cur, date){
   const k = cur+':'+date;
@@ -279,6 +327,7 @@ $('#dialog').addEventListener('submit', async e => {
     if (data.consGood && data.consOk && data.consGood >= data.consOk){ const w = $('#dlg-warn'); w.textContent = 'Próg „bardzo dobre” musi być niższy niż próg „dobre”.'; w.hidden = false; return; }
   }
   if (col==='cleanings' && P().cleanings==='own') data.driverId = myDriverId();
+  if (col==='costs' && editing.receipt && !(base.photos||[]).length && !($('#f-costs-photos')?.files||[]).length){ const w = $('#dlg-warn'); w.textContent = 'Dziś wylosowano Cię do kontroli paragonów – dodaj zdjęcie paragonu.'; w.hidden = false; return; }
   if (col==='costs'){
     data.station = data.stationSel==='Inna' ? (data.stationOther || 'Inna') : (data.stationSel || null);
     delete data.stationSel; delete data.stationOther; delete data.fxPrev;
@@ -313,6 +362,8 @@ $('#dialog').addEventListener('submit', async e => {
       try { const up = await uploadDocFile(file); data.assetId = up.id; data.contentType = up.contentType; data.size = up.sizeBytes; data.fileName = file.name; }
       catch(err){ toast(err.code==='bad_type' ? 'Dozwolone są pliki PDF i zdjęcia (JPG, PNG, WebP)' : err.code==='too_big' ? 'Plik jest większy niż 20 MB' : err.code==='no_assets' || err.code==='not_granted' ? 'Pliki mogą dodawać osoby z poziomem Edytor' : 'Nie udało się wgrać pliku'); return; }
     }
+    if (col==='costs' && base.mode){ try { localStorage.setItem(FUEL_PREFS, JSON.stringify({currency: data.currency, station: base.mode==='quick' ? data.station || '' : fuelPrefs().station || ''})); } catch(_){} }
+    if (col==='costs' && !id && P().costs==='own' && !navigator.onLine){ await queueOffline('cost', {data}, filesOf('f-costs')); closeForm(); toast('Brak zasięgu – zapisze się samo po odzyskaniu sieci'); return; }
     if (fields.some(f => f.t==='photos')){
       const ids = await uploadPhotos('f-'+col, (data.photos||[]).length);
       if (ids === null) return;
@@ -335,7 +386,10 @@ $('#dialog').addEventListener('submit', async e => {
       if (v && (!v.km || data.odometer > v.km)) await refresh('vehicles');   // przebieg podnosi baza (wyzwalacz)
     }
     closeForm(); toast(okMsg || (id ? 'Zapisano zmiany' : 'Dodano'));
-  } catch(err){ handleWriteErr(err); }
+  } catch(err){
+    if (col==='costs' && !id && P().costs==='own' && isNetErr(err)){ await queueOffline('cost', {data}, filesOf('f-costs')); closeForm(); toast('Brak zasięgu – zapisze się samo po odzyskaniu sieci'); return; }
+    handleWriteErr(err);
+  }
   finally { btn.disabled = false; }
 });
 $('#dlg-del').addEventListener('click', async e => {

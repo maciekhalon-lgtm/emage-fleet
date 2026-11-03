@@ -16,7 +16,7 @@ function viewCard(){
 
   const facts = [
     ['Przebieg', km(v.km)], ['Rok', esc(v.year||'—')], ['Napęd', esc(v.fuel||'—')], ['Stały kierowca', v.driverId?esc(dName(v.driverId)):'—'],
-    ['VIN', `<span class="num">${esc(v.vin||'—')}</span>`], ['Numer polisy', esc(v.policyNo||'—')], ['Tachograf', v.hasTacho ? 'tak' : 'nie'], ...(P().service ? [['Inspekcja', (lastInspection(v.id) ? fdate(lastInspection(v.id).date)+' · ' : '')+`<span class="pill ${inspDue(v).cls}">${esc(inspDue(v).txt)}</span>`], ['Sprzątanie', (lastCleaning(v.id) ? fdate(lastCleaning(v.id).date)+' · ' : '')+`<span class="pill ${cleanDue(v).cls}">${esc(cleanDue(v).txt)}</span>`]] : []), ['Śr. zużycie', cons ? cons.val.toFixed(1).replace('.',',')+' '+cons.unit : '—'],
+    ['VIN', `<span class="num">${esc(v.vin||'—')}</span>`], ['Numer polisy', esc(v.policyNo||'—')], ['Tachograf', v.hasTacho ? 'tak' : 'nie'], ['Opony', v.tires ? TIRES[v.tires] : '—'], ['Bak', (v.tankL || 90) + ' l'], ...(P().service ? [['Inspekcja', (lastInspection(v.id) ? fdate(lastInspection(v.id).date)+' · ' : '')+`<span class="pill ${inspDue(v).cls}">${esc(inspDue(v).txt)}</span>`], ['Sprzątanie', (lastCleaning(v.id) ? fdate(lastCleaning(v.id).date)+' · ' : '')+`<span class="pill ${cleanDue(v).cls}">${esc(cleanDue(v).txt)}</span>`]] : []), ['Śr. zużycie', cons ? cons.val.toFixed(1).replace('.',',')+' '+cons.unit : '—'],
     [P().costs==='own'?'Moje koszty '+yr:'Koszty '+yr, zl(yearCost)], ['Status', `<span class="pill ${st.cls}">${esc(st.txt)}</span>`],
   ].map(([l,val]) => `<div><span class="label">${l}</span><span class="fv">${val}</span></div>`).join('');
 
@@ -63,6 +63,7 @@ function viewCard(){
     <div class="bar"><button class="ghost" data-back="1">← Wszystkie pojazdy</button>
       <div class="tools">${canEditDoc('vehicles',v)?`<button data-edit="vehicles" data-id="${esc(v.id)}">Edytuj dane</button>`:''}</div></div>
     <div class="card-head">${plate(v.plate)}<div><h2>${esc(v.make)} ${esc(v.model)}</h2>${v.notes?`<span class="muted">${esc(v.notes)}</span>`:''}</div></div>
+    ${blockBanner(v)}
     <div class="facts">${facts}</div>
     <div class="grid2">
       <div class="section">

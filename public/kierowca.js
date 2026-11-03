@@ -17,12 +17,14 @@ function takeState(v){
   if (v.status==='wycofany') return null;
   if (v.status==='serwis') return {ok:false, why:'w serwisie'};
   if (stopIssue(v.id)) return {ok:false, why:'niesprawne – usterka'};
+  const bl = vehicleBlock(v); if (bl && !bl.override) return {ok:false, why:'zablokowane – ' + bl.reason.toLowerCase()};
   const out = S.bookings.find(b => b.vehicleId===v.id && holds(b));
   if (out) return {ok:false, why: crewOf(out).includes(myDriverId()) ? 'masz je teraz' : out.returned ? 'zdawanie – czeka na potwierdzenie' : 'w użyciu – '+crewName(out)};
   const res = S.bookings.find(b => b.vehicleId===v.id && !b.pickup && !b.returned && b.from<=t && b.to>=t && b.driverId!==myDriverId());
   if (res) return {ok:false, why:'zarezerwowane dziś dla: '+dName(res.driverId)};
   return {ok:true};
 }
+let driverMore = false;
 const big = (attrs, label, sub, cls = '', icon = '') => `<button class="big ${cls}" ${attrs}>${icon ? ic(icon) : ''}<b>${label}</b><span>${sub}</span></button>`;
 const backBtn = () => `<div class="bar"><a class="btn ghost" href="#moje">${ic('back')}Wróć</a></div>`;
 
@@ -60,16 +62,20 @@ function viewMyCar(){
     const since = v.km && active.pickup.km ? v.km - active.pickup.km : 0;
     carTile = `<div class="panel mycar">
       <div class="mycar-head">${plate(v.plate)}<div><h2>${esc(v.make||'')} ${esc(v.model||'')}</h2><span class="muted">Przejęte ${fdate(active.pickup.at)} przy ${km(active.pickup.km)}${since>0?' · od tego czasu '+km(since):''}</span></div><span class="pill info">Twoje auto</span>${v.hasTacho ? '<span class="pill off">tachograf</span>' : ''}</div>
-      ${S.routes.length ? `<div class="mycar-booking route-pick"><label for="my-route" class="label">Trasa</label>${routeSelect('my-route', active.routeId, `data-route-for="${esc(active.id)}"`)}${routeById(active.routeId)?.tacho ? '<span class="muted small">Trasa wymaga tachografu.</span>' : ''}</div>` : ''}
+      ${active.routeId ? `<div class="mycar-booking"><span>Trasa: <b>${esc(rLabel(active.routeId))}</b>${routeById(active.routeId)?.tacho ? ' · wymaga tachografu' : ''}</span></div>` : ''}
       ${active.coDriverId ? `<div class="mycar-booking"><span>Podwójna obsada: <b>${esc(crewName(active))}</b>${!active.pickupConfirmedAt ? ` · <span style="color:var(--warn)">przejęcie czeka na potwierdzenie (${esc(dName(active.coDriverId))})</span>` : ''}</span></div>` : ''}
       ${myCleaningNote(v.id)}
       ${checklistSummary(active.pickup.checklist) ? `<div class="mycar-booking">${checklistSummary(active.pickup.checklist)}</div>` : ''}
       <div class="big-grid">
-        ${big(`data-new="costs" data-veh="${esc(v.id)}"`, 'Zatankuj', 'litry, kwota, licznik', '', 'fuel')}
-        ${big(`data-new="issues" data-veh="${esc(v.id)}"`, 'Zgłoś usterkę', 'opis i zdjęcie', '', 'wrench')}
-        ${big(`data-new="cleanings" data-veh="${esc(v.id)}"`, 'Posprzątane / umyte', 'zaznacz – kierownik potwierdzi', 'wide', 'check')}
-        ${big(`data-ho="return" data-id="${esc(active.id)}"`, 'Zdaj pojazd', 'koniec dnia: licznik, paliwo, uwagi', 'primary wide', 'key')}
-      </div></div>`;
+        ${big(`data-fuel="${esc(v.id)}"`, 'Zatankuj', 'litry, kwota, licznik', '', 'fuel')}
+        ${big(`data-ho="return" data-id="${esc(active.id)}"`, 'Zdaj pojazd', 'koniec dnia', 'primary', 'key')}
+      </div>
+      <div class="more-row"><button class="small" data-other-cost="${esc(v.id)}">${ic('coins')}Inny wydatek</button><button class="small ghost" data-action="more" aria-expanded="${driverMore}">${ic('menu')}Więcej</button></div>
+      ${driverMore ? `<div class="more-box">
+        <button class="small" data-new="issues" data-veh="${esc(v.id)}">${ic('wrench')}Zgłoś usterkę</button>
+        <button class="small" data-new="cleanings" data-veh="${esc(v.id)}">${ic('check')}Posprzątane / umyte</button>
+        ${S.routes.length ? `<div class="route-pick"><label for="my-route" class="label">Zmień trasę</label>${routeSelect('my-route', active.routeId, `data-route-for="${esc(active.id)}"`)}</div>` : ''}
+      </div>` : ''}</div>`;
   } else if (meDriver() && meDriver().active===false){
     carTile = inactiveNote();
   } else {
@@ -78,7 +84,9 @@ function viewMyCar(){
     carTile = `<a class="tile primary" href="#wybierz"><span class="t-ic">${ic('key')}</span><span class="t-txt"><b>Wybierz auto</b><span>${asgOk ? `Czeka na Ciebie: ${esc(asg.vehicle.plate)} · ${esc(asg.vehicle.make)} ${esc(asg.vehicle.model)}` : 'Wybierz wolne auto na dziś, wypełnij checklistę i podaj przebieg'}</span></span>${ic('chev','chev')}</a>`;
   }
   return `<div class="section driver">${hello}${myExpiryNotes()}
+    ${offlineNote()}
     ${toConfirmPanel()}
+    ${myExplainPanel()}
     ${carTile}
     <a class="tile" href="#moje-dane"><span class="t-ic">${ic('chart')}</span><span class="t-txt"><b>Moje dane i statystyki</b><span>Kilometry, spalanie, dni pracy, tankowania, zgłoszenia i dane kontaktowe</span></span>${ic('chev','chev')}</a>
   </div>`;

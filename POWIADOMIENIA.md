@@ -57,3 +57,19 @@ Każda osoba robi to sama, na każdym telefonie lub komputerze:
 - Test mówi „nie znaleziono tego urządzenia” – wyłącz i włącz powiadomienia ponownie.
 - Zero powiadomień rano – sprawdź w SQL Editor: `select * from cron.job_run_details order by start_time desc limit 5;`
 - Wygenerowanie **nowych** kluczy unieważnia wszystkie włączone urządzenia – każdy musi włączyć powiadomienia ponownie.
+
+---
+
+## Aktualizacja funkcji (podmiana kodu)
+
+Po zmianach w pliku `supabase/functions/powiadomienia/index.ts` trzeba wgrać nową wersję funkcji:
+1. Na GitHubie otwórz plik `supabase/functions/powiadomienia/index.ts` → przycisk **Copy raw file** (ikona kopiowania nad kodem).
+2. Supabase → **Edge Functions** → **powiadomienia** → zakładka **Code** → zaznacz cały stary kod, usuń, wklej nowy → **Deploy**.
+3. Sekrety i harmonogram zostają bez zmian. Verify JWT ma zostać wyłączone.
+
+Nowa wersja dodaje:
+- powiadomienia **od razu** (z bazy, migracja 014): auto niesprawne (oba kierownicze konta), podejrzane tankowanie,
+  wyjaśnienie kierowcy, spory w obsadzie, sprzątanie i zmiany danych do potwierdzenia (kierownik floty),
+  prośba o wyjaśnienie tankowania (kierowca),
+- w porannym podsumowaniu: badania psychologiczne, przypomnienie N km przed terminem (np. 2000 km przed olejem),
+  auta zablokowane, opony do wymiany, tankowania do wyjaśnienia.

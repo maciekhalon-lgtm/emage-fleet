@@ -16,7 +16,8 @@ function viewCosts(){
   const maxM = Math.max(1, ...months.map(x=>x[2]));
   const perV = S.vehicles.map(v => ({v, m: inM.filter(c=>c.vehicleId===v.id).reduce((s,c)=>s+Number(c.amount||0),0), y: VC.filter(c=>c.vehicleId===v.id && (c.date||'').startsWith(String(y))).reduce((s,c)=>s+Number(c.amount||0),0), cons: consumption(v.id)})).filter(x=>x.y>0||x.m>0).sort((a,b)=>b.m-a.m||b.y-a.y);
   const entries = inM.slice().sort((a,b)=>a.date<b.date?1:-1);
-  return head + (mine ? `<div style="margin-bottom:20px">${mine}</div>` : '') + `<div class="grid2">
+  const fl = flagsPanel();
+  return head + (fl ? `<div style="margin-bottom:20px">${fl}</div>` : '') + (mine ? `<div style="margin-bottom:20px">${mine}</div>` : '') + `<div class="grid2">
     <div class="section">
       <div class="panel">
         <div class="totals"><div><span class="label">Razem w miesiącu</span><b>${zl(total)}</b></div><div><span class="label">W tym paliwo i ładowanie</span><b>${zl(fuelT)}</b></div><div><span class="label">Od początku ${y} r.</span><b>${zl(yr)}</b></div></div>

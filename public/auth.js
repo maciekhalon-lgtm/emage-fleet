@@ -88,6 +88,15 @@ async function startSession(user, force = false){
   $('#auth').hidden = true; $('#app').hidden = false;
   setSync('', 'Logowanie…');
   const {data, error} = await sb.from('profiles').select('*').eq('id', myId).maybeSingle();
+  const snap = error && typeof loadSnapshot==='function' ? loadSnapshot(myId) : null;
+  if (snap){
+    // brak zasięgu: dane z ostatniej synchronizacji, wpisy idą do kolejki
+    me = snap.me; Object.assign(names, snap.names || {});
+    Object.entries(snap.S || {}).forEach(([c, v]) => { S[c] = v; got[c] = true; });
+    db = dbApi; assetsNS = storageApi; dbState = 'offline';
+    setSync('err', 'Brak zasięgu – dane z ' + new Date(snap.at).toLocaleString('pl-PL', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'}));
+    route(); return;
+  }
   if (error || !data){ me = {id:myId, email:user.email, full_name:'', status:'pending'}; }
   else me = data;
   assetsNS = storageApi;

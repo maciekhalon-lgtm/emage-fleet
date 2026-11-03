@@ -48,7 +48,7 @@ function openHandover(id, kind, vehicleId){
   const items = checklistItems();
   editing = {col:'handover', id: id || null, base:{}, special: () => saveHandover({id, kind, vehicleId: vid, minKm, items})};
   $('#dlg-title').textContent = kind==='pickup' ? 'Przejęcie auta' : 'Zdanie pojazdu';
-  const check = kind==='pickup' ? `<div class="field full"><span class="label">Checklista</span><div class="checklist">${items.map((it, i) => `
+  const check = kind==='pickup' ? `<div class="field full ck-wrap"><span class="label">Checklista</span><div class="ck-all"><span>${ic('check')} Wszystkie punkty OK <span class="muted">(${items.length})</span></span><button type="button" class="small" data-ck-expand>Mam uwagi</button></div><div class="checklist" hidden>${items.map((it, i) => `
       <div class="ck" data-ck="${i}"><span class="ck-name">${esc(it)}</span>
         <span class="ck-btns"><label><input type="radio" name="ck-${i}" value="ok" checked> OK</label><label><input type="radio" name="ck-${i}" value="bad"> Uwaga</label></span>
         <input class="ck-note" id="ck-note-${i}" type="text" placeholder="Co jest nie tak?" hidden></div>`).join('')}</div>
@@ -108,6 +108,13 @@ async function saveHandover({id, kind, vehicleId, minKm, items}){
     checklist = items.map((item, i) => ({item, ok: (document.querySelector(`input[name="ck-${i}"]:checked`) || {}).value !== 'bad', note: ($('#ck-note-'+i) || {}).value?.trim() || ''}));
     const miss = checklist.findIndex(x => !x.ok && !x.note);
     if (miss >= 0){ $('#ck-note-'+miss).focus(); return warn(`Opisz, co jest nie tak: „${checklist[miss].item}”.`); }
+  }
+  if (kind==='return' && !navigator.onLine){
+    const iss = $('#ho-issue')?.checked ? {title: $('#ho-note').value.trim().slice(0, 120), description: $('#ho-note').value.trim(), severity: $('#ho-sev').value} : null;
+    if (iss && !iss.title){ $('#ho-note').focus(); return warn('Opisz usterkę w polu „Uwagi po dniu pracy”.'); }
+    await queueOffline('return', {bookingId: id, vehicleId, rec: {km: kmV, fuel: $('#ho-fuel').value, note: $('#ho-note').value.trim(), at: today(), photos: [], by: myId}, issue: iss}, filesOf('ho'));
+    const bk = byId('bookings', id); if (bk) bk.returned = {km: kmV, fuel: $('#ho-fuel').value, note: $('#ho-note').value.trim(), at: today(), photos: [], by: myId};   // od razu widać, że auto zdane
+    closeForm(); render(); return toast('Brak zasięgu – zdanie auta zapisze się samo po odzyskaniu sieci');
   }
   const note = $('#ho-note').value.trim();
   if (kind==='return' && $('#ho-issue')?.checked && !note){ $('#ho-note').focus(); return warn('Opisz usterkę w polu „Uwagi po dniu pracy”.'); }
