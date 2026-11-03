@@ -14,7 +14,7 @@ Zajmie ok. 15 minut. Klucze i hasła wpisujesz sam – Claude ich nie wpisuje.
 ---
 
 ## 1. Skrypt bazy
-Supabase → **SQL Editor** → wklej `supabase/migrations/004_powiadomienia.sql` → **Run**.
+Supabase → **SQL Editor** → wklej `supabase/migrations/003_powiadomienia.sql` → **Run**.
 
 ## 2. Rozszerzenia bazy
 Supabase → **Database → Extensions** → włącz **pg_cron** i **pg_net** (wyszukaj po nazwie, przełącznik → Enable).
