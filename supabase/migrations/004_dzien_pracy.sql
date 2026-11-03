@@ -30,5 +30,6 @@ create trigger bookings_one_driver before insert or update of pickup_km, return_
 
 -- Checklistę (ustawienie 'checklist') czytają wszyscy zatwierdzeni – kierowcy jej potrzebują.
 drop policy if exists settings_select_push on public.settings;
+drop policy if exists settings_select_public on public.settings;
 create policy settings_select_public on public.settings for select
   using (key in ('push', 'checklist') and public.is_active());
