@@ -137,7 +137,7 @@ function viewMyData(){
   const fuelM = fuel.filter(c => c.date >= mA && c.date <= mB);
   const fuelC = `<div class="panel"><div class="sec-head"><h3>Moje tankowania</h3><span class="muted small">${MONTHS_FULL[m-1]}: ${fuelM.length} · ${zl2(fuelM.reduce((s, c) => s + Number(c.amount||0), 0))}</span></div>
     ${fuel.length ? `<div class="tablewrap"><table><thead><tr><th>Data</th><th>Auto</th><th class="r">Ilość</th><th class="r">Kwota</th><th class="r">Licznik</th></tr></thead><tbody>
-    ${fuel.slice(0,30).map(c => `<tr ${canEditDoc('costs',c)?'class="click" data-edit="costs"':''} data-id="${esc(c.id)}"><td class="num">${fdate(c.date)}</td><td>${vPlate(c.vehicleId)}</td><td class="r num">${String(c.liters||'').replace('.',',')} ${c.category==='Ładowanie'?'kWh':'l'}${c.full?' · pełny':''}</td><td class="r num">${zl2(c.amount)}</td><td class="r num">${km(c.odometer)}</td></tr>`).join('')}
+    ${fuel.slice(0,30).map(c => `<tr ${canEditDoc('costs',c)?'class="click" data-edit="costs"':''} data-id="${esc(c.id)}"><td class="num">${fdate(c.date)}</td><td>${vPlate(c.vehicleId)}</td><td class="r num">${String(c.liters||'').replace('.',',')} ${c.category==='Ładowanie'?'kWh':'l'}${c.full?' · pełny':''}</td><td class="r num">${zl2(c.amount)}${fxNote(c) ? `<span class="sub">${fxNote(c)}</span>` : ''}${c.station ? `<span class="sub">${esc(c.station)}</span>` : ''}</td><td class="r num">${km(c.odometer)}</td></tr>`).join('')}
     </tbody></table></div>` : '<p class="muted sec-empty">Brak tankowań. Dodasz je przyciskiem „Zatankuj” na ekranie startowym.</p>'}</div>`;
 
   // d) moje zgłoszenia usterek

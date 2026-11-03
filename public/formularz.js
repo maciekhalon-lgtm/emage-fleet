@@ -54,7 +54,12 @@ const FORMS = {
     {k:'date',l:'Data',t:'date',req:1},
     {k:'category',l:'Kategoria',t:'select',o:(P().costs==='own'?DRIVER_CATS:COST_CATS).map(c=>[c,c]),req:1},
     {k:'vehicleId',l:'Pojazd',t:'select',o:vehOpts(),req:1,full:1},
-    {k:'amount',l:'Kwota brutto (zł)',t:'number',step:'0.01',req:1},
+    {k:'amount',l:'Kwota brutto',t:'number',step:'0.01',req:1},
+    {k:'currency',l:'Waluta',t:'select',o:CURRENCIES.map(c=>[c,c])},
+    {k:'fxPrev',t:'html',html:'<div class="fx-prev muted small" id="fx-prev" hidden></div>'},
+    ...(P().manage ? [{k:'fxManual',l:'Kurs wpisuję ręcznie (zamiast kursu NBP)',t:'check'},{k:'fxRate',l:'Kurs ręczny (zł za 1 jednostkę)',t:'number',step:'0.0001'}] : []),
+    {k:'stationSel',l:'Stacja',t:'select',o:[['','— nie podano —'],...STATIONS.map(s=>[s,s])]},
+    {k:'stationOther',l:'Nazwa stacji',ph:'np. Shell, Aral'},
     {k:'liters',l:'Ilość (l / kWh)',t:'number',step:'0.01',hint:'dla paliwa i ładowania'},
     {k:'odometer',l:'Stan licznika (km) – wymagany przy tankowaniu',t:'number'},
     {k:'full',l:'Zatankowano do pełna (naładowano do 100%)',t:'check'},
@@ -110,6 +115,48 @@ const DEFAULTS = {
   docs: () => ({kind:'Dowód rejestracyjny'}),
 };
 let editing = null;
+/* ---------- waluty i stacje (tankowanie za granicą) ---------- */
+const CURRENCIES = ['PLN','EUR','CZK'];
+const STATIONS = ['Orlen','UTA','Inna'];
+const FORM_VIEW = {
+  costs: d => { const foreign = d.currency && d.currency!=='PLN';
+    const st = d.station || '', known = STATIONS.includes(st) && st!=='Inna';
+    return {...d, currency: d.currency || 'PLN', amount: foreign ? (d.amountOrig ?? '') : d.amount, stationSel: !st ? '' : known ? st : 'Inna', stationOther: !st || known ? '' : st}; },
+};
+const fxCache = {};
+async function fxRate(cur, date){
+  const k = cur+':'+date;
+  if (fxCache[k]) return fxCache[k];
+  const {data, error} = await sb.rpc('nbp_rate', {cur, d: date});
+  const r = !error && data && data[0] ? {rate: Number(data[0].rate), date: data[0].eff_date, tbl: data[0].tbl} : null;
+  if (r) fxCache[k] = r;
+  return r;
+}
+let fxSeq = 0;
+async function costFxUi(){
+  if (!editing || editing.col!=='costs') return;
+  const g = n => $('#f-costs-'+n);
+  const cur = g('currency')?.value || 'PLN', foreign = cur!=='PLN';
+  const sel = g('stationSel')?.value;
+  const other = $('#wrap-costs-stationOther'); if (other) other.hidden = sel!=='Inna';
+  const lab = $('#wrap-costs-amount label'); if (lab) lab.textContent = `Kwota brutto (${cur==='PLN'?'zł':cur}) *`;
+  ['fxManual','fxRate'].forEach(k => { const w = $('#wrap-costs-'+k); if (w) w.hidden = !foreign; });
+  const man = g('fxManual')?.checked; const wr = $('#wrap-costs-fxRate'); if (wr && foreign) wr.hidden = !man;
+  const box = $('#fx-prev'); if (!box) return;
+  const amt = Number(String(g('amount')?.value || '').replace(',', '.'));
+  if (!foreign){ box.hidden = true; return; }
+  box.hidden = false;
+  if (man){ const r = Number(String(g('fxRate')?.value || '').replace(',', '.')); box.innerHTML = r > 0 && amt ? `≈ <b>${zl2(amt * r)}</b> · kurs ręczny ${String(r).replace('.', ',')}` : 'Wpisz kurs ręczny.'; return; }
+  const date = g('date')?.value || today(); const seq = ++fxSeq;
+  box.textContent = 'Pobieranie kursu NBP…';
+  const r = await fxRate(cur, date);
+  if (seq !== fxSeq) return;
+  box.innerHTML = r ? `${amt ? `≈ <b>${zl2(amt * r.rate)}</b> · ` : ''}kurs NBP ${String(r.rate).replace('.', ',')} zł z ${fdate(r.date)} (tabela ${esc(r.tbl || '')})`
+    : 'Nie udało się teraz pobrać kursu NBP – baza spróbuje ponownie przy zapisie.';
+}
+/* Kwota w walucie i kurs – do list kosztów */
+const fxNote = c => c.currency && c.currency!=='PLN' && c.amountOrig!=null
+  ? `${new Intl.NumberFormat('pl-PL', {style:'currency', currency:c.currency}).format(c.amountOrig)} · kurs ${String(Number(c.fxRate)).replace('.', ',')}${c.fxManual ? ' (ręcznie)' : ' NBP'}` : '';
 function openForm(col, id, preset){
   if (id ? !canEditDoc(col, byId(col, id)) : !canCreate(col)) { if (!id) toast('Twoja rola nie pozwala na tę zmianę'); return; }
   if (!id && col==='bookings' && P().bookings==='own' && !myDriverId()){ toast('Kierownik floty musi najpierw powiązać Twoje konto z kierowcą'); return; }
@@ -117,19 +164,21 @@ function openForm(col, id, preset){
   const cfg = FORMS[col];
   const doc = id ? byId(col, id) : {...DEFAULTS[col](), ...(preset||{})};
   editing = {col, id: id||null, base: doc||{}};
+  const vw = FORM_VIEW[col] ? FORM_VIEW[col](doc || {}) : doc;
   if (col==='issues' && !id && preset && preset.vehicleId){ const v=byId('vehicles',preset.vehicleId); if (v && v.km) doc.km = v.km; }
   $('#dlg-title').textContent = cfg.title[id?1:0];
   $('#dlg-body').innerHTML = cfg.fields().map(f => {
     if (f.t==='photos') return photoField('f-'+col, (doc && doc.photos) || []);
-    if (f.t==='check') return `<div class="field full"><label class="check"><input id="f-${col}-${f.k}" type="checkbox" ${doc && doc[f.k] ? 'checked' : ''}> ${esc(f.l)}</label></div>`;
-    const v = doc?.[f.k] ?? '';
+    if (f.t==='html') return `<div class="field full" id="wrap-${col}-${f.k}">${f.html}</div>`;
+    if (f.t==='check') return `<div class="field full" id="wrap-${col}-${f.k}"><label class="check"><input id="f-${col}-${f.k}" type="checkbox" ${vw && vw[f.k] ? 'checked' : ''}> ${esc(f.l)}</label></div>`;
+    const v = vw?.[f.k] ?? '';
     const fid = 'f-'+col+'-'+f.k;
     let ctrl;
     if (f.t==='select') ctrl = `<select id="${fid}" name="${f.k}" ${f.req?'required':''}>${f.o.map(([val,lab])=>`<option value="${esc(val)}" ${String(val)===String(v)?'selected':''}>${esc(lab)}</option>`).join('')}</select>`;
     else if (f.t==='file') ctrl = `<input id="${fid}" name="${f.k}" type="file" accept="${DOC_TYPES.join(',')}">`;
     else if (f.t==='textarea') ctrl = `<textarea id="${fid}" name="${f.k}">${esc(v)}</textarea>`;
     else ctrl = `<input id="${fid}" name="${f.k}" type="${f.t||'text'}" value="${esc(v)}" ${f.step?`step="${f.step}"`:''} ${f.t==='number'?'inputmode="decimal" min="0"':''} placeholder="${esc(f.ph||f.hint||'')}" ${f.req?'required':''}>`;
-    return `<div class="field ${f.full?'full':''}"><label for="${fid}">${esc(f.l)}${f.req?' *':''}</label>${ctrl}</div>`;
+    return `<div class="field ${f.full?'full':''}" id="wrap-${col}-${f.k}"><label for="${fid}">${esc(f.l)}${f.req?' *':''}</label>${ctrl}</div>`;
   }).join('') + `<div class="warnline" id="dlg-warn" hidden></div>`;
   const del = $('#dlg-del'); del.hidden = !id; del.classList.remove('armed'); del.textContent='Usuń';
   $('#scrim').hidden = false;
@@ -140,6 +189,7 @@ function openForm(col, id, preset){
     const b = activeBooking(e.target.value); const v = byId('vehicles', e.target.value);
     const d = (b && b.driverId) || (v && v.driverId) || ''; const sel = $('#f-costs-driverId'); if (sel && d) sel.value = d;
   });
+  if (col==='costs'){ $('#dialog').addEventListener('input', costFxUi); costFxUi(); }
   if (col==='deadlines') $('#f-deadlines-type')?.addEventListener('change', e => {
     const d = DL_INTERVALS[e.target.value]; if (!d) return;
     $('#f-deadlines-intervalMonths').value = d[0] ?? ''; $('#f-deadlines-intervalKm').value = d[1] ?? '';
@@ -159,7 +209,7 @@ function bookingCheck(){
   if (!msg && r && r.tacho && veh && !veh.hasTacho) msg = `Uwaga: trasa ${r.code} wymaga tachografu, a ${veh.plate} nie ma tachografu. Możesz zapisać – to tylko informacja.`;
   w.textContent=msg; w.hidden=!msg;
 }
-function closeForm(){ $('#scrim').hidden = true; editing = null; $('#dlg-save').textContent = 'Zapisz'; $('#dialog').removeEventListener('input', bookingCheck); }
+function closeForm(){ $('#scrim').hidden = true; editing = null; $('#dlg-save').textContent = 'Zapisz'; $('#dialog').removeEventListener('input', bookingCheck); $('#dialog').removeEventListener('input', costFxUi); }
 
 $('#dialog').addEventListener('submit', async e => {
   e.preventDefault();
@@ -171,7 +221,7 @@ $('#dialog').addEventListener('submit', async e => {
   let file = null;
   for (const f of fields){
     const el = $('#f-'+col+'-'+f.k);
-    if (f.t==='photos') continue;
+    if (f.t==='photos' || f.t==='html') continue;
     if (f.t==='check'){ data[f.k] = !!el.checked; continue; }
     if (f.t==='file'){ file = el.files && el.files[0]; if (f.req && !file){ toast('Wybierz plik do wgrania'); return; } continue; }
     let v = el.value.trim();
@@ -186,6 +236,15 @@ $('#dialog').addEventListener('submit', async e => {
     if (data.consGood && data.consOk && data.consGood >= data.consOk){ const w = $('#dlg-warn'); w.textContent = 'Próg „bardzo dobre” musi być niższy niż próg „dobre”.'; w.hidden = false; return; }
   }
   if (col==='costs'){
+    data.station = data.stationSel==='Inna' ? (data.stationOther || 'Inna') : (data.stationSel || null);
+    delete data.stationSel; delete data.stationOther; delete data.fxPrev;
+    data.currency = data.currency || 'PLN';
+    if (data.currency!=='PLN'){
+      if (data.fxManual && !(data.fxRate > 0)){ const w = $('#dlg-warn'); w.textContent = 'Wpisz kurs ręczny albo odznacz „Kurs wpisuję ręcznie”.'; w.hidden = false; $('#f-costs-fxRate')?.focus(); return; }
+      data.amountOrig = data.amount;
+      const est = data.fxManual ? data.fxRate : (fxCache[data.currency+':'+data.date] || {}).rate;
+      data.amount = est ? Math.round(data.amount * est * 100) / 100 : 0;   // dokładną kwotę w zł policzy baza z kursu NBP
+    } else { data.amountOrig = null; data.fxManual = false; }
     if (P().costs==='own' && myDriverId()) data.driverId = myDriverId();
     // podwójna obsada: tankowanie w trakcie wspólnego dnia pracy potwierdza drugi kierowca
     if (P().costs==='own' && FUEL_CATS.includes(data.category) && !id){

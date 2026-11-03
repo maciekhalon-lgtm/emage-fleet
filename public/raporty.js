@@ -135,13 +135,14 @@ async function exportXlsx(){
     'Limit miesięczny (zł)': r.limit || '', ...Object.fromEntries(COST_CATS.map(k => [k+' (zł)', +r.cats[k].toFixed(2)]))}));
   const entries = S.costs.filter(c => c.date >= a && c.date <= b).sort((x,y) => x.date<y.date?-1:1).map(c => ({
     'Data': fdate(c.date), 'Rejestracja': byId('vehicles', c.vehicleId)?.plate || '', 'Kategoria': c.category, 'Kwota brutto (zł)': Number(c.amount||0),
-    'Ilość (l/kWh)': c.liters || '', 'Stan licznika (km)': c.odometer || '', 'Trasa': rLabel(c.routeId), 'Opis': c.note || '', 'Dodał(a)': c.createdBy ? pName(c.createdBy) : ''}));
+    'Ilość (l/kWh)': c.liters || '', 'Stan licznika (km)': c.odometer || '', 'Trasa': rLabel(c.routeId), 'Stacja': c.station || '', 'Waluta': c.currency || 'PLN', 'Kwota w walucie': c.currency && c.currency!=='PLN' ? Number(c.amountOrig||0) : '',
+    'Kurs': c.fxRate ? Number(c.fxRate) : '', 'Data kursu': c.fxDate ? fdate(c.fxDate) : '', 'Tabela NBP': c.fxTable || '', 'Opis': c.note || '', 'Dodał(a)': c.createdBy ? pName(c.createdBy) : ''}));
   const wb = X.utils.book_new();
   const ws1 = X.utils.json_to_sheet(sum.length ? sum : [{'Informacja':'Brak danych w okresie'}]);
   ws1['!cols'] = Object.keys(sum[0]||{a:1}).map(k => ({wch: Math.max(12, k.length+2)}));
   X.utils.book_append_sheet(wb, ws1, 'Podsumowanie');
   const ws2 = X.utils.json_to_sheet(entries.length ? entries : [{'Informacja':'Brak kosztów w okresie'}]);
-  ws2['!cols'] = [{wch:12},{wch:12},{wch:18},{wch:16},{wch:12},{wch:16},{wch:26},{wch:36},{wch:22}];
+  ws2['!cols'] = [{wch:12},{wch:12},{wch:18},{wch:16},{wch:12},{wch:16},{wch:26},{wch:12},{wch:8},{wch:14},{wch:10},{wch:12},{wch:16},{wch:36},{wch:22}];
   X.utils.book_append_sheet(wb, ws2, 'Koszty');
   if (S.routes.length){
     const rr = routeReportRows(a, b).map(x => ({'Kod trasy': x.r ? x.r.code : 'bez trasy', 'Nazwa': x.r ? x.r.name : '', 'Dni pracy': x.days, 'Przejechane km': x.km || '',
