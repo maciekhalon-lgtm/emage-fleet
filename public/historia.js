@@ -32,7 +32,7 @@ function viewHistory(){
   const head = `<div class="bar"><h2>Historia zmian</h2><div class="tools">
     <select id="hist-who" aria-label="Osoba" style="width:auto"><option value="">Wszystkie osoby</option>${people.map(id => `<option value="${esc(id)}" ${histWho===id?'selected':''}>${esc(pName(id))}</option>`).join('')}</select>
     <select id="hist-col" aria-label="Rodzaj" style="width:auto"><option value="">Wszystkie rodzaje</option>${Object.entries(COL_NAMES).map(([k,l]) => `<option value="${k}" ${histCol===k?'selected':''}>${l}</option>`).join('')}</select></div></div>`;
-  if (!LOG.length) return head + `<div class="panel empty"><h3>Brak zapisanych zmian</h3><p>Od teraz każde dodanie, zmiana i usunięcie wpisu trafia tutaj – z nazwą osoby i godziną. Zapisuje je baza danych automatycznie. Pokazujemy ostatnie 300 zmian, starsze niż rok są usuwane.</p></div>`;
+  if (!LOG.length) return head + `<div class="panel empty"><h3>Brak zapisanych zmian</h3><p>Od teraz każde dodanie, zmiana i usunięcie wpisu trafia tutaj – z nazwą osoby i godziną. Zapisuje je baza danych automatycznie. Pokazujemy ostatnie 300 zmian, starsze niż rok są usuwane.</p></div>` + crewChangesPanel();
   const list = LOG.filter(l => (!histWho || l.by===histWho) && (!histCol || l.col===histCol));
   let html = '', day = '';
   for (const l of list){
@@ -44,7 +44,7 @@ function viewHistory(){
       <span class="num muted">${hm}</span><span class="pill ${l.action==='delete'?'bad':l.action==='add'||l.action==='import'?'ok':'off'}">${esc(COL_NAMES[l.col]||l.col)}</span>
       <span class="hist-txt"><b>${esc(l.by ? pName(l.by) : 'Ktoś')}</b> ${esc(ACT_NAMES[l.action]||l.action)}: ${what}</span></div>`;
   }
-  return head + `<div class="panel dl">${html || '<div class="empty"><p>Brak zmian dla wybranych filtrów.</p></div>'}</div>`;
+  return head + `<div class="panel dl">${html || '<div class="empty"><p>Brak zmian dla wybranych filtrów.</p></div>'}</div>` + crewChangesPanel();
 }
 
 let pruned = false;

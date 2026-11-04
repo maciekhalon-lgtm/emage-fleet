@@ -2,7 +2,7 @@
 'use strict';
 /* ---------- routing ---------- */
 const DRIVER_VIEWS = ['moje','wybierz','moje-dane'];
-const TABS = ['moje','wybierz','moje-dane','pulpit','pojazdy','trasy','kontrole','terminy','usterki','ksiazka','przydzial','koszty','raporty','historia','kierowcy','uzytkownicy','ustawienia'];
+const TABS = ['moje','wybierz','moje-dane','pulpit','pojazdy','trasy','terminy','usterki','ksiazka','przydzial','koszty','raporty','historia','kierowcy','uzytkownicy','ustawienia'];
 const homeTab = () => P().mycar ? 'moje' : 'pulpit';
 let pendingCard = null;
 let tab = 'pulpit', q = '', costMonth = today().slice(0,7), dlFilter = 'all';
@@ -57,7 +57,6 @@ function render(){
   else if (tab==='moje') v.innerHTML = viewMyCar();
   else if (tab==='pulpit') v.innerHTML = viewDashboard();
   else if (tab==='trasy') v.innerHTML = viewRoutes();
-  else if (tab==='kontrole') v.innerHTML = viewChecks();
   else if (tab==='pojazdy') v.innerHTML = cardId ? viewCard() : viewVehicles();
   else if (tab==='terminy') v.innerHTML = viewDeadlines();
   else if (tab==='usterki') v.innerHTML = viewIssues();

@@ -8,5 +8,5 @@ function viewAssign(){
   const out = S.bookings.filter(b => holds(b));
   const nowPanel = out.length ? `<div class="panel"><div class="sec-head"><h3>Teraz w trasie</h3></div><div class="dl">${out.map(b => `<div class="mini"><span>${vPlate(b.vehicleId)}</span>
       <span>${esc(crewName(b))}${b.routeId ? ' · ' + esc(rLabel(b.routeId)) : ''}</span><span class="mini-r">${handoverBtn(b)}</span></div>`).join('')}</div></div>` : '';
-  return `<div class="section">${head}${confNote}${viewSchedule()}${P().manage ? loadingsPanel() : ''}${nowPanel}</div>${crewChangesPanel()}`;
+  return `<div class="section">${head}${confNote}${viewSchedule()}${P().manage ? loadingsPanel() : ''}${nowPanel}</div>`;
 }

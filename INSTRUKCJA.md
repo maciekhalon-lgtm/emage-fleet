@@ -19,14 +19,14 @@ Kierownik floty: **Pracownicy → Użytkownicy** → rola, dla kierowcy jego wpi
 | Pozycja | Co tam jest |
 | --- | --- |
 | **Moje auto** | (kierownik floty powiązany z wpisem kierowcy) ten sam ekran co u kierowcy |
-| **Pulpit** | liczby floty, „Wymaga uwagi” (blokady, terminy, niesprawne auta, tankowania do wyjaśnienia, sprzątanie do potwierdzenia, konta, spory, budżet, opony), flota teraz, koszty, ranking |
+| **Pulpit** | liczby floty, „Wymaga uwagi” (blokady, terminy, niesprawne auta, tankowania do wyjaśnienia, konta, spory, budżet, opony) i flota teraz |
 | **Pojazdy** | lista i karta auta: dane, polisa (assistance – Zadzwoń), odpowiedzialni kierowcy, terminy, usterki, grafik, dokumenty, książka serwisowa, historia |
-| **Grafik** | zakładki **Grafik** (tydzień: kierowcy × dni, załadunek ze zmiany, auta teraz w trasie, zmiany obsady) i **Trasy** |
-| **Serwis** | zakładki **Usterki**, **Terminy**, **Kontrole** (inspekcje i sprzątanie), **Książka serwisowa** |
+| **Grafik** | zakładki **Grafik** (tydzień: kierowcy × dni, załadunek ze zmiany, auta teraz w trasie) i **Trasy** |
+| **Serwis** | zakładki **Usterki**, **Terminy**, **Książka serwisowa** |
 | **Koszty i paliwo** | koszty miesiąca, tankowania do wyjaśnienia |
-| **Raporty** | zakładki **Raporty** (auta, trasy, ranking kierowców, Excel) i **Historia** zmian |
+| **Raporty** | zakładki **Raporty** (auta, trasy, ranking kierowców, Excel) i **Historia** (zmiany w danych i zmiany obsady) |
 | **Pracownicy** | zakładki **Kierowcy** i **Użytkownicy** (konta, role, spory w obsadzie, zmiany danych kierowców) |
-| **Ustawienia** | budżet floty, częstotliwość inspekcji i sprzątania, kontrola paragonów, punkty inspekcji, checklista przejęcia, powiadomienia, opis ról |
+| **Ustawienia** | budżet floty, kontrola paragonów, checklista przejęcia, opis ról |
 
 ## Najczęstsze czynności
 
@@ -56,16 +56,14 @@ cena ±15% od średniej, słabe spalanie). Pulpit / Koszty → **OK** albo **Wyj
 **Serwis** – Serwis → **Książka serwisowa** → **Wpis serwisowy**: koszt doda się sam do kosztów, można odnowić termin,
 zamknąć usterki, odnotować wymianę oleju (następna za 12 000 km, przypomnienie 2 000 km wcześniej) i opon.
 
-**Kontrole** – inspekcja auta co 14 dni (kierownik floty, punkty z uwagą tworzą usterki);
-sprzątanie co 14 dni – kierowca zaznacza, kierownik floty potwierdza. Częstotliwość w Ustawieniach.
 
 ## Ekran kierowcy
 
 1. **Wybierz auto** – na górze „Twój bus” (jeśli jest odpowiedzialny) albo auto przydzielone przez kierownika;
    checklista („Wszystkie punkty OK” albo „Mam uwagi”), przebieg, trasa z listy.
-2. W trasie: **Zatankuj** (litry, kwota, licznik; waluta PLN/EUR/CZK z kursem NBP) i **Zdaj pojazd**.
-   **Załadunek** – zaznacz trasy, których towar zabierasz (na Twoją zmianę z grafiku). Pod **Więcej**: zgłoś usterkę, posprzątane, zmień trasę.
-   **Inny wydatek** – myjnia, parking, opłaty. **Mój grafik** – najbliższe 7 dni: auto, trasa, uwagi, kto wiezie Twój towar.
+2. W trasie: **Zatankuj** (litry, kwota, licznik; „Tankuję za granicą” – EUR/CZK z kursem NBP) i **Zdaj pojazd** (tylko licznik i uwagi).
+   **Załadunek** – zaznacz trasy, których towar zabierasz (na Twoją zmianę z grafiku). Pod **Więcej**: zgłoś usterkę, zmień trasę.
+   **Mój grafik** – najbliższe 7 dni: auto, trasa, uwagi, kto wiezie Twój towar.
 3. Wylosowany do kontroli paragonów musi dodać zdjęcie paragonu.
 4. Bez zasięgu tankowanie i zdanie auta zapisują się w telefonie i wysyłają same po odzyskaniu sieci.
 5. **Moje dane i statystyki** – kilometry, spalanie, dni pracy, tankowania, zgłoszenia, telefon (zmiana do akceptacji).

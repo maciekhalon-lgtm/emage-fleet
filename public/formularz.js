@@ -64,6 +64,7 @@ const FORMS = {
     {k:'category',l:'Kategoria',t:'select',o:(P().costs==='own'?DRIVER_CATS:COST_CATS).map(c=>[c,c]),req:1},
     {k:'vehicleId',l:'Pojazd',t:'select',o:vehOpts(),req:1,full:1},
     {k:'amount',l:'Kwota brutto',t:'number',step:'0.01',req:1},
+    ...(editing && editing.base && editing.base.mode==='quick' ? [{k:'abroad',l:'Tankuję za granicą (EUR / CZK)',t:'check'}] : []),
     {k:'currency',l:'Waluta',t:'select',o:CURRENCIES.map(c=>[c,c])},
     {k:'fxPrev',t:'html',html:'<div class="fx-prev muted small" id="fx-prev" hidden></div>'},
     ...(P().manage ? [{k:'fxManual',l:'Kurs wpisuję ręcznie (zamiast kursu NBP)',t:'check'},{k:'fxRate',l:'Kurs ręczny (zł za 1 jednostkę)',t:'number',step:'0.0001'}] : []),
@@ -156,7 +157,7 @@ const FORM_VIEW = {
   vehicles: d => ({...d, responsible: respOf(d)}),
   costs: d => { const foreign = d.currency && d.currency!=='PLN';
     const st = d.station || '', known = STATIONS.includes(st) && st!=='Inna';
-    return {...d, currency: d.currency || 'PLN', amount: foreign ? (d.amountOrig ?? '') : d.amount, stationSel: !st ? '' : known ? st : 'Inna', stationOther: !st || known ? '' : st}; },
+    return {...d, currency: d.currency || 'PLN', amount: foreign ? (d.amountOrig ?? '') : d.amount, stationSel: !st ? '' : known ? st : 'Inna', stationOther: !st || known ? '' : st, abroad: !!foreign}; },
 };
 /* ---------- książka serwisowa: terminy i usterki auta wybranego w formularzu ---------- */
 const svcDeadlineOpts = () => [['','— nie odnawiaj —'], ...S.deadlines.slice().sort((a,b) => a.date<b.date?-1:1)
@@ -174,7 +175,7 @@ function svcUi(e){
   if (e && e.target && e.target.id==='f-serviceEntries-vehicleId'){ const v = byId('vehicles', veh); const k = $('#f-serviceEntries-km'); if (v && v.km && k && !k.value) k.value = v.km; }
 }
 /* Kierowca: szybkie tankowanie (tylko litry, kwota, licznik) i „Inny wydatek” – reszta uzupełnia się sama */
-const QUICK_FIELDS = ['liters','amount','currency','fxPrev','odometer','full','stationSel','stationOther','photos'];
+const QUICK_FIELDS = ['liters','amount','odometer','abroad','currency','fxPrev','photos'];
 const OTHER_FIELDS = ['category','amount','currency','fxPrev','note','photos'];
 function costFieldsFor(all){
   const mode = editing && editing.base && editing.base.mode;
@@ -200,22 +201,18 @@ async function openQuickFuel(vid){
   openForm('costs', null, {vehicleId: vid, mode:'quick', category: v && v.fuel==='Elektryczny' ? 'Ładowanie' : 'Paliwo', currency: pf.currency || 'PLN', station: pf.station || '', full: true});
   if (!editing) return;
   $('#dlg-title').textContent = 'Tankowanie';
+  const ph = $('#dlg-body input[type=file]')?.closest('.field'); if (ph) ph.hidden = true;   // zdjęcie tylko przy kontroli paragonu
   if (P().costs==='own' && await receiptToday() && editing && editing.base.mode==='quick'){
-    editing.receipt = true;
+    editing.receipt = true; if (ph) ph.hidden = false;
     $('#dlg-body').insertAdjacentHTML('afterbegin', '<div class="field full"><div class="notice"><span><b>Dziś wylosowano Cię do kontroli paragonów</b> – dodaj zdjęcie paragonu.</span></div></div>');
   }
 }
-function openOtherCost(vid){
-  openForm('costs', null, {vehicleId: vid, mode:'other', category:'Myjnia', currency: fuelPrefs().currency || 'PLN'});
-  if (editing) $('#dlg-title').textContent = 'Inny wydatek';
-}
 document.addEventListener('click', e => {
-  const t = e.target.closest('[data-fuel],[data-other-cost],[data-action="more"],[data-action="loading"],[data-ck-expand]');
+  const t = e.target.closest('[data-fuel],[data-action="more"],[data-action="loading"],[data-ck-expand]');
   if (!t) return;
   if (t.dataset.ckExpand!==undefined){ const box = t.closest('.ck-wrap'); box.querySelector('.checklist').hidden = false; t.closest('.ck-all').hidden = true; return; }
   if (t.closest('#dialog')) return;
   if (t.dataset.fuel) return openQuickFuel(t.dataset.fuel);
-  if (t.dataset.otherCost) return openOtherCost(t.dataset.otherCost);
   if (t.dataset.action==='more'){ driverMore = !driverMore; render(); return; }
   if (t.dataset.action==='loading') return openLoading();
 });
@@ -232,6 +229,9 @@ let fxSeq = 0;
 async function costFxUi(){
   if (!editing || editing.col!=='costs') return;
   const g = n => $('#f-costs-'+n);
+  const ab = g('abroad');
+  if (ab && g('currency')){ const w = $('#wrap-costs-currency'); if (w) w.hidden = !ab.checked;
+    if (!ab.checked) g('currency').value = 'PLN'; else if (g('currency').value==='PLN') g('currency').value = 'EUR'; }
   const cur = g('currency')?.value || 'PLN', foreign = cur!=='PLN';
   const sel = g('stationSel')?.value;
   const other = $('#wrap-costs-stationOther'); if (other) other.hidden = sel!=='Inna';
@@ -346,7 +346,7 @@ $('#dialog').addEventListener('submit', async e => {
   const asDriver = col==='costs' && (P().costs==='own' || !!base.mode);
   if (col==='costs'){
     data.station = data.stationSel==='Inna' ? (data.stationOther || 'Inna') : (data.stationSel || null);
-    delete data.stationSel; delete data.stationOther; delete data.fxPrev;
+    delete data.stationSel; delete data.stationOther; delete data.fxPrev; delete data.abroad;
     data.currency = data.currency || 'PLN';
     if (data.currency!=='PLN'){
       if (data.fxManual && !(data.fxRate > 0)){ const w = $('#dlg-warn'); w.textContent = 'Wpisz kurs ręczny albo odznacz „Kurs wpisuję ręcznie”.'; w.hidden = false; $('#f-costs-fxRate')?.focus(); return; }

@@ -2,6 +2,7 @@
 'use strict';
 const FUEL_LV = [['0','Rezerwa'],['25','1/4'],['50','1/2'],['75','3/4'],['100','Pełny']];
 const fuelLabel = v => (FUEL_LV.find(x => x[0]===String(v)) || [,'—'])[1];
+const fuelTxt = v => v===null || v===undefined || v==='' ? '' : ` · paliwo ${fuelLabel(v)}`;
 const DEFAULT_CHECKLIST = ['Opony (stan, ciśnienie)', 'Światła i kierunkowskazy', 'Płyny (olej, chłodzący, spryskiwacze)', 'Szyby i wycieraczki', 'Nadwozie bez nowych uszkodzeń', 'Czystość wnętrza', 'Dokumenty (dowód rejestracyjny, OC)', 'Gaśnica', 'Trójkąt ostrzegawczy', 'Apteczka', 'Kamizelka odblaskowa'];
 const checklistItems = () => { const s = S.settings.find(x => x.id==='checklist'); return (s && Array.isArray(s.items) && s.items.length) ? s.items : DEFAULT_CHECKLIST; };
 
@@ -30,7 +31,7 @@ function handoverInfo(b){
   const p = b.pickup, r = b.returned;
   if (!p) return '';
   const dist = r && r.km && p.km ? r.km - p.km : null;
-  return `<span class="sub num">Przejęto ${fdate(p.at)} · ${km(p.km)} · paliwo ${fuelLabel(p.fuel)}${r?` → zdano ${fdate(r.at)} · ${km(r.km)} · paliwo ${fuelLabel(r.fuel)}${dist!==null?` · <b>${new Intl.NumberFormat('pl-PL').format(dist)} km</b>`:''}`:''}</span>`
+  return `<span class="sub num">Przejęto ${fdate(p.at)} · ${km(p.km)}${fuelTxt(p.fuel)}${r?` → zdano ${fdate(r.at)} · ${km(r.km)}${fuelTxt(r.fuel)}${dist!==null?` · <b>${new Intl.NumberFormat('pl-PL').format(dist)} km</b>`:''}`:''}</span>`
     + checklistSummary(p.checklist)
     + (r && r.note ? `<span class="sub">Uwagi przy zdaniu: ${esc(r.note)}</span>` : p.note ? `<span class="sub">Uwagi przy przejęciu: ${esc(p.note)}</span>` : '')
     + photoStrip([...(p.photos||[]), ...((r&&r.photos)||[])]);
@@ -57,12 +58,12 @@ function openHandover(id, kind, vehicleId){
     <div class="field full"><span class="ho-car">${plate(v.plate)} <b>${esc(v.make)} ${esc(v.model)}</b></span>
       ${b ? `<span class="muted">${esc(dName(b.driverId))} · ${fdate(b.from)}${b.to!==b.from?'–'+fdate(b.to):''}${b.purpose?' · '+esc(b.purpose):''}</span>` : '<span class="muted">Auto na dzisiejszy dzień pracy</span>'}</div>
     <div class="field"><label for="ho-km">Stan licznika (km) *</label><input id="ho-km" type="number" inputmode="numeric" min="${minKm}" placeholder="${minKm ? 'co najmniej '+new Intl.NumberFormat('pl-PL').format(minKm) : ''}" required><span class="muted small">Ostatni zapis: ${km(minKm)}</span></div>
-    <div class="field"><label for="ho-fuel">${ev?'Poziom baterii':'Poziom paliwa'} *</label><select id="ho-fuel">${FUEL_LV.map(([k,l]) => `<option value="${k}" ${k==='100'?'selected':''}>${ev && k!=='0' ? k+'%' : l}</option>`).join('')}</select></div>
+    ${kind==='return' ? '' : `<div class="field"><label for="ho-fuel">${ev?'Poziom baterii':'Poziom paliwa'} *</label><select id="ho-fuel">${FUEL_LV.map(([k,l]) => `<option value="${k}" ${k==='100'?'selected':''}>${ev && k!=='0' ? k+'%' : l}</option>`).join('')}</select></div>`}
     ${kind==='pickup' && S.routes.some(r => r.active!==false) ? `<div class="field full"><label for="ho-route">Trasa</label>${routeSelect('ho-route', b && b.routeId)}${b && b.routeId ? '<span class="muted small">Podpowiedziana przez kierownika – możesz zmienić.</span>' : ''}</div>` : ''}
     ${kind==='pickup' ? crewField(b ? b.driverId : myDriverId(), b && b.coDriverId) : (b && b.coDriverId ? `<div class="field full"><span class="pill info">Podwójna obsada: ${esc(crewName(b))}</span><span class="muted small">Zdanie musi potwierdzić drugi kierowca – do tego czasu auto czeka.</span></div>` : '')}
     ${check}
     <div class="field full"><label for="ho-note">${kind==='pickup' ? 'Inne uwagi o stanie auta' : 'Uwagi po dniu pracy'}</label><textarea id="ho-note" placeholder="${kind==='pickup'?'np. rysa na tylnym zderzaku – już była':'np. kontrolka oleju, stuki z zawieszenia'}"></textarea></div>
-    ${photoField('ho')}
+    ${kind==='pickup' ? photoField('ho') : ''}
     ${kind==='return' ? `<div class="field full"><label class="check"><input id="ho-issue" type="checkbox"> Zgłoś usterkę na podstawie uwag</label>
       <select id="ho-sev" aria-label="Waga usterki"><option value="drobna">Drobna</option><option value="istotna" selected>Istotna</option><option value="stop">Auto niesprawne – nie wydawać</option></select></div>` : ''}
     <div class="warnline" id="dlg-warn" hidden></div>`;
@@ -112,8 +113,8 @@ async function saveHandover({id, kind, vehicleId, minKm, items}){
   if (kind==='return' && !navigator.onLine){
     const iss = $('#ho-issue')?.checked ? {title: $('#ho-note').value.trim().slice(0, 120), description: $('#ho-note').value.trim(), severity: $('#ho-sev').value} : null;
     if (iss && !iss.title){ $('#ho-note').focus(); return warn('Opisz usterkę w polu „Uwagi po dniu pracy”.'); }
-    await queueOffline('return', {bookingId: id, vehicleId, rec: {km: kmV, fuel: $('#ho-fuel').value, note: $('#ho-note').value.trim(), at: today(), photos: [], by: myId}, issue: iss}, filesOf('ho'));
-    const bk = byId('bookings', id); if (bk) bk.returned = {km: kmV, fuel: $('#ho-fuel').value, note: $('#ho-note').value.trim(), at: today(), photos: [], by: myId};   // od razu widać, że auto zdane
+    await queueOffline('return', {bookingId: id, vehicleId, rec: {km: kmV, fuel: ($('#ho-fuel') ? $('#ho-fuel').value : null), note: $('#ho-note').value.trim(), at: today(), photos: [], by: myId}, issue: iss}, filesOf('ho'));
+    const bk = byId('bookings', id); if (bk) bk.returned = {km: kmV, fuel: ($('#ho-fuel') ? $('#ho-fuel').value : null), note: $('#ho-note').value.trim(), at: today(), photos: [], by: myId};   // od razu widać, że auto zdane
     closeForm(); render(); return toast('Brak zasięgu – zdanie auta zapisze się samo po odzyskaniu sieci');
   }
   const note = $('#ho-note').value.trim();
@@ -122,7 +123,7 @@ async function saveHandover({id, kind, vehicleId, minKm, items}){
   try {
     const photos = await uploadPhotos('ho');
     if (photos === null) return;
-    const rec = {km: kmV, fuel: $('#ho-fuel').value, note, at: today(), photos, by: myId};
+    const rec = {km: kmV, fuel: ($('#ho-fuel') ? $('#ho-fuel').value : null), note, at: today(), photos, by: myId};
     if (kind==='pickup') rec.checklist = checklist;
     let bid = id;
     if (!bid){

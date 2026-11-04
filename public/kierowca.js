@@ -41,19 +41,6 @@ function myExpiryNotes(){
   }).join('');
 }
 
-/* Busy, za które kierowca odpowiada: pokazujemy tylko to, czego trzeba pilnować */
-function myBusesPanel(){
-  const me_ = myDriverId(); if (!me_) return '';
-  const rows = S.vehicles.filter(v => v.status!=='wycofany' && respOf(v).includes(me_)).map(v => {
-    const it = [];
-    S.deadlines.filter(d => d.vehicleId===v.id).forEach(d => { const s = dlState(d); if (s.cls==='bad' || s.cls==='warn') it.push(`<span class="pill ${s.cls}">${esc(d.type)}: ${esc(s.txt.toLowerCase())}</span>`); });
-    if (typeof cleanDue==='function' && cleanDue(v).over) it.push('<span class="pill warn">do sprzątania</span>');
-    const oi = S.issues.filter(i => i.vehicleId===v.id && i.status!=='naprawione');
-    if (oi.length) it.push(`<span class="pill ${oi.some(i => i.severity==='stop') ? 'bad' : 'warn'}">${oi.length} ${isPlural(oi.length,'usterka','usterki','usterek')}</span>`);
-    return it.length ? `<div class="confirm"><span>${plate(v.plate)} <b>${esc(v.make)} ${esc(v.model)}</b></span><span class="flag-list">${it.join('')}</span></div>` : '';
-  }).filter(Boolean);
-  return rows.length ? `<div class="panel"><div class="sec-head"><h3>Twój bus – do dopilnowania</h3></div>${rows.join('')}</div>` : '';
-}
 function inactiveNote(){
   return `<div class="panel empty wait"><h2>Konto kierowcy jest nieaktywne</h2><p>Kierownik floty oznaczył Cię jako nieaktywnego kierowcę, więc nie możesz teraz przejmować aut. Jeśli to pomyłka, skontaktuj się z nim.</p></div>`;
 }
@@ -78,17 +65,15 @@ function viewMyCar(){
       <div class="mycar-head">${plate(v.plate)}<div><h2>${esc(v.make||'')} ${esc(v.model||'')}</h2><span class="muted">Przejęte ${fdate(active.pickup.at)} przy ${km(active.pickup.km)}${since>0?' · od tego czasu '+km(since):''}</span></div><span class="pill info">Twoje auto</span>${v.hasTacho ? '<span class="pill off">tachograf</span>' : ''}</div>
       ${active.routeId ? `<div class="mycar-booking"><span>Trasa: <b>${esc(rLabel(active.routeId))}</b>${routeById(active.routeId)?.tacho ? ' · wymaga tachografu' : ''}</span></div>` : ''}
       ${active.coDriverId ? `<div class="mycar-booking"><span>Podwójna obsada: <b>${esc(crewName(active))}</b>${!active.pickupConfirmedAt ? ` · <span style="color:var(--warn)">przejęcie czeka na potwierdzenie (${esc(dName(active.coDriverId))})</span>` : ''}</span></div>` : ''}
-      ${myCleaningNote(v.id)}
       ${checklistSummary(active.pickup.checklist) ? `<div class="mycar-booking">${checklistSummary(active.pickup.checklist)}</div>` : ''}
       <div class="big-grid">
         ${big(`data-fuel="${esc(v.id)}"`, 'Zatankuj', 'litry, kwota, licznik', '', 'fuel')}
         ${big(`data-ho="return" data-id="${esc(active.id)}"`, 'Zdaj pojazd', 'koniec dnia', 'primary', 'key')}
         ${loadingBtn()}
       </div>
-      <div class="more-row"><button class="small" data-other-cost="${esc(v.id)}">${ic('coins')}Inny wydatek</button><button class="small ghost" data-action="more" aria-expanded="${driverMore}">${ic('menu')}Więcej</button></div>
+      <div class="more-row"><span></span><button class="small ghost" data-action="more" aria-expanded="${driverMore}">${ic('menu')}Więcej</button></div>
       ${driverMore ? `<div class="more-box">
         <button class="small" data-new="issues" data-veh="${esc(v.id)}">${ic('wrench')}Zgłoś usterkę</button>
-        <button class="small" data-new="cleanings" data-veh="${esc(v.id)}">${ic('check')}Posprzątane / umyte</button>
         ${S.routes.length ? `<div class="route-pick"><label for="my-route" class="label">Zmień trasę</label>${routeSelect('my-route', active.routeId, `data-route-for="${esc(active.id)}"`)}</div>` : ''}
       </div>` : ''}</div>`;
   } else if (meDriver() && meDriver().active===false){
@@ -105,7 +90,6 @@ function viewMyCar(){
     ${carTile}
     ${active ? '' : (loadingBtn() ? `<div class="big-grid">${loadingBtn()}</div>` : '')}
     ${mySchedulePanel()}
-    ${myBusesPanel()}
     <a class="tile" href="#moje-dane"><span class="t-ic">${ic('chart')}</span><span class="t-txt"><b>Moje dane i statystyki</b><span>Kilometry, spalanie, dni pracy, tankowania, zgłoszenia i dane kontaktowe</span></span>${ic('chev','chev')}</a>
   </div>`;
 }

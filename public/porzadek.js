@@ -5,7 +5,7 @@
 /* ---------- grupy menu i zakładki ---------- */
 const GROUPS = {
   rezerwacje: [['przydzial','Grafik', () => true], ['trasy','Trasy', () => !!P().manage]],
-  serwis:     [['usterki','Usterki', () => true], ['terminy','Terminy', () => true], ['kontrole','Kontrole', () => !!P().service], ['ksiazka','Książka serwisowa', () => !!P().service]],
+  serwis:     [['usterki','Usterki', () => true], ['terminy','Terminy', () => true], ['ksiazka','Książka serwisowa', () => !!P().service]],
   raporty:    [['raporty','Raporty', () => !!P().reports], ['historia','Historia', () => !!P().history]],
   ludzie:     [['kierowcy','Kierowcy', () => true], ['uzytkownicy','Użytkownicy', () => !!P().manage]],
 };
@@ -15,7 +15,6 @@ const tabAllowed = t => { const g = groupOf(t); if (!g) return true; const e = G
 function tabCount(t){
   if (t==='usterki'){ const oi = openIssues(); return {n: oi.length, bad: oi.some(i => i.severity==='stop')}; }
   if (t==='terminy'){ const u = S.deadlines.filter(d => dlState(d).cls==='bad').length; return {n: u, bad: u > 0}; }
-  if (t==='kontrole' && P().service){ const n = (P().manage ? pendingCleanings().length : 0) + overdueInspections().length; return {n, bad: n > 0}; }
   if (t==='uzytkownicy' && P().manage){ const n = pendingUsers().length + pendingRequests().length + openDisputes().length; return {n, bad: n > 0}; }
   if (t==='przydzial'){ const cf = conflicts().size; return {n: cf, bad: cf > 0}; }
   return {n: 0, bad: false};
@@ -90,7 +89,6 @@ function viewSettings(){
     ${budgetPanel()}
     ${checksSettingsPanel()}
     ${checklistPanel()}
-    ${pushSetupPanel()}
     <div class="panel"><div class="sec-head"><h3>Role</h3></div><div class="roles">${Object.values(ROLES).map(r => `<div><b>${esc(r.name)}</b><span class="sub">${esc(r.desc)}</span></div>`).join('')}</div></div>
   </div>`;
 }

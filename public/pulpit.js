@@ -53,12 +53,6 @@ function attentionItems(serviceOnly){
     }
     if (P().manage) flaggedCosts().slice(0, 6).forEach(c => out.push({w: c.flagState==='explain' ? 3 : 1, html: flagRow(c, true)}));
     if (flaggedCosts().length > 6) out.push({w:3, html: attRow('warn', '', `i ${flaggedCosts().length - 6} innych tankowań do wyjaśnienia`, 'pełna lista w Koszty i paliwo', `<button class="small" data-go="koszty">Pokaż</button>`)});
-    if (P().manage){
-      const pc = pendingCleanings().length, oi = overdueInspections().length, oc = overdueCleanings().length;
-      if (pc) out.push({w:2, html: attRow('info', '', `${pc} ${isPlural(pc,'sprzątanie','sprzątania','sprzątań')} do potwierdzenia`, 'kierowcy zaznaczyli – potwierdź albo odrzuć', `<button class="small" data-go="kontrole">Sprawdź</button>`)});
-      if (oi) out.push({w:2, html: attRow('warn', '', `${oi} ${isPlural(oi,'auto','auta','aut')} bez inspekcji od ${checkSchedule().insp} dni`, overdueInspections().slice(0, 6).map(v => esc(v.plate)).join(', ') + (oi > 6 ? '…' : ''), `<button class="small" data-go="kontrole">Kontrole</button>`)});
-      if (oc) out.push({w:3, html: attRow('warn', '', `${oc} ${isPlural(oc,'auto','auta','aut')} do sprzątania`, `ostatnie sprzątanie ponad ${checkSchedule().clean} dni temu: ` + overdueCleanings().slice(0, 6).map(v => esc(v.plate)).join(', ') + (oc > 6 ? '…' : ''), `<button class="small" data-go="kontrole">Kontrole</button>`)});
-    }
     if (P().reports){
       const la = limitAlerts();
       if (la.fleet) out.push({w: la.fleet.over ? 1 : 3, html: attRow(la.fleet.over ? 'bad' : 'warn', '', la.fleet.over ? 'Budżet floty przekroczony' : 'Budżet floty blisko limitu', `${zl(la.fleet.sum)} z ${zl(la.fleet.lim)} w tym miesiącu`, `<button class="small ghost" data-go="raporty">Raporty</button>`)});
@@ -85,26 +79,7 @@ function fleetNowCard(){
     rows ? `<div class="fl">${rows}</div>${list.length > 8 ? `<p class="muted small more">i ${list.length - 8} więcej – zobacz Grafik.</p>` : ''}` : '<p class="muted sec-empty">Żadne auto nie jest teraz w trasie.</p>');
 }
 
-function costChartCard(filter, title){
-  const now = today(), [y, m] = now.split('-').map(Number);
-  const months = [];
-  for (let i = 5; i >= 0; i--){ const d = new Date(y, m - 1 - i, 1); const key = d.getFullYear() + '-' + pad(d.getMonth() + 1);
-    months.push([key, MONTHS[d.getMonth()], sumOf(S.costs.filter(c => (c.date || '').startsWith(key) && filter(c)))]); }
-  const max = Math.max(1, ...months.map(x => x[2]));
-  const cur = now.slice(0, 7);
-  return card(title, 'ostatnie 6 miesięcy', `<div class="months" role="img" aria-label="${esc(title)} w ostatnich 6 miesiącach">${months.map(([k, l, v]) =>
-    `<div class="mcol ${k===cur ? 'cur' : ''}"><span class="v">${v ? zl(v) : ''}</span><div class="col" style="height:${Math.round(v / max * 110)}px"></div><span class="m">${l}</span></div>`).join('')}</div>`);
-}
 
-function rankCard(){
-  const [a, b] = [today().slice(0, 7) + '-01', today()];
-  const list = driverStats(a, b).filter(r => r.levelKm).sort((x, y) => (y.score ?? -1) - (x.score ?? -1) || y.km - x.km).slice(0, 5);
-  const body = list.length ? `<div class="rank">${list.map((r, i) => { const t = r.levelKm || 1, w = k => (r.lv[k] / t * 100).toFixed(0);
-      return `<div class="rk"><span class="pos num">${i + 1}</span><div><b>${esc(dName(r.driverId))}</b><div class="lvbar"><i class="vg" style="width:${w('vgood')}%"></i><i class="gd" style="width:${w('good')}%"></i><i class="wk" style="width:${w('weak')}%"></i></div></div><span class="muted small num">${fmtInt(r.km)} km · ${r.score ?? '—'}</span></div>`; }).join('')}</div>
-      <p class="muted small more"><button class="link" data-go="raporty">Pełny ranking w Raportach</button></p>`
-    : '<p class="muted sec-empty">Brak danych o spalaniu w tym miesiącu – pojawią się po tankowaniach do pełna na autach z ustawionymi progami.</p>';
-  return card('Ranking spalania', MONTHS_FULL[Number(today().slice(5, 7)) - 1], body);
-}
 
 /* Kierownik serwisu: lista otwartych usterek z szybką zmianą statusu */
 function issuesCard(){
@@ -157,7 +132,7 @@ function viewDashboard(){
       kpi({label:'Naprawy – ' + MONTHS_FULL[Number(m.slice(5)) - 1], icon:'coins', cls:'acc', value: zl(rep).replace(/\s?zł/, ''), small:' zł', bar:[], foot:'serwis, naprawy i opony', go:'koszty'}),
     ].join('');
     return `<div class="section dash">${head}<div class="kpis k4">${kp}</div>
-      <div class="dgrid"><div class="dcol">${attentionCard(true)}${issuesCard()}</div><div class="dcol">${serviceCarsCard()}${deadlinesCard()}${costChartCard(isRepair, 'Koszty napraw')}</div></div></div>`;
+      <div class="dgrid"><div class="dcol">${attentionCard(true)}${issuesCard()}</div><div class="dcol">${serviceCarsCard()}${deadlinesCard()}</div></div></div>`;
   }
   const mc = sumOf(inM), fb = Number(budget().monthly) || 0;
   const kp = [
@@ -169,6 +144,6 @@ function viewDashboard(){
   const myCar = canDrive() && typeof myActive==='function' ? myActive() : null;
   const myCarTile = myCar ? `<a class="tile" href="#moje"><span class="t-ic">${ic('key')}</span><span class="t-txt"><b>Prowadzisz ${esc(byId('vehicles', myCar.vehicleId)?.plate || '')}</b><span>Przejęte ${fdate(myCar.pickup.at)} · zatankuj albo zdaj pojazd w „Moje auto”</span></span>${ic('chev','chev')}</a>` : '';
   return `<div class="section dash">${head}${myCarTile}<div class="kpis">${kp}</div>
-    <div class="dgrid"><div class="dcol">${attentionCard(false)}${issuesCard()}</div>
-    <div class="dcol">${fleetNowCard()}${costChartCard(() => true, 'Koszty floty')}${P().reports ? rankCard() : ''}</div></div></div>`;
+    <div class="dgrid"><div class="dcol">${attentionCard(false)}</div>
+    <div class="dcol">${fleetNowCard()}</div></div></div>`;
 }

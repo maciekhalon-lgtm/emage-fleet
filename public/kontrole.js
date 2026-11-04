@@ -114,15 +114,10 @@ function viewInspection(id){
 
 function checksSettingsPanel(){
   if (!P().manage) return '';
-  const sc = checkSchedule();
-  return `<div class="panel"><div class="sec-head"><h3>Ustawienia kontroli</h3><button class="small" data-action="save-checks">Zapisz</button></div>
-    <div style="padding:14px 16px;display:flex;flex-direction:column;gap:12px">
-      <div class="budget-edit" style="flex-wrap:wrap;gap:12px"><label class="field" style="display:flex;flex-direction:column;gap:4px"><span class="label">Inspekcja co (dni)</span><input id="sch-insp" type="number" min="1" value="${sc.insp}" style="width:120px"></label>
-        <label class="field" style="display:flex;flex-direction:column;gap:4px"><span class="label">Sprzątanie co (dni)</span><input id="sch-clean" type="number" min="1" value="${sc.clean}" style="width:120px"></label>
-        <label class="field" style="display:flex;flex-direction:column;gap:4px"><span class="label">Kontrola paragonów (% dni pracy)</span><input id="sch-rcp" type="number" min="0" max="100" value="${receiptPercent()}" style="width:120px"></label></div>
-      <span class="muted small">Kontrola paragonów: system codziennie losuje kierowców, którzy muszą dodać zdjęcie paragonu do tankowania. 0 = wyłączone.</span>
-      <label class="muted small" for="insp-edit">Punkty inspekcji – jeden w linii. Punkt z uwagą trafi do serwisu jako usterka.</label>
-      <textarea id="insp-edit" rows="8">${esc(inspectionItems().join('\n'))}</textarea></div></div>`;
+  return `<div class="panel"><div class="sec-head"><h3>Kontrola paragonów</h3><button class="small" data-action="save-checks">Zapisz</button></div>
+    <div style="padding:14px 16px;display:flex;flex-direction:column;gap:8px">
+      <label class="field" style="display:flex;flex-direction:column;gap:4px"><span class="label">Losowo % dni pracy</span><input id="sch-rcp" type="number" min="0" max="100" value="${receiptPercent()}" style="width:120px"></label>
+      <span class="muted small">System codziennie losuje kierowców, którzy muszą dodać zdjęcie paragonu do tankowania. 0 = wyłączone.</span></div></div>`;
 }
 
 async function decideCleaning(id, ok){
@@ -132,16 +127,10 @@ async function decideCleaning(id, ok){
   } catch(err){ handleWriteErr(err); }
 }
 async function saveChecks(){
-  const insp = Math.max(1, Number($('#sch-insp').value) || 14), clean = Math.max(1, Number($('#sch-clean').value) || 14);
-  const items = ($('#insp-edit').value || '').split('\n').map(s => s.trim()).filter(Boolean).slice(0, 60);
-  if (!items.length) return toast('Lista punktów inspekcji nie może być pusta');
-  try {
-    await db.collection('settings').doc('schedule').set({inspectionDays: insp, cleaningDays: clean});
-    await db.collection('settings').doc('inspection').set({items});
-    const rp = Math.min(100, Math.max(0, Math.round(Number($('#sch-rcp').value))));
-    if (!Number.isNaN(rp)) await db.collection('settings').doc('receipts').set({percent: rp});
-    toast('Zapisano ustawienia kontroli');
-  } catch(err){ handleWriteErr(err); }
+  const rp = Math.min(100, Math.max(0, Math.round(Number($('#sch-rcp').value))));
+  if (Number.isNaN(rp)) return toast('Wpisz liczbę od 0 do 100');
+  try { await db.collection('settings').doc('receipts').set({percent: rp}); toast('Zapisano kontrolę paragonów'); }
+  catch(err){ handleWriteErr(err); }
 }
 document.addEventListener('click', e => {
   const t = e.target.closest('[data-insp-new],[data-insp-view],[data-cl-ok],[data-cl-no],[data-action="save-checks"]');
