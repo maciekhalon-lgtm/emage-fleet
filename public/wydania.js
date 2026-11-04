@@ -102,6 +102,7 @@ async function saveHandover({id, kind, vehicleId, minKm, items}){
   if (crew && !coDriverId){ $('#ho-co').focus(); return warn('Wybierz drugiego kierowcę albo odznacz „Podwójna obsada”.'); }
   const kmV = Number(String($('#ho-km').value).replace(',','.'));
   if (!kmV){ $('#ho-km').focus(); return warn('Wpisz aktualny stan licznika – to pole jest obowiązkowe.'); }
+  { const chk = odoInputCheck(kmV, minKm); if (chk && chk.hard){ $('#ho-km').focus(); return warn(chk.hard); } }
   if (kmV < minKm) return warn(`Stan licznika nie może być niższy niż ostatni zapis (${km(minKm)}). Sprawdź licznik.`);
   if (kmV - minKm > 2000 && minKm) { if (!w.dataset.big){ w.dataset.big = '1'; return warn(`To ${new Intl.NumberFormat('pl-PL').format(kmV - minKm)} km więcej niż ostatni zapis. Jeśli to prawda, kliknij jeszcze raz.`); } }
   let checklist = [];

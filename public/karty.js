@@ -120,7 +120,7 @@ function fcCons(list){
     const k = xs[b].odo - xs[a].odo; let l = 0;
     for (let i = pos.get(xs[a]) + 1; i <= pos.get(xs[b]); i++) l += Number(all[i].l || 0);   // także tankowania bez licznika
     if (k > 0){ const r = l / k * 100; if (r < FC_RATE_MIN || r > FC_RATE_MAX){ breaks++; return; } }   // niewiarygodny odcinek
-    kmS += k; lS += l; parts.push({id: xs[b].id, km: k, l}); used.push(a, b);
+    kmS += k; lS += l; parts.push({id: xs[b].id, km: k, l, d0: (xs[a].d || '').slice(0, 10), d1: (xs[b].d || '').slice(0, 10)}); used.push(a, b);
   });
   if (!kmS) return {km: 0, rate: null, bad, fake, legs: 0, n: all.length, breaks, parts};
   const rate = lS / kmS * 100;
@@ -203,7 +203,7 @@ function viewFuelCards(){
       <td>${nd ? `<span class="pill warn">${nd} ${isPlural(nd,'różnica','różnice','różnic')}</span> ` : ''}${nm ? `<span class="pill bad">${nm} bez wpisu</span> ` : ''}${nc ? `<span class="pill info">${nc} bez karty</span>` : ''}${!nd && !nm && !nc ? '<span class="pill ok">zgodne</span>' : ''}</td></tr>${det}`;
   }).join('');
   const table = `<div class="panel tablewrap fc-table"><table><thead><tr><th>Auto</th><th class="r">Karta</th><th class="r">Wpisali kierowcy</th><th class="r">Różnica</th><th>Wynik</th></tr></thead><tbody>${vRows || '<tr><td colspan="5" class="muted">Brak aut dla tego filtra.</td></tr>'}</tbody></table></div>`;
-  return head + meta + tiles + `<div class="fc-grid">${table}${dTable}${fakeOdoPanel()}
+  return head + meta + tiles + `<div class="fc-grid">${table}${dTable}
     <p class="muted small" style="margin:0">Parujemy tankowanie z karty z wpisem kierowcy tego samego auta (ten sam dzień ±1, litry ±5%). Zgodne: litry ±0,5 l, kwota ±1 zł, licznik ±30 km. Kliknij wpis kierowcy, aby go poprawić. Kliknij auto, aby zobaczyć jego tankowania. Spalanie i przebiegi aut – w zakładce „Spalanie i przebiegi”.</p></div>`;
 }
 document.addEventListener('change', e => { if (e.target.id==='fc-imp'){ fcImportId = e.target.value; render(); } });
@@ -434,19 +434,3 @@ document.addEventListener('click', e => {
 });
 
 
-/* Tankowania ze zmyślonym licznikiem (1, 555555…) – ze wszystkich rozliczeń, według aut; kierowcy z wpisu w aplikacji albo z grafiku */
-function fakeOdoPanel(){
-  const rows = S.fuelCardRows.filter(r => r.kind!=='other'); if (!rows.length) return '';
-  const cost = new Map(); fcCompare(rows).pairs.forEach(p => { if (p.cost) cost.set(p.row.id, p.cost); });
-  const per = {};
-  rows.forEach(r => { const x = per[r.vehicleId] = per[r.vehicleId] || {n: 0, f: 0, drv: {}};
-    x.n++; if (fakeOdo(r.odometer)){ x.f++; const d = fcDriver(r, cost.get(r.id)); if (d) x.drv[d] = (x.drv[d] || 0) + 1; } });
-  const list = Object.entries(per).filter(([, x]) => x.f).sort((a, b) => b[1].f / b[1].n - a[1].f / a[1].n);
-  if (!list.length) return '';
-  const total = list.reduce((s, [, x]) => s + x.f, 0);
-  return `<details class="panel fold"><summary class="sec-head"><h3>Tankowania bez prawdziwego licznika</h3><span class="count bad">${total}</span></summary>
-    <div class="tablewrap"><table><thead><tr><th>Auto</th><th class="r">Bez licznika</th><th class="r">Wszystkich</th><th class="r">Udział</th><th>Kierowcy (z grafiku / wpisów)</th></tr></thead><tbody>${list.map(([vid, x]) => `<tr><td>${vPlate(vid)}</td>
-      <td class="r num"><b>${x.f}</b></td><td class="r num">${x.n}</td><td class="r num ${x.f / x.n > 0.2 ? 'neg' : ''}">${Math.round(x.f / x.n * 100)}%</td>
-      <td class="small">${Object.entries(x.drv).sort((a, b) => b[1] - a[1]).map(([d, n]) => `${esc(d)} (${n})`).join(', ') || '<span class="muted">nieustaleni – brak grafiku i wpisów z tych dni</span>'}</td></tr>`).join('')}</tbody></table></div>
-    <p class="muted small" style="margin:0;padding:10px 16px">Licznik „zmyślony” = poniżej 1000 km albo z samych jednakowych cyfr (1, 444, 55555, 555555…). Takie tankowania nie psują już spalania (ich litry wchodzą do odcinka między prawdziwymi licznikami), ale im ich więcej, tym mniej dokładny wynik. Kierowcę widać, gdy w tym dniu był grafik albo kierowca wpisał tankowanie w aplikacji.</p></details>`;
-}

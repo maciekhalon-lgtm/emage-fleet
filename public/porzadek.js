@@ -7,7 +7,7 @@ const GROUPS = {
   rezerwacje: [['przydzial','Grafik', () => true], ['trasy','Trasy', () => !!P().manage]],
   serwis:     [['usterki','Usterki', () => true], ['terminy','Terminy', () => true], ['ksiazka','Książka serwisowa', () => !!P().service]],
   raporty:    [['raporty','Raporty', () => !!P().reports], ['porownanie','Miesiąc do miesiąca', () => !!P().manage], ['historia','Historia', () => !!P().history]],
-  koszty:     [['koszty','Koszty', () => true], ['karty','Karty paliwowe', () => !!P().manage], ['oplaty','Przejazdy i parkingi', () => !!P().manage], ['spalanie','Spalanie i przebiegi', () => !!P().manage]],
+  koszty:     [['koszty','Koszty', () => true], ['karty','Karty paliwowe', () => !!P().manage], ['oplaty','Przejazdy i parkingi', () => !!P().manage], ['spalanie','Spalanie i przebiegi', () => !!P().manage], ['liczniki','Liczniki', () => !!P().manage]],
   ludzie:     [['kierowcy','Kierowcy', () => true], ['uzytkownicy','Użytkownicy', () => !!P().manage]],
 };
 const groupOf = t => Object.keys(GROUPS).find(g => GROUPS[g].some(([k]) => k===t)) || '';
@@ -17,6 +17,8 @@ function tabCount(t){
   if (t==='usterki'){ const oi = openIssues(); return {n: oi.length, bad: oi.some(i => i.severity==='stop')}; }
   if (t==='terminy'){ const u = S.deadlines.filter(d => dlState(d).cls==='bad').length; return {n: u, bad: u > 0}; }
   if (t==='uzytkownicy' && P().manage){ const n = pendingUsers().length + pendingRequests().length + openDisputes().length; return {n, bad: n > 0}; }
+  if (t==='liczniki' && P().manage){ const n = odoTodoCount(); return {n, bad: n > 0}; }
+  if (t==='spalanie' && P().manage){ const n = theftVehicles().length; return {n, bad: n > 0}; }
   if (t==='przydzial'){ const cf = conflicts().size; return {n: cf, bad: cf > 0}; }
   return {n: 0, bad: false};
 }

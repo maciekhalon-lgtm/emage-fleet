@@ -39,6 +39,10 @@ function attentionItems(serviceOnly){
       `${i.status==='naprawa' ? 'w naprawie · ' : ''}zgłosił(a) ${esc(i.createdBy ? pName(i.createdBy) : '—')} · ${fdate(i.date)}`,
       canIs && i.status==='nowe' ? `<button class="small" data-issue-st="naprawa" data-id="${esc(i.id)}">Do naprawy</button>` : `<button class="small ghost" data-go="usterki">Szczegóły</button>`)});
   });
+  if (!serviceOnly && P().manage){
+    theftVehicles().forEach(({v, c}) => out.push({w: 1, html: attRow('bad', v.id, `Podejrzane spalanie: ${c.rate.toFixed(1).replace('.', ',')} l/100 km`, `powyżej ${THEFT_RATE} l/100 km – możliwa kradzież paliwa · ${new Intl.NumberFormat('pl-PL').format(Math.round(c.km))} km`, `<button class="small" data-card-go="${esc(v.id)}" data-ctab-go="paliwo">Sprawdź</button>`)}));
+    const odoN = odoTodoCount(); if (odoN) out.push({w: 2, html: attRow('warn', '', `${odoN} ${isPlural(odoN,'licznik','liczniki','liczników')} z czapy do sprawdzenia`, 'zmyślone albo niepasujące liczniki z kart i tankowań', `<button class="small" data-go="liczniki">Pokaż</button>`)});
+  }
   if (!serviceOnly){
     S.bookings.forEach(b => {
       const st = bookingState(b);

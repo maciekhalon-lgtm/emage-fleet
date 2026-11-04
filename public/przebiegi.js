@@ -84,7 +84,7 @@ function viewFuelMileage(){
     const notes = [c.fake && c.fake.size ? `${c.fake.size} bez prawdziwego licznika` : '', (() => { const n = r.bad.size + (c.bad ? c.bad.size : 0); return n ? `${n} ${isPlural(n,'licznik pominięty','liczniki pominięte','liczników pominiętych')}` : ''; })(), (r.breaks || c.breaks) ? `${(r.breaks || 0) + (c.breaks || 0)} ${isPlural((r.breaks || 0) + (c.breaks || 0),'przerwa','przerwy','przerw')}` : ''].filter(Boolean);
     return `<tr class="click fc-vrow ${open ? 'open' : ''}" data-pbv="${esc(v.id)}" aria-expanded="${open}"><td>${ic('chev', 'fc-chev')} ${plate(v.plate)}<span class="sub">${esc(v.make + ' ' + v.model)}</span></td>
       <td class="r num">${rate!=null ? `<b class="fc-big">${rate.toFixed(1).replace('.', ',')}</b> l/100` : c.rate!=null ? `<span class="muted">${c.rate.toFixed(1).replace('.', ',')} l/100</span>` : `<span class="muted">${c.n ? 'za mało danych' : 'brak danych'}</span>`}
-        <span class="sub">${c.rate!=null ? (c.unsure ? '<span class="pill off">niepewne – sprawdź liczniki</span>' : levelPill(levelFor(v.id, c.rate)) || '') : ''}</span></td>
+        <span class="sub">${c.rate!=null ? (c.unsure ? '<span class="pill off">niepewne – sprawdź liczniki</span>' : c.rate > THEFT_RATE ? '<span class="pill bad">podejrzane – możliwa kradzież</span>' : levelPill(levelFor(v.id, c.rate)) || '') : ''}</span></td>
       <td class="r num">${kmV!=null ? `<b>${nf(kmV)} km</b>` : '<span class="muted">—</span>'}${kmV && days ? `<span class="sub">${nf(kmV / days)} km / dzień</span>` : ''}</td>
       <td class="r num">${c.l ? fl(c.l) : '—'}</td>
       <td class="muted small">${c.src ? (c.src==='karta' ? 'z kart paliwowych' : 'z wpisów kierowców') : ''}${c.from ? `<span class="sub">${fdate(c.from)} – ${fdate(c.to)}</span>` : ''}</td>
@@ -93,6 +93,7 @@ function viewFuelMileage(){
   return head + `<div class="panel fc-meta"><div><span class="label">Zakres</span><b>${all ? 'całość danych' : fdate(pbFrom) + ' – ' + fdate(pbTo)}</b></div>
       <div><span class="label">Średnie spalanie floty</span><b>${cKm ? (cL / cKm * 100).toFixed(1).replace('.', ',') + ' l/100 km' : '—'}</b></div>
       <div><span class="label">Przebieg floty</span><b>${nf(totalKm)} km</b></div>
+      <div><span class="label">Podejrzane (> ${THEFT_RATE} l/100)</span><b class="${res.some(x => x.rate!=null && x.rate > THEFT_RATE) ? 'neg' : ''}">${res.filter(x => x.rate!=null && x.rate > THEFT_RATE).length}</b></div>
       <div><span class="label">Średnio na auto</span><b>${nf(totalKm / Math.max(1, res.filter(x => x.km).length))} km</b></div></div>
     <div class="panel tablewrap fc-table"><table><thead><tr>${th('plate', 'Auto')}${th('rate', 'Spalanie', 1)}${th('km', 'Przebieg', 1)}${th('l', 'Litry', 1)}<th>Dane</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
     <p class="muted small" style="margin:0">Kliknij nagłówek kolumny, aby posortować (drugi raz – odwrotnie). Przebieg: wszystkie liczniki (karta, tankowania, przejęcie i zdanie auta). Spalanie: tankowania z kart paliwowych, a gdy ich brak – wpisy kierowców; liczone odcinkami, pojedynczy zły licznik pomijany, dziura (np. tankowanie inną kartą) przerywa liczenie. Wynik poza 5–25 l/100 km – „niepewne”, poza średnią floty. Kliknij auto, aby zobaczyć liczniki po kolei.</p>`;

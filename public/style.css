@@ -669,3 +669,4 @@ details.fold:not([open])>summary{border-bottom:0}
 .card-tabs{margin:4px 0 12px}
 .pb-quick .count{margin-left:4px}
 details.fold>summary.sec-head{justify-content:flex-start}
+.notice.err{margin-bottom:12px}

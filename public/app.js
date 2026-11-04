@@ -2,7 +2,7 @@
 'use strict';
 /* ---------- routing ---------- */
 const DRIVER_VIEWS = ['moje','wybierz','moje-dane'];
-const TABS = ['moje','wybierz','moje-dane','pulpit','pojazdy','trasy','terminy','usterki','ksiazka','przydzial','koszty','karty','oplaty','spalanie','raporty','porownanie','historia','kierowcy','uzytkownicy','ustawienia'];
+const TABS = ['moje','wybierz','moje-dane','pulpit','pojazdy','trasy','terminy','usterki','ksiazka','przydzial','koszty','karty','oplaty','spalanie','liczniki','raporty','porownanie','historia','kierowcy','uzytkownicy','ustawienia'];
 const homeTab = () => P().mycar ? 'moje' : 'pulpit';
 let pendingCard = null;
 let tab = 'pulpit', q = '', costMonth = today().slice(0,7), dlFilter = 'urgent';
@@ -66,6 +66,7 @@ function render(){
   else if (tab==='karty') v.innerHTML = viewFuelCards();
   else if (tab==='spalanie') v.innerHTML = viewFuelMileage();
   else if (tab==='porownanie') v.innerHTML = viewCompare();
+  else if (tab==='liczniki') v.innerHTML = viewOdometers();
   else if (tab==='oplaty') v.innerHTML = viewTolls();
   else v.innerHTML = viewCosts();
   if (st) v.insertAdjacentHTML('afterbegin', st);
@@ -119,7 +120,7 @@ document.addEventListener('click', e => {
   if (t.dataset.cal){ calStart = t.dataset.cal==='0' ? mondayOf(today()) : addDays(calStart, Number(t.dataset.cal)); render(); return; }
   if (t.dataset.isf){ issueFilter = t.dataset.isf; render(); return; }
   if (t.dataset.rep){ repMode = t.dataset.rep; render(); return; }
-  if (t.dataset.cardGo){ if (location.hash==='#pojazdy'){ tab='pojazdy'; cardId=t.dataset.cardGo; render(); window.scrollTo(0,0); } else { pendingCard = t.dataset.cardGo; location.hash = 'pojazdy'; } return; }
+  if (t.dataset.cardGo){ if (typeof cardTab!=='undefined') cardTab = t.dataset.ctabGo || 'dane'; if (location.hash==='#pojazdy'){ tab='pojazdy'; cardId=t.dataset.cardGo; render(); window.scrollTo(0,0); } else { pendingCard = t.dataset.cardGo; location.hash = 'pojazdy'; } return; }
   if (t.dataset.action==='export-xlsx') return exportXlsx();
   if (t.dataset.action==='save-budget') return saveBudget();
   if (t.dataset.action==='open-import') return openImport();

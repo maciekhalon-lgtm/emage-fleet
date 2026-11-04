@@ -342,7 +342,6 @@ $('#dialog').addEventListener('submit', async e => {
     if (data.consGood && data.consOk && data.consGood >= data.consOk){ const w = $('#dlg-warn'); w.textContent = 'Próg „bardzo dobre” musi być niższy niż próg „dobre”.'; w.hidden = false; return; }
   }
   if (col==='cleanings' && P().cleanings==='own') data.driverId = myDriverId();
-  if (col==='costs' && editing.receipt && !(base.photos||[]).length && !($('#f-costs-photos')?.files||[]).length){ const w = $('#dlg-warn'); w.textContent = 'Dziś wylosowano Cię do kontroli paragonów – dodaj zdjęcie paragonu.'; w.hidden = false; return; }
   const asDriver = col==='costs' && (P().costs==='own' || !!base.mode);
   if (col==='costs'){
     data.station = data.stationSel==='Inna' ? (data.stationOther || 'Inna') : (data.stationSel || null);
@@ -364,9 +363,12 @@ $('#dialog').addEventListener('submit', async e => {
       const w = $('#dlg-warn');
       if (!data.odometer){ w.textContent = 'Przy tankowaniu wpisz stan licznika – bez niego nie policzymy kilometrów ani spalania.'; w.hidden = false; $('#f-costs-odometer').focus(); return; }
       if (!data.liters){ w.textContent = 'Wpisz ilość zatankowanego paliwa (l) lub energii (kWh).'; w.hidden = false; $('#f-costs-liters').focus(); return; }
-      const prob = odometerProblem(data.vehicleId, data.date, data.odometer, id);
-      if (prob){ w.textContent = prob; w.hidden = false; $('#f-costs-odometer').focus(); return; }
+      const chk = odoInputCheck(data.odometer, lastRealKm(data.vehicleId, data.date, id));
+      if (chk && chk.hard){ w.textContent = chk.hard; w.hidden = false; $('#f-costs-odometer').focus(); return; }
+      if (chk && chk.soft && w.dataset.big!==String(data.odometer)){ w.dataset.big = String(data.odometer); w.textContent = chk.soft; w.hidden = false; return; }
     }
+    if (col==='costs' && editing.receipt && !(base.photos||[]).length && !($('#f-costs-photos')?.files||[]).length){ const w = $('#dlg-warn'); w.textContent = 'Dziś wylosowano Cię do kontroli paragonów – dodaj zdjęcie paragonu.'; w.hidden = false; return; }
+
   }
   data.updatedAt = new Date().toISOString();
   if (!id && myId) data.createdBy = myId;

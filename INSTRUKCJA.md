@@ -23,7 +23,7 @@ Kierownik floty: **Pracownicy → Użytkownicy** → rola, dla kierowcy jego wpi
 | **Pojazdy** | lista z filtrami (w trasie, wolne, wymaga uwagi) i karta auta w zakładkach: **Dane** (polisa, assistance, grafik, dokumenty), **Terminy i serwis**, **Paliwo i koszty**, **Historia**; dokumenty, książka serwisowa, historia |
 | **Grafik** | zakładki **Grafik** (tydzień: kierowcy × dni, załadunek ze zmiany, auta teraz w trasie) i **Trasy** |
 | **Serwis** | zakładki **Usterki**, **Terminy** (domyślnie tylko pilne: po terminie i do 60 dni – „Pokaż wszystkie” pokazuje resztę), **Książka serwisowa** |
-| **Koszty i paliwo** | zakładki **Koszty** (koszty miesiąca, tankowania do wyjaśnienia), **Karty paliwowe**, **Przejazdy i parkingi** i **Spalanie i przebiegi** (kierownik floty) |
+| **Koszty i paliwo** | zakładki **Koszty** (koszty miesiąca, tankowania do wyjaśnienia), **Karty paliwowe**, **Przejazdy i parkingi**, **Spalanie i przebiegi** i **Liczniki** (kierownik floty) |
 | **Raporty** | zakładki **Raporty** (auta, trasy, ranking kierowców, Excel), **Miesiąc do miesiąca** (spalanie pojazdów i kierowców: dwa wybrane miesiące i zmiana) i **Historia** (zmiany w danych i zmiany obsady) |
 | **Pracownicy** | zakładki **Kierowcy** i **Użytkownicy** (konta, role, spory w obsadzie, zmiany danych kierowców) |
 | **Ustawienia** | budżet floty, kontrola paragonów, checklista przejęcia |
@@ -64,7 +64,9 @@ kierowcy (to samo auto, dzień ±1, litry ±5%): **zgodne**, **różnice** (litr
 Przy każdym aucie przebieg i spalanie (l/100 km) z liczników karty i z wpisów kierowców, liczone odcinkami między tankowaniami;
 błędny licznik (np. brak cyfry) jest pomijany i oznaczony „licznik podejrzany”, wynik poza 5–25 l/100 km – „niepewne”.
 Licznik „zmyślony” (poniżej 1000 km albo z samych jednakowych cyfr: 1, 444, 555555) = brak licznika – litry wchodzą do odcinka między
-prawdziwymi licznikami; odcinek ze spalaniem poza 3–40 l/100 km jest odrzucany. Panel „Tankowania bez prawdziwego licznika” pokazuje, kto tak wpisuje.
+prawdziwymi licznikami; odcinek ze spalaniem poza 3–40 l/100 km jest odrzucany. Zakładka **Liczniki** pokazuje każdy zły licznik (data, auto, kierowca, wpisany i oczekiwany) z przyciskiem „Sprawdzone”.
+Kierowca w aplikacji nie wpisze zmyślonego (1, 555555…) ani cofniętego licznika; przy skoku ponad 2000 km musi potwierdzić.
+**Alarm spalania:** auto powyżej 13 l/100 km = „podejrzane – możliwa kradzież” (Spalanie, Pulpit, karta auta z odcinkami o najwyższym spalaniu).
 Podsumowanie według aut i kierowców; kliknięcie wpisu kierowcy pozwala go poprawić.
 
 **Serwis** – Serwis → **Książka serwisowa** → **Wpis serwisowy**: koszt doda się sam do kosztów, można odnowić termin,
