@@ -21,7 +21,7 @@ Kierownik floty: **Pracownicy → Użytkownicy** → rola, dla kierowcy jego wpi
 | **Moje auto** | (kierownik floty powiązany z wpisem kierowcy) ten sam ekran co u kierowcy |
 | **Pulpit** | liczby floty, „Wymaga uwagi” (blokady, terminy, niesprawne auta, tankowania do wyjaśnienia, sprzątanie do potwierdzenia, konta, spory, budżet, opony), flota teraz, koszty, ranking |
 | **Pojazdy** | lista i karta auta: dane, polisa (assistance – Zadzwoń), odpowiedzialni kierowcy, terminy, usterki, grafik, dokumenty, książka serwisowa, historia |
-| **Grafik** | zakładki **Grafik** (tydzień: kierowcy × dni, załadunek na jutro, auta teraz w trasie, zmiany obsady) i **Trasy** |
+| **Grafik** | zakładki **Grafik** (tydzień: kierowcy × dni, załadunek ze zmiany, auta teraz w trasie, zmiany obsady) i **Trasy** |
 | **Serwis** | zakładki **Usterki**, **Terminy**, **Kontrole** (inspekcje i sprzątanie), **Książka serwisowa** |
 | **Koszty i paliwo** | koszty miesiąca, tankowania do wyjaśnienia |
 | **Raporty** | zakładki **Raporty** (auta, trasy, ranking kierowców, Excel) i **Historia** zmian |
@@ -41,7 +41,9 @@ a w karcie auta terminy **Przegląd techniczny** i **Ubezpieczenie OC**. Stare a
 opcjonalnie drugi kierowca i uwagi. Kierowca widzi swój grafik na 7 dni. **Kopiuj poprzedni tydzień** przenosi przydziały,
 pomijając zajęte auta i kierowców.
 
-**Załadunek** – kierowca zaznacza trasy, których towar zabiera; od razu widzi, kto jutro jedzie tą trasą (z telefonem).
+**Załadunek** – kierowca zaznacza trasy, których towar zabiera; od razu widzi, kto na tej zmianie jedzie tą trasą (z telefonem).
+Dzień liczy się według grafiku: ładując w poniedziałek (także po północy) przekazujesz towar kierowcom z poniedziałkowej zmiany
+(z poniedziałku na wtorek). Aplikacja bierze go z Twojego przejętego auta; w oknie można przełączyć zmianę.
 Kierowca jadący trasą widzi w swoim grafiku, kto ma jego towar.
 Kierowca jadący dziś trasą załadunkową wpisuje przy tym wagę towaru (kg, obowiązkowo) i jedno zdjęcie – widzi to tylko kierownik floty. Kierownik widzi to pod grafikiem i ikoną paczki w grafiku.
 
@@ -62,7 +64,7 @@ sprzątanie co 14 dni – kierowca zaznacza, kierownik floty potwierdza. Często
 1. **Wybierz auto** – na górze „Twój bus” (jeśli jest odpowiedzialny) albo auto przydzielone przez kierownika;
    checklista („Wszystkie punkty OK” albo „Mam uwagi”), przebieg, trasa z listy.
 2. W trasie: **Zatankuj** (litry, kwota, licznik; waluta PLN/EUR/CZK z kursem NBP) i **Zdaj pojazd**.
-   **Załadunek** – zaznacz trasy, których towar zabierasz (na jutro). Pod **Więcej**: zgłoś usterkę, posprzątane, zmień trasę.
+   **Załadunek** – zaznacz trasy, których towar zabierasz (na Twoją zmianę z grafiku). Pod **Więcej**: zgłoś usterkę, posprzątane, zmień trasę.
    **Inny wydatek** – myjnia, parking, opłaty. **Mój grafik** – najbliższe 7 dni: auto, trasa, uwagi, kto wiezie Twój towar.
 3. Wylosowany do kontroli paragonów musi dodać zdjęcie paragonu.
 4. Bez zasięgu tankowanie i zdanie auta zapisują się w telefonie i wysyłają same po odzyskaniu sieci.

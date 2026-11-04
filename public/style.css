@@ -623,3 +623,4 @@ details.few summary{padding:12px 16px;cursor:pointer;color:var(--muted);font-wei
 .ld-reports{border-bottom:1px solid var(--line)}
 .ld-reports .thumb{width:44px;height:44px}
 .ld-weight input{font-size:18px;font-weight:700}
+.ld-day-head{padding:10px 16px;font-weight:700;font-size:13.5px;background:var(--sunk);border-bottom:1px solid var(--line)}
