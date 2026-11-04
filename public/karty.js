@@ -434,18 +434,19 @@ document.addEventListener('click', e => {
 });
 
 
-/* Kto wpisuje na stacji zmyślony licznik (1, 555555…) – ze wszystkich rozliczeń; kierowca z wpisu w aplikacji albo z grafiku */
+/* Tankowania ze zmyślonym licznikiem (1, 555555…) – ze wszystkich rozliczeń, według aut; kierowcy z wpisu w aplikacji albo z grafiku */
 function fakeOdoPanel(){
   const rows = S.fuelCardRows.filter(r => r.kind!=='other'); if (!rows.length) return '';
   const cost = new Map(); fcCompare(rows).pairs.forEach(p => { if (p.cost) cost.set(p.row.id, p.cost); });
   const per = {};
-  rows.forEach(r => { const d = fcDriver(r, cost.get(r.id)) || 'nieustalony'; const x = per[d] = per[d] || {n: 0, f: 0, veh: new Set()};
-    x.n++; if (fakeOdo(r.odometer)){ x.f++; x.veh.add(r.vehicleId); } });
-  const list = Object.entries(per).filter(([, x]) => x.f).sort((a, b) => b[1].f - a[1].f);
+  rows.forEach(r => { const x = per[r.vehicleId] = per[r.vehicleId] || {n: 0, f: 0, drv: {}};
+    x.n++; if (fakeOdo(r.odometer)){ x.f++; const d = fcDriver(r, cost.get(r.id)); if (d) x.drv[d] = (x.drv[d] || 0) + 1; } });
+  const list = Object.entries(per).filter(([, x]) => x.f).sort((a, b) => b[1].f / b[1].n - a[1].f / a[1].n);
   if (!list.length) return '';
   const total = list.reduce((s, [, x]) => s + x.f, 0);
   return `<details class="panel fold"><summary class="sec-head"><h3>Tankowania bez prawdziwego licznika</h3><span class="count bad">${total}</span></summary>
-    <div class="tablewrap"><table><thead><tr><th>Kierowca</th><th class="r">Bez licznika</th><th class="r">Wszystkich tankowań</th><th class="r">Udział</th><th>Auta</th></tr></thead><tbody>${list.map(([n, x]) => `<tr><td><b>${esc(n)}</b></td>
-      <td class="r num"><b>${x.f}</b></td><td class="r num">${x.n}</td><td class="r num ${x.f / x.n > 0.2 ? 'neg' : ''}">${Math.round(x.f / x.n * 100)}%</td><td class="muted small">${[...x.veh].map(v => esc((byId('vehicles', v) || {}).plate || '')).join(', ')}</td></tr>`).join('')}</tbody></table></div>
-    <p class="muted small" style="margin:0;padding:10px 16px">Licznik „zmyślony” = poniżej 1000 km albo z samych jednakowych cyfr (1, 444, 55555, 555555…). Takie tankowania nie psują już spalania (ich litry wchodzą do odcinka między prawdziwymi licznikami), ale im ich więcej, tym mniej dokładne wyniki. Kierowca – z wpisu w aplikacji, a gdy go brak – z grafiku.</p></details>`;
+    <div class="tablewrap"><table><thead><tr><th>Auto</th><th class="r">Bez licznika</th><th class="r">Wszystkich</th><th class="r">Udział</th><th>Kierowcy (z grafiku / wpisów)</th></tr></thead><tbody>${list.map(([vid, x]) => `<tr><td>${vPlate(vid)}</td>
+      <td class="r num"><b>${x.f}</b></td><td class="r num">${x.n}</td><td class="r num ${x.f / x.n > 0.2 ? 'neg' : ''}">${Math.round(x.f / x.n * 100)}%</td>
+      <td class="small">${Object.entries(x.drv).sort((a, b) => b[1] - a[1]).map(([d, n]) => `${esc(d)} (${n})`).join(', ') || '<span class="muted">nieustaleni – brak grafiku i wpisów z tych dni</span>'}</td></tr>`).join('')}</tbody></table></div>
+    <p class="muted small" style="margin:0;padding:10px 16px">Licznik „zmyślony” = poniżej 1000 km albo z samych jednakowych cyfr (1, 444, 55555, 555555…). Takie tankowania nie psują już spalania (ich litry wchodzą do odcinka między prawdziwymi licznikami), ale im ich więcej, tym mniej dokładny wynik. Kierowcę widać, gdy w tym dniu był grafik albo kierowca wpisał tankowanie w aplikacji.</p></details>`;
 }
