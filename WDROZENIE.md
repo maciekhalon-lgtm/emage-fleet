@@ -77,19 +77,19 @@ Od tej chwili zatwierdzasz wszystkich pozostałych w panelu **Użytkownicy** na 
 ---
 
 
-Kod aplikacji jest w folderze `public/`. Cloudflare Pages publikuje go automatycznie
-po każdej zmianie w GitHubie (ok. 1 minuty).
+Kod aplikacji jest w folderze `public/`. Cloudflare (Workers Builds) publikuje go automatycznie
+po każdej zmianie w GitHubie (ok. 1–2 minut). Adres strony: **https://emage-fleet.maciekhalon.workers.dev**
 
 ## E. Uruchomienie aplikacji
 
 ### 1. Skrypty bazy
-Supabase → **SQL Editor** → uruchom po kolei wszystkie pliki z `supabase/migrations/` (001, 002, … 016).
+Supabase → **SQL Editor** → uruchom po kolei wszystkie pliki z `supabase/migrations/` (001, 002, … 021).
 Każdy plik wklejasz w całości i klikasz **Run**.
 
 ### 2. Adres strony w ustawieniach logowania
 Supabase → **Authentication → URL Configuration**:
-- **Site URL:** adres strony z Cloudflare, np. `https://emage-fleet.pages.dev`
-- **Redirect URLs:** dodaj ten sam adres zakończony `/**`, np. `https://emage-fleet.pages.dev/**`
+- **Site URL:** `https://emage-fleet.maciekhalon.workers.dev`
+- **Redirect URLs:** `https://emage-fleet.maciekhalon.workers.dev/**`
 
 Bez tego linki z maili (potwierdzenie konta, reset hasła) prowadziłyby w złe miejsce.
 
