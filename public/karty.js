@@ -76,30 +76,44 @@ const fm = (v, cur) => v==null || !Number.isFinite(Number(v)) ? '—' : new Intl
    ≤ 0 lub > 3000 km jest pomijany (oznaczany „licznik podejrzany”), a jego litry liczą się do następnego dobrego odcinka.
    Spalanie = litry od drugiego tankowania / km × 100; poza 5–25 l/100 km wynik jest „niepewny”. */
 const FC_MAX_LEG = 3000, FC_MAX_DEV = 20000;
+/* Najdłuższy spójny ciąg liczników (chronologicznie): każdy kolejny ≥ poprzedni i odcinek ≤ maxLeg.
+   Liczniki spoza ciągu są błędne (brak cyfry, cofnięte, przeskok). xs – posortowane chronologicznie. */
+function odoChain(xs, maxLeg){
+  const n = xs.length; if (!n) return [];
+  const sorted = xs.map(x => x.odo).sort((a, b) => a - b), med = sorted[Math.floor(n / 2)];
+  const okv = xs.map(x => Math.abs(x.odo - med) <= FC_MAX_DEV);
+  const dp = new Array(n).fill(0), from = new Array(n).fill(-1);
+  for (let i = 0; i < n; i++){
+    if (!okv[i]) continue;
+    dp[i] = 1;
+    for (let j = 0; j < i; j++){
+      if (!okv[j] || !dp[j]) continue;
+      const d = xs[i].odo - xs[j].odo;
+      if (d >= 0 && d <= maxLeg(xs[j], xs[i]) && dp[j] + 1 >= dp[i]){ dp[i] = dp[j] + 1; from[i] = j; }
+    }
+  }
+  let best = -1; for (let i = 0; i < n; i++) if (dp[i] && (best < 0 || dp[i] >= dp[best])) best = i;
+  const chain = []; for (let i = best; i >= 0; i = from[i]) chain.unshift(i);
+  return chain;
+}
+/* Przejechane km i spalanie – odcinkami między kolejnymi dobrymi licznikami (wg daty i godziny).
+   Błędne liczniki są pomijane (oznaczane „licznik podejrzany”), a ich litry liczą się do następnego dobrego odcinka.
+   Spalanie = litry od drugiego tankowania / km × 100; poza 5–25 l/100 km wynik jest „niepewny”. */
 function fcCons(list){
   const xs = list.filter(x => Number(x.odo) > 0 && x.l!=null).sort((a, b) => (a.d || '').localeCompare(b.d || '') || a.odo - b.odo);
   const bad = new Set();
-  if (xs.length < 2) return xs.length ? {km: 0, rate: null, bad, legs: 0} : null;
-  const sorted = xs.map(x => x.odo).sort((a, b) => a - b), med = sorted[Math.floor(sorted.length / 2)];
-  const ok = xs.map(x => ({...x, out: Math.abs(x.odo - med) > FC_MAX_DEV}));
-  ok.forEach(x => { if (x.out && x.id) bad.add(x.id); });
-  let s0 = ok.findIndex(x => !x.out); if (s0 < 0) return {km: 0, rate: null, bad, legs: 0};
-  let prev = ok[s0], kmS = 0, lS = 0, pend = 0, legs = 0;
-  for (let i = s0 + 1; i < ok.length; i++){
-    const x = ok[i];
-    if (x.out){ pend += Number(x.l || 0); continue; }   // litry z błędnym licznikiem liczą się do następnego dobrego odcinka
-    const d = x.odo - prev.odo;
-    if (prev && d > 0 && d <= FC_MAX_LEG){ kmS += d; lS += pend + Number(x.l || 0); pend = 0; legs++; prev = x; }
-    else {
-      // zły jest ten licznik albo poprzedni: sprawdź, czy następny pasuje do poprzedniego
-      const nx = ok.slice(i + 1).find(y => !y.out);
-      if (nx && prev && nx.odo - prev.odo > 0 && nx.odo - prev.odo <= FC_MAX_LEG){ if (x.id) bad.add(x.id); pend += Number(x.l || 0); }
-      else { if (prev && prev.id && d <= 0) bad.add(prev.id); prev = x; pend = 0; }
-    }
+  if (!xs.length) return null;
+  const chain = odoChain(xs, () => FC_MAX_LEG), inC = new Set(chain);
+  xs.forEach((x, i) => { if (!inC.has(i) && x.id) bad.add(x.id); });
+  if (chain.length < 2) return {km: 0, rate: null, bad, legs: 0};
+  let kmS = 0, lS = 0;
+  for (let k = 1; k < chain.length; k++){
+    kmS += xs[chain[k]].odo - xs[chain[k - 1]].odo;
+    for (let i = chain[k - 1] + 1; i <= chain[k]; i++) lS += Number(xs[i].l || 0);
   }
   if (!kmS) return {km: 0, rate: null, bad, legs: 0};
   const rate = lS / kmS * 100;
-  return {km: kmS, rate, bad, legs, unsure: rate < 5 || rate > 25};
+  return {km: kmS, rate, bad, legs: chain.length - 1, unsure: rate < 5 || rate > 25};
 }
 /* Punkt startowy: ostatnie tankowanie z licznikiem przed okresem (z wcześniejszych zestawień / wpisów) */
 const fcAnchorCard = (vid, imp) => S.fuelCardRows.filter(x => x.vehicleId===vid && x.importId!==imp.id && x.txDate < imp.periodFrom && Number(x.odometer) > 0)
@@ -166,12 +180,12 @@ function viewFuelCards(){
   const ncRow = c => `<tr><td class="num"><b>${fdate(c.date)}</b></td><td>${esc(dName(fillDriver(c) || c.driverId) || '') || '<span class="muted">—</span>'}</td><td class="muted">nie ma na karcie</td>
       <td class="num click" data-edit="costs" data-id="${esc(c.id)}">${fl(c.liters)} · <b>${fm(c.amount)}</b><span class="sub">${c.odometer ? km(c.odometer) : 'bez licznika'}</span>${photoStrip(c.photos)}</td><td><span class="pill info">bez karty</span></td></tr>`;
   // filtr kafelków: które pozycje pokazujemy w rozwinięciu auta
-  const shown = (fcFilter==='nocard' ? [] : list).map(p => ({key: p.row.txDate, vid: p.row.vehicleId, html: pairRow(p)}))
+  const shown = (fcFilter==='nocard' ? [] : list).map(p => ({key: p.row.txDate + ' ' + (p.row.txTime || ''), vid: p.row.vehicleId, html: pairRow(p)}))
     .concat(fcFilter==='all' || fcFilter==='nocard' ? noCard.map(c => ({key: c.date, vid: c.vehicleId, html: ncRow(c)})) : []);
   const vRows = perV.filter(x => fcFilter==='all' || shown.some(y => y.vid===x.vid)).map(x => {
     const vp = pairs.filter(p => p.row.vehicleId===x.vid), nd = vp.filter(p => p.cost && p.issues.length).length, nm = vp.filter(p => !p.cost).length, nc = noCard.filter(c => c.vehicleId===x.vid).length;
     const open = fcOpen.has(x.vid);
-    const det = open ? `<tr class="fc-det"><td colspan="6"><table><thead><tr><th>Data</th><th>Kierowca</th><th>Karta</th><th>Wpisał kierowca</th><th>Wynik</th></tr></thead><tbody>${shown.filter(y => y.vid===x.vid).sort((a, b) => b.key.localeCompare(a.key)).map(y => y.html).join('') || '<tr><td colspan="5" class="muted">Brak pozycji dla tego filtra.</td></tr>'}</tbody></table></td></tr>` : '';
+    const det = open ? `<tr class="fc-det"><td colspan="6"><table><thead><tr><th>Data</th><th>Kierowca</th><th>Karta</th><th>Wpisał kierowca</th><th>Wynik</th></tr></thead><tbody>${shown.filter(y => y.vid===x.vid).sort((a, b) => a.key.localeCompare(b.key)).map(y => y.html).join('') || '<tr><td colspan="5" class="muted">Brak pozycji dla tego filtra.</td></tr>'}</tbody></table></td></tr>` : '';
     return `<tr class="click fc-vrow ${open ? 'open' : ''}" data-fcv="${esc(x.vid)}" aria-expanded="${open}"><td>${ic('chev', 'fc-chev')} ${vPlate(x.vid)}<span class="sub">${vp.length} ${isPlural(vp.length,'tankowanie','tankowania','tankowań')}</span></td>
       <td class="r num">${fl(x.cl)}<span class="sub">${fm(x.ca)}</span></td><td class="r num">${fl(x.al)}<span class="sub">${fm(x.aa)}</span></td>
       <td class="r num ${Math.abs(x.ca - x.aa) > 1 ? 'neg' : ''}">${fl(x.cl - x.al)}<span class="sub">${fm(x.ca - x.aa)}</span></td>
@@ -351,7 +365,7 @@ function viewTolls(){
     ${fx.length ? `<div><span class="label">W walutach</span><b>${[...new Set(fx.map(r => r.currency))].map(c => fm(fx.filter(r => r.currency===c).reduce((s, r) => s + Number(r.amount || 0), 0), c)).join(' · ')}</b></div>` : ''}
     <div><span class="label">Koszty auta</span><b>${rows.filter(r => r.costId).length} z ${rows.length} dopisane</b></div></div>`;
   const vRows = vids.map(vid => {
-    const list = rows.filter(r => r.vehicleId===vid).sort((a, b) => (b.txDate + (b.txTime || '')).localeCompare(a.txDate + (a.txTime || ''))), open = tlOpen.has(vid);
+    const list = rows.filter(r => r.vehicleId===vid).sort((a, b) => (a.txDate + (a.txTime || '')).localeCompare(b.txDate + (b.txTime || ''))), open = tlOpen.has(vid);
     const det = open ? `<tr class="fc-det"><td colspan="3"><table><thead><tr><th>Data</th><th>Pozycja</th><th>Kierowca</th><th class="r">Kwota</th><th></th></tr></thead><tbody>${list.map(r => `<tr>
         <td class="num"><b>${fdate(r.txDate)}</b>${r.txTime ? `<span class="sub">${esc(r.txTime)}</span>` : ''}</td><td>${esc(r.product || 'inne')}<span class="sub">${esc(r.station || '')}</span></td>
         <td>${esc(fcDriver(r, null)) || '<span class="muted">—</span>'}</td><td class="r num"><b>${fm(r.amount, r.currency)}</b></td>

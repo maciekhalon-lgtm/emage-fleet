@@ -2,7 +2,7 @@
 'use strict';
 /* ---------- routing ---------- */
 const DRIVER_VIEWS = ['moje','wybierz','moje-dane'];
-const TABS = ['moje','wybierz','moje-dane','pulpit','pojazdy','trasy','terminy','usterki','ksiazka','przydzial','koszty','karty','oplaty','raporty','historia','kierowcy','uzytkownicy','ustawienia'];
+const TABS = ['moje','wybierz','moje-dane','pulpit','pojazdy','trasy','terminy','usterki','ksiazka','przydzial','koszty','karty','oplaty','raporty','przebiegi','historia','kierowcy','uzytkownicy','ustawienia'];
 const homeTab = () => P().mycar ? 'moje' : 'pulpit';
 let pendingCard = null;
 let tab = 'pulpit', q = '', costMonth = today().slice(0,7), dlFilter = 'all';
@@ -64,6 +64,7 @@ function render(){
   else if (tab==='historia') v.innerHTML = viewHistory();
   else if (tab==='przydzial') v.innerHTML = viewAssign();
   else if (tab==='karty') v.innerHTML = viewFuelCards();
+  else if (tab==='przebiegi') v.innerHTML = viewMileage();
   else if (tab==='oplaty') v.innerHTML = viewTolls();
   else v.innerHTML = viewCosts();
   if (st) v.insertAdjacentHTML('afterbegin', st);
