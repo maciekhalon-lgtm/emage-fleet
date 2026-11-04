@@ -184,16 +184,15 @@ function viewFuelCards(){
   const vRows = perV.filter(x => fcFilter==='all' || shown.some(y => y.vid===x.vid)).map(x => {
     const vp = pairs.filter(p => p.row.vehicleId===x.vid), nd = vp.filter(p => p.cost && p.issues.length).length, nm = vp.filter(p => !p.cost).length, nc = noCard.filter(c => c.vehicleId===x.vid).length;
     const open = fcOpen.has(x.vid);
-    const det = open ? `<tr class="fc-det"><td colspan="6"><table><thead><tr><th>Data</th><th>Kierowca</th><th>Karta</th><th>Wpisał kierowca</th><th>Wynik</th></tr></thead><tbody>${shown.filter(y => y.vid===x.vid).sort((a, b) => a.key.localeCompare(b.key)).map(y => y.html).join('') || '<tr><td colspan="5" class="muted">Brak pozycji dla tego filtra.</td></tr>'}</tbody></table></td></tr>` : '';
+    const det = open ? `<tr class="fc-det"><td colspan="5"><table><thead><tr><th>Data</th><th>Kierowca</th><th>Karta</th><th>Wpisał kierowca</th><th>Wynik</th></tr></thead><tbody>${shown.filter(y => y.vid===x.vid).sort((a, b) => a.key.localeCompare(b.key)).map(y => y.html).join('') || '<tr><td colspan="5" class="muted">Brak pozycji dla tego filtra.</td></tr>'}</tbody></table></td></tr>` : '';
     return `<tr class="click fc-vrow ${open ? 'open' : ''}" data-fcv="${esc(x.vid)}" aria-expanded="${open}"><td>${ic('chev', 'fc-chev')} ${vPlate(x.vid)}<span class="sub">${vp.length} ${isPlural(vp.length,'tankowanie','tankowania','tankowań')}</span></td>
       <td class="r num">${fl(x.cl)}<span class="sub">${fm(x.ca)}</span></td><td class="r num">${fl(x.al)}<span class="sub">${fm(x.aa)}</span></td>
       <td class="r num ${Math.abs(x.ca - x.aa) > 1 ? 'neg' : ''}">${fl(x.cl - x.al)}<span class="sub">${fm(x.ca - x.aa)}</span></td>
-      <td class="num">${fcConsTxt(x.vid, x.kc, 'karta')}${fcConsTxt(x.vid, x.ka, 'kierowcy')}</td>
       <td>${nd ? `<span class="pill warn">${nd} ${isPlural(nd,'różnica','różnice','różnic')}</span> ` : ''}${nm ? `<span class="pill bad">${nm} bez wpisu</span> ` : ''}${nc ? `<span class="pill info">${nc} bez karty</span>` : ''}${!nd && !nm && !nc ? '<span class="pill ok">zgodne</span>' : ''}</td></tr>${det}`;
   }).join('');
-  const table = `<div class="panel tablewrap fc-table"><table><thead><tr><th>Auto</th><th class="r">Karta</th><th class="r">Wpisali kierowcy</th><th class="r">Różnica</th><th>Przebieg i spalanie</th><th>Wynik</th></tr></thead><tbody>${vRows || '<tr><td colspan="6" class="muted">Brak aut dla tego filtra.</td></tr>'}</tbody></table></div>`;
+  const table = `<div class="panel tablewrap fc-table"><table><thead><tr><th>Auto</th><th class="r">Karta</th><th class="r">Wpisali kierowcy</th><th class="r">Różnica</th><th>Wynik</th></tr></thead><tbody>${vRows || '<tr><td colspan="5" class="muted">Brak aut dla tego filtra.</td></tr>'}</tbody></table></div>`;
   return head + meta + tiles + `<div class="fc-grid">${table}${dTable}
-    <p class="muted small" style="margin:0">Parujemy tankowanie z karty z wpisem kierowcy tego samego auta (ten sam dzień ±1, litry ±5%). Zgodne: litry ±0,5 l, kwota ±1 zł, licznik ±30 km. Kliknij wpis kierowcy, aby go poprawić. Kliknij auto, aby zobaczyć jego tankowania. Przebieg = suma km między kolejnymi tankowaniami (od ostatniego tankowania sprzed okresu); licznik odbiegający od reszty albo dający odcinek ponad 3000 km jest pomijany i oznaczony „licznik podejrzany”; spalanie = litry od drugiego tankowania na przejechane km, poza 5–25 l/100 km „niepewne” (kolor wg progów auta z danych pojazdu).</p></div>`;
+    <p class="muted small" style="margin:0">Parujemy tankowanie z karty z wpisem kierowcy tego samego auta (ten sam dzień ±1, litry ±5%). Zgodne: litry ±0,5 l, kwota ±1 zł, licznik ±30 km. Kliknij wpis kierowcy, aby go poprawić. Kliknij auto, aby zobaczyć jego tankowania. Spalanie i przebiegi aut – w zakładce „Spalanie i przebiegi”.</p></div>`;
 }
 document.addEventListener('change', e => { if (e.target.id==='fc-imp'){ fcImportId = e.target.value; render(); } });
 document.addEventListener('click', e => {
@@ -422,32 +421,3 @@ document.addEventListener('click', e => {
   tlOpen.has(t.dataset.tlv) ? tlOpen.delete(t.dataset.tlv) : tlOpen.add(t.dataset.tlv); render();
 });
 
-/* ---------- spalanie: średnia ogólna każdego busa ze wszystkich rozliczeń ---------- */
-function fleetCardConsumption(vid){
-  const card = fcCons(S.fuelCardRows.filter(r => r.vehicleId===vid && r.kind!=='other').map(r => ({id: r.id, odo: Number(r.odometer), l: r.liters, d: r.txDate + ' ' + (r.txTime || '')})));
-  if (card && card.rate!=null) return {...card, src:'karta'};
-  const app = fcCons(appFuel().filter(c => c.vehicleId===vid).map(c => ({id: c.id, odo: Number(c.odometer), l: c.liters, d: c.date + ' ' + (c.createdAt || '')})));
-  if (app && app.rate!=null) return {...app, src:'kierowcy'};
-  return {src: null, n: (card ? card.n : 0) + (app ? app.n : 0), bad: new Set([...(card ? card.bad : []), ...(app ? app.bad : [])])};
-}
-function viewConsumption(){
-  if (!P().manage) return '';
-  const nf = n => new Intl.NumberFormat('pl-PL').format(Math.round(n));
-  const head = `<div class="bar"><h2>Spalanie</h2><div class="tools"><button class="primary" data-action="fc-import">${ic('plus')}Importuj rozliczenia</button></div></div>`;
-  const vs = S.vehicles.filter(v => v.status!=='wycofany');
-  const res = vs.map(v => ({v, c: fleetCardConsumption(v.id)})).sort((a, b) => (b.c.rate ?? -1) - (a.c.rate ?? -1));
-  const okR = res.filter(x => x.c.rate!=null && !x.c.unsure);
-  const fleetKm = okR.reduce((s, x) => s + x.c.km, 0), fleetL = okR.reduce((s, x) => s + x.c.l, 0);
-  const imps = S.fuelCardImports.length, ds = S.fuelCardRows.map(r => r.txDate).sort();
-  const meta = `<div class="panel fc-meta"><div><span class="label">Średnia floty</span><b>${fleetKm ? (fleetL / fleetKm * 100).toFixed(1).replace('.', ',') + ' l/100 km' : '—'}</b></div>
-    <div><span class="label">Przejechane (policzone)</span><b>${nf(fleetKm)} km</b></div><div><span class="label">Rozliczeń z kart</span><b>${imps}</b></div>
-    <div><span class="label">Dane z okresu</span><b>${ds.length ? fdate(ds[0]) + ' – ' + fdate(ds[ds.length - 1]) : '—'}</b></div></div>`;
-  const rows = res.map(({v, c}) => `<tr><td>${plate(v.plate)}<span class="sub">${esc(v.make + ' ' + v.model)}</span></td>
-      <td class="r num">${c.rate==null ? `<span class="muted">${c.n ? 'za mało liczników' : 'brak danych'}</span>` : `<b class="fc-big">${c.rate.toFixed(1).replace('.', ',')}</b> l/100`}</td>
-      <td>${c.rate==null ? '' : c.unsure ? '<span class="pill off">niepewne – sprawdź liczniki</span>' : levelPill(levelFor(v.id, c.rate)) || '<span class="muted small">brak progów</span>'}</td>
-      <td class="r num">${c.km ? nf(c.km) + ' km' : '—'}<span class="sub">${c.l ? fl(c.l) : ''}</span></td>
-      <td class="num">${c.from ? fdate(c.from) + ' – ' + fdate(c.to) : '—'}<span class="sub">${c.src ? (c.src==='karta' ? 'z kart paliwowych' : 'z wpisów kierowców') : ''}${c.n ? ` · ${c.n} ${isPlural(c.n,'tankowanie','tankowania','tankowań')}` : ''}</span></td>
-      <td>${c.bad && c.bad.size ? `<span class="pill off">${c.bad.size} ${isPlural(c.bad.size,'licznik pominięty','liczniki pominięte','liczników pominiętych')}</span> ` : ''}${c.breaks ? `<span class="pill off" title="Dziura w licznikach > 3000 km (np. tankowanie inną kartą) – ten odcinek nie jest liczony">${c.breaks} ${isPlural(c.breaks,'przerwa','przerwy','przerw')}</span>` : ''}</td></tr>`).join('');
-  return head + meta + `<div class="panel tablewrap"><table><thead><tr><th>Auto</th><th class="r">Średnie spalanie</th><th>Ocena</th><th class="r">Przejechane / litry</th><th>Dane z okresu</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
-    <p class="muted small" style="margin:0">Średnia ze wszystkich wgranych rozliczeń kart paliwowych (każde kolejne rozliczenie ją uzupełnia); gdy auto nie ma danych z karty – z tankowań wpisanych przez kierowców. Liczone odcinkami między tankowaniami: pojedynczy błędny licznik jest pomijany, a dziura ponad 3000 km (np. tankowanie inną kartą) tylko przerywa liczenie – wgraj też rozliczenia innych kart (np. UTA), żeby było ich jak najmniej. Średnia floty bez wyników „niepewne”. Kolor wg progów auta z danych pojazdu.</p>`;
-}

@@ -20,7 +20,7 @@ Bez etapu budowania – zwykłe pliki HTML/CSS/JS ładowane w kolejności z `ind
   `baza.js` (Supabase: tabele, odświeżanie na żywo, zapisy, pliki), `auth.js` (logowanie), `app.js` (nawigacja, zdarzenia),
   `porzadek.js` (grupy menu i zakładki, książka serwisowa, kierowcy, ustawienia), `formularz.js` (okna formularzy)
 - strony: `pulpit.js`, `pojazdy.js`, `karta-pojazdu.js`, `rezerwacje.js` (grafik), `kalendarz.js`, `trasy.js`, `terminy.js`, `usterki.js`,
-  `kontrole.js`, `koszty.js`, `karty.js` (karty paliwowe), `przebiegi.js` (przebiegi aut w zakresie dat), `raporty.js`, `statystyki.js`, `historia.js`, `uzytkownicy.js`
+  `kontrole.js`, `koszty.js`, `karty.js` (karty paliwowe), `przebiegi.js` (spalanie i przebiegi aut w zakresie dat), `raporty.js`, `statystyki.js`, `historia.js`, `uzytkownicy.js`
 - kierowca: `kierowca.js` (ekran startowy, wybór auta, moje dane), `zaladunek.js` (załadunek, mój grafik), `wydania.js` (przejęcie, zdanie, przekazanie auta), `offline.js` (praca bez zasięgu)
 - pozostałe: `automatyka.js` (blokady, tankowania do wyjaśnienia, opony, grafik), `zdjecia.js`, `import.js` (Excel), `powiadomienia.js`, `sw.js` (service worker – przy zmianach podbij `CACHE`)
 

@@ -97,6 +97,8 @@ function nextDeadline(vehId){
 }
 function consumption(vehId){
   const v = byId('vehicles', vehId);
+  // kierownik: ta sama średnia co w „Spalanie i przebiegi” (karty paliwowe, a gdy brak – wpisy kierowców)
+  if (P().manage && typeof fleetConsumption==='function'){ const c = fleetConsumption(vehId); if (c) return {val: c.rate, unit: (v && v.fuel==='Elektryczny') ? 'kWh/100 km' : 'l/100 km', km: c.km, method:'fleet'}; }
   if (typeof vehicleConsumption==='function'){ const full = vehicleConsumption(vehId); if (full) return full; }
   const fuel = (typeof fillSource==='function' ? fillSource() : S.costs).filter(c => c.vehicleId===vehId && (c.category==='Paliwo'||c.category==='Ładowanie') && c.odometer && c.liters).sort((a,b)=>a.odometer-b.odometer);
   if (fuel.length < 2) return null;

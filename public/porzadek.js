@@ -6,8 +6,8 @@
 const GROUPS = {
   rezerwacje: [['przydzial','Grafik', () => true], ['trasy','Trasy', () => !!P().manage]],
   serwis:     [['usterki','Usterki', () => true], ['terminy','Terminy', () => true], ['ksiazka','Książka serwisowa', () => !!P().service]],
-  raporty:    [['raporty','Raporty', () => !!P().reports], ['przebiegi','Przebiegi', () => !!P().reports], ['historia','Historia', () => !!P().history]],
-  koszty:     [['koszty','Koszty', () => true], ['karty','Karty paliwowe', () => !!P().manage], ['oplaty','Przejazdy i parkingi', () => !!P().manage], ['spalanie','Spalanie', () => !!P().manage]],
+  raporty:    [['raporty','Raporty', () => !!P().reports], ['historia','Historia', () => !!P().history]],
+  koszty:     [['koszty','Koszty', () => true], ['karty','Karty paliwowe', () => !!P().manage], ['oplaty','Przejazdy i parkingi', () => !!P().manage], ['spalanie','Spalanie i przebiegi', () => !!P().manage]],
   ludzie:     [['kierowcy','Kierowcy', () => true], ['uzytkownicy','Użytkownicy', () => !!P().manage]],
 };
 const groupOf = t => Object.keys(GROUPS).find(g => GROUPS[g].some(([k]) => k===t)) || '';
