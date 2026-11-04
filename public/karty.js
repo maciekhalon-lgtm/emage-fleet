@@ -71,14 +71,35 @@ function fcIssues(r, c){
 }
 const fl = v => v==null ? '—' : String(Number(v).toFixed(2)).replace(/\.?0+$/, '').replace('.', ',') + ' l';
 const fm = (v, cur) => v==null || !Number.isFinite(Number(v)) ? '—' : new Intl.NumberFormat('pl-PL', {style:'currency', currency: cur || 'PLN'}).format(Number(v));
-/* Przejechane km i spalanie z liczników: km = ostatni − pierwszy licznik w okresie,
-   spalanie = litry od drugiego tankowania (pierwsze tylko „ustawia” pełny bak) / km × 100 */
+/* Przejechane km i spalanie z liczników – odcinkami między kolejnymi tankowaniami (wg daty i godziny).
+   Jeden błędnie wpisany licznik nie psuje wyniku: licznik odbiegający > 20 000 km od mediany auta albo dający odcinek
+   ≤ 0 lub > 3000 km jest pomijany (oznaczany „licznik podejrzany”), a jego litry liczą się do następnego dobrego odcinka.
+   Spalanie = litry od drugiego tankowania / km × 100; poza 5–25 l/100 km wynik jest „niepewny”. */
+const FC_MAX_LEG = 3000, FC_MAX_DEV = 20000;
 function fcCons(list){
-  const xs = list.filter(x => Number(x.odo) > 0 && x.l!=null).sort((a, b) => a.odo - b.odo || (a.d || '').localeCompare(b.d || ''));
-  if (xs.length < 2) return null;
-  const kmD = xs[xs.length - 1].odo - xs[0].odo; if (kmD <= 0) return null;
-  const l = xs.slice(1).reduce((s, x) => s + Number(x.l || 0), 0);
-  return {km: kmD, rate: l / kmD * 100};
+  const xs = list.filter(x => Number(x.odo) > 0 && x.l!=null).sort((a, b) => (a.d || '').localeCompare(b.d || '') || a.odo - b.odo);
+  const bad = new Set();
+  if (xs.length < 2) return xs.length ? {km: 0, rate: null, bad, legs: 0} : null;
+  const sorted = xs.map(x => x.odo).sort((a, b) => a - b), med = sorted[Math.floor(sorted.length / 2)];
+  const ok = xs.map(x => ({...x, out: Math.abs(x.odo - med) > FC_MAX_DEV}));
+  ok.forEach(x => { if (x.out && x.id) bad.add(x.id); });
+  let s0 = ok.findIndex(x => !x.out); if (s0 < 0) return {km: 0, rate: null, bad, legs: 0};
+  let prev = ok[s0], kmS = 0, lS = 0, pend = 0, legs = 0;
+  for (let i = s0 + 1; i < ok.length; i++){
+    const x = ok[i];
+    if (x.out){ pend += Number(x.l || 0); continue; }   // litry z błędnym licznikiem liczą się do następnego dobrego odcinka
+    const d = x.odo - prev.odo;
+    if (prev && d > 0 && d <= FC_MAX_LEG){ kmS += d; lS += pend + Number(x.l || 0); pend = 0; legs++; prev = x; }
+    else {
+      // zły jest ten licznik albo poprzedni: sprawdź, czy następny pasuje do poprzedniego
+      const nx = ok.slice(i + 1).find(y => !y.out);
+      if (nx && prev && nx.odo - prev.odo > 0 && nx.odo - prev.odo <= FC_MAX_LEG){ if (x.id) bad.add(x.id); pend += Number(x.l || 0); }
+      else { if (prev && prev.id && d <= 0) bad.add(prev.id); prev = x; pend = 0; }
+    }
+  }
+  if (!kmS) return {km: 0, rate: null, bad, legs: 0};
+  const rate = lS / kmS * 100;
+  return {km: kmS, rate, bad, legs, unsure: rate < 5 || rate > 25};
 }
 /* Punkt startowy: ostatnie tankowanie z licznikiem przed okresem (z wcześniejszych zestawień / wpisów) */
 const fcAnchorCard = (vid, imp) => S.fuelCardRows.filter(x => x.vehicleId===vid && x.importId!==imp.id && x.txDate < imp.periodFrom && Number(x.odometer) > 0)
@@ -86,9 +107,10 @@ const fcAnchorCard = (vid, imp) => S.fuelCardRows.filter(x => x.vehicleId===vid 
 const fcAnchorApp = (vid, imp) => appFuel().filter(c => c.vehicleId===vid && c.date < imp.periodFrom && Number(c.odometer) > 0)
   .sort((a, b) => b.date.localeCompare(a.date)).slice(0, 1);
 function fcConsTxt(vid, c, lab){
-  if (!c) return `<span class="sub">${lab}: za mało liczników</span>`;
+  if (!c || c.rate==null) return `<span class="fc-cons muted small">${lab}: za mało liczników${c && c.bad.size ? ` · ${c.bad.size} ${isPlural(c.bad.size,'licznik podejrzany','liczniki podejrzane','liczników podejrzanych')}` : ''}</span>`;
   const r = c.rate.toFixed(1).replace('.', ',');
-  return `<span class="fc-cons"><span class="muted small">${lab}:</span> ${new Intl.NumberFormat('pl-PL').format(c.km)} km · <b>${r} l/100</b> ${levelPill(levelFor(vid, c.rate))}</span>`;
+  const badTxt = c.bad.size ? ` <span class="pill off" title="Pominięte przy liczeniu">${c.bad.size} ${isPlural(c.bad.size,'licznik pominięty','liczniki pominięte','liczników pominiętych')}</span>` : '';
+  return `<span class="fc-cons"><span class="muted small">${lab}:</span> ${new Intl.NumberFormat('pl-PL').format(c.km)} km · <b>${r} l/100</b> ${c.unsure ? '<span class="pill off">niepewne – sprawdź liczniki</span>' : levelPill(levelFor(vid, c.rate))}${badTxt}</span>`;
 }
 /* Kierowca przy tankowaniu z karty: z wpisu albo z grafiku w tym dniu */
 function fcDriver(r, c){
@@ -125,8 +147,8 @@ function viewFuelCards(){
     <div class="fc-meta-act">${imp.invoicePath ? `<a class="btn small" data-file="${esc(imp.invoicePath)}" href="#" target="_blank" rel="noopener">Faktura${imp.invoiceNo ? ' ' + esc(imp.invoiceNo) : ''}</a>` : ''}<button class="small ghost" data-fc-del="${esc(imp.id)}">Usuń zestawienie</button></div></div>`;
   const perV = [...vids].map(vid => { const r = rows.filter(x => x.vehicleId===vid), a = appRows.filter(c => c.vehicleId===vid);
     return {vid, cl: sum(r, x => x.liters), ca: sum(r.filter(x => !x.currency || x.currency==='PLN'), x => x.amount), al: sum(a, c => c.liters), aa: sum(a, c => c.amount),
-      kc: fcCons(r.concat(fcAnchorCard(vid, imp)).map(x => ({odo: Number(x.odometer), l: x.liters, d: x.txDate}))),
-      ka: fcCons(a.concat(fcAnchorApp(vid, imp)).map(c => ({odo: Number(c.odometer), l: c.liters, d: c.date})))}; })
+      kc: fcCons(r.concat(fcAnchorCard(vid, imp)).map(x => ({id: x.id, odo: Number(x.odometer), l: x.liters, d: x.txDate + ' ' + (x.txTime || '')}))),
+      ka: fcCons(a.concat(fcAnchorApp(vid, imp)).map(c => ({id: c.id, odo: Number(c.odometer), l: c.liters, d: c.date + ' ' + (c.createdAt || '')})))}; })
     .sort((x, y) => Math.abs(y.ca - y.aa) - Math.abs(x.ca - x.aa));
   const perD = {};
   pairs.forEach(p => { const n = fcDriver(p.row, p.cost) || 'nieustalony'; const x = perD[n] = perD[n] || {cl:0, ca:0, al:0, aa:0, n:0};
@@ -135,10 +157,11 @@ function viewFuelCards(){
   const dTable = `<div class="panel tablewrap"><table><thead><tr><th>Kierowca</th><th class="r">Tankowań</th><th class="r">Karta</th><th class="r">Wpisał</th><th class="r">Różnica</th></tr></thead><tbody>${Object.entries(perD).sort((a, b) => Math.abs(b[1].ca - b[1].aa) - Math.abs(a[1].ca - a[1].aa)).map(([n, x]) => `<tr><td><b>${esc(n)}</b></td><td class="r num">${x.n}</td>
     <td class="r num">${fl(x.cl)}<span class="sub">${fm(x.ca)}</span></td><td class="r num">${fl(x.al)}<span class="sub">${fm(x.aa)}</span></td><td class="r num ${Math.abs(x.ca - x.aa) > 1 ? 'neg' : ''}">${fl(x.cl - x.al)}<span class="sub">${fm(x.ca - x.aa)}</span></td></tr>`).join('')}</tbody></table></div>`;
   const list = fcFilter==='ok' ? ok : fcFilter==='diff' ? dif : fcFilter==='miss' ? miss : fcFilter==='nocard' ? [] : pairs;
+  const badOdo = new Set(); perV.forEach(x => { [x.kc, x.ka].forEach(k => k && k.bad.forEach(id => badOdo.add(id))); });
   const pairRow = p => { const r = p.row, c = p.cost;
     return `<tr><td class="num"><b>${fdate(r.txDate)}</b>${r.txTime ? `<span class="sub">${esc(r.txTime)}</span>` : ''}</td><td>${esc(fcDriver(r, c)) || '<span class="muted">—</span>'}</td>
-      <td class="num">${fl(r.liters)} · <b>${fm(r.amount, r.currency)}</b><span class="sub">${r.odometer ? km(r.odometer) : 'bez licznika'}${r.station ? ' · ' + esc(r.station) : ''}${r.product ? ' · ' + esc(r.product) : ''}</span></td>
-      <td class="num ${c ? 'click' : ''}" ${c ? `data-edit="costs" data-id="${esc(c.id)}"` : ''}>${c ? `${fl(c.liters)} · <b>${fm(c.currency && c.currency!=='PLN' ? c.amountOrig : c.amount, c.currency)}</b><span class="sub">${c.odometer ? km(c.odometer) : 'bez licznika'} · ${fdate(c.date)}</span>${photoStrip(c.photos)}` : '<span class="muted">—</span>'}</td>
+      <td class="num">${fl(r.liters)} · <b>${fm(r.amount, r.currency)}</b><span class="sub">${r.odometer ? km(r.odometer) : 'bez licznika'}${badOdo.has(r.id) ? ' <span class="pill off">licznik podejrzany</span>' : ''}${r.station ? ' · ' + esc(r.station) : ''}${r.product ? ' · ' + esc(r.product) : ''}</span></td>
+      <td class="num ${c ? 'click' : ''}" ${c ? `data-edit="costs" data-id="${esc(c.id)}"` : ''}>${c ? `${fl(c.liters)} · <b>${fm(c.currency && c.currency!=='PLN' ? c.amountOrig : c.amount, c.currency)}</b><span class="sub">${c.odometer ? km(c.odometer) : 'bez licznika'}${badOdo.has(c.id) ? ' <span class="pill off">licznik podejrzany</span>' : ''} · ${fdate(c.date)}</span>${photoStrip(c.photos)}` : '<span class="muted">—</span>'}</td>
       <td>${!c ? '<span class="pill bad">brak wpisu</span>' : p.issues.length ? p.issues.map(x => `<span class="pill warn">${esc(x)}</span>`).join(' ') : '<span class="pill ok">zgodne</span>'}</td></tr>`; };
   const ncRow = c => `<tr><td class="num"><b>${fdate(c.date)}</b></td><td>${esc(dName(fillDriver(c) || c.driverId) || '') || '<span class="muted">—</span>'}</td><td class="muted">nie ma na karcie</td>
       <td class="num click" data-edit="costs" data-id="${esc(c.id)}">${fl(c.liters)} · <b>${fm(c.amount)}</b><span class="sub">${c.odometer ? km(c.odometer) : 'bez licznika'}</span>${photoStrip(c.photos)}</td><td><span class="pill info">bez karty</span></td></tr>`;
@@ -157,7 +180,7 @@ function viewFuelCards(){
   }).join('');
   const table = `<div class="panel tablewrap fc-table"><table><thead><tr><th>Auto</th><th class="r">Karta</th><th class="r">Wpisali kierowcy</th><th class="r">Różnica</th><th>Przebieg i spalanie</th><th>Wynik</th></tr></thead><tbody>${vRows || '<tr><td colspan="6" class="muted">Brak aut dla tego filtra.</td></tr>'}</tbody></table></div>`;
   return head + meta + tiles + `<div class="fc-grid">${table}${dTable}
-    <p class="muted small" style="margin:0">Parujemy tankowanie z karty z wpisem kierowcy tego samego auta (ten sam dzień ±1, litry ±5%). Zgodne: litry ±0,5 l, kwota ±1 zł, licznik ±30 km. Kliknij wpis kierowcy, aby go poprawić. Kliknij auto, aby zobaczyć jego tankowania. Przebieg = ostatni licznik w okresie minus ostatni licznik sprzed okresu (albo pierwszy w okresie); spalanie = litry od drugiego tankowania na przejechane km (kolor wg progów auta z danych pojazdu).</p></div>`;
+    <p class="muted small" style="margin:0">Parujemy tankowanie z karty z wpisem kierowcy tego samego auta (ten sam dzień ±1, litry ±5%). Zgodne: litry ±0,5 l, kwota ±1 zł, licznik ±30 km. Kliknij wpis kierowcy, aby go poprawić. Kliknij auto, aby zobaczyć jego tankowania. Przebieg = suma km między kolejnymi tankowaniami (od ostatniego tankowania sprzed okresu); licznik odbiegający od reszty albo dający odcinek ponad 3000 km jest pomijany i oznaczony „licznik podejrzany”; spalanie = litry od drugiego tankowania na przejechane km, poza 5–25 l/100 km „niepewne” (kolor wg progów auta z danych pojazdu).</p></div>`;
 }
 document.addEventListener('change', e => { if (e.target.id==='fc-imp'){ fcImportId = e.target.value; render(); } });
 document.addEventListener('click', e => {

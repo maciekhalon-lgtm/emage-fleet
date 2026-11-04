@@ -58,7 +58,8 @@ Przy pierwszym pliku danego układu sprawdź dopasowanie kolumn (data, nr rejest
 Brane są tylko auta z systemu. Zaznaczone produkty to paliwo; pozostałe (opłaty drogowe, parkingi, myjnia, AdBlue) trafiają do zakładki
 **Przejazdy i parkingi** i same dopisują się do kosztów auta (usunięcie zestawienia usuwa też te koszty). Każde tankowanie z karty jest parowane z wpisem
 kierowcy (to samo auto, dzień ±1, litry ±5%): **zgodne**, **różnice** (litry, kwota, licznik), **brak wpisu kierowcy**, a także **wpisy bez karty**.
-Przy każdym aucie przebieg i spalanie (l/100 km) z liczników karty i z wpisów kierowców, kolor wg progów auta.
+Przy każdym aucie przebieg i spalanie (l/100 km) z liczników karty i z wpisów kierowców, liczone odcinkami między tankowaniami;
+błędny licznik (np. brak cyfry) jest pomijany i oznaczony „licznik podejrzany”, wynik poza 5–25 l/100 km – „niepewne”.
 Podsumowanie według aut i kierowców; kliknięcie wpisu kierowcy pozwala go poprawić.
 
 **Serwis** – Serwis → **Książka serwisowa** → **Wpis serwisowy**: koszt doda się sam do kosztów, można odnowić termin,
