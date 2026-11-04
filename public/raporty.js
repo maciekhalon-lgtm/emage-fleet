@@ -47,7 +47,7 @@ function reportRows(){
     const cs = inP.filter(c => c.vehicleId===v.id);
     const cost = cs.reduce((s,c) => s+Number(c.amount||0), 0);
     const fuel = cs.filter(c => c.category==='Paliwo'||c.category==='Ładowanie').reduce((s,c) => s+Number(c.amount||0), 0);
-    const kmD = kmInPeriod(v.id, a, b);
+    const kmD = typeof odoRange==='function' ? (odoRange(v.id, a, b).km || null) : kmInPeriod(v.id, a, b);
     const cons = consumption(v.id);
     const limit = Number(v.monthlyLimit) || 0;
     return {v, cost, fuel, km:kmD, perKm: kmD ? cost/kmD : null, cons, limit, cats: Object.fromEntries(COST_CATS.map(k => [k, cs.filter(c => c.category===k).reduce((s,c) => s+Number(c.amount||0), 0)]))};
@@ -95,16 +95,14 @@ function viewReports(){
       <div><span class="label">Średni koszt / km</span><b>${tot.km ? zl2(tot.cost/tot.km).replace(/\s?zł/,'')+' zł' : '—'}</b></div>
     </div></div>
     ${budgetBox}
-    <div class="panel tablewrap"><table><thead><tr><th>Pojazd</th><th class="r">Koszty</th><th class="r">Paliwo</th><th class="r">Przejechane</th><th>Koszt / km</th><th class="r">Zużycie</th>${repMode==='month'?'<th>Limit miesięczny</th>':''}</tr></thead><tbody>
+    <div class="panel tablewrap"><table><thead><tr><th>Pojazd</th><th class="r">Koszty</th><th class="r">Paliwo</th><th class="r">Przejechane</th><th>Koszt / km</th>${repMode==='month'?'<th>Limit miesięczny</th>':''}</tr></thead><tbody>
       ${rows.map(r => `<tr class="click" data-card-go="${esc(r.v.id)}"><td>${plate(r.v.plate)}<span class="sub">${esc(r.v.make+' '+r.v.model)}</span></td>
         <td class="r num">${zl(r.cost)}</td><td class="r num">${zl(r.fuel)}</td><td class="r num">${r.km ? new Intl.NumberFormat('pl-PL').format(r.km)+' km' : '<span class="muted">—</span>'}</td>
         <td style="min-width:170px">${r.perKm ? `<div class="pk"><div class="track"><div class="fill" style="width:${(r.perKm/maxPK*100).toFixed(0)}%"></div></div><span class="num">${r.perKm.toFixed(2).replace('.',',')} zł</span></div>` : '<span class="muted">brak odczytów licznika</span>'}</td>
-        <td class="r num">${r.cons ? r.cons.val.toFixed(1).replace('.',',')+' '+r.cons.unit : '<span class="muted">—</span>'}</td>
         ${repMode==='month' ? `<td style="min-width:170px">${limitBar(r.cost, r.limit)}</td>` : ''}</tr>`).join('')}
     </tbody></table></div>
     ${routeReportSection()}
-    ${P().manage ? driversSection() : ''}
-    <p class="muted" style="margin:0;font-size:13px;max-width:90ch">Przejechane kilometry liczymy ze stanów licznika wpisanych przy tankowaniach oraz przy wydaniu i zwrocie auta. Im częściej są wpisywane, tym dokładniejszy koszt na kilometr. Kliknij auto, aby otworzyć jego kartę.</p>
+    <p class="muted" style="margin:0;font-size:13px;max-width:90ch">Przejechane kilometry liczymy ze wszystkich liczników (karty paliwowe, tankowania, przejęcie i zdanie auta) – złe liczniki są pomijane. Spalanie i porównanie kierowców – w menu Paliwo. Im częściej są wpisywane, tym dokładniejszy koszt na kilometr. Kliknij auto, aby otworzyć jego kartę.</p>
   </div>`;
 }
 

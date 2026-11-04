@@ -36,7 +36,6 @@ function render(){
   if (DRIVER_VIEWS.includes(tab) && !drive) tab = 'pulpit';
   const manage = !!P().manage;
   $('#tab-mycar').hidden = !drive; $('#bb-mycar').hidden = !drive; $('#bb-usterki').hidden = drive;
-  $('#tab-settings').hidden = !manage;
   syncNav();
   if (!tabAllowed(tab) || (tab==='ustawienia' && !manage)){
     const g = groupOf(tab), first = g && GROUPS[g].find(([, , ok]) => ok());

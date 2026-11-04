@@ -2,7 +2,7 @@
 'use strict';
 function viewCosts(){
   const [y,m] = costMonth.split('-').map(Number);
-  const head = `<div class="bar"><h2>Koszty i paliwo</h2><div class="tools"><label class="label" for="month">Miesiąc</label><input id="month" type="month" value="${costMonth}" style="width:auto">${canCreate('costs')?'<button class="primary" data-new="costs">+ Dodaj koszt</button>':''}</div></div>`;
+  const head = `<div class="bar"><h2>Koszty</h2><div class="tools"><label class="label" for="month">Miesiąc</label><input id="month" type="month" value="${costMonth}" style="width:auto">${canCreate('costs')?'<button class="primary" data-new="costs">+ Dodaj koszt</button>':''}</div></div>`;
   const VC = visibleCosts(); const own = P().costs==='own';
   const mine = own ? myStatsPanel() : '';
   if (!VC.length) return head + mine + loadingOr('costs', emptyBlock(own?'Nie masz jeszcze wpisów':'Brak zapisanych kosztów', own?'Dodawaj swoje tankowania z litrami i stanem licznika, a także myjnię i opłaty. Widzisz tylko koszty, które sam wpisałeś.':'Wpisuj tankowania (z litrami i stanem licznika), serwisy, polisy i opłaty. Strona policzy sumy miesięczne i średnie spalanie każdego auta.','<button class="primary" data-new="costs">+ Dodaj koszt</button>', '', 'costs'));

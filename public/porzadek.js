@@ -6,9 +6,10 @@
 const GROUPS = {
   rezerwacje: [['przydzial','Grafik', () => true], ['trasy','Trasy', () => !!P().manage]],
   serwis:     [['usterki','Usterki', () => true], ['terminy','Terminy', () => true], ['ksiazka','Książka serwisowa', () => !!P().service]],
-  raporty:    [['raporty','Raporty', () => !!P().reports], ['porownanie','Miesiąc do miesiąca', () => !!P().manage], ['historia','Historia', () => !!P().history]],
-  koszty:     [['koszty','Koszty', () => true], ['karty','Karty paliwowe', () => !!P().manage], ['oplaty','Przejazdy i parkingi', () => !!P().manage], ['spalanie','Spalanie i przebiegi', () => !!P().manage], ['liczniki','Liczniki', () => !!P().manage]],
+  paliwo:     [['karty','Karty paliwowe', () => !!P().manage], ['spalanie','Spalanie i przebiegi', () => !!P().manage], ['liczniki','Liczniki', () => !!P().manage], ['porownanie','Miesiąc do miesiąca', () => !!P().manage], ['oplaty','Przejazdy i parkingi', () => !!P().manage]],
+  koszty:     [['koszty','Koszty', () => true], ['raporty','Raporty', () => !!P().reports]],
   ludzie:     [['kierowcy','Kierowcy', () => true], ['uzytkownicy','Użytkownicy', () => !!P().manage]],
+  ustawienia: [['ustawienia','Ustawienia', () => !!P().manage], ['historia','Historia zmian', () => !!P().history]],
 };
 const groupOf = t => Object.keys(GROUPS).find(g => GROUPS[g].some(([k]) => k===t)) || '';
 const tabAllowed = t => { const g = groupOf(t); if (!g) return true; const e = GROUPS[g].find(([k]) => k===t); return !!(e && e[2]()); };

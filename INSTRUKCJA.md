@@ -23,10 +23,10 @@ Kierownik floty: **Pracownicy → Użytkownicy** → rola, dla kierowcy jego wpi
 | **Pojazdy** | lista z filtrami (w trasie, wolne, wymaga uwagi) i karta auta w zakładkach: **Dane** (polisa, assistance, grafik, dokumenty), **Terminy i serwis**, **Paliwo i koszty**, **Historia**; dokumenty, książka serwisowa, historia |
 | **Grafik** | zakładki **Grafik** (tydzień: kierowcy × dni, załadunek ze zmiany, auta teraz w trasie) i **Trasy** |
 | **Serwis** | zakładki **Usterki**, **Terminy** (domyślnie tylko pilne: po terminie i do 60 dni – „Pokaż wszystkie” pokazuje resztę), **Książka serwisowa** |
-| **Koszty i paliwo** | zakładki **Koszty** (koszty miesiąca, tankowania do wyjaśnienia), **Karty paliwowe**, **Przejazdy i parkingi**, **Spalanie i przebiegi** i **Liczniki** (kierownik floty) |
-| **Raporty** | zakładki **Raporty** (auta, trasy, ranking kierowców, Excel), **Miesiąc do miesiąca** (spalanie pojazdów i kierowców: dwa wybrane miesiące i zmiana) i **Historia** (zmiany w danych i zmiany obsady) |
+| **Paliwo** | (kierownik floty) zakładki **Karty paliwowe**, **Spalanie i przebiegi**, **Liczniki**, **Miesiąc do miesiąca** (spalanie pojazdów i kierowców: dwa miesiące i zmiana) i **Przejazdy i parkingi** |
+| **Koszty** | zakładki **Koszty** (koszty miesiąca, tankowania do wyjaśnienia) i **Raporty** (koszty, kilometry ze wszystkich liczników, koszt/km, limity, Excel) |
 | **Pracownicy** | zakładki **Kierowcy** i **Użytkownicy** (konta, role, spory w obsadzie, zmiany danych kierowców) |
-| **Ustawienia** | budżet floty, kontrola paragonów, checklista przejęcia |
+| **Ustawienia** | zakładki **Ustawienia** (budżet floty, kontrola paragonów, checklista przejęcia) i **Historia zmian** |
 
 ## Najczęstsze czynności
 
@@ -53,7 +53,7 @@ Nowy kierowca przyjmuje auto u siebie z checklistą.
 **Tankowania do wyjaśnienia** – baza sama oznacza podejrzane tankowania (więcej niż bak, nie to auto, dwa w ciągu 3 h,
 cena ±15% od średniej, słabe spalanie). Pulpit / Koszty → **OK** albo **Wyjaśnij** (pytanie do kierowcy).
 
-**Karty paliwowe** – Koszty i paliwo → **Karty paliwowe** → **Importuj zestawienie**: dostawca, nr faktury, faktura (PDF) i plik CSV/Excel.
+**Karty paliwowe** – Paliwo → **Karty paliwowe** → **Importuj zestawienie**: dostawca, nr faktury, faktura (PDF) i plik CSV/Excel.
 Można zaznaczyć kilka plików naraz – każdy to osobne rozliczenie (fakturę dołączysz potem: **Dodaj fakturę**).
 **Spalanie i przebiegi** – zakres dat (domyślnie całość): przebieg, litry i spalanie każdego busa, średnia floty; sortowanie kliknięciem
 w nagłówek kolumny. To samo spalanie widać w Pojazdach, karcie auta, kosztach i raportach.
@@ -75,14 +75,16 @@ zamknąć usterki, odnotować wymianę oleju (następna za 12 000 km, przypomnie
 
 ## Ekran kierowcy
 
-1. **Wybierz auto** – na górze „Twój bus” (jeśli jest odpowiedzialny) albo auto przydzielone przez kierownika;
-   checklista („Wszystkie punkty OK” albo „Mam uwagi”), przebieg, trasa z listy.
-2. W trasie: **Zatankuj** (litry, kwota, licznik; „Tankuję za granicą” – EUR/CZK z kursem NBP) i **Zdaj pojazd** (tylko licznik i uwagi).
-   **Załadunek** – zaznacz trasy, których towar zabierasz (na Twoją zmianę z grafiku). Pod **Więcej**: zgłoś usterkę, zmień trasę.
-   **Mój grafik** – najbliższe 7 dni: auto, trasa, uwagi, kto wiezie Twój towar.
-3. Wylosowany do kontroli paragonów musi dodać zdjęcie paragonu.
-4. Bez zasięgu tankowanie i zdanie auta zapisują się w telefonie i wysyłają same po odzyskaniu sieci.
-5. **Moje dane i statystyki** – kilometry, spalanie, dni pracy, tankowania, zgłoszenia, telefon (zmiana do akceptacji).
+Ekran ma jedną dużą kartę „co teraz”:
+1. **Dziś jedziesz / Twój bus** – auto przydzielone w grafiku (z trasą i uwagami) → **Przyjmij auto**: licznik, trasa,
+   checklista („Wszystkie punkty OK” albo „Mam uwagi”), uwagi; zdjęcia są opcjonalne. „Inne auto” – lista wolnych aut.
+2. Auto przejęte: na karcie trasa (kliknij, żeby zmienić) i licznik, a pod spodem trzy przyciski –
+   **Zatankuj** (litry, kwota, licznik; „Tankuję za granicą” – EUR/CZK z kursem NBP), **Załadunek** (trasy, których towar zabierasz,
+   waga i zdjęcie przy trasie z załadunkiem) i **Usterka** – oraz duży przycisk **Zdaj auto** (tylko licznik i uwagi).
+3. **Mój grafik** – najbliższe 3 dni pracy (przycisk „Wszystkie” – 2 tygodnie): auto, trasa, uwagi, kto wiezie Twój towar.
+4. Ikona osoby w prawym górnym rogu – **Moje dane**: ostatnie tankowania, zgłoszone usterki, dane i telefon (zmiana do akceptacji).
+5. Wylosowany do kontroli paragonów musi dodać zdjęcie paragonu. Bez zasięgu tankowanie i zdanie auta zapisują się w telefonie
+   i wysyłają same po odzyskaniu sieci.
 
 ## Telefon
 - **iPhone (Safari):** Udostępnij → *Do ekranu początkowego*.

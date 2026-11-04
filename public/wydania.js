@@ -58,12 +58,11 @@ function openHandover(id, kind, vehicleId){
     <div class="field full"><span class="ho-car">${plate(v.plate)} <b>${esc(v.make)} ${esc(v.model)}</b></span>
       ${b ? `<span class="muted">${esc(dName(b.driverId))} · ${fdate(b.from)}${b.to!==b.from?'–'+fdate(b.to):''}${b.purpose?' · '+esc(b.purpose):''}</span>` : '<span class="muted">Auto na dzisiejszy dzień pracy</span>'}</div>
     <div class="field"><label for="ho-km">Stan licznika (km) *</label><input id="ho-km" type="number" inputmode="numeric" min="${minKm}" placeholder="${minKm ? 'co najmniej '+new Intl.NumberFormat('pl-PL').format(minKm) : ''}" required><span class="muted small">Ostatni zapis: ${km(minKm)}</span></div>
-    ${kind==='return' ? '' : `<div class="field"><label for="ho-fuel">${ev?'Poziom baterii':'Poziom paliwa'} *</label><select id="ho-fuel">${FUEL_LV.map(([k,l]) => `<option value="${k}" ${k==='100'?'selected':''}>${ev && k!=='0' ? k+'%' : l}</option>`).join('')}</select></div>`}
     ${kind==='pickup' && S.routes.some(r => r.active!==false) ? `<div class="field full"><label for="ho-route">Trasa</label>${routeSelect('ho-route', b && b.routeId)}${b && b.routeId ? '<span class="muted small">Podpowiedziana przez kierownika – możesz zmienić.</span>' : ''}</div>` : ''}
     ${kind==='pickup' ? crewField(b ? b.driverId : myDriverId(), b && b.coDriverId) : (b && b.coDriverId ? `<div class="field full"><span class="pill info">Podwójna obsada: ${esc(crewName(b))}</span><span class="muted small">Zdanie musi potwierdzić drugi kierowca – do tego czasu auto czeka.</span></div>` : '')}
     ${check}
     <div class="field full"><label for="ho-note">${kind==='pickup' ? 'Inne uwagi o stanie auta' : 'Uwagi po dniu pracy'}</label><textarea id="ho-note" placeholder="${kind==='pickup'?'np. rysa na tylnym zderzaku – już była':'np. kontrolka oleju, stuki z zawieszenia'}"></textarea></div>
-    ${kind==='pickup' ? photoField('ho') : ''}
+    ${kind==='pickup' ? `<details class="field full ho-more"><summary>Dodaj zdjęcia (opcjonalnie)</summary>${photoField('ho')}</details>` : ''}
     ${kind==='return' ? `<div class="field full"><label class="check"><input id="ho-issue" type="checkbox"> Zgłoś usterkę na podstawie uwag</label>
       <select id="ho-sev" aria-label="Waga usterki"><option value="drobna">Drobna</option><option value="istotna" selected>Istotna</option><option value="stop">Auto niesprawne – nie wydawać</option></select></div>` : ''}
     <div class="warnline" id="dlg-warn" hidden></div>`;

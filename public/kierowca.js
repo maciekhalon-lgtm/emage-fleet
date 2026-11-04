@@ -51,48 +51,64 @@ function notLinked(){
 /* ---------- ekran startowy ---------- */
 function viewMyCar(){
   if (!myDriverId()) return notLinked();
-  const active = myActive();
-  const hello = `<div class="hello"><h2>Dzień dobry, ${esc((me.full_name || '').split(' ')[0] || 'kierowco')}</h2><span class="muted">${esc(new Date().toLocaleDateString('pl-PL', {weekday:'long', day:'numeric', month:'long'}))}</span></div>`;
-  let carTile;
+  const active = myActive(), t = today();
+  const first = esc((me.full_name || '').split(' ')[0] || 'kierowco');
+  const hello = `<div class="d-hello"><div><span class="d-date">${esc(new Date().toLocaleDateString('pl-PL', {weekday:'long', day:'numeric', month:'long'}))}</span><h2>Cześć, ${first}</h2></div>
+    <a class="d-me" href="#moje-dane" aria-label="Moje dane">${ic('user')}</a></div>`;
+  const todayB = S.bookings.find(b => crewOf(b).includes(myDriverId()) && b.from<=t && b.to>=t && !b.returned);
+  let hero;
   if (active && active.returned){
     const v = byId('vehicles', active.vehicleId) || {};
-    carTile = `<div class="panel mycar"><div class="mycar-head">${plate(v.plate)}<div><h2>${esc(v.make||'')} ${esc(v.model||'')}</h2><span class="muted">Zdane ${fdate(active.returned.at)} przy ${km(active.returned.km)}</span></div><span class="pill warn">czeka na potwierdzenie</span></div>
-      <p class="muted" style="margin:0">${active.returned.by===myId ? `Zdanie musi jeszcze potwierdzić <b>${esc(dName(partnerOf(active)))}</b>. Do tego czasu auto jest zajęte.` : 'Potwierdź zdanie pojazdu w sekcji „Do potwierdzenia” powyżej.'}</p></div>`;
+    hero = `<div class="d-hero"><div class="d-car">${plate(v.plate)}<span>${esc(v.make||'')} ${esc(v.model||'')}</span></div>
+      <div class="d-state warn">${ic('clip')}<span>Zdane ${fdate(active.returned.at)} przy ${km(active.returned.km)} – ${active.returned.by===myId ? `czeka na potwierdzenie: <b>${esc(dName(partnerOf(active)))}</b>` : 'potwierdź zdanie powyżej'}</span></div></div>`;
   } else if (active){
     const v = byId('vehicles', active.vehicleId) || {};
     const since = v.km && active.pickup.km ? v.km - active.pickup.km : 0;
-    carTile = `<div class="panel mycar">
-      <div class="mycar-head">${plate(v.plate)}<div><h2>${esc(v.make||'')} ${esc(v.model||'')}</h2><span class="muted">Przejęte ${fdate(active.pickup.at)} przy ${km(active.pickup.km)}${since>0?' · od tego czasu '+km(since):''}</span></div><span class="pill info">Twoje auto</span>${v.hasTacho ? '<span class="pill off">tachograf</span>' : ''}</div>
-      ${active.routeId ? `<div class="mycar-booking"><span>Trasa: <b>${esc(rLabel(active.routeId))}</b>${routeById(active.routeId)?.tacho ? ' · wymaga tachografu' : ''}</span></div>` : ''}
-      ${active.coDriverId ? `<div class="mycar-booking"><span>Podwójna obsada: <b>${esc(crewName(active))}</b>${!active.pickupConfirmedAt ? ` · <span style="color:var(--warn)">przejęcie czeka na potwierdzenie (${esc(dName(active.coDriverId))})</span>` : ''}</span></div>` : ''}
-      ${checklistSummary(active.pickup.checklist) ? `<div class="mycar-booking">${checklistSummary(active.pickup.checklist)}</div>` : ''}
-      <div class="big-grid">
-        ${big(`data-fuel="${esc(v.id)}"`, 'Zatankuj', 'litry, kwota, licznik', '', 'fuel')}
-        ${big(`data-ho="return" data-id="${esc(active.id)}"`, 'Zdaj pojazd', 'koniec dnia', 'primary', 'key')}
-        ${loadingBtn()}
+    const rt = active.routeId ? routeById(active.routeId) : null;
+    hero = `<div class="d-hero on">
+      <div class="d-car">${plate(v.plate)}<span>${esc(v.make||'')} ${esc(v.model||'')}${v.hasTacho ? ' · tachograf' : ''}</span></div>
+      <div class="d-meta">
+        <button class="d-route" data-action="more" aria-expanded="${driverMore}">${ic('route')}<span>${rt ? `<b>${esc(rt.code)}</b> ${esc(rt.name)}` : 'Bez trasy'}</span><em>${S.routes.length ? 'zmień' : ''}</em></button>
+        <span class="d-km">${ic('truck')}${km(active.pickup.km)}${since > 0 ? ` <em>+${new Intl.NumberFormat('pl-PL').format(since)}</em>` : ''}</span>
       </div>
-      <div class="more-row"><span></span><button class="small ghost" data-action="more" aria-expanded="${driverMore}">${ic('menu')}Więcej</button></div>
-      ${driverMore ? `<div class="more-box">
-        <button class="small" data-new="issues" data-veh="${esc(v.id)}">${ic('wrench')}Zgłoś usterkę</button>
-        ${S.routes.length ? `<div class="route-pick"><label for="my-route" class="label">Zmień trasę</label>${routeSelect('my-route', active.routeId, `data-route-for="${esc(active.id)}"`)}</div>` : ''}
-      </div>` : ''}</div>`;
+      ${driverMore && S.routes.length ? `<div class="route-pick">${routeSelect('my-route', active.routeId, `data-route-for="${esc(active.id)}"`)}</div>` : ''}
+      ${active.coDriverId ? `<div class="d-note">${ic('users')}<span>Z: <b>${esc(dName(partnerOf(active)))}</b>${!active.pickupConfirmedAt ? ' · przejęcie czeka na potwierdzenie' : ''}</span></div>` : ''}
+      ${active.purpose ? `<div class="d-note">${ic('clip')}<span>${esc(active.purpose)}</span></div>` : ''}
+      <div class="d-actions">
+        <button class="d-act" data-fuel="${esc(v.id)}">${ic('fuel')}<b>Zatankuj</b></button>
+        ${loadingRoutesOk() ? `<button class="d-act" data-action="loading">${ic('box')}<b>Załadunek</b>${loadingCount() ? `<em>${loadingCount()}</em>` : ''}</button>` : ''}
+        <button class="d-act" data-new="issues" data-veh="${esc(v.id)}">${ic('wrench')}<b>Usterka</b></button>
+      </div>
+      <button class="d-main" data-ho="return" data-id="${esc(active.id)}">${ic('key')}Zdaj auto</button>
+    </div>`;
   } else if (meDriver() && meDriver().active===false){
-    carTile = inactiveNote();
+    hero = inactiveNote();
   } else {
     const asg = myAssigned();
     const asgOk = asg && asg.vehicle && takeState(asg.vehicle) && takeState(asg.vehicle).ok;
-    carTile = `<a class="tile primary" href="#wybierz"><span class="t-ic">${ic('key')}</span><span class="t-txt"><b>Wybierz auto</b><span>${asgOk ? `Czeka na Ciebie: ${esc(asg.vehicle.plate)} · ${esc(asg.vehicle.make)} ${esc(asg.vehicle.model)}` : 'Wybierz wolne auto na dziś, wypełnij checklistę i podaj przebieg'}</span></span>${ic('chev','chev')}</a>`;
+    const v = asgOk ? asg.vehicle : null, b = asgOk ? asg.booking : null;
+    const rt = b && b.routeId ? routeById(b.routeId) : (todayB && todayB.routeId ? routeById(todayB.routeId) : null);
+    hero = v ? `<div class="d-hero">
+      <span class="d-kicker">${b ? 'Dziś jedziesz' : 'Twój bus'}</span>
+      <div class="d-car">${plate(v.plate)}<span>${esc(v.make)} ${esc(v.model)}${v.hasTacho ? ' · tachograf' : ''}</span></div>
+      ${rt ? `<div class="d-note">${ic('route')}<span><b>${esc(rt.code)}</b> ${esc(rt.name)}</span></div>` : ''}
+      ${b && b.purpose ? `<div class="d-note">${ic('clip')}<span>${esc(b.purpose)}</span></div>` : ''}
+      <button class="d-main" ${b ? `data-ho="pickup" data-id="${esc(b.id)}"` : `data-take="${esc(v.id)}"`}>${ic('key')}Przyjmij auto</button>
+      <a class="d-link" href="#wybierz">Inne auto</a></div>`
+      : `<div class="d-hero empty"><span class="d-kicker">Dziś</span><h3>Nie masz przydzielonego auta</h3>
+      <a class="d-main" href="#wybierz">${ic('key')}Wybierz auto</a>
+      ${loadingRoutesOk() ? `<button class="d-link" data-action="loading">${ic('box')} Załadunek${loadingCount() ? ` (${loadingCount()})` : ''}</button>` : ''}</div>`;
   }
   return `<div class="section driver">${hello}${myExpiryNotes()}
     ${offlineNote()}
     ${toConfirmPanel()}
     ${myExplainPanel()}
-    ${carTile}
-    ${active ? '' : (loadingBtn() ? `<div class="big-grid">${loadingBtn()}</div>` : '')}
+    ${hero}
     ${mySchedulePanel()}
-    <a class="tile" href="#moje-dane"><span class="t-ic">${ic('chart')}</span><span class="t-txt"><b>Moje dane i statystyki</b><span>Kilometry, spalanie, dni pracy, tankowania, zgłoszenia i dane kontaktowe</span></span>${ic('chev','chev')}</a>
   </div>`;
 }
+const loadingRoutesOk = () => !!(myDriverId() && typeof loadRoutes==='function' && loadRoutes().length);
+const loadingCount = () => typeof workDay==='function' ? S.loadings.filter(l => l.driverId===myDriverId() && l.forDate===workDay()).length : 0;
 
 /* ---------- wybór auta ---------- */
 function viewPickCar(){
@@ -148,9 +164,7 @@ function viewMyData(){
   const fuel = S.costs.filter(c => isFuel(c) && (c.driverId===me_ || c.createdBy===myId)).sort((a, b) => a.date < b.date ? 1 : -1);
   const fuelM = fuel.filter(c => c.date >= mA && c.date <= mB);
   const fuelC = `<div class="panel"><div class="sec-head"><h3>Moje tankowania</h3><span class="muted small">${MONTHS_FULL[m-1]}: ${fuelM.length} · ${zl2(fuelM.reduce((s, c) => s + Number(c.amount||0), 0))}</span></div>
-    ${fuel.length ? `<div class="tablewrap"><table><thead><tr><th>Data</th><th>Auto</th><th class="r">Ilość</th><th class="r">Kwota</th><th class="r">Licznik</th></tr></thead><tbody>
-    ${fuel.slice(0,30).map(c => `<tr ${canEditDoc('costs',c)?'class="click" data-edit="costs"':''} data-id="${esc(c.id)}"><td class="num">${fdate(c.date)}</td><td>${vPlate(c.vehicleId)}</td><td class="r num">${String(c.liters||'').replace('.',',')} ${c.category==='Ładowanie'?'kWh':'l'}${c.full?' · pełny':''}</td><td class="r num">${zl2(c.amount)}${fxNote(c) ? `<span class="sub">${fxNote(c)}</span>` : ''}${c.station ? `<span class="sub">${esc(c.station)}</span>` : ''}</td><td class="r num">${km(c.odometer)}</td></tr>`).join('')}
-    </tbody></table></div>` : '<p class="muted sec-empty">Brak tankowań. Dodasz je przyciskiem „Zatankuj” na ekranie startowym.</p>'}</div>`;
+    ${fuel.length ? `<div class="d-list">${fuel.slice(0,10).map(c => `<div class="d-li ${canEditDoc('costs',c)?'click':''}" ${canEditDoc('costs',c)?'data-edit="costs"':''} data-id="${esc(c.id)}"><span class="d-li-d num"><b>${fdate(c.date).slice(0,5)}</b><em>${esc((byId('vehicles', c.vehicleId)||{}).plate||'')}</em></span><span class="d-li-m">${String(c.liters||'').replace('.',',')} ${c.category==='Ładowanie'?'kWh':'l'} · ${km(c.odometer)}${c.station ? `<em>${esc(c.station)}</em>` : ''}</span><b class="num">${zl2(c.amount)}</b></div>`).join('')}</div>` : '<p class="muted sec-empty">Brak tankowań. Dodasz je przyciskiem „Zatankuj” na ekranie startowym.</p>'}</div>`;
 
   // d) moje zgłoszenia usterek
   const iss = S.issues.filter(i => i.createdBy===myId).sort((a, b) => a.date < b.date ? 1 : -1);
@@ -178,7 +192,8 @@ function viewMyData(){
     </div>
     <p class="muted small sec-empty">Pozostałe dane zmienia kierownik floty. Jeśli coś się nie zgadza, daj mu znać.</p></div>`;
 
-  return `<div class="section driver">${backBtn()}<h2>Moje dane i statystyki</h2>${statsA}${histB}${fuelC}${issD}${dataF}</div>`;
+  void statsA; void histB;
+  return `<div class="section driver">${backBtn()}<h2>Moje dane</h2>${fuelC}${issD}${dataF}</div>`;
 }
 
 async function requestPhone(){
