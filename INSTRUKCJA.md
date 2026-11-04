@@ -23,7 +23,7 @@ Kierownik floty: **Pracownicy → Użytkownicy** → rola, dla kierowcy jego wpi
 | **Pojazdy** | lista i karta auta: dane, polisa (assistance – Zadzwoń), odpowiedzialni kierowcy, terminy, usterki, grafik, dokumenty, książka serwisowa, historia |
 | **Grafik** | zakładki **Grafik** (tydzień: kierowcy × dni, załadunek ze zmiany, auta teraz w trasie) i **Trasy** |
 | **Serwis** | zakładki **Usterki**, **Terminy**, **Książka serwisowa** |
-| **Koszty i paliwo** | koszty miesiąca, tankowania do wyjaśnienia |
+| **Koszty i paliwo** | zakładki **Koszty** (koszty miesiąca, tankowania do wyjaśnienia) i **Karty paliwowe** (kierownik floty) |
 | **Raporty** | zakładki **Raporty** (auta, trasy, ranking kierowców, Excel) i **Historia** (zmiany w danych i zmiany obsady) |
 | **Pracownicy** | zakładki **Kierowcy** i **Użytkownicy** (konta, role, spory w obsadzie, zmiany danych kierowców) |
 | **Ustawienia** | budżet floty, kontrola paragonów, checklista przejęcia, opis ról |
@@ -52,6 +52,12 @@ Nowy kierowca przyjmuje auto u siebie z checklistą.
 
 **Tankowania do wyjaśnienia** – baza sama oznacza podejrzane tankowania (więcej niż bak, nie to auto, dwa w ciągu 3 h,
 cena ±15% od średniej, słabe spalanie). Pulpit / Koszty → **OK** albo **Wyjaśnij** (pytanie do kierowcy).
+
+**Karty paliwowe** – Koszty i paliwo → **Karty paliwowe** → **Importuj zestawienie**: dostawca, nr faktury, faktura (PDF) i plik CSV/Excel.
+Przy pierwszym pliku danego układu sprawdź dopasowanie kolumn (data, nr rejestracyjny, litry, kwota brutto, licznik…) – system je zapamięta.
+Brane są tylko auta z systemu; produkty inne niż paliwo (np. AdBlue) można odznaczyć. Każde tankowanie z karty jest parowane z wpisem
+kierowcy (to samo auto, dzień ±1, litry ±5%): **zgodne**, **różnice** (litry, kwota, licznik), **brak wpisu kierowcy**, a także **wpisy bez karty**.
+Podsumowanie według aut i kierowców; kliknięcie wpisu kierowcy pozwala go poprawić.
 
 **Serwis** – Serwis → **Książka serwisowa** → **Wpis serwisowy**: koszt doda się sam do kosztów, można odnowić termin,
 zamknąć usterki, odnotować wymianę oleju (następna za 12 000 km, przypomnienie 2 000 km wcześniej) i opon.

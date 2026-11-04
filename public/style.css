@@ -624,3 +624,22 @@ details.few summary{padding:12px 16px;cursor:pointer;color:var(--muted);font-wei
 .ld-reports .thumb{width:44px;height:44px}
 .ld-weight input{font-size:18px;font-weight:700}
 .ld-day-head{padding:10px 16px;font-weight:700;font-size:13.5px;background:var(--sunk);border-bottom:1px solid var(--line)}
+
+/* karty paliwowe */
+.fc-meta{display:flex;flex-wrap:wrap;gap:14px 28px;padding:14px 16px;align-items:center;margin-bottom:12px}
+.fc-meta>div{display:flex;flex-direction:column;gap:2px}
+.fc-meta .neg,.fc-table .neg,td.neg{color:var(--bad)}
+.fc-meta-act{flex-direction:row!important;gap:8px!important;margin-left:auto}
+.fc-tiles{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.fc-tile{flex-direction:column;align-items:flex-start;gap:2px;padding:10px 14px;border-radius:12px;min-width:110px;background:var(--surface)}
+.fc-tile b{font-size:20px}.fc-tile span{font-size:12.5px;color:var(--muted)}
+.fc-tile.on{border-color:var(--accent);background:var(--sunk)}
+.fc-tile.ok b{color:var(--ok)}.fc-tile.warn b{color:var(--warn)}.fc-tile.bad b{color:var(--bad)}.fc-tile.info b{color:var(--info)}
+.fc-grid{grid-template-columns:minmax(0,1fr)}
+.fc-table td{vertical-align:top}.fc-table td:first-child,.fc-table td:nth-child(3),.fc-table td:nth-child(4){white-space:nowrap}
+.fc-table td.click{cursor:pointer}.fc-table td.click:hover{background:var(--sunk)}
+.fc-table .pill{margin:1px 0}
+.fc-map{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px 12px;margin:8px 0 12px}
+.fc-map label{display:flex;flex-direction:column;gap:4px}
+.fc-prods{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;margin:8px 0}
+@media (max-width:900px){.fc-grid{grid-template-columns:minmax(0,1fr)}}
