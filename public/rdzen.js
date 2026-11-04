@@ -27,6 +27,9 @@ const byId = (col, id) => S[col].find(x => x.id === id);
 const vName = id => { const v = byId('vehicles', id); return v ? (v.make+' '+v.model).trim() : 'usunięty pojazd'; };
 const dName = id => { const d = byId('drivers', id); return d ? d.name : '—'; };
 const plate = (txt) => `<span class="plate" title="Numer rejestracyjny"><span class="eu">PL</span><span class="txt">${esc(txt||'—')}</span></span>`;
+/* Kierowcy odpowiedzialni za busa (lista; starsze dane – pole stałego kierowcy) */
+const respOf = v => !v ? [] : (Array.isArray(v.responsible) && v.responsible.length ? v.responsible : (v.driverId ? [v.driverId] : [])).filter(id => byId('drivers', id));
+const respNames = v => respOf(v).map(dName).join(', ');
 const vPlate = id => { const v = byId('vehicles', id); return v ? plate(v.plate) : '<span class="muted">—</span>'; };
 const isPlural = (n, one, few, many) => n===1?one:(n%10>=2&&n%10<=4&&(n%100<10||n%100>=20))?few:many;
 

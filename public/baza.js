@@ -11,7 +11,7 @@ const COL_OF = Object.fromEntries(Object.entries(TABLES).map(([a, b]) => [b, a])
 /* pole w aplikacji → kolumna w bazie */
 const FIELDS = {
   common:    {createdBy:'created_by', createdAt:'created_at', updatedBy:'updated_by', updatedAt:'updated_at'},
-  vehicles:  {driverId:'driver_id', monthlyLimit:'monthly_limit', consGood:'cons_good', consOk:'cons_ok', policyNo:'policy_no', hasTacho:'has_tacho', lastClean:'last_clean', tankL:'tank_l'},
+  vehicles:  {driverId:'driver_id', responsible:'responsible', monthlyLimit:'monthly_limit', consGood:'cons_good', consOk:'cons_ok', policyNo:'policy_no', hasTacho:'has_tacho', lastClean:'last_clean', tankL:'tank_l'},
   blockOverrides: {vehicleId:'vehicle_id'},
   inspections: {vehicleId:'vehicle_id'},
   cleanings: {vehicleId:'vehicle_id', driverId:'driver_id', decidedBy:'decided_by', decidedAt:'decided_at', rejectNote:'reject_note'},
@@ -28,7 +28,7 @@ const FIELDS = {
 };
 /* kolumny, które aplikacja może zapisywać (reszta ustawia baza) */
 const WRITABLE = {
-  vehicles:  ['id','plate','make','model','year','vin','fuel','km','driver_id','status','monthly_limit','notes','cons_good','cons_ok','policy_no','has_tacho','tank_l','tires'],
+  vehicles:  ['id','plate','make','model','year','vin','fuel','km','driver_id','status','monthly_limit','notes','cons_good','cons_ok','policy_no','has_tacho','tank_l','tires','responsible'],
   drivers:   ['id','full_name','phone','categories','license_expiry','medical_expiry','psych_expiry','active'],
   crewChanges: [],
   routes:    ['id','code','name','tacho','loading','active','note'],

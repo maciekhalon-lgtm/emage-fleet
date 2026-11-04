@@ -6,7 +6,7 @@ System zarządzania flotą firmy Emage Group.
 - `INSTRUKCJA-KONTA.md` – zakładanie kont i pierwszego administratora
 
 - `public/` – aplikacja (PWA), publikowana przez Cloudflare Pages
-- `supabase/migrations/` uruchamiaj po kolei w SQL Editor: 001, 002, 003, 004, 005, 006, 007, 008, 009, 010, 011, 012, 013, 014
+- `supabase/migrations/` uruchamiaj po kolei w SQL Editor: 001, 002, 003, 004, 005, 006, 007, 008, 009, 010, 011, 012, 013, 014, 015
 - `URUCHOMIENIE.md` – co zrobić po wgraniu aplikacji (drugi skrypt bazy, adres strony, pierwszy administrator)
 
 Struktura aplikacji: `index.html` + `style.css`, wspólne moduły (`config.js`, `baza.js`, `auth.js`, `role.js`, `rdzen.js`, `formularz.js`, `app.js`) i osobny plik na każdą podstronę (`pojazdy.js`, `karta-pojazdu.js`, `terminy.js`, `usterki.js`, `rezerwacje.js`, `kalendarz.js`, `wydania.js`, `koszty.js`, `statystyki.js`, `raporty.js`, `historia.js`, `import.js`, `uzytkownicy.js`, `kierowca.js`).

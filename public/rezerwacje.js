@@ -19,11 +19,11 @@ function viewAssign(){
   }
   const t = today();
   const drv = S.drivers.slice().sort((a,b)=>a.name.localeCompare(b.name,'pl')).map(d => {
-    const veh = S.vehicles.filter(v=>v.driverId===d.id && v.status!=='wycofany');
+    const veh = S.vehicles.filter(v=>respOf(v).includes(d.id) && v.status!=='wycofany');
     const now = S.bookings.find(b=>b.driverId===d.id && b.from<=t && b.to>=t);
     const warn = (d.active===false ? '<span class="pill off">nieaktywny</span> ' : '') + [['licenseExpiry','Prawo jazdy'],['medicalExpiry','Badania'],['psychExpiry','Psychotesty']].map(([k,l]) => { if(!d[k]) return ''; const x=diffDays(t,d[k]); return x<0?`<span class="pill bad">${l} wygasło</span>`:x<=30?`<span class="pill warn">${l} do ${fdate(d[k])}</span>`:''; }).join(' ');
     return `<div class="drv ${d.active===false?'off':''}" ${canEditDoc('drivers',d)?'data-edit="drivers" tabindex="0"':'style="cursor:default"'} data-id="${esc(d.id)}"><div class="who"><b>${esc(d.name)}</b><span>${esc([d.categories?'kat. '+d.categories:'', d.phone].filter(Boolean).join(' · '))}</span>
-      <span style="display:block">${now?`W trasie: ${esc(byId('vehicles',now.vehicleId)?.plate||'')}`:veh.length?`Stały: ${veh.map(v=>esc(v.plate)).join(', ')}`:'Bez przypisanego auta'}</span></div><div>${warn}</div></div>`; }).join('');
+      <span style="display:block">${now?`W trasie: ${esc(byId('vehicles',now.vehicleId)?.plate||'')}`:veh.length?`Odpowiada za: ${veh.map(v=>esc(v.plate)).join(', ')}`:'Bez przypisanego auta'}</span></div><div>${warn}</div></div>`; }).join('');
   const drvPanel = `<div class="section"><div class="bar"><h2>Kierowcy</h2>${canCreate('drivers')?'<button class="small" data-new="drivers">+ Dodaj kierowcę</button>':''}</div>
     ${S.drivers.length?`<div class="panel drivers">${drv}</div>`:loadingOr('drivers', emptyBlock('Brak kierowców','Dodaj osoby, które korzystają z aut służbowych – z kategorią i ważnością prawa jazdy.','<button class="primary" data-new="drivers">+ Dodaj kierowcę</button>', '', 'drivers'))}</div>`;
   const confNote = conf.size?`<div class="notice err"><span>Ten sam pojazd ma nakładające się rezerwacje (${conf.size}). Popraw daty lub zmień auto.</span></div>`:'';

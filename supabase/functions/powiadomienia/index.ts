@@ -51,6 +51,23 @@ export function itemsFor(p: Row, d: Data, today: string): {pri: number; text: st
       if (dd < 0) out.push({pri: 0, text: `${label} ${lost} ważność ${dm(x)}`});
       else if ([30, 14, 7, 3, 1, 0].includes(dd)) out.push({pri: dd <= 7 ? 0 : 2, text: `${label} ${valid} do ${dm(x)}`});
     }
+    // busy, za które kierowca odpowiada: terminy, przebieg, sprzątanie, niesprawność
+    const cDays = Number(d.settings.find(s => s.key === 'schedule')?.value?.cleaningDays) || 14;
+    d.vehicles.filter(v => v.status !== 'wycofany' && (v.responsible || []).includes(p.driver_id)).forEach(v => {
+      d.deadlines.filter(t => t.vehicle_id === v.id).forEach(t => {
+        const dd = diffDays(today, t.date);
+        if (dd < 0) out.push({pri: 0, text: `Twój bus ${v.plate}: ${t.type} po terminie (${dm(t.date)})`});
+        else if (dd <= 7) out.push({pri: 1, text: `Twój bus ${v.plate}: ${t.type} ${dm(t.date)}`});
+        if (t.km_due && v.km){
+          const left = t.km_due - v.km;
+          if (left <= 0) out.push({pri: 0, text: `Twój bus ${v.plate}: ${t.type} – przebieg przekroczony`});
+          else if (left <= (t.remind_km || 1000)) out.push({pri: 1, text: `Twój bus ${v.plate}: ${t.type} za ${kmf(left)}`});
+        }
+      });
+      if (!v.last_clean || diffDays(v.last_clean, today) > cDays) out.push({pri: 2, text: `Twój bus ${v.plate}: czas na sprzątanie`});
+      d.issues.filter(i => i.vehicle_id === v.id && i.status !== 'naprawione' && i.severity === 'stop')
+        .forEach(i => out.push({pri: 0, text: `Twój bus ${v.plate} niesprawny: ${i.title}`}));
+    });
     return out;
   }
 

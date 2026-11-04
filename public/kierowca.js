@@ -8,7 +8,8 @@ function myAssigned(){
   const t = today();
   const b = S.bookings.filter(x => x.driverId===myDriverId() && !x.pickup && !x.returned && x.from<=t && x.to>=t).sort((a,c) => a.from<c.from?-1:1)[0];
   if (b) return {booking:b, vehicle: byId('vehicles', b.vehicleId)};
-  const v = S.vehicles.find(x => x.driverId===myDriverId() && x.status!=='wycofany');
+  const mineV = S.vehicles.filter(x => respOf(x).includes(myDriverId()) && x.status!=='wycofany');
+  const v = mineV.find(x => { const st = takeState(x); return st && st.ok; }) || mineV[0];
   return v ? {booking:null, vehicle:v} : null;
 }
 /* Czy auto można dziś przejąć: aktywne, sprawne, nikt go nie ma i nikt inny go dziś nie zarezerwował */
@@ -40,6 +41,19 @@ function myExpiryNotes(){
   }).join('');
 }
 
+/* Busy, za które kierowca odpowiada: pokazujemy tylko to, czego trzeba pilnować */
+function myBusesPanel(){
+  const me_ = myDriverId(); if (!me_) return '';
+  const rows = S.vehicles.filter(v => v.status!=='wycofany' && respOf(v).includes(me_)).map(v => {
+    const it = [];
+    S.deadlines.filter(d => d.vehicleId===v.id).forEach(d => { const s = dlState(d); if (s.cls==='bad' || s.cls==='warn') it.push(`<span class="pill ${s.cls}">${esc(d.type)}: ${esc(s.txt.toLowerCase())}</span>`); });
+    if (typeof cleanDue==='function' && cleanDue(v).over) it.push('<span class="pill warn">do sprzątania</span>');
+    const oi = S.issues.filter(i => i.vehicleId===v.id && i.status!=='naprawione');
+    if (oi.length) it.push(`<span class="pill ${oi.some(i => i.severity==='stop') ? 'bad' : 'warn'}">${oi.length} ${isPlural(oi.length,'usterka','usterki','usterek')}</span>`);
+    return it.length ? `<div class="confirm"><span>${plate(v.plate)} <b>${esc(v.make)} ${esc(v.model)}</b></span><span class="flag-list">${it.join('')}</span></div>` : '';
+  }).filter(Boolean);
+  return rows.length ? `<div class="panel"><div class="sec-head"><h3>Twój bus – do dopilnowania</h3></div>${rows.join('')}</div>` : '';
+}
 function inactiveNote(){
   return `<div class="panel empty wait"><h2>Konto kierowcy jest nieaktywne</h2><p>Kierownik floty oznaczył Cię jako nieaktywnego kierowcę, więc nie możesz teraz przejmować aut. Jeśli to pomyłka, skontaktuj się z nim.</p></div>`;
 }
@@ -88,6 +102,7 @@ function viewMyCar(){
     ${toConfirmPanel()}
     ${myExplainPanel()}
     ${carTile}
+    ${myBusesPanel()}
     <a class="tile" href="#moje-dane"><span class="t-ic">${ic('chart')}</span><span class="t-txt"><b>Moje dane i statystyki</b><span>Kilometry, spalanie, dni pracy, tankowania, zgłoszenia i dane kontaktowe</span></span>${ic('chev','chev')}</a>
   </div>`;
 }
@@ -100,15 +115,15 @@ function viewPickCar(){
   const asg = myAssigned();
   const asgOk = asg && asg.vehicle && takeState(asg.vehicle) && takeState(asg.vehicle).ok;
   const asgHtml = asgOk ? `<div class="panel mycar assigned">
-      <span class="label">${asg.booking ? 'Kierownik przydzielił Ci na dziś' : 'Twoje auto stałe'}</span>
+      <span class="label">${asg.booking ? 'Kierownik przydzielił Ci na dziś' : 'Twój bus – jesteś za niego odpowiedzialny'}</span>
       <div class="mycar-head">${plate(asg.vehicle.plate)}<div><h2>${esc(asg.vehicle.make)} ${esc(asg.vehicle.model)}${asg.vehicle.hasTacho ? ' <span class="pill off">tachograf</span>' : ''}</h2><span class="muted">Ostatni stan licznika: ${km(lastKm(asg.vehicle.id))}${asg.booking && asg.booking.routeId ? ' · trasa '+esc(rLabel(asg.booking.routeId)) : ''}${asg.booking && asg.booking.purpose ? ' · '+esc(asg.booking.purpose) : ''}</span></div></div>
       <div class="big-grid">${asg.booking ? big(`data-ho="pickup" data-id="${esc(asg.booking.id)}"`, 'Przyjmij auto', 'checklista i przebieg', 'primary wide', 'key') : big(`data-take="${esc(asg.vehicle.id)}"`, 'Przyjmij auto', 'checklista i przebieg', 'primary wide', 'key')}</div>
     </div>` : '';
   const list = S.vehicles.filter(v => !asgOk || v.id!==asg.vehicle.id)
     .map(v => ({v, st: takeState(v)})).filter(x => x.st)
-    .sort((a, b) => (b.st.ok - a.st.ok) || String(a.v.plate).localeCompare(b.v.plate));
+    .sort((a, b) => (b.st.ok - a.st.ok) || (respOf(b.v).includes(myDriverId()) - respOf(a.v).includes(myDriverId())) || String(a.v.plate).localeCompare(b.v.plate));
   const rows = list.map(({v, st}) => `<div class="pick ${st.ok?'':'off'}">
-      <div class="pick-car">${plate(v.plate)}<div><b>${esc(v.make)} ${esc(v.model)}</b><span class="sub">${esc(v.fuel||'')} · ${km(lastKm(v.id))}${v.hasTacho ? ' · tachograf' : ''}</span></div></div>
+      <div class="pick-car">${plate(v.plate)}<div><b>${esc(v.make)} ${esc(v.model)}${respOf(v).includes(myDriverId()) ? ' <span class="pill soon">Twój bus</span>' : ''}</b><span class="sub">${esc(v.fuel||'')} · ${km(lastKm(v.id))}${v.hasTacho ? ' · tachograf' : ''}</span></div></div>
       ${st.ok ? `<button class="primary" data-take="${esc(v.id)}">Wybierz</button>` : `<span class="muted small">${esc(st.why)}</span>`}</div>`).join('');
   return `<div class="section driver">${backBtn()}
     <h2>Wybierz auto</h2>

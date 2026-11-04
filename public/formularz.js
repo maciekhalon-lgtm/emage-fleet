@@ -3,6 +3,9 @@
 /* ---------- forms ---------- */
 const vehOpts = () => [['','— wybierz pojazd —'], ...S.vehicles.slice().sort((a,b)=>String(a.plate).localeCompare(b.plate)).map(v => [v.id, v.plate+' · '+v.make+' '+v.model])];
 /* Nieaktywni kierowcy nie pojawiają się w wyborze – chyba że są już wpisani w edytowanym wpisie */
+/* Lista do zaznaczenia odpowiedzialnych: aktywni kierowcy + już wpisani */
+const respOpts = () => { const keep = (editing && editing.base && respOf(editing.base)) || [];
+  return S.drivers.filter(d => d.active!==false || keep.includes(d.id)).sort((a,b)=>a.name.localeCompare(b.name,'pl')).map(d => [d.id, d.name + (d.active===false ? ' (nieaktywny)' : '')]); };
 const drvOpts = (blank='— brak —') => { const keep = editing && editing.base ? editing.base.driverId : '';
   return [['',blank], ...S.drivers.filter(d => d.active!==false || d.id===keep).sort((a,b)=>a.name.localeCompare(b.name,'pl')).map(d => [d.id, d.name + (d.active===false ? ' (nieaktywny)' : '')])]; };
 const FORMS = {
@@ -16,7 +19,7 @@ const FORMS = {
     {k:'vin',l:'VIN',ph:'17 znaków'},
     {k:'policyNo',l:'Numer polisy',ph:'np. 123/2026'},
     ...(P().manage ? [{k:'hasTacho',l:'Auto ma tachograf',t:'check'}] : []),
-    {k:'driverId',l:'Stały kierowca',t:'select',o:drvOpts()},
+    {k:'responsible',l:'Kierowcy odpowiedzialni za busa',t:'checks',full:1,o:respOpts()},
     {k:'status',l:'Status',t:'select',o:[['aktywny','Aktywny'],['serwis','W serwisie'],['wycofany','Wycofany']]},
     {k:'monthlyLimit',l:'Limit kosztów / mies. (zł)',t:'number',ph:'np. 2500'},
     {k:'tankL',l:'Pojemność baku (l)',t:'number',ph:'np. 90'},
@@ -133,7 +136,7 @@ const DEFAULTS = {
     if (P().costs==='own'){
       const me = myDriverId();
       const b = me && S.bookings.find(x => x.driverId===me && !x.returned && (x.pickup || (x.from<=today() && x.to>=today())));
-      const v = b ? byId('vehicles', b.vehicleId) : S.vehicles.find(x => x.driverId===me && x.status!=='wycofany');
+      const v = b ? byId('vehicles', b.vehicleId) : S.vehicles.find(x => respOf(x).includes(me) && x.status!=='wycofany');
       return {...base, vehicleId: v ? v.id : '', driverId: me};
     }
     return base;
@@ -146,6 +149,7 @@ let editing = null;
 const CURRENCIES = ['PLN','EUR','CZK'];
 const STATIONS = ['Orlen','UTA','Inna'];
 const FORM_VIEW = {
+  vehicles: d => ({...d, responsible: respOf(d)}),
   costs: d => { const foreign = d.currency && d.currency!=='PLN';
     const st = d.station || '', known = STATIONS.includes(st) && st!=='Inna';
     return {...d, currency: d.currency || 'PLN', amount: foreign ? (d.amountOrig ?? '') : d.amount, stationSel: !st ? '' : known ? st : 'Inna', stationOther: !st || known ? '' : st}; },
