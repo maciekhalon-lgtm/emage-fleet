@@ -36,7 +36,7 @@ const isPlural = (n, one, few, many) => n===1?one:(n%10>=2&&n%10<=4&&(n%100<10||
 function toast(msg){ const t=$('#toast'); t.textContent=msg; t.hidden=false; clearTimeout(toast.t); toast.t=setTimeout(()=>t.hidden=true,2400); }
 
 /* ---------- domain ---------- */
-const DL_TYPES = ['Przegląd techniczny','Ubezpieczenie OC','Ubezpieczenie AC','Serwis olejowy','Wymiana opon','Przegląd gwarancyjny','Legalizacja tachografu','Leasing – koniec umowy','Inne'];
+const DL_TYPES = ['Przegląd techniczny','Ubezpieczenie OC','Ubezpieczenie AC','Serwis olejowy','Wymiana rozrządu','Wymiana opon','Przegląd gwarancyjny','Legalizacja tachografu','Leasing – koniec umowy','Inne'];
 const COST_CATS = ['Paliwo','Ładowanie','Serwis i naprawy','Ubezpieczenie','Opony','Myjnia','Opłaty i parkingi','Leasing','Inne'];
 const FUELS = ['Diesel','Benzyna','Hybryda','Elektryczny','LPG'];
 

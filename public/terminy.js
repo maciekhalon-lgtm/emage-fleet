@@ -25,7 +25,7 @@ function viewDeadlines(){
   return head + `<div class="panel dl">${html || '<div class="empty"><p>Brak terminów w tym filtrze.</p></div>'}</div>`;
 }
 /* domyślne cykle: [miesiące, km] */
-const DL_INTERVALS = {'Przegląd techniczny':[12,null],'Ubezpieczenie OC':[12,null],'Ubezpieczenie AC':[12,null],'Serwis olejowy':[12,15000],'Wymiana opon':[6,null],'Przegląd gwarancyjny':[12,30000],'Legalizacja tachografu':[24,null],'Leasing – koniec umowy':[null,null],'Inne':[null,null]};
+const DL_INTERVALS = {'Przegląd techniczny':[12,null],'Ubezpieczenie OC':[12,null],'Ubezpieczenie AC':[12,null],'Serwis olejowy':[12,15000],'Wymiana rozrządu':[60,80000],'Wymiana opon':[6,null],'Przegląd gwarancyjny':[12,30000],'Legalizacja tachografu':[24,null],'Leasing – koniec umowy':[null,null],'Inne':[null,null]};
 function renew(id){
   const d = byId('deadlines', id); if (!d) return;
   const def = DL_INTERVALS[d.type] || [12,null];

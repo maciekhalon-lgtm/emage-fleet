@@ -50,7 +50,7 @@ function viewServiceBook(){
   const rows = list.slice(0, 300).map(x => `<tr ${canEditDoc('serviceEntries', x) ? `class="click" data-edit="serviceEntries" data-id="${esc(x.id)}"` : ''}>
       <td class="num">${fdate(x.date)}${x.km ? `<span class="sub">${km(x.km)}</span>` : ''}</td><td>${vPlate(x.vehicleId)}</td>
       <td><b>${esc(x.description)}</b><span class="sub">${[x.workshop, x.note].filter(Boolean).map(esc).join(' · ')}</span>
-        <span class="svc-tags">${x.oilChange ? '<span class="pill soon">olej</span>' : ''}${x.tiresSet ? `<span class="pill info">opony ${esc((TIRES[x.tiresSet] || '').toLowerCase())}</span>` : ''}${(x.issueIds || []).length ? `<span class="pill ok">usterki: ${x.issueIds.length}</span>` : ''}</span></td>
+        <span class="svc-tags">${x.oilChange ? '<span class="pill soon">olej</span>' : ''}${x.timingChange ? '<span class="pill soon">rozrząd</span>' : ''}${x.tiresSet ? `<span class="pill info">opony ${esc((TIRES[x.tiresSet] || '').toLowerCase())}</span>` : ''}${(x.issueIds || []).length ? `<span class="pill ok">usterki: ${x.issueIds.length}</span>` : ''}</span></td>
       <td class="r num">${x.cost ? zl2(x.cost) : '—'}</td><td>${x.assetId ? `<a class="btn small" data-file="${esc(x.assetId)}" href="#" target="_blank" rel="noopener">Faktura</a>` : ''}</td></tr>`).join('');
   return head + `<div class="panel tablewrap"><table><thead><tr><th>Data</th><th>Auto</th><th>Co zrobiono</th><th class="r">Koszt</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
     <p class="muted small" style="margin:0">${list.length} ${isPlural(list.length,'wpis','wpisy','wpisów')} · razem ${zl(sum)}</p>`;

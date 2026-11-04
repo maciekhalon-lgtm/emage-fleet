@@ -102,6 +102,7 @@ const FORMS = {
     {k:'cost',l:'Koszt brutto (zł)',t:'number',step:'0.01',hint:'doda się sam do kosztów'},
     {k:'description',l:'Co zrobiono',t:'textarea',req:1,full:1,ph:'np. wymiana oleju i filtrów, klocki przód'},
     {k:'oilChange',l:'Wymiana oleju – następna za 12 000 km (przypomnienie 2 000 km wcześniej)',t:'check'},
+    {k:'timingChange',l:'Wymiana rozrządu – następna za 80 000 km (przypomnienie 5 000 km wcześniej)',t:'check'},
     {k:'tiresSet',l:'Założono opony',t:'select',o:[['','— bez zmiany opon —'],...Object.entries(TIRES)]},
     {k:'deadlineId',l:'Odnów termin',t:'select',o:svcDeadlineOpts(),full:1},
     {k:'issueIds',l:'Naprawione usterki',t:'checks',o:svcIssueOpts(),full:1},

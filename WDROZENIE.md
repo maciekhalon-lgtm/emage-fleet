@@ -83,7 +83,7 @@ po każdej zmianie w GitHubie (ok. 1 minuty).
 ## E. Uruchomienie aplikacji
 
 ### 1. Skrypty bazy
-Supabase → **SQL Editor** → uruchom po kolei wszystkie pliki z `supabase/migrations/` (001, 002, … 015).
+Supabase → **SQL Editor** → uruchom po kolei wszystkie pliki z `supabase/migrations/` (001, 002, … 016).
 Każdy plik wklejasz w całości i klikasz **Run**.
 
 ### 2. Adres strony w ustawieniach logowania
