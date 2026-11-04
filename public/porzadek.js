@@ -23,7 +23,7 @@ function tabCount(t){
   if (t==='przydzial'){ const cf = conflicts().size; return {n: cf, bad: cf > 0}; }
   return {n: 0, bad: false};
 }
-function groupCount(g){ const c = GROUPS[g].filter(([, , ok]) => ok()).map(([k]) => tabCount(k)); return {n: c.reduce((s, x) => s + x.n, 0), bad: c.some(x => x.bad)}; }
+function groupCount(g){ const c = GROUPS[g].filter(([k, , ok]) => ok() && k!=='liczniki').map(([k]) => tabCount(k)); /* liczniki tylko w swojej zakładce */ return {n: c.reduce((s, x) => s + x.n, 0), bad: c.some(x => x.bad)}; }
 function subTabs(){
   const g = groupOf(tab); if (!g) return '';
   const list = GROUPS[g].filter(([, , ok]) => ok());
