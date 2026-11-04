@@ -135,15 +135,15 @@ function viewDashboard(){
       <div class="dgrid"><div class="dcol">${attentionCard(true)}${issuesCard()}</div><div class="dcol">${serviceCarsCard()}${deadlinesCard()}</div></div></div>`;
   }
   const mc = sumOf(inM), fb = Number(budget().monthly) || 0;
+  const att = attentionItems(false).length;
   const kp = [
-    kpi({label:'W trasie', icon:'truck', cls:'info', value: inUse, small: '/' + active.length, bar:[[pct(inUse, n), 'info']], foot: crews ? `${crews} w podwójnej obsadzie` : 'bez podwójnej obsady', go:'przydzial'}),
-    kpi({label:'Wolne', icon:'key', cls:'ok', value: free, bar:[[pct(free, n), 'ok']], foot:'gotowe do wydania', go:'pojazdy'}),
-    svcKpi, dlKpi,
+    kpi({label:'W trasie', icon:'truck', cls:'info', value: inUse, small: '/' + active.length, bar:[[pct(inUse, n), 'info']], foot: `${free} wolnych · ${svc + stop} w serwisie`, go:'przydzial'}),
+    kpi({label:'Wymaga uwagi', icon:'alert', cls: att ? 'bad' : 'ok', value: att, bar:[], foot: att ? 'blokady, terminy, usterki, tankowania' : 'wszystko w porządku', go:'pulpit'}),
     kpi({label:'Koszty – ' + MONTHS_FULL[Number(m.slice(5)) - 1], icon:'fuel', cls:'acc', value: zl(mc).replace(/\s?zł/, ''), small:' zł', bar: fb ? [[pct(mc, fb), mc > fb ? 'bad' : 'acc']] : [], foot: fb ? `${Math.round(mc / fb * 100)}% budżetu ${zl(fb)}` : 'brutto, wszystkie auta', go:'koszty'}),
   ].join('');
   const myCar = canDrive() && typeof myActive==='function' ? myActive() : null;
   const myCarTile = myCar ? `<a class="tile" href="#moje"><span class="t-ic">${ic('key')}</span><span class="t-txt"><b>Prowadzisz ${esc(byId('vehicles', myCar.vehicleId)?.plate || '')}</b><span>Przejęte ${fdate(myCar.pickup.at)} · zatankuj albo zdaj pojazd w „Moje auto”</span></span>${ic('chev','chev')}</a>` : '';
-  return `<div class="section dash">${head}${myCarTile}<div class="kpis">${kp}</div>
+  return `<div class="section dash">${head}${myCarTile}<div class="kpis k3">${kp}</div>
     <div class="dgrid"><div class="dcol">${attentionCard(false)}</div>
     <div class="dcol">${fleetNowCard()}</div></div></div>`;
 }

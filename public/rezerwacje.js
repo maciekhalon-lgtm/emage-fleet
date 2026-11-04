@@ -6,7 +6,7 @@ function viewAssign(){
   const head = `<div class="bar"><h2>Grafik</h2><div class="tools">${add}</div></div>`;
   const confNote = conf.size ? `<div class="notice err"><span>To samo auto jest przydzielone dwóm kierowcom w tym samym dniu (${conf.size}). Zmień auto albo dzień.</span></div>` : '';
   const out = S.bookings.filter(b => holds(b));
-  const nowPanel = out.length ? `<div class="panel"><div class="sec-head"><h3>Teraz w trasie</h3></div><div class="dl">${out.map(b => `<div class="mini"><span>${vPlate(b.vehicleId)}</span>
-      <span>${esc(crewName(b))}${b.routeId ? ' · ' + esc(rLabel(b.routeId)) : ''}</span><span class="mini-r">${handoverBtn(b)}</span></div>`).join('')}</div></div>` : '';
+  const nowPanel = out.length ? `<details class="panel fold"><summary class="sec-head"><h3>Teraz w trasie</h3><span class="count">${out.length}</span></summary><div class="dl">${out.map(b => `<div class="mini"><span>${vPlate(b.vehicleId)}</span>
+      <span>${esc(crewName(b))}${b.routeId ? ' · ' + esc(rLabel(b.routeId)) : ''}</span><span class="mini-r">${handoverBtn(b)}</span></div>`).join('')}</div></details>` : '';
   return `<div class="section">${head}${confNote}${viewSchedule()}${P().manage ? loadingsPanel() : ''}${nowPanel}</div>`;
 }

@@ -93,7 +93,7 @@ function conflicts(){
   return set;
 }
 function nextDeadline(vehId){
-  return S.deadlines.filter(d => d.vehicleId===vehId).sort((a,b)=>a.date<b.date?-1:1)[0];
+  return S.deadlines.filter(d => d.vehicleId===vehId).map(d => ({d, x: dlState(d).d})).sort((a, b) => a.x - b.x || (a.d.date < b.d.date ? -1 : 1)).map(o => o.d)[0];
 }
 function consumption(vehId){
   const v = byId('vehicles', vehId);

@@ -19,14 +19,14 @@ Kierownik floty: **Pracownicy → Użytkownicy** → rola, dla kierowcy jego wpi
 | Pozycja | Co tam jest |
 | --- | --- |
 | **Moje auto** | (kierownik floty powiązany z wpisem kierowcy) ten sam ekran co u kierowcy |
-| **Pulpit** | liczby floty, „Wymaga uwagi” (blokady, terminy, niesprawne auta, tankowania do wyjaśnienia, konta, spory, budżet, opony) i flota teraz |
-| **Pojazdy** | lista i karta auta: dane, polisa (assistance – Zadzwoń), odpowiedzialni kierowcy, terminy, usterki, grafik, dokumenty, książka serwisowa, historia |
+| **Pulpit** | trzy liczby (w trasie, wymaga uwagi, koszty miesiąca), „Wymaga uwagi” (blokady, terminy, niesprawne auta, tankowania do wyjaśnienia, konta, spory, budżet, opony) i flota teraz |
+| **Pojazdy** | lista z filtrami (w trasie, wolne, wymaga uwagi) i karta auta w zakładkach: **Dane** (polisa, assistance, grafik, dokumenty), **Terminy i serwis**, **Paliwo i koszty**, **Historia**; dokumenty, książka serwisowa, historia |
 | **Grafik** | zakładki **Grafik** (tydzień: kierowcy × dni, załadunek ze zmiany, auta teraz w trasie) i **Trasy** |
-| **Serwis** | zakładki **Usterki**, **Terminy**, **Książka serwisowa** |
+| **Serwis** | zakładki **Usterki**, **Terminy** (domyślnie tylko pilne: po terminie i do 60 dni – „Pokaż wszystkie” pokazuje resztę), **Książka serwisowa** |
 | **Koszty i paliwo** | zakładki **Koszty** (koszty miesiąca, tankowania do wyjaśnienia), **Karty paliwowe**, **Przejazdy i parkingi** i **Spalanie i przebiegi** (kierownik floty) |
 | **Raporty** | zakładki **Raporty** (auta, trasy, ranking kierowców, Excel), **Miesiąc do miesiąca** (spalanie pojazdów i kierowców: dwa wybrane miesiące i zmiana) i **Historia** (zmiany w danych i zmiany obsady) |
 | **Pracownicy** | zakładki **Kierowcy** i **Użytkownicy** (konta, role, spory w obsadzie, zmiany danych kierowców) |
-| **Ustawienia** | budżet floty, kontrola paragonów, checklista przejęcia, opis ról |
+| **Ustawienia** | budżet floty, kontrola paragonów, checklista przejęcia |
 
 ## Najczęstsze czynności
 

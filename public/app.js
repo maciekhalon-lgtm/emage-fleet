@@ -5,7 +5,7 @@ const DRIVER_VIEWS = ['moje','wybierz','moje-dane'];
 const TABS = ['moje','wybierz','moje-dane','pulpit','pojazdy','trasy','terminy','usterki','ksiazka','przydzial','koszty','karty','oplaty','spalanie','raporty','porownanie','historia','kierowcy','uzytkownicy','ustawienia'];
 const homeTab = () => P().mycar ? 'moje' : 'pulpit';
 let pendingCard = null;
-let tab = 'pulpit', q = '', costMonth = today().slice(0,7), dlFilter = 'all';
+let tab = 'pulpit', q = '', costMonth = today().slice(0,7), dlFilter = 'urgent';
 function route(){ const h = location.hash.slice(1); tab = TABS.includes(h) ? h : homeTab(); cardId = pendingCard; pendingCard = null; $('#app').classList.remove('nav-open'); render(); window.scrollTo(0,0); }
 window.addEventListener('hashchange', route);
 
@@ -114,7 +114,7 @@ document.addEventListener('click', e => {
   if (t.dataset.transfer){ e.stopPropagation(); return openTransfer(t.dataset.transfer); }
   if (t.dataset.take) return openHandover(null, 'pickup', t.dataset.take);
   if (t.dataset.new) return openForm(t.dataset.new, null, t.dataset.veh ? {vehicleId: t.dataset.veh} : undefined);
-  if (t.dataset.card){ cardId = t.dataset.card; render(); window.scrollTo(0,0); return; }
+  if (t.dataset.card){ cardId = t.dataset.card; cardTab = 'dane'; render(); window.scrollTo(0,0); return; }
   if (t.dataset.back){ cardId = null; render(); return; }
   if (t.dataset.cal){ calStart = t.dataset.cal==='0' ? mondayOf(today()) : addDays(calStart, Number(t.dataset.cal)); render(); return; }
   if (t.dataset.isf){ issueFilter = t.dataset.isf; render(); return; }

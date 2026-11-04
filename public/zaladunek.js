@@ -158,5 +158,6 @@ function loadingDay(d){
 }
 function loadingsPanel(){
   const t = today(), html = [t, addDays(t, -1)].map(loadingDay).join('');
-  return `<div class="panel"><div class="sec-head"><h3>Załadunek</h3></div>${html || '<p class="muted sec-empty">Na dzisiejszą i wczorajszą zmianę nikt jeszcze nie zaznaczył załadunku.</p>'}</div>`;
+  const n = S.loadings.filter(l => l.forDate===t || l.forDate===addDays(t, -1)).length;
+  return `<details class="panel fold"><summary class="sec-head"><h3>Załadunek</h3><span class="count">${n}</span></summary>${html || '<p class="muted sec-empty">Na dzisiejszą i wczorajszą zmianę nikt jeszcze nie zaznaczył załadunku.</p>'}</details>`;
 }

@@ -1,12 +1,15 @@
 /* Emage FLEET — terminy: terminy i przypomnienia */
 'use strict';
 function viewDeadlines(){
-  const chips = [['all','Wszystkie'],['over','Po terminie'],['soon','Do 30 dni'],['later','Później']];
+  if (dlFilter==='soon' || dlFilter==='later') dlFilter = 'urgent';
+  const chips = [['urgent','Pilne'],['over','Po terminie'],['all','Pokaż wszystkie']];
   const head = `<div class="bar"><h2>Terminy i przypomnienia</h2><div class="tools">${chips.map(([k,l])=>`<button class="small ${dlFilter===k?'primary':''}" data-dlf="${k}">${l}</button>`).join('')}${canCreate('deadlines')?'<button class="primary" data-new="deadlines">+ Dodaj termin</button>':''}</div></div>`;
   if (!S.deadlines.length) return head + loadingOr('deadlines', emptyBlock('Brak zapisanych terminów','Zapisz daty przeglądów technicznych, końca polis OC/AC, serwisów i wymiany opon. Strona podświetli to, co zbliża się w ciągu 30 dni.', '<button class="primary" data-new="deadlines">+ Dodaj termin</button>', '', 'deadlines'));
   const all = S.deadlines.map(d => ({d, s:dlState(d)})).sort((a,b)=> a.d.date<b.d.date?-1:a.d.date>b.d.date?1:0);
-  const f = all.filter(({s}) => dlFilter==='all' || (dlFilter==='over' && s.d<=0) || (dlFilter==='soon' && s.d>0 && s.d<=30) || (dlFilter==='later' && s.d>30));
-  const groups = [['Po terminie lub dziś', x=>x.s.d<=0],['W ciągu 14 dni', x=>x.s.d>0&&x.s.d<=14],['W ciągu 30 dni',x=>x.s.d>14&&x.s.d<=30],['Później',x=>x.s.d>30]];
+  // pilne: po terminie albo w ciągu 60 dni (przy terminach na km – gdy zbliża się przypomnienie)
+  const f = all.filter(({s}) => dlFilter==='all' || (dlFilter==='over' && s.d<=0) || (dlFilter==='urgent' && s.d<=60));
+  const hidden = all.length - f.length;
+  const groups = [['Po terminie lub dziś', x=>x.s.d<=0],['W ciągu 14 dni', x=>x.s.d>0&&x.s.d<=14],['W ciągu 60 dni',x=>x.s.d>14&&x.s.d<=60],['Później',x=>x.s.d>60]];
   let html='';
   for (const [name, fn] of groups){
     const items = f.filter(fn); if (!items.length) continue;
@@ -22,7 +25,8 @@ function viewDeadlines(){
         <div>${canEditDoc('deadlines',d)?`<button class="small" data-renew="${esc(d.id)}" title="Oznacz jako wykonane i ustaw kolejny termin">Wykonane</button>`:''}</div>
       </div>`; }).join('');
   }
-  return head + `<div class="panel dl">${html || '<div class="empty"><p>Brak terminów w tym filtrze.</p></div>'}</div>`;
+  const more = hidden && dlFilter!=='all' ? `<p class="muted small" style="margin:0">${hidden} ${isPlural(hidden,'dalszy termin ukryty','dalsze terminy ukryte','dalszych terminów ukrytych')} – <a href="#" data-dlf="all">pokaż wszystkie</a>.</p>` : '';
+  return head + `<div class="panel dl">${html || `<div class="empty"><p>${dlFilter==='urgent' ? 'Nic pilnego – wszystkie terminy są dalej niż 60 dni.' : 'Brak terminów w tym filtrze.'}</p></div>`}</div>` + more;
 }
 /* domyślne cykle: [miesiące, km] */
 const DL_INTERVALS = {'Przegląd techniczny':[12,null],'Ubezpieczenie OC':[12,null],'Ubezpieczenie AC':[12,null],'Serwis olejowy':[12,15000],'Wymiana rozrządu':[60,80000],'Wymiana opon':[6,null],'Przegląd gwarancyjny':[12,30000],'Legalizacja tachografu':[24,null],'Leasing – koniec umowy':[null,null],'Inne':[null,null]};

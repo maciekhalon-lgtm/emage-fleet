@@ -90,6 +90,5 @@ function viewSettings(){
     ${budgetPanel()}
     ${checksSettingsPanel()}
     ${checklistPanel()}
-    <div class="panel"><div class="sec-head"><h3>Role</h3></div><div class="roles">${Object.values(ROLES).map(r => `<div><b>${esc(r.name)}</b><span class="sub">${esc(r.desc)}</span></div>`).join('')}</div></div>
   </div>`;
 }
