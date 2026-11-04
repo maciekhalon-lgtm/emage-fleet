@@ -29,12 +29,12 @@ function odoRange(vid, from, to){
   const xs = (anc ? [anc] : []).concat(inR);
   const bad = new Set();
   if (!inR.length) return {km: null, xs: inR, bad, first: null, last: null};
-  const chain = odoChain(xs, (a, b) => 1500 * (Math.max(0, diffDays(a.d, b.d)) + 1)), inC = new Set(chain);
-  xs.forEach((x, i) => { if (!inC.has(i)) bad.add(x.id); });
-  const ok = chain.map(i => xs[i]);
-  const kmS = ok.length >= 2 ? ok[ok.length - 1].odo - ok[0].odo : null;
-  const anchor = anc;
-  return {km: kmS, xs, bad, first: ok[0] || null, last: ok[ok.length - 1] || null, anchor};
+  const maxLeg = (a, b) => 1500 * (Math.max(0, diffDays(a.d, b.d)) + 1);
+  const seg = odoSegments(xs, (a, b) => b.odo - a.odo >= 0 && b.odo - a.odo <= maxLeg(a, b));
+  seg.bad.forEach(i => bad.add(xs[i].id));
+  const kmS = seg.legs.length ? seg.legs.reduce((s, [a, b]) => s + xs[b].odo - xs[a].odo, 0) : null;
+  const ok = seg.alive.map(i => xs[i]);
+  return {km: kmS, xs, bad, first: ok[0] || null, last: ok[ok.length - 1] || null, anchor: anc, breaks: seg.breaks};
 }
 
 function viewMileage(){
@@ -57,7 +57,7 @@ function viewMileage(){
       <td class="r num">${r.km==null ? `<span class="muted">${r.xs.length ? 'za mało liczników' : 'brak liczników'}</span>` : `<b>${nf(r.km)} km</b>`}${r.km ? `<span class="sub">${nf(Math.round(r.km / days))} km / dzień</span>` : ''}</td>
       <td class="r num">${r.first ? km(r.first.odo) : '—'}<span class="sub">${r.first ? fdate(r.first.d) : ''}</span></td>
       <td class="r num">${r.last ? km(r.last.odo) : '—'}<span class="sub">${r.last ? fdate(r.last.d) : ''}</span></td>
-      <td>${r.xs.length ? `<span class="muted small">${r.xs.length} ${isPlural(r.xs.length,'licznik','liczniki','liczników')}</span>` : ''}${r.bad.size ? ` <span class="pill off">${r.bad.size} ${isPlural(r.bad.size,'pominięty','pominięte','pominiętych')}</span>` : ''}</td></tr>${det}`;
+      <td>${r.xs.length ? `<span class="muted small">${r.xs.length} ${isPlural(r.xs.length,'licznik','liczniki','liczników')}</span>` : ''}${r.bad.size ? ` <span class="pill off">${r.bad.size} ${isPlural(r.bad.size,'pominięty','pominięte','pominiętych')}</span>` : ''}${r.breaks ? ` <span class="pill off" title="Nierealny skok licznika – ten odcinek nie jest liczony">${r.breaks} ${isPlural(r.breaks,'przerwa','przerwy','przerw')}</span>` : ''}</td></tr>${det}`;
   }).join('');
   return head + `<div class="panel fc-meta"><div><span class="label">Zakres</span><b>${fdate(pbFrom)} – ${fdate(pbTo)}</b></div><div><span class="label">Dni</span><b>${days}</b></div>
       <div><span class="label">Cała flota</span><b>${nf(total)} km</b></div><div><span class="label">Średnio na auto</span><b>${nf(Math.round(total / Math.max(1, res.filter(x => x.r.km).length)))} km</b></div></div>

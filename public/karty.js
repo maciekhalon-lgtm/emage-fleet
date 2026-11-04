@@ -75,45 +75,44 @@ const fm = (v, cur) => v==null || !Number.isFinite(Number(v)) ? '—' : new Intl
    Jeden błędnie wpisany licznik nie psuje wyniku: licznik odbiegający > 20 000 km od mediany auta albo dający odcinek
    ≤ 0 lub > 3000 km jest pomijany (oznaczany „licznik podejrzany”), a jego litry liczą się do następnego dobrego odcinka.
    Spalanie = litry od drugiego tankowania / km × 100; poza 5–25 l/100 km wynik jest „niepewny”. */
-const FC_MAX_LEG = 3000, FC_MAX_DEV = 20000;
-/* Najdłuższy spójny ciąg liczników (chronologicznie): każdy kolejny ≥ poprzedni i odcinek ≤ maxLeg.
-   Liczniki spoza ciągu są błędne (brak cyfry, cofnięte, przeskok). xs – posortowane chronologicznie. */
-function odoChain(xs, maxLeg){
-  const n = xs.length; if (!n) return [];
-  const sorted = xs.map(x => x.odo).sort((a, b) => a - b), med = sorted[Math.floor(n / 2)];
-  const okv = xs.map(x => Math.abs(x.odo - med) <= FC_MAX_DEV);
-  const dp = new Array(n).fill(0), from = new Array(n).fill(-1);
-  for (let i = 0; i < n; i++){
-    if (!okv[i]) continue;
-    dp[i] = 1;
-    for (let j = 0; j < i; j++){
-      if (!okv[j] || !dp[j]) continue;
-      const d = xs[i].odo - xs[j].odo;
-      if (d >= 0 && d <= maxLeg(xs[j], xs[i]) && dp[j] + 1 >= dp[i]){ dp[i] = dp[j] + 1; from[i] = j; }
+const FC_MAX_LEG = 3000;
+/* Liczniki po kolei (chronologicznie) dzielone na dobre odcinki.
+   1) Pojedynczy błędny licznik (brak cyfry, cofnięty, przeskok) – nie pasuje ani do poprzedniego, ani do następnego,
+      a sąsiedzi pasują do siebie – jest pomijany (powtarzane, aż nic się nie zmieni).
+   2) Odcinek, który nie pasuje (np. dziura > 3000 km – tankowanie inną kartą albo za gotówkę), tylko przerywa liczenie:
+      nie wchodzi ani do km, ani do litrów. Reszta danych auta liczy się normalnie.
+   ok(a, b) – czy odcinek a→b jest realny. Zwraca indeksy dobrych liczników, dobre odcinki i liczbę przerw. */
+function odoSegments(xs, ok){
+  let alive = xs.map((_, i) => i), changed = true;
+  while (changed && alive.length > 2){
+    changed = false;
+    for (let k = 0; k < alive.length; k++){
+      const i = alive[k], p = alive[k - 1], n = alive[k + 1], pp = alive[k - 2], nn = alive[k + 2];
+      let bad = false;
+      if (p!=null && n!=null) bad = !ok(xs[p], xs[i]) && !ok(xs[i], xs[n]) && ok(xs[p], xs[n]);
+      else if (p==null && n!=null && nn!=null) bad = !ok(xs[i], xs[n]) && ok(xs[n], xs[nn]) && !ok(xs[i], xs[nn]);
+      else if (n==null && p!=null && pp!=null) bad = !ok(xs[p], xs[i]) && ok(xs[pp], xs[p]) && !ok(xs[pp], xs[i]);
+      if (bad){ alive.splice(k, 1); changed = true; break; }
     }
   }
-  let best = -1; for (let i = 0; i < n; i++) if (dp[i] && (best < 0 || dp[i] >= dp[best])) best = i;
-  const chain = []; for (let i = best; i >= 0; i = from[i]) chain.unshift(i);
-  return chain;
+  const legs = []; let breaks = 0;
+  for (let k = 1; k < alive.length; k++){ if (ok(xs[alive[k - 1]], xs[alive[k]])) legs.push([alive[k - 1], alive[k]]); else breaks++; }
+  const aliveSet = new Set(alive), bad = xs.map((_, i) => i).filter(i => !aliveSet.has(i));
+  return {alive, legs, bad, breaks};
 }
-/* Przejechane km i spalanie – odcinkami między kolejnymi dobrymi licznikami (wg daty i godziny).
-   Błędne liczniki są pomijane (oznaczane „licznik podejrzany”), a ich litry liczą się do następnego dobrego odcinka.
-   Spalanie = litry od drugiego tankowania / km × 100; poza 5–25 l/100 km wynik jest „niepewny”. */
+/* Przejechane km i spalanie – z dobrych odcinków między tankowaniami (wg daty i godziny).
+   Litry pominiętych (błędnych) tankowań liczą się do odcinka, w którym były. Na przerwie nic nie liczymy.
+   Spalanie = litry / km × 100 (pierwsze tankowanie odcinka tylko „ustawia” pełny bak); poza 5–25 l/100 km – „niepewne”. */
 function fcCons(list){
   const xs = list.filter(x => Number(x.odo) > 0 && x.l!=null).sort((a, b) => (a.d || '').localeCompare(b.d || '') || a.odo - b.odo);
-  const bad = new Set();
   if (!xs.length) return null;
-  const chain = odoChain(xs, () => FC_MAX_LEG), inC = new Set(chain);
-  xs.forEach((x, i) => { if (!inC.has(i) && x.id) bad.add(x.id); });
-  if (chain.length < 2) return {km: 0, rate: null, bad, legs: 0};
+  const seg = odoSegments(xs, (a, b) => b.odo - a.odo >= 0 && b.odo - a.odo <= FC_MAX_LEG);
+  const bad = new Set(seg.bad.map(i => xs[i].id).filter(Boolean));
   let kmS = 0, lS = 0;
-  for (let k = 1; k < chain.length; k++){
-    kmS += xs[chain[k]].odo - xs[chain[k - 1]].odo;
-    for (let i = chain[k - 1] + 1; i <= chain[k]; i++) lS += Number(xs[i].l || 0);
-  }
-  if (!kmS) return {km: 0, rate: null, bad, legs: 0};
-  const rate = lS / kmS * 100;
-  return {km: kmS, rate, l: lS, from: (xs[chain[0]].d || '').slice(0, 10), to: (xs[chain[chain.length - 1]].d || '').slice(0, 10), n: xs.length, bad, legs: chain.length - 1, unsure: rate < 5 || rate > 25};
+  seg.legs.forEach(([a, b]) => { kmS += xs[b].odo - xs[a].odo; for (let i = a + 1; i <= b; i++) lS += Number(xs[i].l || 0); });
+  if (!kmS) return {km: 0, rate: null, bad, legs: 0, n: xs.length, breaks: seg.breaks};
+  const used = seg.legs.flat(), rate = lS / kmS * 100;
+  return {km: kmS, rate, l: lS, from: (xs[Math.min(...used)].d || '').slice(0, 10), to: (xs[Math.max(...used)].d || '').slice(0, 10), n: xs.length, bad, legs: seg.legs.length, breaks: seg.breaks, unsure: rate < 5 || rate > 25};
 }
 /* Punkt startowy: ostatnie tankowanie z licznikiem przed okresem (z wcześniejszych zestawień / wpisów) */
 const fcAnchorCard = (vid, imp) => S.fuelCardRows.filter(x => x.vehicleId===vid && x.importId!==imp.id && x.txDate < imp.periodFrom && Number(x.odometer) > 0)
@@ -448,7 +447,7 @@ function viewConsumption(){
       <td>${c.rate==null ? '' : c.unsure ? '<span class="pill off">niepewne – sprawdź liczniki</span>' : levelPill(levelFor(v.id, c.rate)) || '<span class="muted small">brak progów</span>'}</td>
       <td class="r num">${c.km ? nf(c.km) + ' km' : '—'}<span class="sub">${c.l ? fl(c.l) : ''}</span></td>
       <td class="num">${c.from ? fdate(c.from) + ' – ' + fdate(c.to) : '—'}<span class="sub">${c.src ? (c.src==='karta' ? 'z kart paliwowych' : 'z wpisów kierowców') : ''}${c.n ? ` · ${c.n} ${isPlural(c.n,'tankowanie','tankowania','tankowań')}` : ''}</span></td>
-      <td>${c.bad && c.bad.size ? `<span class="pill off">${c.bad.size} ${isPlural(c.bad.size,'licznik pominięty','liczniki pominięte','liczników pominiętych')}</span>` : ''}</td></tr>`).join('');
+      <td>${c.bad && c.bad.size ? `<span class="pill off">${c.bad.size} ${isPlural(c.bad.size,'licznik pominięty','liczniki pominięte','liczników pominiętych')}</span> ` : ''}${c.breaks ? `<span class="pill off" title="Dziura w licznikach > 3000 km (np. tankowanie inną kartą) – ten odcinek nie jest liczony">${c.breaks} ${isPlural(c.breaks,'przerwa','przerwy','przerw')}</span>` : ''}</td></tr>`).join('');
   return head + meta + `<div class="panel tablewrap"><table><thead><tr><th>Auto</th><th class="r">Średnie spalanie</th><th>Ocena</th><th class="r">Przejechane / litry</th><th>Dane z okresu</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
-    <p class="muted small" style="margin:0">Średnia ze wszystkich wgranych rozliczeń kart paliwowych (każde kolejne rozliczenie ją uzupełnia); gdy auto nie ma danych z karty – z tankowań wpisanych przez kierowców. Liczone odcinkami między tankowaniami, błędne liczniki pomijane. Średnia floty bez wyników „niepewne”. Kolor wg progów auta z danych pojazdu.</p>`;
+    <p class="muted small" style="margin:0">Średnia ze wszystkich wgranych rozliczeń kart paliwowych (każde kolejne rozliczenie ją uzupełnia); gdy auto nie ma danych z karty – z tankowań wpisanych przez kierowców. Liczone odcinkami między tankowaniami: pojedynczy błędny licznik jest pomijany, a dziura ponad 3000 km (np. tankowanie inną kartą) tylko przerywa liczenie – wgraj też rozliczenia innych kart (np. UTA), żeby było ich jak najmniej. Średnia floty bez wyników „niepewne”. Kolor wg progów auta z danych pojazdu.</p>`;
 }
