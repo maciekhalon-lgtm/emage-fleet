@@ -23,7 +23,7 @@ Kierownik floty: **Pracownicy → Użytkownicy** → rola, dla kierowcy jego wpi
 | **Pojazdy** | lista i karta auta: dane, polisa (assistance – Zadzwoń), odpowiedzialni kierowcy, terminy, usterki, grafik, dokumenty, książka serwisowa, historia |
 | **Grafik** | zakładki **Grafik** (tydzień: kierowcy × dni, załadunek ze zmiany, auta teraz w trasie) i **Trasy** |
 | **Serwis** | zakładki **Usterki**, **Terminy**, **Książka serwisowa** |
-| **Koszty i paliwo** | zakładki **Koszty** (koszty miesiąca, tankowania do wyjaśnienia), **Karty paliwowe** i **Przejazdy i parkingi** (kierownik floty) |
+| **Koszty i paliwo** | zakładki **Koszty** (koszty miesiąca, tankowania do wyjaśnienia), **Karty paliwowe**, **Przejazdy i parkingi** i **Spalanie** (kierownik floty) |
 | **Raporty** | zakładki **Raporty** (auta, trasy, ranking kierowców, Excel), **Przebiegi** (km każdego busa w wybranym zakresie dat) i **Historia** (zmiany w danych i zmiany obsady) |
 | **Pracownicy** | zakładki **Kierowcy** i **Użytkownicy** (konta, role, spory w obsadzie, zmiany danych kierowców) |
 | **Ustawienia** | budżet floty, kontrola paragonów, checklista przejęcia, opis ról |
@@ -54,6 +54,8 @@ Nowy kierowca przyjmuje auto u siebie z checklistą.
 cena ±15% od średniej, słabe spalanie). Pulpit / Koszty → **OK** albo **Wyjaśnij** (pytanie do kierowcy).
 
 **Karty paliwowe** – Koszty i paliwo → **Karty paliwowe** → **Importuj zestawienie**: dostawca, nr faktury, faktura (PDF) i plik CSV/Excel.
+Można zaznaczyć kilka plików naraz – każdy to osobne rozliczenie (fakturę dołączysz potem: **Dodaj fakturę**).
+**Spalanie** – średnia ogólna każdego busa ze wszystkich wgranych rozliczeń (gdy brak danych z karty – z wpisów kierowców) i średnia floty.
 Przy pierwszym pliku danego układu sprawdź dopasowanie kolumn (data, nr rejestracyjny, litry, kwota brutto, licznik…) – system je zapamięta.
 Brane są tylko auta z systemu. Zaznaczone produkty to paliwo; pozostałe (opłaty drogowe, parkingi, myjnia, AdBlue) trafiają do zakładki
 **Przejazdy i parkingi** i same dopisują się do kosztów auta (usunięcie zestawienia usuwa też te koszty). Każde tankowanie z karty jest parowane z wpisem

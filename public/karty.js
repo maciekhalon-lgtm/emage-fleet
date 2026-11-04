@@ -113,7 +113,7 @@ function fcCons(list){
   }
   if (!kmS) return {km: 0, rate: null, bad, legs: 0};
   const rate = lS / kmS * 100;
-  return {km: kmS, rate, bad, legs: chain.length - 1, unsure: rate < 5 || rate > 25};
+  return {km: kmS, rate, l: lS, from: (xs[chain[0]].d || '').slice(0, 10), to: (xs[chain[chain.length - 1]].d || '').slice(0, 10), n: xs.length, bad, legs: chain.length - 1, unsure: rate < 5 || rate > 25};
 }
 /* Punkt startowy: ostatnie tankowanie z licznikiem przed okresem (z wcześniejszych zestawień / wpisów) */
 const fcAnchorCard = (vid, imp) => S.fuelCardRows.filter(x => x.vehicleId===vid && x.importId!==imp.id && x.txDate < imp.periodFrom && Number(x.odometer) > 0)
@@ -158,7 +158,7 @@ function viewFuelCards(){
   const meta = `<div class="panel fc-meta"><div><span class="label">Dostawca</span><b>${esc(imp.provider || '—')}</b></div><div><span class="label">Okres</span><b>${imp.periodFrom ? fdate(imp.periodFrom) + ' – ' + fdate(imp.periodTo) : '—'}</b></div>
     <div><span class="label">Karta (nasze auta)</span><b>${fl(cardL)} · ${fm(cardA)}</b></div><div><span class="label">Wpisy kierowców</span><b>${fl(appL)} · ${fm(appA)}</b></div>
     <div><span class="label">Różnica</span><b class="${Math.abs(cardA - appA) > 1 ? 'neg' : ''}">${fm(cardA - appA)}</b></div>
-    <div class="fc-meta-act">${imp.invoicePath ? `<a class="btn small" data-file="${esc(imp.invoicePath)}" href="#" target="_blank" rel="noopener">Faktura${imp.invoiceNo ? ' ' + esc(imp.invoiceNo) : ''}</a>` : ''}<button class="small ghost" data-fc-del="${esc(imp.id)}">Usuń zestawienie</button></div></div>`;
+    <div class="fc-meta-act">${imp.invoicePath ? `<a class="btn small" data-file="${esc(imp.invoicePath)}" href="#" target="_blank" rel="noopener">Faktura${imp.invoiceNo ? ' ' + esc(imp.invoiceNo) : ''}</a>` : ''}<button class="small" data-fc-inv="${esc(imp.id)}">${imp.invoicePath ? 'Zmień fakturę' : 'Dodaj fakturę'}</button><button class="small ghost" data-fc-del="${esc(imp.id)}">Usuń zestawienie</button></div></div>`;
   const perV = [...vids].map(vid => { const r = rows.filter(x => x.vehicleId===vid), a = appRows.filter(c => c.vehicleId===vid);
     return {vid, cl: sum(r, x => x.liters), ca: sum(r.filter(x => !x.currency || x.currency==='PLN'), x => x.amount), al: sum(a, c => c.liters), aa: sum(a, c => c.amount),
       kc: fcCons(r.concat(fcAnchorCard(vid, imp)).map(x => ({id: x.id, odo: Number(x.odometer), l: x.liters, d: x.txDate + ' ' + (x.txTime || '')}))),
@@ -199,8 +199,9 @@ function viewFuelCards(){
 document.addEventListener('change', e => { if (e.target.id==='fc-imp'){ fcImportId = e.target.value; render(); } });
 document.addEventListener('click', e => {
   if (e.target.closest('[data-edit],a')) return;
-  const t = e.target.closest('[data-fcf],[data-fcv],[data-fc-del],[data-action="fc-import"]');
+  const t = e.target.closest('[data-fcf],[data-fcv],[data-fc-del],[data-fc-inv],[data-action="fc-import"]');
   if (!t || t.closest('#dialog')) return;
+  if (t.dataset.fcInv) return openFcInvoice(t.dataset.fcInv);
   if (t.dataset.fcv){ fcOpen.has(t.dataset.fcv) ? fcOpen.delete(t.dataset.fcv) : fcOpen.add(t.dataset.fcv); render(); return; }
   if (t.dataset.fcf){ fcFilter = t.dataset.fcf; if (fcFilter!=='all' && fcFilter!=='ok') S.vehicles.forEach(v => fcOpen.add(v.id)); render(); return; }
   if (t.dataset.action==='fc-import') return openFcImport();
@@ -223,8 +224,8 @@ function openFcImport(){
   $('#dlg-title').textContent = 'Import z karty paliwowej';
   $('#dlg-body').innerHTML = `<div class="field"><label for="fc-prov">Dostawca karty</label><input id="fc-prov" list="fc-provs" value="${esc(fcSettings().provider || '')}" placeholder="np. Orlen, UTA"><datalist id="fc-provs"><option>Orlen</option><option>UTA</option><option>DKV</option><option>Shell</option><option>BP</option></datalist></div>
     <div class="field"><label for="fc-invno">Nr faktury</label><input id="fc-invno" placeholder="np. FV/123/11/2026"></div>
-    <div class="field full"><label for="fc-inv">Faktura (PDF albo zdjęcie)</label><input id="fc-inv" type="file" accept="application/pdf,image/*"></div>
-    <div class="field full"><label for="fc-file">Zestawienie transakcji (CSV albo Excel) *</label><input id="fc-file" type="file" accept=".csv,.txt,.xlsx,.xls"></div>
+    <div class="field full"><label for="fc-inv">Faktura (PDF albo zdjęcie)</label><input id="fc-inv" type="file" accept="application/pdf,image/*"><span class="muted small">Przy kilku plikach naraz fakturę dołączysz potem przy każdym rozliczeniu.</span></div>
+    <div class="field full"><label for="fc-file">Zestawienia transakcji (CSV albo Excel) – można zaznaczyć kilka plików *</label><input id="fc-file" type="file" multiple accept=".csv,.txt,.xlsx,.xls"></div>
     <div class="field full" id="fc-prev"></div><div class="warnline" id="dlg-warn" hidden></div>`;
   $('#dlg-save').textContent = 'Importuj';
   $('#dlg-del').hidden = true;
@@ -252,29 +253,39 @@ function fcGuess(heads){
   });
   return map;
 }
+async function fcParseOne(f){
+  const aoa = (await fcReadFile(f)).filter(r => r.some(c => String(c).trim()!==''));
+  // wiersz nagłówków: pierwszy z co najmniej 2 rozpoznanymi kolumnami (zestawienia mają czasem tytuł nad tabelą)
+  let hi = aoa.slice(0, 20).findIndex(r => Object.keys(fcGuess(r)).length >= 2); if (hi < 0) hi = 0;
+  const heads = (aoa[hi] || []).map((h, i) => String(h).trim() || 'Kolumna ' + (i + 1));
+  return {name: f.name, heads, sig: heads.map(fcHead).join('|'), data: aoa.slice(hi + 1)};
+}
 document.addEventListener('change', async e => {
   if (e.target.id==='fc-file'){
-    const f = e.target.files && e.target.files[0]; if (!f) return;
-    const box = $('#fc-prev'); box.innerHTML = '<span class="muted">Wczytywanie pliku…</span>';
-    try {
-      const aoa = (await fcReadFile(f)).filter(r => r.some(c => String(c).trim()!==''));
-      // wiersz nagłówków: pierwszy z co najmniej 2 rozpoznanymi kolumnami (zestawienia mają czasem tytuł nad tabelą)
-      let hi = aoa.slice(0, 20).findIndex(r => Object.keys(fcGuess(r)).length >= 2); if (hi < 0) hi = 0;
-      const heads = aoa[hi].map((h, i) => String(h).trim() || 'Kolumna ' + (i + 1));
-      const sig = heads.map(fcHead).join('|');
-      const saved = (fcSettings().maps || {})[sig];
-      fcParsed = {name: f.name, heads, sig, data: aoa.slice(hi + 1), map: saved ? {...saved} : fcGuess(heads)};
-      fcRenderMap();
-    } catch(err){ box.innerHTML = '<span class="warnline">Nie udało się odczytać pliku. Zapisz go jako CSV albo .xlsx i spróbuj ponownie.</span>'; fcParsed = null; }
+    const fs = [...(e.target.files || [])]; if (!fs.length) return;
+    const box = $('#fc-prev'); box.innerHTML = `<span class="muted">Wczytywanie ${fs.length > 1 ? fs.length + ' plików' : 'pliku'}…</span>`;
+    const files = [], failed = [];
+    for (const f of fs){ try { files.push(await fcParseOne(f)); } catch(_){ failed.push(f.name); } }
+    if (!files.length){ box.innerHTML = '<span class="warnline">Nie udało się odczytać pliku. Zapisz go jako CSV albo .xlsx i spróbuj ponownie.</span>'; fcParsed = null; return; }
+    // układy kolumn: każdy dopasowujemy raz (zapamiętane z poprzednich importów albo zgadnięte)
+    const maps = {};
+    files.forEach(f => { if (!maps[f.sig]){ const saved = (fcSettings().maps || {})[f.sig]; maps[f.sig] = {heads: f.heads, map: saved ? {...saved} : fcGuess(f.heads)}; } });
+    fcParsed = {files, failed, maps, sigs: Object.keys(maps)};
+    fcRenderMap();
   }
-  if (e.target.matches && e.target.matches('[data-fcmap]') && fcParsed){ const v = e.target.value; if (v==='') delete fcParsed.map[e.target.dataset.fcmap]; else fcParsed.map[e.target.dataset.fcmap] = Number(v); fcRenderMap(); }
+  if (e.target.matches && e.target.matches('[data-fcmap]') && fcParsed){
+    const m = fcParsed.maps[e.target.dataset.sig].map, v = e.target.value;
+    if (v==='') delete m[e.target.dataset.fcmap]; else m[e.target.dataset.fcmap] = Number(v);
+    fcRenderMap(true);
+  }
   if (e.target.matches && e.target.matches('[data-fcprod]') && fcParsed){ fcParsed.prodOff = fcParsed.prodOff || new Set(); e.target.checked ? fcParsed.prodOff.delete(e.target.value) : fcParsed.prodOff.add(e.target.value); fcRenderMap(true); }
 });
-function fcRows(){
-  const P_ = fcParsed, m = P_.map, vByPlate = new Map(S.vehicles.map(v => [normPlate(v.plate), v]));
+const fcMissing = m => FC_FIELDS.filter(([k, , req]) => req && m[k]==null).map(x => x[1]);
+function fcRowsOf(file, m){
+  const vByPlate = new Map(S.vehicles.map(v => [normPlate(v.plate), v]));
   const g = (r, k) => m[k]!=null ? r[m[k]] : '';
   const all = [], foreign = new Set();
-  P_.data.forEach(r => {
+  file.data.forEach(r => {
     const pRaw = String(g(r, 'plate') || ''); if (!pRaw.trim()) return;
     let v = vByPlate.get(normPlate(pRaw));
     if (!v){ const np = normPlate(pRaw); v = S.vehicles.find(x => np.includes(normPlate(x.plate))); }
@@ -290,25 +301,32 @@ function fcRows(){
 }
 function fcRenderMap(keepScroll){
   const P_ = fcParsed, box = $('#fc-prev');
-  const opts = sel => `<option value="">— brak —</option>` + P_.heads.map((h, i) => `<option value="${i}" ${sel===i ? 'selected' : ''}>${esc(h)}</option>`).join('');
-  const maps = `<div class="fc-map">${FC_FIELDS.map(([k, l, req]) => `<label><span class="label">${l}${req ? ' *' : ''}</span><select data-fcmap="${k}">${opts(P_.map[k])}</select></label>`).join('')}</div>`;
-  const miss = FC_FIELDS.filter(([k, , req]) => req && P_.map[k]==null).map(x => x[1]);
+  const mapUi = sig => { const L = P_.maps[sig];
+    const opts = sel => `<option value="">— brak —</option>` + L.heads.map((h, i) => `<option value="${i}" ${sel===i ? 'selected' : ''}>${esc(h)}</option>`).join('');
+    const used = P_.files.filter(f => f.sig===sig).map(f => f.name);
+    return `${P_.sigs.length > 1 ? `<span class="label">Układ kolumn: ${esc(used.join(', '))}</span>` : ''}<div class="fc-map">${FC_FIELDS.map(([k, l, req]) => `<label><span class="label">${l}${req ? ' *' : ''}</span><select data-fcmap="${k}" data-sig="${esc(sig)}">${opts(L.map[k])}</select></label>`).join('')}</div>`; };
+  const maps = P_.sigs.map(mapUi).join('');
+  const miss = P_.sigs.flatMap(sig => fcMissing(P_.maps[sig].map));
   let sum = '';
   if (!miss.length){
-    const {all, foreign} = fcRows();
-    const prods = P_.map.product!=null ? [...new Set(all.map(r => r.product).filter(Boolean))] : [];
+    const per = P_.files.map(f => ({f, ...fcRowsOf(f, P_.maps[f.sig].map)}));
+    const allRows = per.flatMap(x => x.all);
+    const prods = [...new Set(allRows.map(r => r.product).filter(Boolean))];
     if (!P_.prodOff){ P_.prodOff = new Set(prods.filter(p => !FUEL_LIKE.test(p))); }
-    const ours = all.filter(r => r.vehicle);
-    ours.forEach(r => { r.kind = (r.product && P_.prodOff.has(r.product)) || !(Number(r.liters) > 0) ? 'other' : 'fuel'; });
+    per.forEach(x => { x.ours = x.all.filter(r => r.vehicle); x.ours.forEach(r => { r.kind = (r.product && P_.prodOff.has(r.product)) || !(Number(r.liters) > 0) ? 'other' : 'fuel'; }); });
+    P_.per = per;
+    const ours = per.flatMap(x => x.ours), foreign = new Set(per.flatMap(x => [...x.foreign]));
     const nF = ours.filter(r => r.kind==='fuel').length, nO = ours.length - nF;
     const ds = ours.map(r => r.txDate).sort();
-    P_.ours = ours;
-    sum = `<div class="imp-sum"><span class="pill ok">${nF} tankowań naszych aut</span>${nO ? `<span class="pill info">${nO} przejazdów, parkingów i innych</span>` : ''}<span class="pill off">${foreign.size} innych tablic – pominięte</span>${ds.length ? `<span class="pill info">${fdate(ds[0])} – ${fdate(ds[ds.length - 1])}</span>` : ''}</div>
+    const files = P_.files.length > 1 ? `<div class="tablewrap imp-table"><table><thead><tr><th>Plik</th><th>Okres</th><th class="r">Tankowania</th><th class="r">Inne</th></tr></thead><tbody>${per.map(x => { const d = x.ours.map(r => r.txDate).sort();
+        return `<tr><td>${esc(x.f.name)}</td><td class="num">${d.length ? fdate(d[0]) + ' – ' + fdate(d[d.length - 1]) : '—'}</td><td class="r num">${x.ours.filter(r => r.kind==='fuel').length}</td><td class="r num">${x.ours.filter(r => r.kind!=='fuel').length}</td></tr>`; }).join('')}</tbody></table></div>` : '';
+    sum = `<div class="imp-sum">${P_.files.length > 1 ? `<span class="pill info">${P_.files.length} ${isPlural(P_.files.length,'plik','pliki','plików')} = ${P_.files.length} ${isPlural(P_.files.length,'rozliczenie','rozliczenia','rozliczeń')}</span>` : ''}<span class="pill ok">${nF} tankowań naszych aut</span>${nO ? `<span class="pill info">${nO} przejazdów, parkingów i innych</span>` : ''}<span class="pill off">${foreign.size} innych tablic – pominięte</span>${ds.length ? `<span class="pill info">${fdate(ds[0])} – ${fdate(ds[ds.length - 1])}</span>` : ''}</div>
+      ${P_.failed.length ? `<span class="warnline">Nie udało się odczytać: ${esc(P_.failed.join(', '))}</span>` : ''}
       ${prods.length > 1 ? `<div class="fc-prods"><span class="label">Zaznaczone = paliwo (porównanie z kierowcami). Pozostałe trafią do „Przejazdy i parkingi” i do kosztów auta</span>${prods.map(p => `<label class="check"><input type="checkbox" data-fcprod value="${esc(p)}" ${P_.prodOff.has(p) ? '' : 'checked'}> ${esc(p)}</label>`).join('')}</div>` : ''}
-      <div class="tablewrap imp-table"><table><thead><tr><th>Data</th><th>Auto</th><th class="r">Litry</th><th class="r">Kwota</th><th class="r">Licznik</th></tr></thead><tbody>
+      ${files || `<div class="tablewrap imp-table"><table><thead><tr><th>Data</th><th>Auto</th><th class="r">Litry</th><th class="r">Kwota</th><th class="r">Licznik</th></tr></thead><tbody>
       ${ours.slice(0, 8).map(r => `<tr><td class="num">${fdate(r.txDate)} ${esc(r.txTime || '')}</td><td>${plate(r.vehicle.plate)}</td><td class="r num">${fl(r.liters)}</td><td class="r num">${fm(r.amount, r.currency)}</td><td class="r num">${r.kind==='fuel' ? (r.odometer ? km(r.odometer) : '—') : `<span class="pill info">${esc(r.product || 'inne')}</span>`}</td></tr>`).join('')}
-      </tbody></table></div>${ours.length > 8 ? `<span class="sub muted">…i ${ours.length - 8} kolejnych</span>` : ''}`;
-  } else { P_.ours = []; sum = `<span class="warnline">Wskaż kolumny: ${esc(miss.join(', '))}.</span>`; }
+      </tbody></table></div>${ours.length > 8 ? `<span class="sub muted">…i ${ours.length - 8} kolejnych</span>` : ''}`}`;
+  } else { P_.per = null; sum = `<span class="warnline">Wskaż kolumny: ${esc([...new Set(miss)].join(', '))}.</span>`; }
   const y = $('#dlg-body').scrollTop;
   box.innerHTML = `<span class="label">Kolumny w pliku – sprawdź dopasowanie (zapamiętamy je dla tego układu pliku)</span>${maps}${sum}`;
   if (keepScroll) $('#dlg-body').scrollTop = y;
@@ -316,35 +334,59 @@ function fcRenderMap(keepScroll){
 async function fcSave(){
   const warn = msg => { const w = $('#dlg-warn'); w.textContent = msg; w.hidden = false; };
   if (!fcParsed) return warn('Wybierz plik z zestawieniem transakcji.');
-  if (FC_FIELDS.some(([k, , req]) => req && fcParsed.map[k]==null)) return warn('Wskaż wszystkie wymagane kolumny.');
-  const ours = fcParsed.ours || [];
-  if (!ours.length) return warn('W pliku nie ma tankowań aut z systemu.');
-  const exist = new Set(S.fuelCardRows.map(r => [r.vehicleId, r.txDate, r.txTime || '', Number(r.liters), Number(r.amount), r.product || ''].join('|')));
-  const fresh = ours.filter(r => !exist.has([r.vehicle.id, r.txDate, r.txTime || '', Number(r.liters), Number(r.amount), r.product || ''].join('|')));
-  if (!fresh.length) return warn('Wszystkie te tankowania są już zaimportowane.');
+  if (!fcParsed.per) return warn('Wskaż wszystkie wymagane kolumny.');
+  const key = (vid, r) => [vid, r.txDate, r.txTime || '', Number(r.liters), Number(r.amount), r.product || ''].join('|');
+  const exist = new Set(S.fuelCardRows.map(r => key(r.vehicleId, r)));
+  const jobs = fcParsed.per.map(x => { const fresh = x.ours.filter(r => { const k = key(r.vehicle.id, r); if (exist.has(k)) return false; exist.add(k); return true; }); return {...x, fresh}; }).filter(x => x.fresh.length);
+  const allOurs = fcParsed.per.reduce((s, x) => s + x.ours.length, 0);
+  if (!allOurs) return warn('W plikach nie ma pozycji aut z systemu.');
+  if (!jobs.length) return warn('Wszystkie te pozycje są już zaimportowane.');
   const btn = $('#dlg-save'); btn.disabled = true;
   try {
     const prov = $('#fc-prov').value.trim(), invNo = $('#fc-invno').value.trim();
     const inv = ($('#fc-inv').files || [])[0];
     let invoicePath = null;
-    if (inv){ if (!assetsNS) throw {code:'upload', message:'Wgrywanie plików niedostępne'}; invoicePath = (await assetsNS.upload(inv, {type: inv.type})).id; }
-    const ds = fresh.map(r => r.txDate).sort();
-    const id = crypto.randomUUID();
-    let {error} = await sb.from('fuel_card_imports').insert({id, provider: prov || null, invoice_no: invNo || null, invoice_path: invoicePath, file_name: fcParsed.name,
-      period_from: ds[0], period_to: ds[ds.length - 1], rows_total: fcParsed.data.length, rows_ours: fresh.length});
-    if (error) throw dbErr(error);
-    const rows = fresh.map(r => ({import_id: id, vehicle_id: r.vehicle.id, plate: r.plate, tx_date: r.txDate, tx_time: r.txTime, liters: r.liters, amount: r.amount,
-      currency: r.currency, odometer: r.odometer, station: r.station, card_no: r.card, product: r.product, kind: r.kind}));
-    for (let i = 0; i < rows.length; i += 500){ ({error} = await sb.from('fuel_card_rows').insert(rows.slice(i, i + 500))); if (error) throw dbErr(error); }
-    const st = fcSettings();
-    await db.collection('settings').doc('fuelcard').set({provider: prov || st.provider || '', maps: {...(st.maps || {}), [fcParsed.sig]: fcParsed.map}});
-    await refresh('fuelCardImports'); await refresh('fuelCardRows'); if (fresh.some(r => r.kind==='other')) await refresh('costs');
-    fcImportId = id; fcFilter = 'all';
+    if (inv && jobs.length===1){ if (!assetsNS) throw {code:'upload', message:'Wgrywanie plików niedostępne'}; invoicePath = (await assetsNS.upload(inv, {type: inv.type})).id; }
+    let lastId = null, nF = 0, nO = 0, fresh = 0;
+    for (const j of jobs){
+      const ds = j.fresh.map(r => r.txDate).sort();
+      const id = crypto.randomUUID(); lastId = id;
+      let {error} = await sb.from('fuel_card_imports').insert({id, provider: prov || null, invoice_no: jobs.length===1 ? invNo || null : null, invoice_path: invoicePath, file_name: j.f.name,
+        period_from: ds[0], period_to: ds[ds.length - 1], rows_total: j.f.data.length, rows_ours: j.fresh.length});
+      if (error) throw dbErr(error);
+      const rows = j.fresh.map(r => ({import_id: id, vehicle_id: r.vehicle.id, plate: r.plate, tx_date: r.txDate, tx_time: r.txTime, liters: r.liters, amount: r.amount,
+        currency: r.currency, odometer: r.odometer, station: r.station, card_no: r.card, product: r.product, kind: r.kind}));
+      for (let i = 0; i < rows.length; i += 500){ ({error} = await sb.from('fuel_card_rows').insert(rows.slice(i, i + 500))); if (error) throw dbErr(error); }
+      nF += j.fresh.filter(r => r.kind==='fuel').length; nO += j.fresh.filter(r => r.kind!=='fuel').length; fresh += j.fresh.length;
+    }
+    const st = fcSettings(), maps = {...(st.maps || {})};
+    fcParsed.sigs.forEach(sig => { maps[sig] = fcParsed.maps[sig].map; });
+    await db.collection('settings').doc('fuelcard').set({provider: prov || st.provider || '', maps});
+    await refresh('fuelCardImports'); await refresh('fuelCardRows'); if (nO) await refresh('costs');
+    fcImportId = lastId; fcFilter = 'all';
     closeForm();
-    const nF = fresh.filter(r => r.kind==='fuel').length, nO = fresh.length - nF;
-    toast(`Zaimportowano ${nF} ${isPlural(nF,'tankowanie','tankowania','tankowań')}${nO ? ` i ${nO} ${isPlural(nO,'przejazd / parking','przejazdy / parkingi','przejazdów / parkingów')}` : ''}${ours.length > fresh.length ? ` · ${ours.length - fresh.length} już było` : ''}`);
+    toast(`Zaimportowano ${jobs.length > 1 ? jobs.length + ' ' + isPlural(jobs.length,'rozliczenie','rozliczenia','rozliczeń') + ': ' : ''}${nF} ${isPlural(nF,'tankowanie','tankowania','tankowań')}${nO ? ` i ${nO} ${isPlural(nO,'przejazd / parking','przejazdy / parkingi','przejazdów / parkingów')}` : ''}${allOurs > fresh ? ` · ${allOurs - fresh} już było` : ''}${inv && jobs.length > 1 ? ' · fakturę dołącz przy rozliczeniu' : ''}`);
   } catch(err){ handleWriteErr(err); }
   finally { btn.disabled = false; }
+}
+/* Dołączenie faktury do istniejącego rozliczenia */
+function openFcInvoice(id){
+  const imp = byId('fuelCardImports', id); if (!imp) return;
+  editing = {col:'fc-invoice', id, base:{}, special: async () => {
+    const f = ($('#fci-file').files || [])[0], no = $('#fci-no').value.trim();
+    const btn = $('#dlg-save'); btn.disabled = true;
+    try {
+      const upd = {invoice_no: no || null};
+      if (f){ if (!assetsNS) throw {code:'upload', message:'Wgrywanie plików niedostępne'}; upd.invoice_path = (await assetsNS.upload(f, {type: f.type})).id; }
+      const {error} = await sb.from('fuel_card_imports').update(upd).eq('id', id); if (error) throw dbErr(error);
+      await refresh('fuelCardImports'); closeForm(); toast('Zapisano fakturę');
+    } catch(err){ handleWriteErr(err); } finally { btn.disabled = false; }
+  }};
+  $('#dlg-title').textContent = 'Faktura do rozliczenia';
+  $('#dlg-body').innerHTML = `<div class="field full"><span class="muted">${esc([imp.provider, imp.periodFrom ? fdate(imp.periodFrom) + ' – ' + fdate(imp.periodTo) : '', imp.fileName].filter(Boolean).join(' · '))}</span></div>
+    <div class="field"><label for="fci-no">Nr faktury</label><input id="fci-no" value="${esc(imp.invoiceNo || '')}"></div>
+    <div class="field full"><label for="fci-file">Faktura (PDF albo zdjęcie)</label><input id="fci-file" type="file" accept="application/pdf,image/*"></div><div class="warnline" id="dlg-warn" hidden></div>`;
+  $('#dlg-save').textContent = 'Zapisz'; $('#dlg-del').hidden = true; $('#scrim').hidden = false;
 }
 
 /* ---------- przejazdy i parkingi z karty (osobna zakładka) ---------- */
@@ -380,3 +422,33 @@ document.addEventListener('click', e => {
   const t = e.target.closest('[data-tlv]'); if (!t || t.closest('#dialog')) return;
   tlOpen.has(t.dataset.tlv) ? tlOpen.delete(t.dataset.tlv) : tlOpen.add(t.dataset.tlv); render();
 });
+
+/* ---------- spalanie: średnia ogólna każdego busa ze wszystkich rozliczeń ---------- */
+function fleetCardConsumption(vid){
+  const card = fcCons(S.fuelCardRows.filter(r => r.vehicleId===vid && r.kind!=='other').map(r => ({id: r.id, odo: Number(r.odometer), l: r.liters, d: r.txDate + ' ' + (r.txTime || '')})));
+  if (card && card.rate!=null) return {...card, src:'karta'};
+  const app = fcCons(appFuel().filter(c => c.vehicleId===vid).map(c => ({id: c.id, odo: Number(c.odometer), l: c.liters, d: c.date + ' ' + (c.createdAt || '')})));
+  if (app && app.rate!=null) return {...app, src:'kierowcy'};
+  return {src: null, n: (card ? card.n : 0) + (app ? app.n : 0), bad: new Set([...(card ? card.bad : []), ...(app ? app.bad : [])])};
+}
+function viewConsumption(){
+  if (!P().manage) return '';
+  const nf = n => new Intl.NumberFormat('pl-PL').format(Math.round(n));
+  const head = `<div class="bar"><h2>Spalanie</h2><div class="tools"><button class="primary" data-action="fc-import">${ic('plus')}Importuj rozliczenia</button></div></div>`;
+  const vs = S.vehicles.filter(v => v.status!=='wycofany');
+  const res = vs.map(v => ({v, c: fleetCardConsumption(v.id)})).sort((a, b) => (b.c.rate ?? -1) - (a.c.rate ?? -1));
+  const okR = res.filter(x => x.c.rate!=null && !x.c.unsure);
+  const fleetKm = okR.reduce((s, x) => s + x.c.km, 0), fleetL = okR.reduce((s, x) => s + x.c.l, 0);
+  const imps = S.fuelCardImports.length, ds = S.fuelCardRows.map(r => r.txDate).sort();
+  const meta = `<div class="panel fc-meta"><div><span class="label">Średnia floty</span><b>${fleetKm ? (fleetL / fleetKm * 100).toFixed(1).replace('.', ',') + ' l/100 km' : '—'}</b></div>
+    <div><span class="label">Przejechane (policzone)</span><b>${nf(fleetKm)} km</b></div><div><span class="label">Rozliczeń z kart</span><b>${imps}</b></div>
+    <div><span class="label">Dane z okresu</span><b>${ds.length ? fdate(ds[0]) + ' – ' + fdate(ds[ds.length - 1]) : '—'}</b></div></div>`;
+  const rows = res.map(({v, c}) => `<tr><td>${plate(v.plate)}<span class="sub">${esc(v.make + ' ' + v.model)}</span></td>
+      <td class="r num">${c.rate==null ? `<span class="muted">${c.n ? 'za mało liczników' : 'brak danych'}</span>` : `<b class="fc-big">${c.rate.toFixed(1).replace('.', ',')}</b> l/100`}</td>
+      <td>${c.rate==null ? '' : c.unsure ? '<span class="pill off">niepewne – sprawdź liczniki</span>' : levelPill(levelFor(v.id, c.rate)) || '<span class="muted small">brak progów</span>'}</td>
+      <td class="r num">${c.km ? nf(c.km) + ' km' : '—'}<span class="sub">${c.l ? fl(c.l) : ''}</span></td>
+      <td class="num">${c.from ? fdate(c.from) + ' – ' + fdate(c.to) : '—'}<span class="sub">${c.src ? (c.src==='karta' ? 'z kart paliwowych' : 'z wpisów kierowców') : ''}${c.n ? ` · ${c.n} ${isPlural(c.n,'tankowanie','tankowania','tankowań')}` : ''}</span></td>
+      <td>${c.bad && c.bad.size ? `<span class="pill off">${c.bad.size} ${isPlural(c.bad.size,'licznik pominięty','liczniki pominięte','liczników pominiętych')}</span>` : ''}</td></tr>`).join('');
+  return head + meta + `<div class="panel tablewrap"><table><thead><tr><th>Auto</th><th class="r">Średnie spalanie</th><th>Ocena</th><th class="r">Przejechane / litry</th><th>Dane z okresu</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
+    <p class="muted small" style="margin:0">Średnia ze wszystkich wgranych rozliczeń kart paliwowych (każde kolejne rozliczenie ją uzupełnia); gdy auto nie ma danych z karty – z tankowań wpisanych przez kierowców. Liczone odcinkami między tankowaniami, błędne liczniki pomijane. Średnia floty bez wyników „niepewne”. Kolor wg progów auta z danych pojazdu.</p>`;
+}

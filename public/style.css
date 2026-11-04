@@ -653,3 +653,4 @@ details.few summary{padding:12px 16px;cursor:pointer;color:var(--muted);font-wei
 .fc-cons{display:block;white-space:nowrap;font-size:13.5px;line-height:1.7}
 .pb-tools{align-items:center;gap:8px}
 .pb-quick{display:flex;gap:8px;flex-wrap:wrap;margin:-6px 0 12px}
+.fc-big{font-size:17px}
