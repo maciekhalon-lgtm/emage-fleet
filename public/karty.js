@@ -80,6 +80,7 @@ function fcDriver(r, c){
 
 /* ---------- widok ---------- */
 let fcImportId = '', fcFilter = 'all';
+const fcOpen = new Set();
 function viewFuelCards(){
   if (!P().manage) return '';
   const imps = S.fuelCardImports.slice().sort((a, b) => (b.periodTo || '').localeCompare(a.periodTo || '') || (b.createdAt || '').localeCompare(a.createdAt || ''));
@@ -105,9 +106,6 @@ function viewFuelCards(){
   const perV = [...vids].map(vid => { const r = rows.filter(x => x.vehicleId===vid), a = appRows.filter(c => c.vehicleId===vid);
     return {vid, cl: sum(r, x => x.liters), ca: sum(r.filter(x => !x.currency || x.currency==='PLN'), x => x.amount), al: sum(a, c => c.liters), aa: sum(a, c => c.amount)}; })
     .sort((x, y) => Math.abs(y.ca - y.aa) - Math.abs(x.ca - x.aa));
-  const vTable = `<div class="panel tablewrap"><table><thead><tr><th>Auto</th><th class="r">Karta</th><th class="r">Kierowcy</th><th class="r">Różnica</th></tr></thead><tbody>${perV.map(x => `<tr><td>${vPlate(x.vid)}</td>
-    <td class="r num">${fl(x.cl)}<span class="sub">${fm(x.ca)}</span></td><td class="r num">${fl(x.al)}<span class="sub">${fm(x.aa)}</span></td>
-    <td class="r num ${Math.abs(x.ca - x.aa) > 1 ? 'neg' : ''}">${fl(x.cl - x.al)}<span class="sub">${fm(x.ca - x.aa)}</span></td></tr>`).join('')}</tbody></table></div>`;
   const perD = {};
   pairs.forEach(p => { const n = fcDriver(p.row, p.cost) || 'nieustalony'; const x = perD[n] = perD[n] || {cl:0, ca:0, al:0, aa:0, n:0};
     x.n++; x.cl += Number(p.row.liters || 0); if (!p.row.currency || p.row.currency==='PLN') x.ca += Number(p.row.amount || 0);
@@ -116,22 +114,35 @@ function viewFuelCards(){
     <td class="r num">${fl(x.cl)}<span class="sub">${fm(x.ca)}</span></td><td class="r num">${fl(x.al)}<span class="sub">${fm(x.aa)}</span></td><td class="r num ${Math.abs(x.ca - x.aa) > 1 ? 'neg' : ''}">${fl(x.cl - x.al)}<span class="sub">${fm(x.ca - x.aa)}</span></td></tr>`).join('')}</tbody></table></div>`;
   const list = fcFilter==='ok' ? ok : fcFilter==='diff' ? dif : fcFilter==='miss' ? miss : fcFilter==='nocard' ? [] : pairs;
   const pairRow = p => { const r = p.row, c = p.cost;
-    return `<tr><td class="num"><b>${fdate(r.txDate)}</b>${r.txTime ? `<span class="sub">${esc(r.txTime)}</span>` : ''}</td><td>${vPlate(r.vehicleId)}<span class="sub">${esc(fcDriver(r, c))}</span></td>
+    return `<tr><td class="num"><b>${fdate(r.txDate)}</b>${r.txTime ? `<span class="sub">${esc(r.txTime)}</span>` : ''}</td><td>${esc(fcDriver(r, c)) || '<span class="muted">—</span>'}</td>
       <td class="num">${fl(r.liters)} · <b>${fm(r.amount, r.currency)}</b><span class="sub">${r.odometer ? km(r.odometer) : 'bez licznika'}${r.station ? ' · ' + esc(r.station) : ''}${r.product ? ' · ' + esc(r.product) : ''}</span></td>
       <td class="num ${c ? 'click' : ''}" ${c ? `data-edit="costs" data-id="${esc(c.id)}"` : ''}>${c ? `${fl(c.liters)} · <b>${fm(c.currency && c.currency!=='PLN' ? c.amountOrig : c.amount, c.currency)}</b><span class="sub">${c.odometer ? km(c.odometer) : 'bez licznika'} · ${fdate(c.date)}</span>${photoStrip(c.photos)}` : '<span class="muted">—</span>'}</td>
       <td>${!c ? '<span class="pill bad">brak wpisu</span>' : p.issues.length ? p.issues.map(x => `<span class="pill warn">${esc(x)}</span>`).join(' ') : '<span class="pill ok">zgodne</span>'}</td></tr>`; };
-  const ncRow = c => `<tr><td class="num"><b>${fdate(c.date)}</b></td><td>${vPlate(c.vehicleId)}<span class="sub">${esc(dName(fillDriver(c) || c.driverId) || '')}</span></td><td class="muted">nie ma na karcie</td>
+  const ncRow = c => `<tr><td class="num"><b>${fdate(c.date)}</b></td><td>${esc(dName(fillDriver(c) || c.driverId) || '') || '<span class="muted">—</span>'}</td><td class="muted">nie ma na karcie</td>
       <td class="num click" data-edit="costs" data-id="${esc(c.id)}">${fl(c.liters)} · <b>${fm(c.amount)}</b><span class="sub">${c.odometer ? km(c.odometer) : 'bez licznika'}</span>${photoStrip(c.photos)}</td><td><span class="pill info">bez karty</span></td></tr>`;
-  const body = (fcFilter==='nocard' ? noCard.map(ncRow) : list.sort((a, b) => b.row.txDate.localeCompare(a.row.txDate)).map(pairRow).concat(fcFilter==='all' ? noCard.map(ncRow) : [])).join('');
-  const table = `<div class="panel tablewrap fc-table"><table><thead><tr><th>Data</th><th>Auto / kierowca</th><th>Karta</th><th>Wpisał kierowca</th><th>Wynik</th></tr></thead><tbody>${body || '<tr><td colspan="5" class="muted">Brak pozycji.</td></tr>'}</tbody></table></div>`;
-  return head + meta + tiles + `<div class="grid2 fc-grid"><div class="section">${table}</div><div class="grid2">${vTable}${dTable}</div><div class="section">
-    <p class="muted small" style="margin:0">Parujemy tankowanie z karty z wpisem kierowcy tego samego auta (ten sam dzień ±1, litry ±5%). Zgodne: litry ±0,5 l, kwota ±1 zł, licznik ±30 km. Kliknij wpis kierowcy, aby go poprawić.</p></div></div>`;
+  // filtr kafelków: które pozycje pokazujemy w rozwinięciu auta
+  const shown = (fcFilter==='nocard' ? [] : list).map(p => ({key: p.row.txDate, vid: p.row.vehicleId, html: pairRow(p)}))
+    .concat(fcFilter==='all' || fcFilter==='nocard' ? noCard.map(c => ({key: c.date, vid: c.vehicleId, html: ncRow(c)})) : []);
+  const vRows = perV.filter(x => fcFilter==='all' || shown.some(y => y.vid===x.vid)).map(x => {
+    const vp = pairs.filter(p => p.row.vehicleId===x.vid), nd = vp.filter(p => p.cost && p.issues.length).length, nm = vp.filter(p => !p.cost).length, nc = noCard.filter(c => c.vehicleId===x.vid).length;
+    const open = fcOpen.has(x.vid);
+    const det = open ? `<tr class="fc-det"><td colspan="5"><table><thead><tr><th>Data</th><th>Kierowca</th><th>Karta</th><th>Wpisał kierowca</th><th>Wynik</th></tr></thead><tbody>${shown.filter(y => y.vid===x.vid).sort((a, b) => b.key.localeCompare(a.key)).map(y => y.html).join('') || '<tr><td colspan="5" class="muted">Brak pozycji dla tego filtra.</td></tr>'}</tbody></table></td></tr>` : '';
+    return `<tr class="click fc-vrow ${open ? 'open' : ''}" data-fcv="${esc(x.vid)}" aria-expanded="${open}"><td>${ic('chev', 'fc-chev')} ${vPlate(x.vid)}<span class="sub">${vp.length} ${isPlural(vp.length,'tankowanie','tankowania','tankowań')}</span></td>
+      <td class="r num">${fl(x.cl)}<span class="sub">${fm(x.ca)}</span></td><td class="r num">${fl(x.al)}<span class="sub">${fm(x.aa)}</span></td>
+      <td class="r num ${Math.abs(x.ca - x.aa) > 1 ? 'neg' : ''}">${fl(x.cl - x.al)}<span class="sub">${fm(x.ca - x.aa)}</span></td>
+      <td>${nd ? `<span class="pill warn">${nd} ${isPlural(nd,'różnica','różnice','różnic')}</span> ` : ''}${nm ? `<span class="pill bad">${nm} bez wpisu</span> ` : ''}${nc ? `<span class="pill info">${nc} bez karty</span>` : ''}${!nd && !nm && !nc ? '<span class="pill ok">zgodne</span>' : ''}</td></tr>${det}`;
+  }).join('');
+  const table = `<div class="panel tablewrap fc-table"><table><thead><tr><th>Auto</th><th class="r">Karta</th><th class="r">Wpisali kierowcy</th><th class="r">Różnica</th><th>Wynik</th></tr></thead><tbody>${vRows || '<tr><td colspan="5" class="muted">Brak aut dla tego filtra.</td></tr>'}</tbody></table></div>`;
+  return head + meta + tiles + `<div class="fc-grid">${table}${dTable}
+    <p class="muted small" style="margin:0">Parujemy tankowanie z karty z wpisem kierowcy tego samego auta (ten sam dzień ±1, litry ±5%). Zgodne: litry ±0,5 l, kwota ±1 zł, licznik ±30 km. Kliknij wpis kierowcy, aby go poprawić. Kliknij auto, aby zobaczyć jego tankowania.</p></div>`;
 }
 document.addEventListener('change', e => { if (e.target.id==='fc-imp'){ fcImportId = e.target.value; render(); } });
 document.addEventListener('click', e => {
-  const t = e.target.closest('[data-fcf],[data-fc-del],[data-action="fc-import"]');
+  if (e.target.closest('[data-edit],a')) return;
+  const t = e.target.closest('[data-fcf],[data-fcv],[data-fc-del],[data-action="fc-import"]');
   if (!t || t.closest('#dialog')) return;
-  if (t.dataset.fcf){ fcFilter = t.dataset.fcf; render(); return; }
+  if (t.dataset.fcv){ fcOpen.has(t.dataset.fcv) ? fcOpen.delete(t.dataset.fcv) : fcOpen.add(t.dataset.fcv); render(); return; }
+  if (t.dataset.fcf){ fcFilter = t.dataset.fcf; if (fcFilter!=='all' && fcFilter!=='ok') S.vehicles.forEach(v => fcOpen.add(v.id)); render(); return; }
   if (t.dataset.action==='fc-import') return openFcImport();
   if (t.dataset.fcDel){
     if (!t.classList.contains('armed')){ t.classList.add('armed'); t.textContent = 'Na pewno usunąć?'; setTimeout(() => { t.classList.remove('armed'); t.textContent = 'Usuń zestawienie'; }, 4000); return; }
