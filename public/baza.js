@@ -150,8 +150,14 @@ async function refresh(col){
   const table = TABLES[col]; if (!table) return;
   if ((col==='members' || col==='crewChanges' || col==='fuelCardImports' || col==='fuelCardRows') && !P().manage) return;
   if ((col==='serviceEntries' || col==='inspections') && !P().service) return;
-  const {data, error} = await sb.from(table).select('*').limit(10000);
-  if (error){ got[col] = true; return; }
+  // Supabase oddaje najwyżej 1000 wierszy na zapytanie – pobieramy partiami aż do końca
+  const key = col==='settings' ? 'key' : 'id', PAGE = 1000, data = [];
+  for (let from = 0; ; from += PAGE){
+    const {data: part, error} = await sb.from(table).select('*').order(key).range(from, from + PAGE - 1);
+    if (error){ got[col] = true; return; }
+    data.push(...(part || []));
+    if (!part || part.length < PAGE) break;
+  }
   if (col==='members') profiles = data;
   else S[col] = data.map(r => toApp(col, r));
   got[col] = true;
@@ -160,8 +166,14 @@ async function refresh(col){
   schedule();
 }
 async function refreshFuelAll(){
-  const {data} = await sb.rpc('fuel_fills');
-  S.fuelAll = (data || []).map(r => ({id:r.id, vehicleId:r.vehicle_id, date:r.date, category:r.category, odometer:r.odometer, liters:Number(r.liters), full:r.full_tank, driverId:r.driver_ref || ''}));
+  const data = [];
+  for (let from = 0; ; from += 1000){
+    const {data: part, error} = await sb.rpc('fuel_fills').range(from, from + 999);
+    if (error) break;
+    data.push(...(part || []));
+    if (!part || part.length < 1000) break;
+  }
+  S.fuelAll = data.map(r => ({id:r.id, vehicleId:r.vehicle_id, date:r.date, category:r.category, odometer:r.odometer, liters:Number(r.liters), full:r.full_tank, driverId:r.driver_ref || ''}));
 }
 async function refreshNames(){
   const {data} = await sb.rpc('people');
