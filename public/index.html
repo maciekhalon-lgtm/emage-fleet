@@ -23,7 +23,46 @@
   <div class="auth-card">
     <div class="auth-brand">
       <div><h1 class="wordmark"><span>Emage</span> <b>FLEET</b></h1><p>Flota firmowa Emage Group. Przejęcie auta, tankowania, usterki i rozliczenia w jednym miejscu.</p></div>
-      <div class="road" aria-hidden="true"><i></i><i></i></div>
+      <div class="routes" aria-hidden="true"><svg viewBox="0 0 400 240">
+        <g fill="none" stroke="#f5b82e" stroke-width="1.6" stroke-dasharray="4 7" stroke-linecap="round" class="rt-lines">
+          <path d="M70 60C140 70 170 120 210 140"/><path d="M210 140C260 150 300 120 340 160"/><path d="M210 140C200 180 150 200 110 205"/>
+        </g>
+        <g class="rt-dots" fill="#f5b82e"><circle cx="70" cy="60" r="4"/><circle cx="210" cy="140" r="5"/><circle cx="340" cy="160" r="4"/><circle cx="110" cy="205" r="4"/></g>
+        <g class="rt-ping" fill="none" stroke="#f5b82e"><circle cx="210" cy="140" r="5"/></g>
+        <g font-family="Inter,system-ui,sans-serif" font-size="12" fill="#8592a3"><text x="80" y="52">Gdańsk</text><text x="222" y="134">Wrocław</text><text x="300" y="182">Kolin</text><text x="62" y="225">Drezno</text></g>
+      </svg></div>
+      <div class="scene" aria-hidden="true"><svg viewBox="0 0 800 340" preserveAspectRatio="xMidYMax slice">
+        <defs>
+          <linearGradient id="sc-sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0d1219" stop-opacity="0"/><stop offset=".75" stop-color="#1b2431"/><stop offset="1" stop-color="#3a2a14"/></linearGradient>
+          <radialGradient id="sc-glow" cx=".5" cy="1" r=".6"><stop offset="0" stop-color="#f5b82e" stop-opacity=".45"/><stop offset="1" stop-color="#f5b82e" stop-opacity="0"/></radialGradient>
+          <linearGradient id="sc-beam" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ffe3a1" stop-opacity=".55"/><stop offset="1" stop-color="#ffe3a1" stop-opacity="0"/></linearGradient>
+          <linearGradient id="sc-body" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e9edf2"/><stop offset="1" stop-color="#a9b3c0"/></linearGradient>
+          <pattern id="sc-dash" width="120" height="6" patternUnits="userSpaceOnUse"><rect width="64" height="6" rx="2" fill="#f5b82e"/></pattern>
+        </defs>
+        <rect y="60" width="800" height="196" fill="url(#sc-sky)"/>
+        <ellipse cx="560" cy="256" rx="420" ry="120" fill="url(#sc-glow)"/>
+        <g class="sc-stars" fill="#cfd8e3"><circle cx="70" cy="92" r="1.3"/><circle cx="190" cy="70" r="1"/><circle cx="330" cy="104" r="1.4"/><circle cx="470" cy="78" r="1"/><circle cx="610" cy="96" r="1.3"/><circle cx="735" cy="72" r="1"/></g>
+        <path fill="#1e2938" d="M0 256V214h34v-22h26v-30h22v52h30v-18h40v-34h20v34h18v38h36v-46h28v-26h16v26h20v46h40v-20h30v-42h34v62h22v-30h44v-24h18v24h18v54h36v-36h30v-52h22v52h26v18h40v-26h34v40h28v-22h40v38z"/>
+        <g class="sc-win" fill="#f5b82e"><rect x="64" y="172" width="5" height="6"/><rect x="74" y="190" width="5" height="6"/><rect x="152" y="186" width="5" height="6"/><rect x="262" y="174" width="5" height="6"/><rect x="272" y="196" width="5" height="6"/><rect x="404" y="178" width="5" height="6"/><rect x="530" y="190" width="5" height="6"/><rect x="540" y="208" width="5" height="6"/><rect x="618" y="166" width="5" height="6"/><rect x="742" y="200" width="5" height="6"/></g>
+        <rect y="256" width="800" height="84" fill="#0a0e14"/>
+        <rect y="256" width="800" height="3" fill="#2a3442"/>
+        <g class="sc-road"><rect x="0" y="298" width="1760" height="6" fill="url(#sc-dash)"/></g>
+        <rect y="332" width="800" height="3" fill="#2a3442"/>
+        <g class="sc-speed" stroke="#f5b82e" stroke-linecap="round"><path d="M150 206h90"/><path d="M110 226h110" opacity=".6"/><path d="M180 246h60" opacity=".4"/></g>
+        <g class="sc-van">
+          <path d="M572 236L800 206V292L572 252Z" fill="url(#sc-beam)"/>
+          <ellipse cx="430" cy="282" rx="170" ry="8" fill="#000" opacity=".55"/>
+          <path d="M262 270V178q0-12 12-12h232q16 0 26 12l32 40q22 4 24 22v30z" fill="url(#sc-body)"/>
+          <path d="M508 176h18l30 40h-48z" fill="#1d2a3a"/><path d="M512 180h8l10 14h-18z" fill="#5f7590" opacity=".5"/>
+          <rect x="262" y="226" width="326" height="7" fill="#f5b82e"/>
+          <text x="290" y="212" font-family="Inter,system-ui,sans-serif" font-size="25" font-weight="800" fill="#0d1219" letter-spacing="1">EMAGE<tspan fill="#c78e0f" font-weight="700"> FLEET</tspan></text>
+          <rect x="574" y="230" width="14" height="9" rx="2" fill="#ffe3a1"/>
+          <rect x="262" y="186" width="5" height="22" rx="1" fill="#e5484d"/>
+          <path d="M262 262h330v8H262z" fill="#2a3442"/>
+          <g class="sc-wheel" style="transform-origin:318px 270px"><circle cx="318" cy="270" r="20" fill="#05080c"/><circle cx="318" cy="270" r="9" fill="#8a96a6"/><path d="M318 261v18M309 270h18" stroke="#05080c" stroke-width="2"/></g>
+          <g class="sc-wheel" style="transform-origin:524px 270px"><circle cx="524" cy="270" r="20" fill="#05080c"/><circle cx="524" cy="270" r="9" fill="#8a96a6"/><path d="M524 261v18M515 270h18" stroke="#05080c" stroke-width="2"/></g>
+        </g>
+      </svg></div>
     </div>
     <div class="auth-side">
       <button type="button" class="ghost icon auth-theme" data-action="theme-toggle" aria-label="Zmień motyw"></button>
