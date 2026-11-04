@@ -196,7 +196,7 @@ async function openQuickFuel(vid){
   openForm('costs', null, {vehicleId: vid, mode:'quick', category: v && v.fuel==='Elektryczny' ? 'Ładowanie' : 'Paliwo', currency: pf.currency || 'PLN', station: pf.station || '', full: true});
   if (!editing) return;
   $('#dlg-title').textContent = 'Tankowanie';
-  if (await receiptToday() && editing && editing.base.mode==='quick'){
+  if (P().costs==='own' && await receiptToday() && editing && editing.base.mode==='quick'){
     editing.receipt = true;
     $('#dlg-body').insertAdjacentHTML('afterbegin', '<div class="field full"><div class="notice"><span><b>Dziś wylosowano Cię do kontroli paragonów</b> – dodaj zdjęcie paragonu.</span></div></div>');
   }
@@ -332,6 +332,7 @@ $('#dialog').addEventListener('submit', async e => {
   }
   if (col==='cleanings' && P().cleanings==='own') data.driverId = myDriverId();
   if (col==='costs' && editing.receipt && !(base.photos||[]).length && !($('#f-costs-photos')?.files||[]).length){ const w = $('#dlg-warn'); w.textContent = 'Dziś wylosowano Cię do kontroli paragonów – dodaj zdjęcie paragonu.'; w.hidden = false; return; }
+  const asDriver = col==='costs' && (P().costs==='own' || !!base.mode);
   if (col==='costs'){
     data.station = data.stationSel==='Inna' ? (data.stationOther || 'Inna') : (data.stationSel || null);
     delete data.stationSel; delete data.stationOther; delete data.fxPrev;
@@ -342,9 +343,9 @@ $('#dialog').addEventListener('submit', async e => {
       const est = data.fxManual ? data.fxRate : (fxCache[data.currency+':'+data.date] || {}).rate;
       data.amount = est ? Math.round(data.amount * est * 100) / 100 : 0;   // dokładną kwotę w zł policzy baza z kursu NBP
     } else { data.amountOrig = null; data.fxManual = false; }
-    if (P().costs==='own' && myDriverId()) data.driverId = myDriverId();
+    if (asDriver && myDriverId()) data.driverId = myDriverId();
     // podwójna obsada: tankowanie w trakcie wspólnego dnia pracy potwierdza drugi kierowca
-    if (P().costs==='own' && FUEL_CATS.includes(data.category) && !id){
+    if (asDriver && FUEL_CATS.includes(data.category) && !id){
       const act = S.bookings.find(b => holds(b) && !b.returned && b.coDriverId && b.vehicleId===data.vehicleId && crewOf(b).includes(myDriverId()));
       if (act){ data.coDriverId = act.driverId===myDriverId() ? act.coDriverId : act.driverId; data.confirmStatus = 'pending'; }
     }

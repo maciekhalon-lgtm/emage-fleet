@@ -15,6 +15,8 @@ const names = {};         // id → imię i nazwisko (funkcja people() w bazie)
 const roleOf = () => (me && me.status==='active' && ROLES[me.role]) ? me.role : null;
 const P = () => (ROLES[roleOf()]||{}).perm || {};
 const myDriverId = () => (me && me.driver_id) || '';
+/* Kierownik floty powiązany z wpisem kierowcy też prowadzi auta (zakładka „Moje auto”) */
+const canDrive = () => !!P().mycar || (!!P().manage && !!myDriverId());
 const canCreate = col => canWrite && ['rw','own'].includes(P()[col]);
 function mine(col, doc){
   if (!doc) return false;

@@ -184,7 +184,7 @@ function viewMyData(){
       <div><span class="label">Badania psychologiczne do</span><span>${exp('psychExpiry')}</span></div>
       <div class="full"><span class="label">Telefon</span>
         <span>${esc(d.phone || '—')}</span>
-        ${pend ? `<span class="pend">Czeka na akceptację kierownika: <b>${esc(pend.newValue)}</b> <button class="small ghost" data-req-cancel="${esc(pend.id)}">Wycofaj</button></span>`
+        ${P().manage ? `<span class="muted small">Dane kierowcy zmienisz w Rezerwacje → Kierowcy.</span>` : pend ? `<span class="pend">Czeka na akceptację kierownika: <b>${esc(pend.newValue)}</b> <button class="small ghost" data-req-cancel="${esc(pend.id)}">Wycofaj</button></span>`
           : `<span class="phone-edit"><input id="new-phone" type="tel" inputmode="tel" placeholder="Nowy numer telefonu" autocomplete="tel"><button class="small" data-action="req-phone">Wyślij do akceptacji</button></span>`}
         ${!pend && lastDecided ? `<span class="muted small">Ostatnia zmiana (${esc(lastDecided.newValue)}): ${lastDecided.status==='approved' ? 'zaakceptowana' : 'odrzucona'}.</span>` : ''}
       </div>

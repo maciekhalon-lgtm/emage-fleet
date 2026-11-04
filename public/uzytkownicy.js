@@ -81,7 +81,7 @@ function viewUsers(){
       <td><b>${esc(p.full_name || '—')}</b>${isMe?' <span class="muted">(Ty)</span>':''}<span class="sub">${esc(p.email)}</span><span class="sub">Konto od ${fdate((p.created_at||'').slice(0,10))}</span></td>
       <td><span class="pill ${st.cls}">${st.l}</span></td>
       <td style="min-width:180px">${roleSelect(p, isMe || p.status==='blocked')}</td>
-      <td style="min-width:200px">${(p.role==='kierowca' || (p.status==='pending' && (pendingChoice[p.id]||{}).role!=='floty' && (pendingChoice[p.id]||{}).role!=='serwisu')) ? driverSelect(p, isMe || p.status==='blocked') : '<span class="muted">—</span>'}${p.role==='kierowca' && !p.driver_id && p.status==='active' ? '<span class="sub" style="color:var(--warn)">Powiąż, aby mógł rezerwować i tankować</span>' : ''}</td>
+      <td style="min-width:200px">${(p.role==='kierowca' || p.role==='floty' || (p.status==='pending' && (pendingChoice[p.id]||{}).role!=='serwisu')) ? driverSelect(p, p.status==='blocked' || (isMe && p.role!=='floty')) : '<span class="muted">—</span>'}${p.role==='floty' && !p.driver_id && p.status==='active' ? '<span class="sub muted">Powiąż, jeśli też prowadzi auta</span>' : ''}${p.role==='kierowca' && !p.driver_id && p.status==='active' ? '<span class="sub" style="color:var(--warn)">Powiąż, aby mógł rezerwować i tankować</span>' : ''}</td>
       <td><div class="row-act">${act}</div></td></tr>`;
   }).join('');
   const pend = pendingUsers().length;

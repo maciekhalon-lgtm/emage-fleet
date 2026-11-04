@@ -166,7 +166,9 @@ function viewDashboard(){
     svcKpi, dlKpi,
     kpi({label:'Koszty – ' + MONTHS_FULL[Number(m.slice(5)) - 1], icon:'fuel', cls:'acc', value: zl(mc).replace(/\s?zł/, ''), small:' zł', bar: fb ? [[pct(mc, fb), mc > fb ? 'bad' : 'acc']] : [], foot: fb ? `${Math.round(mc / fb * 100)}% budżetu ${zl(fb)}` : 'brutto, wszystkie auta', go:'koszty'}),
   ].join('');
-  return `<div class="section dash">${head}<div class="kpis">${kp}</div>
+  const myCar = canDrive() && typeof myActive==='function' ? myActive() : null;
+  const myCarTile = myCar ? `<a class="tile" href="#moje"><span class="t-ic">${ic('key')}</span><span class="t-txt"><b>Prowadzisz ${esc(byId('vehicles', myCar.vehicleId)?.plate || '')}</b><span>Przejęte ${fdate(myCar.pickup.at)} · zatankuj albo zdaj pojazd w „Moje auto”</span></span>${ic('chev','chev')}</a>` : '';
+  return `<div class="section dash">${head}${myCarTile}<div class="kpis">${kp}</div>
     <div class="dgrid"><div class="dcol">${attentionCard(false)}${issuesCard()}</div>
     <div class="dcol">${fleetNowCard()}${costChartCard(() => true, 'Koszty floty')}${P().reports ? rankCard() : ''}</div></div></div>`;
 }

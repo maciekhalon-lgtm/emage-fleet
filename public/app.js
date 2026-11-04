@@ -33,20 +33,26 @@ function render(){
     hydrateFiles(v);
     return;
   }
-  if (DRIVER_VIEWS.includes(tab)) tab = 'pulpit';
+  const drive = canDrive();
+  if (DRIVER_VIEWS.includes(tab) && !drive) tab = 'pulpit';
   const manage = !!P().manage;
+  $('#tab-mycar').hidden = !drive; $('#bb-mycar').hidden = !drive; $('#bb-usterki').hidden = drive;
   $('#tab-users').hidden = !manage; $('#grp-adm').hidden = !manage; $('#tab-routes').hidden = !manage; $('#tab-checks').hidden = !P().service;
   $('#tab-reports').hidden = !P().reports;
   $('#tab-history').hidden = !P().history;
   $('#grp-an').hidden = !P().reports && !P().history;
   if ((tab==='uzytkownicy' && !manage) || (tab==='trasy' && !manage) || (tab==='kontrole' && !P().service) || (tab==='raporty' && !P().reports) || (tab==='historia' && !P().history)) tab = 'pulpit';
-  document.querySelectorAll('#tabs a, #bottombar a').forEach(a => { if (a.dataset.tab===tab) a.setAttribute('aria-current','page'); else a.removeAttribute('aria-current'); });
+  const navTab = DRIVER_VIEWS.includes(tab) ? 'moje' : tab;
+  document.querySelectorAll('#tabs a, #bottombar a').forEach(a => { if (a.dataset.tab===navTab) a.setAttribute('aria-current','page'); else a.removeAttribute('aria-current'); });
   renderNotices();
   if (manage){ const pend = pendingUsers().length + pendingRequests().length + openDisputes().length; const cu=$('#c-uzytkownicy'); cu.textContent = pend; cu.classList.toggle('bad', pend>0); cu.hidden = !pend; }
   if (tab==='uzytkownicy'){ $('#view').innerHTML = viewUsers(); updateCounts(); return; }
   updateCounts();
   const v = $('#view');
-  if (tab==='pulpit') v.innerHTML = viewDashboard();
+  if (tab==='wybierz') v.innerHTML = viewPickCar();
+  else if (tab==='moje-dane') v.innerHTML = viewMyData();
+  else if (tab==='moje') v.innerHTML = viewMyCar();
+  else if (tab==='pulpit') v.innerHTML = viewDashboard();
   else if (tab==='trasy') v.innerHTML = viewRoutes();
   else if (tab==='kontrole') v.innerHTML = viewChecks();
   else if (tab==='pojazdy') v.innerHTML = cardId ? viewCard() : viewVehicles();
