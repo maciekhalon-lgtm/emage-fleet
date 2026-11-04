@@ -71,6 +71,25 @@ function fcIssues(r, c){
 }
 const fl = v => v==null ? '—' : String(Number(v).toFixed(2)).replace(/\.?0+$/, '').replace('.', ',') + ' l';
 const fm = (v, cur) => v==null || !Number.isFinite(Number(v)) ? '—' : new Intl.NumberFormat('pl-PL', {style:'currency', currency: cur || 'PLN'}).format(Number(v));
+/* Przejechane km i spalanie z liczników: km = ostatni − pierwszy licznik w okresie,
+   spalanie = litry od drugiego tankowania (pierwsze tylko „ustawia” pełny bak) / km × 100 */
+function fcCons(list){
+  const xs = list.filter(x => Number(x.odo) > 0 && x.l!=null).sort((a, b) => a.odo - b.odo || (a.d || '').localeCompare(b.d || ''));
+  if (xs.length < 2) return null;
+  const kmD = xs[xs.length - 1].odo - xs[0].odo; if (kmD <= 0) return null;
+  const l = xs.slice(1).reduce((s, x) => s + Number(x.l || 0), 0);
+  return {km: kmD, rate: l / kmD * 100};
+}
+/* Punkt startowy: ostatnie tankowanie z licznikiem przed okresem (z wcześniejszych zestawień / wpisów) */
+const fcAnchorCard = (vid, imp) => S.fuelCardRows.filter(x => x.vehicleId===vid && x.importId!==imp.id && x.txDate < imp.periodFrom && Number(x.odometer) > 0)
+  .sort((a, b) => b.txDate.localeCompare(a.txDate)).slice(0, 1);
+const fcAnchorApp = (vid, imp) => appFuel().filter(c => c.vehicleId===vid && c.date < imp.periodFrom && Number(c.odometer) > 0)
+  .sort((a, b) => b.date.localeCompare(a.date)).slice(0, 1);
+function fcConsTxt(vid, c, lab){
+  if (!c) return `<span class="sub">${lab}: za mało liczników</span>`;
+  const r = c.rate.toFixed(1).replace('.', ',');
+  return `<span class="fc-cons"><span class="muted small">${lab}:</span> ${new Intl.NumberFormat('pl-PL').format(c.km)} km · <b>${r} l/100</b> ${levelPill(levelFor(vid, c.rate))}</span>`;
+}
 /* Kierowca przy tankowaniu z karty: z wpisu albo z grafiku w tym dniu */
 function fcDriver(r, c){
   if (c) return dName(fillDriver(c) || c.driverId) || '';
@@ -104,7 +123,9 @@ function viewFuelCards(){
     <div><span class="label">Różnica</span><b class="${Math.abs(cardA - appA) > 1 ? 'neg' : ''}">${fm(cardA - appA)}</b></div>
     <div class="fc-meta-act">${imp.invoicePath ? `<a class="btn small" data-file="${esc(imp.invoicePath)}" href="#" target="_blank" rel="noopener">Faktura${imp.invoiceNo ? ' ' + esc(imp.invoiceNo) : ''}</a>` : ''}<button class="small ghost" data-fc-del="${esc(imp.id)}">Usuń zestawienie</button></div></div>`;
   const perV = [...vids].map(vid => { const r = rows.filter(x => x.vehicleId===vid), a = appRows.filter(c => c.vehicleId===vid);
-    return {vid, cl: sum(r, x => x.liters), ca: sum(r.filter(x => !x.currency || x.currency==='PLN'), x => x.amount), al: sum(a, c => c.liters), aa: sum(a, c => c.amount)}; })
+    return {vid, cl: sum(r, x => x.liters), ca: sum(r.filter(x => !x.currency || x.currency==='PLN'), x => x.amount), al: sum(a, c => c.liters), aa: sum(a, c => c.amount),
+      kc: fcCons(r.concat(fcAnchorCard(vid, imp)).map(x => ({odo: Number(x.odometer), l: x.liters, d: x.txDate}))),
+      ka: fcCons(a.concat(fcAnchorApp(vid, imp)).map(c => ({odo: Number(c.odometer), l: c.liters, d: c.date})))}; })
     .sort((x, y) => Math.abs(y.ca - y.aa) - Math.abs(x.ca - x.aa));
   const perD = {};
   pairs.forEach(p => { const n = fcDriver(p.row, p.cost) || 'nieustalony'; const x = perD[n] = perD[n] || {cl:0, ca:0, al:0, aa:0, n:0};
@@ -126,15 +147,16 @@ function viewFuelCards(){
   const vRows = perV.filter(x => fcFilter==='all' || shown.some(y => y.vid===x.vid)).map(x => {
     const vp = pairs.filter(p => p.row.vehicleId===x.vid), nd = vp.filter(p => p.cost && p.issues.length).length, nm = vp.filter(p => !p.cost).length, nc = noCard.filter(c => c.vehicleId===x.vid).length;
     const open = fcOpen.has(x.vid);
-    const det = open ? `<tr class="fc-det"><td colspan="5"><table><thead><tr><th>Data</th><th>Kierowca</th><th>Karta</th><th>Wpisał kierowca</th><th>Wynik</th></tr></thead><tbody>${shown.filter(y => y.vid===x.vid).sort((a, b) => b.key.localeCompare(a.key)).map(y => y.html).join('') || '<tr><td colspan="5" class="muted">Brak pozycji dla tego filtra.</td></tr>'}</tbody></table></td></tr>` : '';
+    const det = open ? `<tr class="fc-det"><td colspan="6"><table><thead><tr><th>Data</th><th>Kierowca</th><th>Karta</th><th>Wpisał kierowca</th><th>Wynik</th></tr></thead><tbody>${shown.filter(y => y.vid===x.vid).sort((a, b) => b.key.localeCompare(a.key)).map(y => y.html).join('') || '<tr><td colspan="5" class="muted">Brak pozycji dla tego filtra.</td></tr>'}</tbody></table></td></tr>` : '';
     return `<tr class="click fc-vrow ${open ? 'open' : ''}" data-fcv="${esc(x.vid)}" aria-expanded="${open}"><td>${ic('chev', 'fc-chev')} ${vPlate(x.vid)}<span class="sub">${vp.length} ${isPlural(vp.length,'tankowanie','tankowania','tankowań')}</span></td>
       <td class="r num">${fl(x.cl)}<span class="sub">${fm(x.ca)}</span></td><td class="r num">${fl(x.al)}<span class="sub">${fm(x.aa)}</span></td>
       <td class="r num ${Math.abs(x.ca - x.aa) > 1 ? 'neg' : ''}">${fl(x.cl - x.al)}<span class="sub">${fm(x.ca - x.aa)}</span></td>
+      <td class="num">${fcConsTxt(x.vid, x.kc, 'karta')}${fcConsTxt(x.vid, x.ka, 'kierowcy')}</td>
       <td>${nd ? `<span class="pill warn">${nd} ${isPlural(nd,'różnica','różnice','różnic')}</span> ` : ''}${nm ? `<span class="pill bad">${nm} bez wpisu</span> ` : ''}${nc ? `<span class="pill info">${nc} bez karty</span>` : ''}${!nd && !nm && !nc ? '<span class="pill ok">zgodne</span>' : ''}</td></tr>${det}`;
   }).join('');
-  const table = `<div class="panel tablewrap fc-table"><table><thead><tr><th>Auto</th><th class="r">Karta</th><th class="r">Wpisali kierowcy</th><th class="r">Różnica</th><th>Wynik</th></tr></thead><tbody>${vRows || '<tr><td colspan="5" class="muted">Brak aut dla tego filtra.</td></tr>'}</tbody></table></div>`;
+  const table = `<div class="panel tablewrap fc-table"><table><thead><tr><th>Auto</th><th class="r">Karta</th><th class="r">Wpisali kierowcy</th><th class="r">Różnica</th><th>Przebieg i spalanie</th><th>Wynik</th></tr></thead><tbody>${vRows || '<tr><td colspan="6" class="muted">Brak aut dla tego filtra.</td></tr>'}</tbody></table></div>`;
   return head + meta + tiles + `<div class="fc-grid">${table}${dTable}
-    <p class="muted small" style="margin:0">Parujemy tankowanie z karty z wpisem kierowcy tego samego auta (ten sam dzień ±1, litry ±5%). Zgodne: litry ±0,5 l, kwota ±1 zł, licznik ±30 km. Kliknij wpis kierowcy, aby go poprawić. Kliknij auto, aby zobaczyć jego tankowania.</p></div>`;
+    <p class="muted small" style="margin:0">Parujemy tankowanie z karty z wpisem kierowcy tego samego auta (ten sam dzień ±1, litry ±5%). Zgodne: litry ±0,5 l, kwota ±1 zł, licznik ±30 km. Kliknij wpis kierowcy, aby go poprawić. Kliknij auto, aby zobaczyć jego tankowania. Przebieg = ostatni licznik w okresie minus ostatni licznik sprzed okresu (albo pierwszy w okresie); spalanie = litry od drugiego tankowania na przejechane km (kolor wg progów auta z danych pojazdu).</p></div>`;
 }
 document.addEventListener('change', e => { if (e.target.id==='fc-imp'){ fcImportId = e.target.value; render(); } });
 document.addEventListener('click', e => {

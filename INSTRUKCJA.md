@@ -57,6 +57,7 @@ cena ±15% od średniej, słabe spalanie). Pulpit / Koszty → **OK** albo **Wyj
 Przy pierwszym pliku danego układu sprawdź dopasowanie kolumn (data, nr rejestracyjny, litry, kwota brutto, licznik…) – system je zapamięta.
 Brane są tylko auta z systemu; produkty inne niż paliwo (np. AdBlue) można odznaczyć. Każde tankowanie z karty jest parowane z wpisem
 kierowcy (to samo auto, dzień ±1, litry ±5%): **zgodne**, **różnice** (litry, kwota, licznik), **brak wpisu kierowcy**, a także **wpisy bez karty**.
+Przy każdym aucie przebieg i spalanie (l/100 km) z liczników karty i z wpisów kierowców, kolor wg progów auta.
 Podsumowanie według aut i kierowców; kliknięcie wpisu kierowcy pozwala go poprawić.
 
 **Serwis** – Serwis → **Książka serwisowa** → **Wpis serwisowy**: koszt doda się sam do kosztów, można odnowić termin,
