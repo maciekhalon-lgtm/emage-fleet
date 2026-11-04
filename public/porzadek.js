@@ -1,10 +1,10 @@
-/* Emage FLEET — układ stron: grupy menu z zakładkami (Rezerwacje, Serwis, Raporty, Pracownicy),
+/* Emage FLEET — układ stron: grupy menu z zakładkami (Grafik, Serwis, Raporty, Pracownicy),
    książka serwisowa wszystkich aut, lista kierowców i Ustawienia w jednym miejscu */
 'use strict';
 
 /* ---------- grupy menu i zakładki ---------- */
 const GROUPS = {
-  rezerwacje: [['przydzial','Rezerwacje', () => true], ['trasy','Trasy', () => !!P().manage]],
+  rezerwacje: [['przydzial','Grafik', () => true], ['trasy','Trasy', () => !!P().manage]],
   serwis:     [['usterki','Usterki', () => true], ['terminy','Terminy', () => true], ['kontrole','Kontrole', () => !!P().service], ['ksiazka','Książka serwisowa', () => !!P().service]],
   raporty:    [['raporty','Raporty', () => !!P().reports], ['historia','Historia', () => !!P().history]],
   ludzie:     [['kierowcy','Kierowcy', () => true], ['uzytkownicy','Użytkownicy', () => !!P().manage]],

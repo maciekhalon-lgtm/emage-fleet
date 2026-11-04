@@ -51,13 +51,13 @@ const FORMS = {
     {k:'remindKm',l:'Przypomnij … km przed',t:'number',ph:'domyślnie 1000'},
     {k:'note',l:'Notatka',ph:'np. polisa nr, warsztat',full:1},
   ]},
-  bookings: { title:['Nowa rezerwacja','Edytuj rezerwację'], fields: () => [
-    {k:'vehicleId',l:'Pojazd',t:'select',o:vehOpts(),req:1,full:1},
+  bookings: { title:['Nowy przydział','Edytuj przydział'], fields: () => [
     {k:'driverId',l:'Kierowca',t:'select',o: P().bookings==='own' ? drvOpts('— wybierz kierowcę —').filter(([id])=>id===myDriverId()) : drvOpts('— wybierz kierowcę —'),req:1,full:1},
-    {k:'from',l:'Od',t:'date',req:1},
-    {k:'to',l:'Do',t:'date',req:1},
-    ...(P().bookings==='rw' ? [{k:'routeId',l:'Trasa',t:'select',o:routeOpts(),full:1}] : []),
-    {k:'purpose',l:'Cel / uwagi',full:1,ph:'np. Klient w Gnieźnie'},
+    {k:'from',l:'Dzień',t:'date',req:1},
+    ...(editing && editing.base && editing.base.to && editing.base.to!==editing.base.from ? [{k:'to',l:'Do (przydział na kilka dni)',t:'date',req:1}] : []),
+    {k:'vehicleId',l:'Auto',t:'select',o:vehOpts(),req:1,full:1},
+    ...(P().bookings==='rw' ? [{k:'routeId',l:'Trasa',t:'select',o:routeOpts(),full:1}, {k:'coDriverId',l:'Drugi kierowca (opcjonalnie)',t:'select',o:drvOpts('— brak —'),full:1}] : []),
+    {k:'purpose',l:'Uwagi',t:'textarea',full:1,ph:'np. załadunek o 6:00, klient czeka od 8:00'},
   ]},
   costs: { title:['Nowy koszt','Edytuj koszt'], fields: () => costFieldsFor([
     {k:'date',l:'Data',t:'date',req:1},
@@ -210,13 +210,14 @@ function openOtherCost(vid){
   if (editing) $('#dlg-title').textContent = 'Inny wydatek';
 }
 document.addEventListener('click', e => {
-  const t = e.target.closest('[data-fuel],[data-other-cost],[data-action="more"],[data-ck-expand]');
+  const t = e.target.closest('[data-fuel],[data-other-cost],[data-action="more"],[data-action="loading"],[data-ck-expand]');
   if (!t) return;
   if (t.dataset.ckExpand!==undefined){ const box = t.closest('.ck-wrap'); box.querySelector('.checklist').hidden = false; t.closest('.ck-all').hidden = true; return; }
   if (t.closest('#dialog')) return;
   if (t.dataset.fuel) return openQuickFuel(t.dataset.fuel);
   if (t.dataset.otherCost) return openOtherCost(t.dataset.otherCost);
   if (t.dataset.action==='more'){ driverMore = !driverMore; render(); return; }
+  if (t.dataset.action==='loading') return openLoading();
 });
 const fxCache = {};
 async function fxRate(cur, date){
@@ -296,12 +297,16 @@ function openForm(col, id, preset){
 function bookingCheck(){
   if (!editing || editing.col!=='bookings') return;
   const g = n => $('#f-bookings-'+n)?.value;
-  const v=g('vehicleId'), f=g('from'), t=g('to'); const w=$('#dlg-warn');
+  const v=g('vehicleId'), f=g('from'), t=g('to') || f, dr=g('driverId'); const w=$('#dlg-warn');
   let msg='';
   if (f && t && t < f) msg='Data końca jest wcześniejsza niż początek.';
   else if (v && f && t){
     const c = S.bookings.find(b => b.id!==editing.id && !b.returned && b.vehicleId===v && b.from<=t && f<=b.to);
-    if (c) msg = 'Ten pojazd jest już zarezerwowany '+fdate(c.from)+'–'+fdate(c.to)+' ('+dName(c.driverId)+').';
+    if (c) msg = 'To auto ma już w tym dniu: '+dName(c.driverId)+(c.from!==c.to ? ' ('+fdate(c.from)+'–'+fdate(c.to)+')' : '')+'.';
+  }
+  if (!msg && dr && f){
+    const c = S.bookings.find(b => b.id!==editing.id && !b.returned && crewOf(b).includes(dr) && b.from<=t && f<=b.to);
+    if (c) msg = dName(dr)+' ma już w tym dniu przydział: '+((byId('vehicles', c.vehicleId)||{}).plate||'?')+'.';
   }
   const r = routeById(g('routeId')), veh = byId('vehicles', v);
   if (!msg && r && r.tacho && veh && !veh.hasTacho) msg = `Uwaga: trasa ${r.code} wymaga tachografu, a ${veh.plate} nie ma tachografu. Możesz zapisać – to tylko informacja.`;
@@ -329,7 +334,9 @@ $('#dialog').addEventListener('submit', async e => {
     if (f.k==='plate') v = v.toUpperCase();
     data[f.k] = v;
   }
+  if (col==='bookings' && !fields.some(f => f.k==='to')) data.to = data.from;
   if (col==='bookings' && data.to < data.from){ toast('Data końca jest przed początkiem'); return; }
+  if (col==='bookings' && data.coDriverId && data.coDriverId===data.driverId){ toast('Drugi kierowca musi być inną osobą'); return; }
   if (col==='vehicles'){
     if ((data.consGood && !data.consOk) || (!data.consGood && data.consOk)){ const w = $('#dlg-warn'); w.textContent = 'Podaj oba progi spalania albo żaden.'; w.hidden = false; return; }
     if (data.consGood && data.consOk && data.consGood >= data.consOk){ const w = $('#dlg-warn'); w.textContent = 'Próg „bardzo dobre” musi być niższy niż próg „dobre”.'; w.hidden = false; return; }

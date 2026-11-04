@@ -20,8 +20,8 @@ Kierownik floty: **Pracownicy → Użytkownicy** → rola, dla kierowcy jego wpi
 | --- | --- |
 | **Moje auto** | (kierownik floty powiązany z wpisem kierowcy) ten sam ekran co u kierowcy |
 | **Pulpit** | liczby floty, „Wymaga uwagi” (blokady, terminy, niesprawne auta, tankowania do wyjaśnienia, sprzątanie do potwierdzenia, konta, spory, budżet, opony), flota teraz, koszty, ranking |
-| **Pojazdy** | lista i karta auta: dane, odpowiedzialni kierowcy, terminy, usterki, rezerwacje, dokumenty, książka serwisowa, historia |
-| **Rezerwacje** | zakładki **Rezerwacje** (kalendarz aut, grafik tygodniowy kierowców, lista; zmiany obsady) i **Trasy** |
+| **Pojazdy** | lista i karta auta: dane, polisa (assistance – Zadzwoń), odpowiedzialni kierowcy, terminy, usterki, grafik, dokumenty, książka serwisowa, historia |
+| **Grafik** | zakładki **Grafik** (tydzień: kierowcy × dni, załadunek na jutro, auta teraz w trasie, zmiany obsady) i **Trasy** |
 | **Serwis** | zakładki **Usterki**, **Terminy**, **Kontrole** (inspekcje i sprzątanie), **Książka serwisowa** |
 | **Koszty i paliwo** | koszty miesiąca, tankowania do wyjaśnienia |
 | **Raporty** | zakładki **Raporty** (auta, trasy, ranking kierowców, Excel) i **Historia** zmian |
@@ -37,10 +37,14 @@ a w karcie auta terminy **Przegląd techniczny** i **Ubezpieczenie OC**. Stare a
 **Blokada auta** – auto z przeglądem technicznym albo OC po terminie nie da się przejąć. Na Pulpicie / w karcie auta:
 **Zezwól dziś** (z powodem, tylko na ten dzień) albo **Przegląd zrobiony / OC odnowione** (nowy termin).
 
-**Przydział na dzień** – Rezerwacje → **Grafik** → kliknij pole kierowcy w danym dniu → auto i trasa.
-**Kopiuj poprzedni tydzień** przenosi przydziały, pomijając zajęte auta i kierowców.
+**Grafik** – Grafik → kliknij pole kierowcy w danym dniu (albo **+ Przydział**) → kierowca, dzień, auto, trasa,
+opcjonalnie drugi kierowca i uwagi. Kierowca widzi swój grafik na 7 dni. **Kopiuj poprzedni tydzień** przenosi przydziały,
+pomijając zajęte auta i kierowców.
 
-**Przekazanie auta w trakcie dnia** – przy aucie w trasie **Przekaż** → nowy kierowca, licznik, powód.
+**Załadunek** – kierowca zaznacza trasy, których towar zabiera; od razu widzi, kto jutro jedzie tą trasą (z telefonem).
+Kierowca jadący trasą widzi w swoim grafiku, kto ma jego towar. Kierownik widzi to pod grafikiem i ikoną paczki w grafiku.
+
+**Przekazanie auta w trakcie dnia** – w Grafik → **Teraz w trasie** albo w karcie auta **Przekaż** → nowy kierowca, licznik, powód.
 Nowy kierowca przyjmuje auto u siebie z checklistą.
 
 **Tankowania do wyjaśnienia** – baza sama oznacza podejrzane tankowania (więcej niż bak, nie to auto, dwa w ciągu 3 h,
@@ -57,7 +61,8 @@ sprzątanie co 14 dni – kierowca zaznacza, kierownik floty potwierdza. Często
 1. **Wybierz auto** – na górze „Twój bus” (jeśli jest odpowiedzialny) albo auto przydzielone przez kierownika;
    checklista („Wszystkie punkty OK” albo „Mam uwagi”), przebieg, trasa z listy.
 2. W trasie: **Zatankuj** (litry, kwota, licznik; waluta PLN/EUR/CZK z kursem NBP) i **Zdaj pojazd**.
-   Pod **Więcej**: zgłoś usterkę, posprzątane, zmień trasę. **Inny wydatek** – myjnia, parking, opłaty.
+   **Załadunek** – zaznacz trasy, których towar zabierasz (na jutro). Pod **Więcej**: zgłoś usterkę, posprzątane, zmień trasę.
+   **Inny wydatek** – myjnia, parking, opłaty. **Mój grafik** – najbliższe 7 dni: auto, trasa, uwagi, kto wiezie Twój towar.
 3. Wylosowany do kontroli paragonów musi dodać zdjęcie paragonu.
 4. Bez zasięgu tankowanie i zdanie auta zapisują się w telefonie i wysyłają same po odzyskaniu sieci.
 5. **Moje dane i statystyki** – kilometry, spalanie, dni pracy, tankowania, zgłoszenia, telefon (zmiana do akceptacji).

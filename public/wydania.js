@@ -224,5 +224,5 @@ function crewChangesPanel(){
   }).join('');
   return `<div class="section crew-hist"><div class="bar"><h2>Zmiany obsady</h2><span class="muted small">ostatnie 50 · widzi tylko kierownik floty</span></div>
     ${rows ? `<div class="panel tablewrap"><table><thead><tr><th>Kiedy</th><th>Auto</th><th>Kierowca</th><th class="r">Przebieg</th><th>Powód / kto</th></tr></thead><tbody>${rows}</tbody></table></div>`
-      : '<div class="panel empty"><p>Brak zmian obsady. Przekazanie auta zrobisz przyciskiem „Przekaż” przy aucie w trasie (Rezerwacje albo karta pojazdu).</p></div>'}</div>`;
+      : '<div class="panel empty"><p>Brak zmian obsady. Przekazanie auta zrobisz przyciskiem „Przekaż” przy aucie w trasie (Grafik → Teraz w trasie albo karta pojazdu).</p></div>'}</div>`;
 }

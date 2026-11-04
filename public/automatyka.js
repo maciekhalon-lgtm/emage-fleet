@@ -113,11 +113,11 @@ function viewSchedule(){
       const wd = (parse(d).getDay()+6)%7;
       const cell = bs.map(b => { const v = byId('vehicles', b.vehicleId);
         return `<span class="sch-chip ${conf.has(b.id)?'bad':''} ${b.pickup && !b.returned ? 'out' : ''} ${b.returned ? 'back' : ''}" ${canEditDoc('bookings', b) ? `data-edit="bookings" data-id="${esc(b.id)}"` : ''} title="${esc((v ? v.plate+' · '+v.make+' '+v.model : '') + (b.routeId ? ' · ' + rLabel(b.routeId) : '') + (b.purpose ? ' · ' + b.purpose : ''))}">
-          <b>${esc(v ? v.plate : '?')}</b>${b.routeId ? `<i>${esc(rCode(b.routeId))}</i>` : ''}${b.driverId!==dr.id ? '<i>obsada</i>' : ''}</span>`; }).join('');
+          <b>${esc(v ? v.plate : '?')}</b>${b.routeId ? `<i>${esc(rCode(b.routeId))}</i>` : ''}${crewOf(b).length > 1 ? `<i>+ ${esc(dName(crewOf(b).find(x => x!==dr.id)).split(' ')[0])}</i>` : ''}${b.purpose ? `<i class="sch-note">${esc(b.purpose)}</i>` : ''}${b.routeId && routeLoaders(b.routeId, d).length ? `<i class="sch-load">${ic('box')}${esc(routeLoaders(b.routeId, d).map(x => x.name.split(' ')[0]).join(', '))}</i>` : ''}</span>`; }).join('');
       const add = canCreate('bookings') && P().bookings==='rw' && !bs.length ? `data-sched="${esc(dr.id)}|${d}" title="Przydziel auto"` : '';
       return `<td class="sch-cell ${d===t?'today':''} ${wd>4?'we':''} ${add?'add':''}" ${add}>${cell}</td>`; }).join('')}</tr>`).join('');
   return nav + `<div class="panel tablewrap sch"><table><thead>${head}</thead><tbody>${rows}</tbody></table></div>
-    <p class="muted small" style="margin:0">Kliknij puste pole, aby przydzielić kierowcy auto i trasę na ten dzień. Kliknij przydział, aby go zmienić. Na czerwono – konflikt (auto zajęte w tym czasie).</p>`;
+    <p class="muted small" style="margin:0">Kliknij puste pole, aby przydzielić kierowcy auto, trasę i uwagi na ten dzień. Kliknij przydział, aby go zmienić. Na czerwono – to samo auto u dwóch kierowców. Ikona paczki – kto wiezie towar dla tej trasy.</p>`;
 }
 function copyWeekAsk(){
   const from = addDays(calStart, -7), to = addDays(calStart, -1);
@@ -139,7 +139,7 @@ async function copyWeek(src){
       const nf = addDays(b.from, 7), nt = addDays(b.to, 7);
       const busy = S.bookings.some(x => x.from<=nt && nf<=x.to && (x.vehicleId===b.vehicleId || crewOf(x).includes(b.driverId)) && !(x.returned && !holds(x) && x.to < nf));
       if (busy){ skip++; continue; }
-      await db.collection('bookings').doc().set({vehicleId: b.vehicleId, driverId: b.driverId, routeId: b.routeId || null, purpose: b.purpose || '', from: nf, to: nt});
+      await db.collection('bookings').doc().set({vehicleId: b.vehicleId, driverId: b.driverId, routeId: b.routeId || null, coDriverId: b.coDriverId || null, purpose: b.purpose || '', from: nf, to: nt});
       ok++;
     }
     closeForm();

@@ -43,7 +43,7 @@ async function renderPushDialog(){
   }
   const what = P().mycar
     ? 'odbiór i zwrot auta, ważność prawa jazdy i badań'
-    : P().manage ? 'terminy i przebiegi, niesprawne i niezwrócone auta, nowe konta, limity kosztów, konflikty rezerwacji'
+    : P().manage ? 'terminy i przebiegi, niesprawne i niezwrócone auta, nowe konta, limity kosztów, konflikty w grafiku'
     : 'terminy i przebiegi, niesprawne i niezwrócone auta, nowe usterki';
   box.innerHTML = `<div class="field full"><p style="margin:0">${state}</p></div>
     ${actions ? `<div class="field full"><div class="row-act" style="justify-content:flex-start">${actions}</div></div>` : ''}

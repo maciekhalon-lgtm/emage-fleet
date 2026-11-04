@@ -83,6 +83,7 @@ function viewMyCar(){
       <div class="big-grid">
         ${big(`data-fuel="${esc(v.id)}"`, 'Zatankuj', 'litry, kwota, licznik', '', 'fuel')}
         ${big(`data-ho="return" data-id="${esc(active.id)}"`, 'Zdaj pojazd', 'koniec dnia', 'primary', 'key')}
+        ${loadingBtn()}
       </div>
       <div class="more-row"><button class="small" data-other-cost="${esc(v.id)}">${ic('coins')}Inny wydatek</button><button class="small ghost" data-action="more" aria-expanded="${driverMore}">${ic('menu')}Więcej</button></div>
       ${driverMore ? `<div class="more-box">
@@ -102,6 +103,8 @@ function viewMyCar(){
     ${toConfirmPanel()}
     ${myExplainPanel()}
     ${carTile}
+    ${active ? '' : (loadingBtn() ? `<div class="big-grid">${loadingBtn()}</div>` : '')}
+    ${mySchedulePanel()}
     ${myBusesPanel()}
     <a class="tile" href="#moje-dane"><span class="t-ic">${ic('chart')}</span><span class="t-txt"><b>Moje dane i statystyki</b><span>Kilometry, spalanie, dni pracy, tankowania, zgłoszenia i dane kontaktowe</span></span>${ic('chev','chev')}</a>
   </div>`;
@@ -184,7 +187,7 @@ function viewMyData(){
       <div><span class="label">Badania psychologiczne do</span><span>${exp('psychExpiry')}</span></div>
       <div class="full"><span class="label">Telefon</span>
         <span>${esc(d.phone || '—')}</span>
-        ${P().manage ? `<span class="muted small">Dane kierowcy zmienisz w Rezerwacje → Kierowcy.</span>` : pend ? `<span class="pend">Czeka na akceptację kierownika: <b>${esc(pend.newValue)}</b> <button class="small ghost" data-req-cancel="${esc(pend.id)}">Wycofaj</button></span>`
+        ${P().manage ? `<span class="muted small">Dane kierowcy zmienisz w Pracownicy → Kierowcy.</span>` : pend ? `<span class="pend">Czeka na akceptację kierownika: <b>${esc(pend.newValue)}</b> <button class="small ghost" data-req-cancel="${esc(pend.id)}">Wycofaj</button></span>`
           : `<span class="phone-edit"><input id="new-phone" type="tel" inputmode="tel" placeholder="Nowy numer telefonu" autocomplete="tel"><button class="small" data-action="req-phone">Wyślij do akceptacji</button></span>`}
         ${!pend && lastDecided ? `<span class="muted small">Ostatnia zmiana (${esc(lastDecided.newValue)}): ${lastDecided.status==='approved' ? 'zaakceptowana' : 'odrzucona'}.</span>` : ''}
       </div>

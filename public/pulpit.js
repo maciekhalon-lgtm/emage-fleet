@@ -42,7 +42,7 @@ function attentionItems(serviceOnly){
   if (!serviceOnly){
     S.bookings.forEach(b => {
       const st = bookingState(b);
-      if (st.txt==='Nie zwrócono') out.push({w:1, html: attRow('warn', b.vehicleId, 'Nie zostało zdane', `${esc(crewName(b))} · rezerwacja do ${fdate(b.to)}`, canEditDoc('bookings', b) ? `<button class="small" data-edit="bookings" data-id="${esc(b.id)}">Szczegóły</button>` : '')});
+      if (st.txt==='Nie zwrócono') out.push({w:1, html: attRow('warn', b.vehicleId, 'Nie zostało zdane', `${esc(crewName(b))} · przydział do ${fdate(b.to)}`, canEditDoc('bookings', b) ? `<button class="small" data-edit="bookings" data-id="${esc(b.id)}">Szczegóły</button>` : '')});
       else if (st.key===0 && st.cls==='warn') out.push({w:3, html: attRow('info', b.vehicleId, st.txt, esc(crewName(b)), '')});
     });
     if (P().manage){
@@ -82,7 +82,7 @@ function fleetNowCard(){
     return `<div class="fl-row" data-card-go="${esc(b.vehicleId)}" tabindex="0">${vPlate(b.vehicleId)}<div class="att-t"><b>${esc(crewName(b))}</b><span class="sub">${b.routeId ? esc(rLabel(b.routeId)) + ' · ' : ''}od ${fdate(b.pickup.at)}${since > 0 ? ' · ' + km(since) : ''}</span></div><span class="pill ${st.cls}" title="${esc(st.txt)}">${st.cls==='warn' ? 'Do potwierdzenia' : st.cls==='bad' ? 'Nie zdane' : b.coDriverId ? 'Obsada' : 'W trasie'}</span></div>`;
   }).join('');
   return card('Flota teraz', list.length ? list.length + ' w trasie' : 'w trasie',
-    rows ? `<div class="fl">${rows}</div>${list.length > 8 ? `<p class="muted small more">i ${list.length - 8} więcej – zobacz Rezerwacje.</p>` : ''}` : '<p class="muted sec-empty">Żadne auto nie jest teraz w trasie.</p>');
+    rows ? `<div class="fl">${rows}</div>${list.length > 8 ? `<p class="muted small more">i ${list.length - 8} więcej – zobacz Grafik.</p>` : ''}` : '<p class="muted sec-empty">Żadne auto nie jest teraz w trasie.</p>');
 }
 
 function costChartCard(filter, title){
@@ -145,7 +145,7 @@ function viewDashboard(){
   const head = `<div class="bar dash-head"><div><h1>Pulpit</h1><span class="muted">${esc(dateTxt)}${dbState==='live' ? ' · dane na żywo' : ''}</span></div>
     <div class="tools">${service
       ? (canCreate('serviceEntries') ? `<button data-new="serviceEntries">${ic('plus')}Wpis serwisowy</button>` : '') + (canCreate('issues') ? `<button class="primary" data-new="issues">${ic('plus')}Zgłoś usterkę</button>` : '')
-      : (canCreate('bookings') ? `<button data-new="costs">${ic('plus')}Koszt</button><button class="primary" data-new="bookings">${ic('plus')}Rezerwacja</button>` : '')}</div></div>`;
+      : (canCreate('bookings') ? `<button data-new="costs">${ic('plus')}Koszt</button><button class="primary" data-new="bookings">${ic('plus')}Przydział</button>` : '')}</div></div>`;
   const dlKpi = kpi({label:'Terminy 30 dni', icon:'clip', cls:'bad', value: soon30, bar:[[pct(over, Math.max(soon30, 1)), 'bad'], [pct(soon30 - over, Math.max(soon30, 1)), 'warn']], foot: over ? `${over} po terminie lub dziś` : 'wszystko na czas', go:'terminy', dl:'soon'});
   const svcKpi = kpi({label:'W serwisie', icon:'wrench', cls:'warn', value: svc + stop, bar:[[pct(svc + stop, n), 'warn']], foot: stop ? `${stop} ${isPlural(stop,'niesprawne','niesprawne','niesprawnych')} – usterka` : 'brak niesprawnych', go:'usterki'});
 

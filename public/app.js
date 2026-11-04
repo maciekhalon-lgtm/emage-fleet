@@ -5,7 +5,7 @@ const DRIVER_VIEWS = ['moje','wybierz','moje-dane'];
 const TABS = ['moje','wybierz','moje-dane','pulpit','pojazdy','trasy','kontrole','terminy','usterki','ksiazka','przydzial','koszty','raporty','historia','kierowcy','uzytkownicy','ustawienia'];
 const homeTab = () => P().mycar ? 'moje' : 'pulpit';
 let pendingCard = null;
-let tab = 'pulpit', q = '', costMonth = today().slice(0,7), dlFilter = 'all', assignView = 'kalendarz';
+let tab = 'pulpit', q = '', costMonth = today().slice(0,7), dlFilter = 'all';
 function route(){ const h = location.hash.slice(1); tab = TABS.includes(h) ? h : homeTab(); cardId = pendingCard; pendingCard = null; $('#app').classList.remove('nav-open'); render(); window.scrollTo(0,0); }
 window.addEventListener('hashchange', route);
 
@@ -101,7 +101,7 @@ function loadingOr(col, html){ return (!got[col] && db) ? `<div class="panel emp
 
 /* ---------- events ---------- */
 document.addEventListener('click', e => {
-  const t = e.target.closest('[data-new],[data-edit],[data-go],[data-dlf],[data-renew],[data-action],[data-card],[data-back],[data-av],[data-cal],[data-cal-lane],[data-noop],[data-isf],[data-issue-st],[data-ho],[data-transfer],[data-take],[data-rep],[data-card-go]');
+  const t = e.target.closest('[data-new],[data-edit],[data-go],[data-dlf],[data-renew],[data-action],[data-card],[data-back],[data-cal],[data-noop],[data-isf],[data-issue-st],[data-ho],[data-transfer],[data-take],[data-rep],[data-card-go]');
   if (!t || t.closest('#dialog')) return;
   if (e.target.closest('.thumbs a, a.btn')) return;
   if (t.dataset.noop) return;
@@ -113,9 +113,7 @@ document.addEventListener('click', e => {
   if (t.dataset.new) return openForm(t.dataset.new, null, t.dataset.veh ? {vehicleId: t.dataset.veh} : undefined);
   if (t.dataset.card){ cardId = t.dataset.card; render(); window.scrollTo(0,0); return; }
   if (t.dataset.back){ cardId = null; render(); return; }
-  if (t.dataset.av){ assignView = t.dataset.av; render(); return; }
   if (t.dataset.cal){ calStart = t.dataset.cal==='0' ? mondayOf(today()) : addDays(calStart, Number(t.dataset.cal)); render(); return; }
-  if (t.dataset.calLane) return calLaneClick(t, e);
   if (t.dataset.isf){ issueFilter = t.dataset.isf; render(); return; }
   if (t.dataset.rep){ repMode = t.dataset.rep; render(); return; }
   if (t.dataset.cardGo){ if (location.hash==='#pojazdy'){ tab='pojazdy'; cardId=t.dataset.cardGo; render(); window.scrollTo(0,0); } else { pendingCard = t.dataset.cardGo; location.hash = 'pojazdy'; } return; }
@@ -127,7 +125,7 @@ document.addEventListener('click', e => {
   if (t.dataset.dlf){ dlFilter = t.dataset.dlf; render(); return; }
 });
 document.addEventListener('keydown', e => {
-  if ((e.key==='Enter'||e.key===' ') && e.target.matches('.dl-row,.is-row,.cal-bar,tr[data-card],.fl-row')){ e.preventDefault(); e.target.click(); }
+  if ((e.key==='Enter'||e.key===' ') && e.target.matches('.dl-row,.is-row,tr[data-card],.fl-row')){ e.preventDefault(); e.target.click(); }
 });
 document.addEventListener('input', e => {
   if (e.target.id==='search'){ q = e.target.value; const pos=e.target.selectionStart; render(); const s=$('#search'); s.focus(); s.setSelectionRange(pos,pos); }

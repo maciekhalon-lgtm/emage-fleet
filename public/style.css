@@ -598,3 +598,25 @@ details.few summary{padding:12px 16px;cursor:pointer;color:var(--muted);font-wei
 .subtabs .count{margin-left:0}
 .settings .roles{padding:14px 16px}
 .fv .call{margin-top:6px;display:inline-flex;gap:6px;align-items:center}
+
+/* załadunek i grafik kierowcy */
+.ld-list{display:flex;flex-direction:column;gap:8px}
+.ld-route{border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--surface)}
+.ld-route.on{border-color:var(--accent);background:var(--sunk)}
+.ld-route .check{display:flex;gap:10px;align-items:center;cursor:pointer}
+.ld-route .check input{width:20px;height:20px;flex:none}
+.ld-targets{margin-top:8px;padding-top:8px;border-top:1px dashed var(--line)}
+.ld-person{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:4px 0;flex-wrap:wrap}
+.ld-person .sub{display:block}
+.call{display:inline-flex;gap:6px;align-items:center;white-space:nowrap}
+.myschedule .ms-row{display:grid;grid-template-columns:74px minmax(0,1fr);gap:10px;padding:10px 16px;border-top:1px solid var(--line)}
+.myschedule .ms-row:first-of-type{border-top:0}
+.myschedule .ms-row.off{color:var(--muted)}
+.myschedule .ms-row.today .ms-day{color:var(--accent-ink)}
+.ms-day{font-weight:700;font-size:14px}
+.ms-main .sub{display:block}
+.ms-note{display:block;margin-top:4px;font-size:13.5px;padding:6px 9px;border-radius:8px;background:var(--sunk)}
+.ms-load{display:flex;align-items:center;gap:6px;margin-top:8px;font-size:13px;font-weight:600}
+.ms-load svg.i,.sch-load svg.i{width:14px;height:14px}
+.sch-chip .sch-note{font-style:normal;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px;opacity:.8}
+.sch-chip .sch-load{display:inline-flex;gap:3px;align-items:center;font-style:normal}

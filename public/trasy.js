@@ -39,7 +39,7 @@ async function saveRouteChange(bid, to){
 function viewRoutes(){
   const head = `<div class="bar"><h2>Trasy</h2><div class="tools">${canCreate('routes') ? `<button class="primary" data-new="routes">${ic('plus')}Dodaj trasę</button>` : ''}</div></div>`;
   if (!S.routes.length) return head + loadingOr('routes', emptyBlock('Brak tras',
-    'Dodaj trasy, które jeżdżą Twoi kierowcy – kod, nazwę i czy wymagają tachografu. Potem przypiszesz trasę w rezerwacji, a koszty i kilometry policzą się według tras.',
+    'Dodaj trasy, które jeżdżą Twoi kierowcy – kod, nazwę i czy wymagają tachografu. Potem przypiszesz trasę w grafiku, a koszty i kilometry policzą się według tras.',
     `<button class="primary" data-new="routes">${ic('plus')}Dodaj trasę</button>`, '', 'routes'));
   const now = S.bookings.filter(holds);
   const list = S.routes.slice().sort((a, b) => (a.active===false) - (b.active===false) || String(a.code).localeCompare(b.code, 'pl', {numeric:true}));
@@ -54,7 +54,7 @@ function viewRoutes(){
       <td>${on.length ? on.map(b => `${vPlate(b.vehicleId)} <span class="sub">${esc(crewName(b))}</span>`).join('') : '<span class="muted">—</span>'}</td></tr>`;
   }).join('');
   return `<div class="section">${head}<div class="panel tablewrap"><table><thead><tr><th>Kod</th><th>Nazwa</th><th>Tachograf</th><th>Załadunek</th><th>Status</th><th>Teraz w trasie</th></tr></thead><tbody>${rows}</tbody></table></div>
-    <p class="muted small" style="margin:0;max-width:90ch">Trasę przypisujesz w rezerwacji (Rezerwacje → rezerwacja → Trasa). Tankowania i koszty z tych dni dostają trasę automatycznie. Tachograf to tylko informacja – nie blokuje przydziału.</p></div>`;
+    <p class="muted small" style="margin:0;max-width:90ch">Trasę przypisujesz w grafiku (Grafik → pole kierowcy w danym dniu → Trasa). Tankowania i koszty z tych dni dostają trasę automatycznie. Tachograf to tylko informacja – nie blokuje przydziału.</p></div>`;
 }
 
 /* Raport tras w okresie [a, b]: dni pracy i km z dni pracy, koszty i paliwo z kosztów przypisanych do trasy */
