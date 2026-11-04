@@ -63,6 +63,8 @@ Brane są tylko auta z systemu. Zaznaczone produkty to paliwo; pozostałe (opła
 kierowcy (to samo auto, dzień ±1, litry ±5%): **zgodne**, **różnice** (litry, kwota, licznik), **brak wpisu kierowcy**, a także **wpisy bez karty**.
 Przy każdym aucie przebieg i spalanie (l/100 km) z liczników karty i z wpisów kierowców, liczone odcinkami między tankowaniami;
 błędny licznik (np. brak cyfry) jest pomijany i oznaczony „licznik podejrzany”, wynik poza 5–25 l/100 km – „niepewne”.
+Licznik „zmyślony” (poniżej 1000 km albo z samych jednakowych cyfr: 1, 444, 555555) = brak licznika – litry wchodzą do odcinka między
+prawdziwymi licznikami; odcinek ze spalaniem poza 3–40 l/100 km jest odrzucany. Panel „Tankowania bez prawdziwego licznika” pokazuje, kto tak wpisuje.
 Podsumowanie według aut i kierowców; kliknięcie wpisu kierowcy pozwala go poprawić.
 
 **Serwis** – Serwis → **Książka serwisowa** → **Wpis serwisowy**: koszt doda się sam do kosztów, można odnowić termin,

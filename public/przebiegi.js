@@ -12,12 +12,12 @@ const pbOpen = new Set();
 /* Wszystkie liczniki auta: {d: data, t: godzina/kolejność, odo, src, id} */
 function odoReadings(vid){
   const out = [];
-  (S.fuelCardRows || []).forEach(r => { if (r.vehicleId===vid && Number(r.odometer) > 0) out.push({id:'k' + r.id, d: r.txDate, t: r.txTime || '', odo: Number(r.odometer), src:'karta', note: r.station || ''}); });
-  S.costs.forEach(c => { if (c.vehicleId===vid && Number(c.odometer) > 0) out.push({id:'c' + c.id, d: c.date, t: '', odo: Number(c.odometer), src: FUEL_CATS.includes(c.category) ? 'tankowanie' : c.category, note: dName(fillDriver(c) || c.driverId) || ''}); });
+  (S.fuelCardRows || []).forEach(r => { if (r.vehicleId===vid && !fakeOdo(r.odometer)) out.push({id:'k' + r.id, d: r.txDate, t: r.txTime || '', odo: Number(r.odometer), src:'karta', note: r.station || ''}); });
+  S.costs.forEach(c => { if (c.vehicleId===vid && !fakeOdo(c.odometer)) out.push({id:'c' + c.id, d: c.date, t: '', odo: Number(c.odometer), src: FUEL_CATS.includes(c.category) ? 'tankowanie' : c.category, note: dName(fillDriver(c) || c.driverId) || ''}); });
   S.bookings.forEach(b => {
     if (b.vehicleId!==vid) return;
-    if (b.pickup && Number(b.pickup.km) > 0) out.push({id:'p' + b.id, d: b.pickup.at, t: '', odo: Number(b.pickup.km), src:'przejęcie', note: crewName(b)});
-    if (b.returned && Number(b.returned.km) > 0) out.push({id:'z' + b.id, d: b.returned.at, t: '', odo: Number(b.returned.km), src:'zdanie', note: crewName(b)});
+    if (b.pickup && !fakeOdo(b.pickup.km)) out.push({id:'p' + b.id, d: b.pickup.at, t: '', odo: Number(b.pickup.km), src:'przejęcie', note: crewName(b)});
+    if (b.returned && !fakeOdo(b.returned.km)) out.push({id:'z' + b.id, d: b.returned.at, t: '', odo: Number(b.returned.km), src:'zdanie', note: crewName(b)});
   });
   // ten sam dzień: kolejność po liczniku (przejęcie rano, tankowania, zdanie wieczorem)
   return out.filter(x => x.d).sort((a, b) => a.d.localeCompare(b.d) || a.odo - b.odo || a.t.localeCompare(b.t));
@@ -81,7 +81,7 @@ function viewFuelMileage(){
     const det = open ? `<tr class="fc-det"><td colspan="6"><table><thead><tr><th>Data</th><th>Skąd</th><th>Kto / gdzie</th><th class="r">Licznik</th><th></th></tr></thead><tbody>${
       r.xs.map(x => `<tr><td class="num">${fdate(x.d)}${x.t ? ` <span class="muted small">${esc(x.t)}</span>` : ''}${x===r.anchor ? '<span class="sub">przed zakresem</span>' : ''}</td>
         <td>${esc(x.src)}</td><td>${esc(x.note || '')}</td><td class="r num">${km(x.odo)}</td><td>${r.bad.has(x.id) ? '<span class="pill off">licznik podejrzany – pominięty</span>' : ''}</td></tr>`).join('') || '<tr><td colspan="5" class="muted">Brak liczników w tym zakresie.</td></tr>'}</tbody></table></td></tr>` : '';
-    const notes = [(() => { const n = r.bad.size + (c.bad ? c.bad.size : 0); return n ? `${n} ${isPlural(n,'licznik pominięty','liczniki pominięte','liczników pominiętych')}` : ''; })(), (r.breaks || c.breaks) ? `${(r.breaks || 0) + (c.breaks || 0)} ${isPlural((r.breaks || 0) + (c.breaks || 0),'przerwa','przerwy','przerw')}` : ''].filter(Boolean);
+    const notes = [c.fake && c.fake.size ? `${c.fake.size} bez prawdziwego licznika` : '', (() => { const n = r.bad.size + (c.bad ? c.bad.size : 0); return n ? `${n} ${isPlural(n,'licznik pominięty','liczniki pominięte','liczników pominiętych')}` : ''; })(), (r.breaks || c.breaks) ? `${(r.breaks || 0) + (c.breaks || 0)} ${isPlural((r.breaks || 0) + (c.breaks || 0),'przerwa','przerwy','przerw')}` : ''].filter(Boolean);
     return `<tr class="click fc-vrow ${open ? 'open' : ''}" data-pbv="${esc(v.id)}" aria-expanded="${open}"><td>${ic('chev', 'fc-chev')} ${plate(v.plate)}<span class="sub">${esc(v.make + ' ' + v.model)}</span></td>
       <td class="r num">${rate!=null ? `<b class="fc-big">${rate.toFixed(1).replace('.', ',')}</b> l/100` : c.rate!=null ? `<span class="muted">${c.rate.toFixed(1).replace('.', ',')} l/100</span>` : `<span class="muted">${c.n ? 'za mało danych' : 'brak danych'}</span>`}
         <span class="sub">${c.rate!=null ? (c.unsure ? '<span class="pill off">niepewne – sprawdź liczniki</span>' : levelPill(levelFor(v.id, c.rate)) || '') : ''}</span></td>

@@ -100,20 +100,31 @@ function odoSegments(xs, ok){
   const aliveSet = new Set(alive), bad = xs.map((_, i) => i).filter(i => !aliveSet.has(i));
   return {alive, legs, bad, breaks};
 }
-/* Przejechane km i spalanie – z dobrych odcinków między tankowaniami (wg daty i godziny).
-   Litry pominiętych (błędnych) tankowań liczą się do odcinka, w którym były. Na przerwie nic nie liczymy.
-   Spalanie = litry / km × 100 (pierwsze tankowanie odcinka tylko „ustawia” pełny bak); poza 5–25 l/100 km – „niepewne”. */
+/* „Zmyślony” licznik wpisany na stacji: poniżej 1000 km albo z samych jednakowych cyfr (1, 444, 55555, 555555…) – traktujemy jak brak licznika */
+const fakeOdo = o => { const n = Math.round(Number(o)); return !(n > 0) || n < 1000 || /^(\d)\1+$/.test(String(n)); };
+const FC_RATE_MIN = 3, FC_RATE_MAX = 40;
+/* Przejechane km i spalanie – z dobrych odcinków między prawdziwymi licznikami (wg daty i godziny).
+   Litry tankowań bez prawdziwego licznika albo z błędnym licznikiem liczą się do odcinka, w którym były.
+   Na przerwie (dziura, nierealny odcinek, spalanie odcinka poza 3–40 l/100 km) nic nie liczymy.
+   Spalanie = litry / km × 100 (pierwsze tankowanie odcinka tylko „ustawia” pełny bak); wynik poza 5–25 l/100 km – „niepewne”. */
 function fcCons(list){
-  const xs = list.filter(x => Number(x.odo) > 0 && x.l!=null).sort((a, b) => (a.d || '').localeCompare(b.d || '') || a.odo - b.odo);
-  if (!xs.length) return null;
+  const all = list.filter(x => x.l!=null).sort((a, b) => (a.d || '').localeCompare(b.d || '') || (Number(a.odo) || 0) - (Number(b.odo) || 0));
+  if (!all.length) return null;
+  const fake = new Set(all.filter(x => fakeOdo(x.odo)).map(x => x.id).filter(Boolean));
+  const xs = all.filter(x => !fakeOdo(x.odo)), pos = new Map(all.map((x, i) => [x, i]));
+  if (!xs.length) return {km: 0, rate: null, bad: new Set(), fake, legs: 0, n: all.length, breaks: 0, parts: []};
   const seg = odoSegments(xs, (a, b) => b.odo - a.odo >= 0 && b.odo - a.odo <= FC_MAX_LEG);
   const bad = new Set(seg.bad.map(i => xs[i].id).filter(Boolean));
-  let kmS = 0, lS = 0; const parts = [];
-  seg.legs.forEach(([a, b]) => { const k = xs[b].odo - xs[a].odo; let l = 0; for (let i = a + 1; i <= b; i++) l += Number(xs[i].l || 0);
-    kmS += k; lS += l; parts.push({id: xs[b].id, km: k, l}); });   // odcinek zamyka tankowanie xs[b]
-  if (!kmS) return {km: 0, rate: null, bad, legs: 0, n: xs.length, breaks: seg.breaks, parts};
-  const used = seg.legs.flat(), rate = lS / kmS * 100;
-  return {km: kmS, rate, l: lS, from: (xs[Math.min(...used)].d || '').slice(0, 10), to: (xs[Math.max(...used)].d || '').slice(0, 10), n: xs.length, bad, legs: seg.legs.length, breaks: seg.breaks, parts, unsure: rate < 5 || rate > 25};
+  let kmS = 0, lS = 0, breaks = seg.breaks; const parts = [], used = [];
+  seg.legs.forEach(([a, b]) => {
+    const k = xs[b].odo - xs[a].odo; let l = 0;
+    for (let i = pos.get(xs[a]) + 1; i <= pos.get(xs[b]); i++) l += Number(all[i].l || 0);   // także tankowania bez licznika
+    if (k > 0){ const r = l / k * 100; if (r < FC_RATE_MIN || r > FC_RATE_MAX){ breaks++; return; } }   // niewiarygodny odcinek
+    kmS += k; lS += l; parts.push({id: xs[b].id, km: k, l}); used.push(a, b);
+  });
+  if (!kmS) return {km: 0, rate: null, bad, fake, legs: 0, n: all.length, breaks, parts};
+  const rate = lS / kmS * 100;
+  return {km: kmS, rate, l: lS, from: (xs[Math.min(...used)].d || '').slice(0, 10), to: (xs[Math.max(...used)].d || '').slice(0, 10), n: all.length, bad, fake, legs: parts.length, breaks, parts, unsure: rate < 5 || rate > 25};
 }
 /* Punkt startowy: ostatnie tankowanie z licznikiem przed okresem (z wcześniejszych zestawień / wpisów) */
 const fcAnchorCard = (vid, imp) => S.fuelCardRows.filter(x => x.vehicleId===vid && x.importId!==imp.id && x.txDate < imp.periodFrom && Number(x.odometer) > 0)
@@ -171,7 +182,7 @@ function viewFuelCards(){
   const dTable = `<div class="panel tablewrap"><table><thead><tr><th>Kierowca</th><th class="r">Tankowań</th><th class="r">Karta</th><th class="r">Wpisał</th><th class="r">Różnica</th></tr></thead><tbody>${Object.entries(perD).sort((a, b) => Math.abs(b[1].ca - b[1].aa) - Math.abs(a[1].ca - a[1].aa)).map(([n, x]) => `<tr><td><b>${esc(n)}</b></td><td class="r num">${x.n}</td>
     <td class="r num">${fl(x.cl)}<span class="sub">${fm(x.ca)}</span></td><td class="r num">${fl(x.al)}<span class="sub">${fm(x.aa)}</span></td><td class="r num ${Math.abs(x.ca - x.aa) > 1 ? 'neg' : ''}">${fl(x.cl - x.al)}<span class="sub">${fm(x.ca - x.aa)}</span></td></tr>`).join('')}</tbody></table></div>`;
   const list = fcFilter==='ok' ? ok : fcFilter==='diff' ? dif : fcFilter==='miss' ? miss : fcFilter==='nocard' ? [] : pairs;
-  const badOdo = new Set(); perV.forEach(x => { [x.kc, x.ka].forEach(k => k && k.bad.forEach(id => badOdo.add(id))); });
+  const badOdo = new Set(); perV.forEach(x => { [x.kc, x.ka].forEach(k => { if (k){ k.bad.forEach(id => badOdo.add(id)); (k.fake || []).forEach(id => badOdo.add(id)); } }); });
   const pairRow = p => { const r = p.row, c = p.cost;
     return `<tr><td class="num"><b>${fdate(r.txDate)}</b>${r.txTime ? `<span class="sub">${esc(r.txTime)}</span>` : ''}</td><td>${esc(fcDriver(r, c)) || '<span class="muted">—</span>'}</td>
       <td class="num">${fl(r.liters)} · <b>${fm(r.amount, r.currency)}</b><span class="sub">${r.odometer ? km(r.odometer) : 'bez licznika'}${badOdo.has(r.id) ? ' <span class="pill off">licznik podejrzany</span>' : ''}${r.station ? ' · ' + esc(r.station) : ''}${r.product ? ' · ' + esc(r.product) : ''}</span></td>
@@ -192,7 +203,7 @@ function viewFuelCards(){
       <td>${nd ? `<span class="pill warn">${nd} ${isPlural(nd,'różnica','różnice','różnic')}</span> ` : ''}${nm ? `<span class="pill bad">${nm} bez wpisu</span> ` : ''}${nc ? `<span class="pill info">${nc} bez karty</span>` : ''}${!nd && !nm && !nc ? '<span class="pill ok">zgodne</span>' : ''}</td></tr>${det}`;
   }).join('');
   const table = `<div class="panel tablewrap fc-table"><table><thead><tr><th>Auto</th><th class="r">Karta</th><th class="r">Wpisali kierowcy</th><th class="r">Różnica</th><th>Wynik</th></tr></thead><tbody>${vRows || '<tr><td colspan="5" class="muted">Brak aut dla tego filtra.</td></tr>'}</tbody></table></div>`;
-  return head + meta + tiles + `<div class="fc-grid">${table}${dTable}
+  return head + meta + tiles + `<div class="fc-grid">${table}${dTable}${fakeOdoPanel()}
     <p class="muted small" style="margin:0">Parujemy tankowanie z karty z wpisem kierowcy tego samego auta (ten sam dzień ±1, litry ±5%). Zgodne: litry ±0,5 l, kwota ±1 zł, licznik ±30 km. Kliknij wpis kierowcy, aby go poprawić. Kliknij auto, aby zobaczyć jego tankowania. Spalanie i przebiegi aut – w zakładce „Spalanie i przebiegi”.</p></div>`;
 }
 document.addEventListener('change', e => { if (e.target.id==='fc-imp'){ fcImportId = e.target.value; render(); } });
@@ -422,3 +433,19 @@ document.addEventListener('click', e => {
   tlOpen.has(t.dataset.tlv) ? tlOpen.delete(t.dataset.tlv) : tlOpen.add(t.dataset.tlv); render();
 });
 
+
+/* Kto wpisuje na stacji zmyślony licznik (1, 555555…) – ze wszystkich rozliczeń; kierowca z wpisu w aplikacji albo z grafiku */
+function fakeOdoPanel(){
+  const rows = S.fuelCardRows.filter(r => r.kind!=='other'); if (!rows.length) return '';
+  const cost = new Map(); fcCompare(rows).pairs.forEach(p => { if (p.cost) cost.set(p.row.id, p.cost); });
+  const per = {};
+  rows.forEach(r => { const d = fcDriver(r, cost.get(r.id)) || 'nieustalony'; const x = per[d] = per[d] || {n: 0, f: 0, veh: new Set()};
+    x.n++; if (fakeOdo(r.odometer)){ x.f++; x.veh.add(r.vehicleId); } });
+  const list = Object.entries(per).filter(([, x]) => x.f).sort((a, b) => b[1].f - a[1].f);
+  if (!list.length) return '';
+  const total = list.reduce((s, [, x]) => s + x.f, 0);
+  return `<details class="panel fold"><summary class="sec-head"><h3>Tankowania bez prawdziwego licznika</h3><span class="count bad">${total}</span></summary>
+    <div class="tablewrap"><table><thead><tr><th>Kierowca</th><th class="r">Bez licznika</th><th class="r">Wszystkich tankowań</th><th class="r">Udział</th><th>Auta</th></tr></thead><tbody>${list.map(([n, x]) => `<tr><td><b>${esc(n)}</b></td>
+      <td class="r num"><b>${x.f}</b></td><td class="r num">${x.n}</td><td class="r num ${x.f / x.n > 0.2 ? 'neg' : ''}">${Math.round(x.f / x.n * 100)}%</td><td class="muted small">${[...x.veh].map(v => esc((byId('vehicles', v) || {}).plate || '')).join(', ')}</td></tr>`).join('')}</tbody></table></div>
+    <p class="muted small" style="margin:0;padding:10px 16px">Licznik „zmyślony” = poniżej 1000 km albo z samych jednakowych cyfr (1, 444, 55555, 555555…). Takie tankowania nie psują już spalania (ich litry wchodzą do odcinka między prawdziwymi licznikami), ale im ich więcej, tym mniej dokładne wyniki. Kierowca – z wpisu w aplikacji, a gdy go brak – z grafiku.</p></details>`;
+}
