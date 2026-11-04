@@ -12,7 +12,7 @@ Działa w przeglądarce na komputerze i jako aplikacja na telefonie (dodaj stron
 | **Kierowca** | Tylko swój ekran: wybór auta, tankowanie, zdanie auta, swoje dane i statystyki. |
 
 Nowa osoba zakłada konto na stronie, potwierdza e-mail i czeka na zatwierdzenie.
-Kierownik floty: **Ludzie → Użytkownicy** → rola, dla kierowcy jego wpis na liście kierowców (albo „utwórz wpis kierowcy”) → **Zatwierdź**.
+Kierownik floty: **Pracownicy → Użytkownicy** → rola, dla kierowcy jego wpis na liście kierowców (albo „utwórz wpis kierowcy”) → **Zatwierdź**.
 
 ## Menu kierownika
 
@@ -25,7 +25,7 @@ Kierownik floty: **Ludzie → Użytkownicy** → rola, dla kierowcy jego wpis na
 | **Serwis** | zakładki **Usterki**, **Terminy**, **Kontrole** (inspekcje i sprzątanie), **Książka serwisowa** |
 | **Koszty i paliwo** | koszty miesiąca, tankowania do wyjaśnienia |
 | **Raporty** | zakładki **Raporty** (auta, trasy, ranking kierowców, Excel) i **Historia** zmian |
-| **Ludzie** | zakładki **Kierowcy** i **Użytkownicy** (konta, role, spory w obsadzie, zmiany danych kierowców) |
+| **Pracownicy** | zakładki **Kierowcy** i **Użytkownicy** (konta, role, spory w obsadzie, zmiany danych kierowców) |
 | **Ustawienia** | budżet floty, częstotliwość inspekcji i sprzątania, kontrola paragonów, punkty inspekcji, checklista przejęcia, powiadomienia, opis ról |
 
 ## Najczęstsze czynności

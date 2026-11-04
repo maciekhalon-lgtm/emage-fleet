@@ -1,4 +1,4 @@
-/* Emage FLEET — układ stron: grupy menu z zakładkami (Rezerwacje, Serwis, Raporty, Ludzie),
+/* Emage FLEET — układ stron: grupy menu z zakładkami (Rezerwacje, Serwis, Raporty, Pracownicy),
    książka serwisowa wszystkich aut, lista kierowców i Ustawienia w jednym miejscu */
 'use strict';
 
