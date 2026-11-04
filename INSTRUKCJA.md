@@ -24,7 +24,7 @@ Kierownik floty: **Pracownicy → Użytkownicy** → rola, dla kierowcy jego wpi
 | **Grafik** | zakładki **Grafik** (tydzień: kierowcy × dni, załadunek ze zmiany, auta teraz w trasie) i **Trasy** |
 | **Serwis** | zakładki **Usterki**, **Terminy**, **Książka serwisowa** |
 | **Koszty i paliwo** | zakładki **Koszty** (koszty miesiąca, tankowania do wyjaśnienia), **Karty paliwowe**, **Przejazdy i parkingi** i **Spalanie i przebiegi** (kierownik floty) |
-| **Raporty** | zakładki **Raporty** (auta, trasy, ranking kierowców, Excel) i **Historia** (zmiany w danych i zmiany obsady) |
+| **Raporty** | zakładki **Raporty** (auta, trasy, ranking kierowców, Excel), **Miesiąc do miesiąca** (spalanie pojazdów i kierowców: dwa wybrane miesiące i zmiana) i **Historia** (zmiany w danych i zmiany obsady) |
 | **Pracownicy** | zakładki **Kierowcy** i **Użytkownicy** (konta, role, spory w obsadzie, zmiany danych kierowców) |
 | **Ustawienia** | budżet floty, kontrola paragonów, checklista przejęcia, opis ról |
 

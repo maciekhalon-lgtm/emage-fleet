@@ -108,11 +108,12 @@ function fcCons(list){
   if (!xs.length) return null;
   const seg = odoSegments(xs, (a, b) => b.odo - a.odo >= 0 && b.odo - a.odo <= FC_MAX_LEG);
   const bad = new Set(seg.bad.map(i => xs[i].id).filter(Boolean));
-  let kmS = 0, lS = 0;
-  seg.legs.forEach(([a, b]) => { kmS += xs[b].odo - xs[a].odo; for (let i = a + 1; i <= b; i++) lS += Number(xs[i].l || 0); });
-  if (!kmS) return {km: 0, rate: null, bad, legs: 0, n: xs.length, breaks: seg.breaks};
+  let kmS = 0, lS = 0; const parts = [];
+  seg.legs.forEach(([a, b]) => { const k = xs[b].odo - xs[a].odo; let l = 0; for (let i = a + 1; i <= b; i++) l += Number(xs[i].l || 0);
+    kmS += k; lS += l; parts.push({id: xs[b].id, km: k, l}); });   // odcinek zamyka tankowanie xs[b]
+  if (!kmS) return {km: 0, rate: null, bad, legs: 0, n: xs.length, breaks: seg.breaks, parts};
   const used = seg.legs.flat(), rate = lS / kmS * 100;
-  return {km: kmS, rate, l: lS, from: (xs[Math.min(...used)].d || '').slice(0, 10), to: (xs[Math.max(...used)].d || '').slice(0, 10), n: xs.length, bad, legs: seg.legs.length, breaks: seg.breaks, unsure: rate < 5 || rate > 25};
+  return {km: kmS, rate, l: lS, from: (xs[Math.min(...used)].d || '').slice(0, 10), to: (xs[Math.max(...used)].d || '').slice(0, 10), n: xs.length, bad, legs: seg.legs.length, breaks: seg.breaks, parts, unsure: rate < 5 || rate > 25};
 }
 /* Punkt startowy: ostatnie tankowanie z licznikiem przed okresem (z wcześniejszych zestawień / wpisów) */
 const fcAnchorCard = (vid, imp) => S.fuelCardRows.filter(x => x.vehicleId===vid && x.importId!==imp.id && x.txDate < imp.periodFrom && Number(x.odometer) > 0)
