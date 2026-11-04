@@ -100,14 +100,15 @@ function fcDriver(r, c){
 /* ---------- widok ---------- */
 let fcImportId = '', fcFilter = 'all';
 const fcOpen = new Set();
+const fcImports = () => S.fuelCardImports.slice().sort((a, b) => (b.periodTo || '').localeCompare(a.periodTo || '') || (b.createdAt || '').localeCompare(a.createdAt || ''));
 function viewFuelCards(){
   if (!P().manage) return '';
-  const imps = S.fuelCardImports.slice().sort((a, b) => (b.periodTo || '').localeCompare(a.periodTo || '') || (b.createdAt || '').localeCompare(a.createdAt || ''));
+  const imps = fcImports();
   const head = `<div class="bar"><h2>Karty paliwowe</h2><div class="tools">${imps.length ? `<select id="fc-imp" style="width:auto" aria-label="Zestawienie">${imps.map(i => `<option value="${esc(i.id)}" ${i.id===(fcImportId || imps[0].id) ? 'selected' : ''}>${esc([i.provider, i.periodFrom ? fdate(i.periodFrom) + '–' + fdate(i.periodTo) : '', i.invoiceNo].filter(Boolean).join(' · '))}</option>`).join('')}</select>` : ''}
     <button class="primary" data-action="fc-import">${ic('plus')}Importuj zestawienie</button></div></div>`;
   if (!imps.length) return head + loadingOr('fuelCardImports', `<div class="panel empty"><h3>Brak zestawień</h3><p>Wgraj plik CSV albo Excel z karty paliwowej (Orlen, UTA lub inny) i fakturę. System weźmie tylko auta z Twojej floty i porówna każde tankowanie z tym, co wpisał kierowca: litry, kwotę i stan licznika.</p><button class="primary" data-action="fc-import">${ic('plus')}Importuj zestawienie</button></div>`);
   const imp = imps.find(i => i.id===fcImportId) || imps[0];
-  const rows = S.fuelCardRows.filter(r => r.importId===imp.id);
+  const rows = S.fuelCardRows.filter(r => r.importId===imp.id && r.kind!=='other');
   const {pairs, used} = fcCompare(rows);
   const vids = new Set(rows.map(r => r.vehicleId));
   const noCard = appFuel().filter(c => vids.has(c.vehicleId) && c.date>=imp.periodFrom && c.date<=imp.periodTo && !used.has(c.id));
@@ -173,7 +174,7 @@ document.addEventListener('click', e => {
 });
 async function fcDelete(id){
   try { const {error} = await sb.from('fuel_card_imports').delete().eq('id', id); if (error) throw dbErr(error);
-    fcImportId = ''; await refresh('fuelCardImports'); await refresh('fuelCardRows'); toast('Usunięto zestawienie'); }
+    fcImportId = ''; await refresh('fuelCardImports'); await refresh('fuelCardRows'); await refresh('costs'); toast('Usunięto zestawienie'); }
   catch(err){ handleWriteErr(err); }
 }
 
@@ -260,13 +261,15 @@ function fcRenderMap(keepScroll){
     const {all, foreign} = fcRows();
     const prods = P_.map.product!=null ? [...new Set(all.map(r => r.product).filter(Boolean))] : [];
     if (!P_.prodOff){ P_.prodOff = new Set(prods.filter(p => !FUEL_LIKE.test(p))); }
-    const ours = all.filter(r => r.vehicle && !(r.product && P_.prodOff.has(r.product)));
+    const ours = all.filter(r => r.vehicle);
+    ours.forEach(r => { r.kind = (r.product && P_.prodOff.has(r.product)) || !(Number(r.liters) > 0) ? 'other' : 'fuel'; });
+    const nF = ours.filter(r => r.kind==='fuel').length, nO = ours.length - nF;
     const ds = ours.map(r => r.txDate).sort();
     P_.ours = ours;
-    sum = `<div class="imp-sum"><span class="pill ok">${ours.length} tankowań naszych aut</span><span class="pill off">${foreign.size} innych tablic – pominięte</span>${ds.length ? `<span class="pill info">${fdate(ds[0])} – ${fdate(ds[ds.length - 1])}</span>` : ''}</div>
-      ${prods.length > 1 ? `<div class="fc-prods"><span class="label">Produkty do porównania</span>${prods.map(p => `<label class="check"><input type="checkbox" data-fcprod value="${esc(p)}" ${P_.prodOff.has(p) ? '' : 'checked'}> ${esc(p)}</label>`).join('')}</div>` : ''}
+    sum = `<div class="imp-sum"><span class="pill ok">${nF} tankowań naszych aut</span>${nO ? `<span class="pill info">${nO} przejazdów, parkingów i innych</span>` : ''}<span class="pill off">${foreign.size} innych tablic – pominięte</span>${ds.length ? `<span class="pill info">${fdate(ds[0])} – ${fdate(ds[ds.length - 1])}</span>` : ''}</div>
+      ${prods.length > 1 ? `<div class="fc-prods"><span class="label">Zaznaczone = paliwo (porównanie z kierowcami). Pozostałe trafią do „Przejazdy i parkingi” i do kosztów auta</span>${prods.map(p => `<label class="check"><input type="checkbox" data-fcprod value="${esc(p)}" ${P_.prodOff.has(p) ? '' : 'checked'}> ${esc(p)}</label>`).join('')}</div>` : ''}
       <div class="tablewrap imp-table"><table><thead><tr><th>Data</th><th>Auto</th><th class="r">Litry</th><th class="r">Kwota</th><th class="r">Licznik</th></tr></thead><tbody>
-      ${ours.slice(0, 8).map(r => `<tr><td class="num">${fdate(r.txDate)} ${esc(r.txTime || '')}</td><td>${plate(r.vehicle.plate)}</td><td class="r num">${fl(r.liters)}</td><td class="r num">${fm(r.amount, r.currency)}</td><td class="r num">${r.odometer ? km(r.odometer) : '—'}</td></tr>`).join('')}
+      ${ours.slice(0, 8).map(r => `<tr><td class="num">${fdate(r.txDate)} ${esc(r.txTime || '')}</td><td>${plate(r.vehicle.plate)}</td><td class="r num">${fl(r.liters)}</td><td class="r num">${fm(r.amount, r.currency)}</td><td class="r num">${r.kind==='fuel' ? (r.odometer ? km(r.odometer) : '—') : `<span class="pill info">${esc(r.product || 'inne')}</span>`}</td></tr>`).join('')}
       </tbody></table></div>${ours.length > 8 ? `<span class="sub muted">…i ${ours.length - 8} kolejnych</span>` : ''}`;
   } else { P_.ours = []; sum = `<span class="warnline">Wskaż kolumny: ${esc(miss.join(', '))}.</span>`; }
   const y = $('#dlg-body').scrollTop;
@@ -279,8 +282,8 @@ async function fcSave(){
   if (FC_FIELDS.some(([k, , req]) => req && fcParsed.map[k]==null)) return warn('Wskaż wszystkie wymagane kolumny.');
   const ours = fcParsed.ours || [];
   if (!ours.length) return warn('W pliku nie ma tankowań aut z systemu.');
-  const exist = new Set(S.fuelCardRows.map(r => [r.vehicleId, r.txDate, r.txTime || '', Number(r.liters), Number(r.amount)].join('|')));
-  const fresh = ours.filter(r => !exist.has([r.vehicle.id, r.txDate, r.txTime || '', Number(r.liters), Number(r.amount)].join('|')));
+  const exist = new Set(S.fuelCardRows.map(r => [r.vehicleId, r.txDate, r.txTime || '', Number(r.liters), Number(r.amount), r.product || ''].join('|')));
+  const fresh = ours.filter(r => !exist.has([r.vehicle.id, r.txDate, r.txTime || '', Number(r.liters), Number(r.amount), r.product || ''].join('|')));
   if (!fresh.length) return warn('Wszystkie te tankowania są już zaimportowane.');
   const btn = $('#dlg-save'); btn.disabled = true;
   try {
@@ -294,14 +297,49 @@ async function fcSave(){
       period_from: ds[0], period_to: ds[ds.length - 1], rows_total: fcParsed.data.length, rows_ours: fresh.length});
     if (error) throw dbErr(error);
     const rows = fresh.map(r => ({import_id: id, vehicle_id: r.vehicle.id, plate: r.plate, tx_date: r.txDate, tx_time: r.txTime, liters: r.liters, amount: r.amount,
-      currency: r.currency, odometer: r.odometer, station: r.station, card_no: r.card, product: r.product}));
+      currency: r.currency, odometer: r.odometer, station: r.station, card_no: r.card, product: r.product, kind: r.kind}));
     for (let i = 0; i < rows.length; i += 500){ ({error} = await sb.from('fuel_card_rows').insert(rows.slice(i, i + 500))); if (error) throw dbErr(error); }
     const st = fcSettings();
     await db.collection('settings').doc('fuelcard').set({provider: prov || st.provider || '', maps: {...(st.maps || {}), [fcParsed.sig]: fcParsed.map}});
-    await refresh('fuelCardImports'); await refresh('fuelCardRows');
+    await refresh('fuelCardImports'); await refresh('fuelCardRows'); if (fresh.some(r => r.kind==='other')) await refresh('costs');
     fcImportId = id; fcFilter = 'all';
     closeForm();
-    toast(`Zaimportowano ${fresh.length} ${isPlural(fresh.length,'tankowanie','tankowania','tankowań')}${ours.length > fresh.length ? ` · ${ours.length - fresh.length} już było` : ''}`);
+    const nF = fresh.filter(r => r.kind==='fuel').length, nO = fresh.length - nF;
+    toast(`Zaimportowano ${nF} ${isPlural(nF,'tankowanie','tankowania','tankowań')}${nO ? ` i ${nO} ${isPlural(nO,'przejazd / parking','przejazdy / parkingi','przejazdów / parkingów')}` : ''}${ours.length > fresh.length ? ` · ${ours.length - fresh.length} już było` : ''}`);
   } catch(err){ handleWriteErr(err); }
   finally { btn.disabled = false; }
 }
+
+/* ---------- przejazdy i parkingi z karty (osobna zakładka) ---------- */
+const tlOpen = new Set();
+function viewTolls(){
+  if (!P().manage) return '';
+  const imps = fcImports();
+  const head = `<div class="bar"><h2>Przejazdy i parkingi</h2><div class="tools">${imps.length ? `<select id="fc-imp" style="width:auto" aria-label="Zestawienie">${imps.map(i => `<option value="${esc(i.id)}" ${i.id===(fcImportId || imps[0].id) ? 'selected' : ''}>${esc([i.provider, i.periodFrom ? fdate(i.periodFrom) + '–' + fdate(i.periodTo) : '', i.invoiceNo].filter(Boolean).join(' · '))}</option>`).join('')}</select>` : ''}
+    <button class="primary" data-action="fc-import">${ic('plus')}Importuj zestawienie</button></div></div>`;
+  if (!imps.length) return head + loadingOr('fuelCardImports', `<div class="panel empty"><p>Opłaty drogowe, parkingi i inne pozycje (np. myjnia, AdBlue) pojawią się tu po imporcie zestawienia z karty w zakładce Karty paliwowe. Dopisują się same do kosztów auta.</p></div>`);
+  const imp = imps.find(i => i.id===fcImportId) || imps[0];
+  const rows = S.fuelCardRows.filter(r => r.importId===imp.id && r.kind==='other');
+  const sum = a => a.reduce((s, r) => s + (!r.currency || r.currency==='PLN' ? Number(r.amount || 0) : 0), 0);
+  const fx = rows.filter(r => r.currency && r.currency!=='PLN');
+  const vids = [...new Set(rows.map(r => r.vehicleId))].sort((a, b) => sum(rows.filter(r => r.vehicleId===b)) - sum(rows.filter(r => r.vehicleId===a)));
+  const meta = `<div class="panel fc-meta"><div><span class="label">Okres</span><b>${imp.periodFrom ? fdate(imp.periodFrom) + ' – ' + fdate(imp.periodTo) : '—'}</b></div>
+    <div><span class="label">Pozycji</span><b>${rows.length}</b></div><div><span class="label">Razem (PLN)</span><b>${fm(sum(rows))}</b></div>
+    ${fx.length ? `<div><span class="label">W walutach</span><b>${[...new Set(fx.map(r => r.currency))].map(c => fm(fx.filter(r => r.currency===c).reduce((s, r) => s + Number(r.amount || 0), 0), c)).join(' · ')}</b></div>` : ''}
+    <div><span class="label">Koszty auta</span><b>${rows.filter(r => r.costId).length} z ${rows.length} dopisane</b></div></div>`;
+  const vRows = vids.map(vid => {
+    const list = rows.filter(r => r.vehicleId===vid).sort((a, b) => (b.txDate + (b.txTime || '')).localeCompare(a.txDate + (a.txTime || ''))), open = tlOpen.has(vid);
+    const det = open ? `<tr class="fc-det"><td colspan="3"><table><thead><tr><th>Data</th><th>Pozycja</th><th>Kierowca</th><th class="r">Kwota</th><th></th></tr></thead><tbody>${list.map(r => `<tr>
+        <td class="num"><b>${fdate(r.txDate)}</b>${r.txTime ? `<span class="sub">${esc(r.txTime)}</span>` : ''}</td><td>${esc(r.product || 'inne')}<span class="sub">${esc(r.station || '')}</span></td>
+        <td>${esc(fcDriver(r, null)) || '<span class="muted">—</span>'}</td><td class="r num"><b>${fm(r.amount, r.currency)}</b></td>
+        <td>${r.costId ? '<span class="pill ok">w kosztach</span>' : '<span class="pill warn">nie dopisano – dodaj ręcznie</span>'}</td></tr>`).join('')}</tbody></table></td></tr>` : '';
+    return `<tr class="click fc-vrow ${open ? 'open' : ''}" data-tlv="${esc(vid)}" aria-expanded="${open}"><td>${ic('chev', 'fc-chev')} ${vPlate(vid)}<span class="sub">${list.length} ${isPlural(list.length,'pozycja','pozycje','pozycji')}</span></td>
+      <td class="r num"><b>${fm(sum(list))}</b></td><td class="muted small">${esc([...new Set(list.map(r => r.product).filter(Boolean))].slice(0, 4).join(', '))}</td></tr>${det}`;
+  }).join('');
+  return head + meta + `<div class="panel tablewrap fc-table"><table><thead><tr><th>Auto</th><th class="r">Razem</th><th>Co</th></tr></thead><tbody>${vRows || '<tr><td colspan="3" class="muted">W tym zestawieniu nie ma przejazdów ani parkingów naszych aut.</td></tr>'}</tbody></table></div>
+    <p class="muted small" style="margin:0">Pozycje z karty, które nie są paliwem, dopisują się same do kosztów auta (kategorie Opłaty i parkingi, Myjnia albo Inne). Usunięcie zestawienia usuwa też te koszty. Kliknij auto, aby zobaczyć pozycje.</p>`;
+}
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-tlv]'); if (!t || t.closest('#dialog')) return;
+  tlOpen.has(t.dataset.tlv) ? tlOpen.delete(t.dataset.tlv) : tlOpen.add(t.dataset.tlv); render();
+});

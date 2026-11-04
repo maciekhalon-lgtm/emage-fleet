@@ -23,7 +23,7 @@ Kierownik floty: **Pracownicy → Użytkownicy** → rola, dla kierowcy jego wpi
 | **Pojazdy** | lista i karta auta: dane, polisa (assistance – Zadzwoń), odpowiedzialni kierowcy, terminy, usterki, grafik, dokumenty, książka serwisowa, historia |
 | **Grafik** | zakładki **Grafik** (tydzień: kierowcy × dni, załadunek ze zmiany, auta teraz w trasie) i **Trasy** |
 | **Serwis** | zakładki **Usterki**, **Terminy**, **Książka serwisowa** |
-| **Koszty i paliwo** | zakładki **Koszty** (koszty miesiąca, tankowania do wyjaśnienia) i **Karty paliwowe** (kierownik floty) |
+| **Koszty i paliwo** | zakładki **Koszty** (koszty miesiąca, tankowania do wyjaśnienia), **Karty paliwowe** i **Przejazdy i parkingi** (kierownik floty) |
 | **Raporty** | zakładki **Raporty** (auta, trasy, ranking kierowców, Excel) i **Historia** (zmiany w danych i zmiany obsady) |
 | **Pracownicy** | zakładki **Kierowcy** i **Użytkownicy** (konta, role, spory w obsadzie, zmiany danych kierowców) |
 | **Ustawienia** | budżet floty, kontrola paragonów, checklista przejęcia, opis ról |
@@ -55,7 +55,8 @@ cena ±15% od średniej, słabe spalanie). Pulpit / Koszty → **OK** albo **Wyj
 
 **Karty paliwowe** – Koszty i paliwo → **Karty paliwowe** → **Importuj zestawienie**: dostawca, nr faktury, faktura (PDF) i plik CSV/Excel.
 Przy pierwszym pliku danego układu sprawdź dopasowanie kolumn (data, nr rejestracyjny, litry, kwota brutto, licznik…) – system je zapamięta.
-Brane są tylko auta z systemu; produkty inne niż paliwo (np. AdBlue) można odznaczyć. Każde tankowanie z karty jest parowane z wpisem
+Brane są tylko auta z systemu. Zaznaczone produkty to paliwo; pozostałe (opłaty drogowe, parkingi, myjnia, AdBlue) trafiają do zakładki
+**Przejazdy i parkingi** i same dopisują się do kosztów auta (usunięcie zestawienia usuwa też te koszty). Każde tankowanie z karty jest parowane z wpisem
 kierowcy (to samo auto, dzień ±1, litry ±5%): **zgodne**, **różnice** (litry, kwota, licznik), **brak wpisu kierowcy**, a także **wpisy bez karty**.
 Przy każdym aucie przebieg i spalanie (l/100 km) z liczników karty i z wpisów kierowców, kolor wg progów auta.
 Podsumowanie według aut i kierowców; kliknięcie wpisu kierowcy pozwala go poprawić.
