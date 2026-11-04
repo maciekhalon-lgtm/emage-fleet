@@ -42,7 +42,8 @@ opcjonalnie drugi kierowca i uwagi. Kierowca widzi swój grafik na 7 dni. **Kopi
 pomijając zajęte auta i kierowców.
 
 **Załadunek** – kierowca zaznacza trasy, których towar zabiera; od razu widzi, kto jutro jedzie tą trasą (z telefonem).
-Kierowca jadący trasą widzi w swoim grafiku, kto ma jego towar. Kierownik widzi to pod grafikiem i ikoną paczki w grafiku.
+Kierowca jadący trasą widzi w swoim grafiku, kto ma jego towar.
+Kierowca jadący dziś trasą załadunkową wpisuje przy tym wagę towaru (kg, obowiązkowo) i jedno zdjęcie – widzi to tylko kierownik floty. Kierownik widzi to pod grafikiem i ikoną paczki w grafiku.
 
 **Przekazanie auta w trakcie dnia** – w Grafik → **Teraz w trasie** albo w karcie auta **Przekaż** → nowy kierowca, licznik, powód.
 Nowy kierowca przyjmuje auto u siebie z checklistą.

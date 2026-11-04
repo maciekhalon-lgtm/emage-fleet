@@ -5,7 +5,7 @@ const sb = supabase.createClient(CONFIG.supabaseUrl, CONFIG.supabaseKey, {
 });
 
 /* nazwa w aplikacji → tabela w bazie */
-const TABLES = {vehicles:'vehicles', drivers:'drivers', deadlines:'deadlines', bookings:'bookings', costs:'costs', issues:'issues', docs:'documents', settings:'settings', requests:'data_change_requests', crewChanges:'crew_changes', routes:'routes', serviceEntries:'service_entries', inspections:'inspections', cleanings:'cleanings', blockOverrides:'block_overrides', loadings:'loadings', members:'profiles'};
+const TABLES = {vehicles:'vehicles', drivers:'drivers', deadlines:'deadlines', bookings:'bookings', costs:'costs', issues:'issues', docs:'documents', settings:'settings', requests:'data_change_requests', crewChanges:'crew_changes', routes:'routes', serviceEntries:'service_entries', inspections:'inspections', cleanings:'cleanings', blockOverrides:'block_overrides', loadings:'loadings', loadingReports:'loading_reports', members:'profiles'};
 const COL_OF = Object.fromEntries(Object.entries(TABLES).map(([a, b]) => [b, a]));
 
 /* pole w aplikacji → kolumna w bazie */
@@ -20,6 +20,7 @@ const FIELDS = {
   deadlines: {vehicleId:'vehicle_id', kmDue:'km_due', intervalMonths:'interval_months', intervalKm:'interval_km', remindKm:'remind_km'},
   serviceEntries: {vehicleId:'vehicle_id', tiresSet:'tires_set', oilChange:'oil_change', timingChange:'timing_change', deadlineId:'deadline_id', issueIds:'issue_ids', costId:'cost_id', assetId:'storage_path', fileName:'file_name', contentType:'content_type'},
   loadings:  {routeId:'route_id', driverId:'driver_id', loadDate:'load_date', forDate:'for_date'},
+  loadingReports: {driverId:'driver_id', loadDate:'load_date', weightKg:'weight_kg'},
   bookings:  {vehicleId:'vehicle_id', driverId:'driver_id', routeId:'route_id', from:'date_from', to:'date_to', coDriverId:'co_driver_id', pickupConfirmedAt:'pickup_confirmed_at', returnConfirmedAt:'return_confirmed_at', disputeStage:'dispute_stage', disputeNote:'dispute_note', disputeAt:'dispute_at', disputeResolvedAt:'dispute_resolved_at'},
   costs:     {vehicleId:'vehicle_id', driverId:'driver_id', routeId:'route_id', amountOrig:'amount_orig', fxRate:'fx_rate', fxDate:'fx_date', fxTable:'fx_table', fxManual:'fx_manual', flagState:'flag_state', flagQuestion:'flag_question', flagReply:'flag_reply', flagBy:'flag_by', flagAt:'flag_at', full:'full_tank', coDriverId:'co_driver_id', confirmStatus:'confirm_status', confirmedAt:'confirmed_at', disputeNote:'dispute_note'},
   issues:    {vehicleId:'vehicle_id', repairNote:'repair_note', resolvedAt:'resolved_at'},
@@ -39,6 +40,7 @@ const WRITABLE = {
   deadlines: ['id','vehicle_id','type','date','km_due','interval_months','interval_km','remind_km','note'],
   serviceEntries: ['id','vehicle_id','date','km','workshop','description','cost','oil_change','deadline_id','issue_ids','note','storage_path','file_name','content_type','tires_set','timing_change'],
   loadings:  ['id','route_id','driver_id'],
+  loadingReports: ['id','driver_id','weight_kg','photo'],
   bookings:  ['id','vehicle_id','driver_id','date_from','date_to','purpose','route_id','pickup_at','pickup_km','pickup_fuel','pickup_note','pickup_photos','pickup_by','pickup_checklist','return_at','return_km','return_fuel','return_note','return_photos','return_by','co_driver_id'],
   costs:     ['id','date','vehicle_id','driver_id','category','amount','liters','odometer','full_tank','note','photos','co_driver_id','confirm_status','currency','amount_orig','fx_rate','fx_manual','station','flag_state','flag_question'],
   issues:    ['id','vehicle_id','title','description','severity','status','date','km','repair_note','resolved_at','photos'],

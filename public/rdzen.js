@@ -1,7 +1,7 @@
 /* Emage FLEET — rdzeń: stan danych, pomocnicze funkcje dat i formatowania, logika domenowa */
 'use strict';
-const COLS = ['vehicles','drivers','deadlines','bookings','costs','issues','docs','settings','requests','crewChanges','routes','serviceEntries','inspections','cleanings','blockOverrides','loadings'];
-const S = {vehicles:[],drivers:[],deadlines:[],bookings:[],costs:[],issues:[],docs:[],settings:[],requests:[],crewChanges:[],routes:[],serviceEntries:[],inspections:[],cleanings:[],blockOverrides:[],loadings:[]};
+const COLS = ['vehicles','drivers','deadlines','bookings','costs','issues','docs','settings','requests','crewChanges','routes','serviceEntries','inspections','cleanings','blockOverrides','loadings','loadingReports'];
+const S = {vehicles:[],drivers:[],deadlines:[],bookings:[],costs:[],issues:[],docs:[],settings:[],requests:[],crewChanges:[],routes:[],serviceEntries:[],inspections:[],cleanings:[],blockOverrides:[],loadings:[],loadingReports:[]};
 const got = {};
 let db = null, canWrite = true, dbState = 'loading';
 let myId = null;

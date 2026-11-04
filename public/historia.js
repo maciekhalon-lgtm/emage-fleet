@@ -3,7 +3,7 @@
 let LOG = [];
 let histWho = '', histCol = '';
 const LOG_KEEP_DAYS = 365;
-const COL_NAMES = {vehicles:'Pojazd', drivers:'Kierowca', deadlines:'Termin', bookings:'Przydział', loadings:'Załadunek', costs:'Koszt', issues:'Usterka', docs:'Dokument', members:'Rola', settings:'Ustawienia', routes:'Trasa', serviceEntries:'Serwis', inspections:'Inspekcja', cleanings:'Sprzątanie'};
+const COL_NAMES = {vehicles:'Pojazd', drivers:'Kierowca', deadlines:'Termin', bookings:'Przydział', loadings:'Załadunek', loadingReports:'Waga załadunku', costs:'Koszt', issues:'Usterka', docs:'Dokument', members:'Rola', settings:'Ustawienia', routes:'Trasa', serviceEntries:'Serwis', inspections:'Inspekcja', cleanings:'Sprzątanie'};
 const ACT_NAMES = {add:'dodał(a)', edit:'zmienił(a)', delete:'usunął/usunęła', status:'zmienił(a) status', pickup:'wydał(a) auto', return:'przyjął/przyjęła zwrot', role:'zmienił(a) rolę', import:'zaimportował(a)', done:'oznaczył(a) jako wykonane'};
 
 function labelFor(col, d){
