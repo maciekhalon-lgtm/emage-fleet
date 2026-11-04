@@ -18,7 +18,7 @@ function badOdometers(){
   const out = [];
   S.vehicles.forEach(v => {
     const xs = [];
-    S.fuelCardRows.forEach(r => { if (r.vehicleId===v.id && r.kind!=='other' && r.odometer!=null) xs.push({key:'k' + r.id, d: r.txDate, t: r.txTime || '', odo: Number(r.odometer), src:'karta (stacja)', who: fcDriver(r, card2cost.get(r.id)), edit: null}); });
+    S.fuelCardRows.forEach(r => { if (r.vehicleId===v.id && r.kind!=='other' && r.odometer!=null) xs.push({key:'k' + r.id, d: r.txDate, t: r.txTime || '', odo: Number(r.odometer), src:'karta (stacja)' + (r.station ? ' · ' + r.station : ''), who: fcDriver(r, card2cost.get(r.id)), edit: null, cardRow: r.id}); });
     appFuel().forEach(c => { if (c.vehicleId===v.id && c.odometer!=null) xs.push({key:'c' + c.id, d: c.date, t: '', odo: Number(c.odometer), src:'tankowanie w aplikacji', who: dName(fillDriver(c) || c.driverId) || '', edit: c.id}); });
     S.bookings.forEach(b => {
       if (b.vehicleId!==v.id) return;
@@ -64,11 +64,11 @@ function viewOdometers(){
       <td class="r num ${x.edit ? 'click' : ''}" ${x.edit ? `data-edit="costs" data-id="${esc(x.edit)}" title="Popraw wpis"` : ''}><b class="neg">${nf(x.odo)} km</b></td>
       <td class="r num muted">${x.lo!=null || x.hi!=null ? `${x.lo!=null ? nf(x.lo) : '?'} – ${x.hi!=null ? nf(x.hi) : '?'} km` : '—'}</td>
       <td><span class="pill ${x.kind==='zmyślony' ? 'bad' : 'warn'}">${esc(x.kind)}</span></td>
-      <td>${ch.has(x.key) ? `<button class="small ghost" data-odo-un="${esc(x.key)}">Cofnij</button>` : `<button class="small" data-odo-ok="${esc(x.key)}">Sprawdzone</button>`}</td></tr>`).join('');
+      <td class="odo-act">${x.cardRow ? `<button class="small" data-odo-fix="${esc(x.key)}">Popraw</button>` : ''}${ch.has(x.key) ? `<button class="small ghost" data-odo-un="${esc(x.key)}">Cofnij</button>` : `<button class="small ghost" data-odo-ok="${esc(x.key)}">Sprawdzone</button>`}</td></tr>`).join('');
   return head + meta + `<div class="panel tablewrap fc-table"><table><thead><tr><th>Data</th><th>Auto</th><th>Kto / skąd</th><th class="r">Wpisany licznik</th><th class="r">Powinien być ok.</th><th>Rodzaj</th><th></th></tr></thead>
     <tbody>${rows || `<tr><td colspan="7" class="muted">${odoFilter==='todo' ? 'Nic do sprawdzenia.' : 'Brak pozycji.'}</td></tr>`}</tbody></table></div>
     ${list.length > 400 ? `<p class="muted small">Pokazano 400 najnowszych z ${list.length}.</p>` : ''}
-    <p class="muted small" style="margin:0">Zły licznik: zmyślony (poniżej 1000 km albo z samych jednakowych cyfr: 1, 444, 555555) albo niepasujący do sąsiednich (literówka, cofnięty, skok ponad 1500 km na dobę). „Powinien być ok.” – między poprzednim a następnym dobrym licznikiem tego auta. Złe liczniki nie psują spalania ani przebiegów – są pomijane. Kierowca z wpisu w aplikacji, a dla karty – z grafiku. Kliknij licznik wpisany w aplikacji, aby go poprawić. Od teraz kierowca w aplikacji nie wpisze zmyślonego ani cofniętego licznika.</p>`;
+    <p class="muted small" style="margin:0">Zły licznik: zmyślony (poniżej 1000 km albo z samych jednakowych cyfr: 1, 444, 555555) albo niepasujący do sąsiednich (literówka, cofnięty, skok ponad 1500 km na dobę). „Powinien być ok.” – między poprzednim a następnym dobrym licznikiem tego auta. Złe liczniki nie psują spalania ani przebiegów – są pomijane. Kierowca z wpisu w aplikacji, a dla karty – z grafiku. Licznik z karty poprawisz przyciskiem „Popraw” (z podpowiedzią), wpisany w aplikacji – klikając w niego. Od teraz kierowca w aplikacji nie wpisze zmyślonego ani cofniętego licznika.</p>`;
 }
 async function odoMark(keys, on){
   const set = odoChecked(); keys.forEach(k => on ? set.add(k) : set.delete(k));
@@ -77,7 +77,8 @@ async function odoMark(keys, on){
 }
 document.addEventListener('change', e => { if (e.target.id==='odo-veh'){ odoVeh = e.target.value; render(); } });
 document.addEventListener('click', e => {
-  const t = e.target.closest('[data-odof],[data-odo-ok],[data-odo-un],[data-odo-all]'); if (!t || t.closest('#dialog')) return;
+  const t = e.target.closest('[data-odof],[data-odo-ok],[data-odo-un],[data-odo-all],[data-odo-fix]'); if (!t || t.closest('#dialog')) return;
+  if (t.dataset.odoFix) return openOdoFix(t.dataset.odoFix);
   if (t.dataset.odof){ odoFilter = t.dataset.odof; render(); return; }
   if (t.dataset.odoOk) return odoMark([t.dataset.odoOk], true);
   if (t.dataset.odoUn) return odoMark([t.dataset.odoUn], false);
@@ -115,4 +116,45 @@ function lastRealKm(vid, date, selfId){
   xs.sort((a, b) => a.d.localeCompare(b.d) || a.odo - b.odo);
   const seg = odoSegments(xs, (a, b) => b.odo - a.odo >= 0 && b.odo - a.odo <= 1500 * (Math.max(0, diffDays(a.d, b.d)) + 1));
   return seg.alive.length ? xs[seg.alive[seg.alive.length - 1]].odo : 0;
+}
+
+/* ---------- poprawa licznika z karty ---------- */
+/* Podpowiedź: wariant wpisanego licznika (bez jednej cyfry, z zamienionymi sąsiednimi cyframi, z dopisaną albo zmienioną cyfrą)
+   mieszczący się między poprzednim a następnym dobrym licznikiem; najbliższy środka. */
+function odoSuggest(odo, lo, hi){
+  const s = String(Math.round(odo)), c = new Set();
+  for (let i = 0; i < s.length; i++) c.add(s.slice(0, i) + s.slice(i + 1));
+  for (let i = 0; i < s.length - 1; i++) c.add(s.slice(0, i) + s[i + 1] + s[i] + s.slice(i + 2));
+  for (let i = 0; i <= s.length; i++) for (let d = 0; d <= 9; d++) c.add(s.slice(0, i) + d + s.slice(i));
+  for (let i = 0; i < s.length; i++) for (let d = 0; d <= 9; d++) c.add(s.slice(0, i) + d + s.slice(i + 1));   // jedna zła cyfra
+  const L = lo!=null ? lo : (hi!=null ? hi - 3000 : null), H = hi!=null ? hi : (lo!=null ? lo + 3000 : null);
+  if (L==null) return null;
+  const mid = (L + H) / 2;
+  const ok = [...c].map(Number).filter(n => n >= L && n <= H && !/^0/.test(String(n)));
+  ok.sort((a, b) => Math.abs(a - mid) - Math.abs(b - mid));
+  return ok[0] || null;
+}
+function openOdoFix(key){
+  const x = badOdometers().find(y => y.key===key); if (!x || !x.cardRow) return;
+  const sug = odoSuggest(x.odo, x.lo, x.hi), nf = n => new Intl.NumberFormat('pl-PL').format(n);
+  editing = {col:'odo-fix', id: x.cardRow, base:{}, special: async () => {
+    const n = Math.round(Number(String($('#odo-new').value).replace(/[\s.]/g, '').replace(',', '.')));
+    const w = $('#dlg-warn');
+    if (!(n > 0)){ w.textContent = 'Wpisz poprawny stan licznika.'; w.hidden = false; return; }
+    if ((x.lo!=null && n < x.lo) || (x.hi!=null && n > x.hi)){ if (w.dataset.fix!==String(n)){ w.dataset.fix = String(n); w.textContent = `${nf(n)} km nie mieści się między sąsiednimi licznikami (${x.lo!=null ? nf(x.lo) : '?'} – ${x.hi!=null ? nf(x.hi) : '?'} km). Jeśli to prawda, kliknij jeszcze raz.`; w.hidden = false; return; } }
+    const btn = $('#dlg-save'); btn.disabled = true;
+    try {
+      const {error} = await sb.from('fuel_card_rows').update({odometer: n}).eq('id', x.cardRow); if (error) throw dbErr(error);
+      await refresh('fuelCardRows'); closeForm(); toast(`Poprawiono licznik: ${nf(x.odo)} → ${nf(n)} km`);
+    } catch(err){ handleWriteErr(err); } finally { btn.disabled = false; }
+  }};
+  $('#dlg-title').textContent = 'Popraw licznik z karty';
+  $('#dlg-body').innerHTML = `<div class="field full"><span class="ho-car">${vPlate(x.vid)} <span class="muted">${fdate(x.d)} ${esc(x.t || '')} · ${esc(x.src)}</span></span></div>
+    <div class="field"><span class="label">Wpisano na stacji</span><b class="neg">${nf(x.odo)} km</b></div>
+    <div class="field"><span class="label">Sąsiednie liczniki</span><b>${x.lo!=null ? nf(x.lo) : '?'} – ${x.hi!=null ? nf(x.hi) : '?'} km</b></div>
+    <div class="field full"><label for="odo-new">Prawidłowy stan licznika (km)</label><input id="odo-new" type="text" inputmode="numeric" value="${sug ? sug : ''}" placeholder="np. ${x.lo!=null ? x.lo + 500 : ''}">
+      ${sug ? `<span class="muted small">Podpowiedź: ${nf(sug)} km – wpisany licznik z poprawioną jedną cyfrą, pasuje do sąsiednich. Sprawdź i zapisz.</span>` : '<span class="muted small">Brak podpowiedzi – wpisz stan z innego źródła (np. zdanie auta) albo zostaw i oznacz jako sprawdzone.</span>'}</div>
+    <div class="warnline" id="dlg-warn" hidden></div>`;
+  $('#dlg-save').textContent = 'Zapisz'; $('#dlg-del').hidden = true; $('#scrim').hidden = false;
+  setTimeout(() => $('#odo-new')?.focus(), 20);
 }
