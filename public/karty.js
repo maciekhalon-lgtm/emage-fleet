@@ -4,14 +4,14 @@
    przez kierowców: litry, kwota, stan licznika. */
 'use strict';
 const FC_FIELDS = [
-  ['date','Data transakcji',1,['data','data transakcji','data tankowania','data operacji','data i godzina','data/godzina','transaction date','date','datum']],
+  ['date','Data transakcji',1,['data transakcji','data realizacji','data tankowania','data operacji','data i godzina','data/godzina','transaction date','data','date','datum']],
   ['time','Godzina',0,['godzina','czas','godz','time','uhrzeit']],
   ['plate','Nr rejestracyjny',1,['nr rejestracyjny','numer rejestracyjny','rejestracja','nr rej','nr rej.','tablica','numer pojazdu','pojazd','license plate','registration','kennzeichen','kfz-kennzeichen']],
   ['liters','Ilość (litry)',1,['ilosc','ilosc l','ilosc [l]','litry','ilosc litrow','quantity','volume','menge']],
-  ['amount','Kwota brutto',1,['wartosc brutto','kwota brutto','brutto','wartosc brutto pln','kwota','gross','gross amount','amount','betrag','wartosc']],
+  ['amount','Kwota brutto',1,['wartosc brutto','kwota brutto','wartosc brutto pln','brutto','gross amount','gross','kwota','amount','betrag','wartosc']],
   ['currency','Waluta',0,['waluta','currency','wahrung']],
   ['odometer','Stan licznika',0,['stan licznika','licznik','przebieg','km','odometer','mileage','kilometerstand']],
-  ['station','Stacja',0,['stacja','nazwa stacji','miejsce','adres stacji','station','location','tankstelle']],
+  ['station','Stacja (miejscowość)',0,['miejscowosc','miasto','nazwa stacji','adres stacji','stacja','miejsce','city','ort','station','location','tankstelle']],
   ['card','Nr karty',0,['nr karty','numer karty','karta','card','card number','kartennummer']],
   ['product','Produkt',0,['produkt','towar','nazwa produktu','rodzaj paliwa','paliwo','product','artikel']],
 ];
@@ -254,11 +254,15 @@ async function fcReadFile(f){
   const wb = X.read(buf, {type:'array', cellDates:true});
   return X.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1, defval:'', raw:true});
 }
+/* Kolumny, których nie wolno pomylić: kwota tylko brutto (nie netto / VAT / cena), stacja nie z kolumn z wartościami */
+const FC_EXCLUDE = {amount: /netto|vat|cena|stawka/, station: /wartosc|vat|netto|brutto|cena|^nr|typ stacji/, liters: /cena|wartosc/, plate: /karty/, date: /ksiegowania/};
 function fcGuess(heads){
-  const map = {}, hs = heads.map(fcHead);
+  const map = {}, hs = heads.map(fcHead), used = () => Object.values(map);
   FC_FIELDS.forEach(([k, , , syn]) => {
-    let i = hs.findIndex((h, j) => syn.includes(h) && !Object.values(map).includes(j));
-    if (i < 0) i = hs.findIndex((h, j) => h && syn.some(s => s.length > 3 && h.includes(s)) && !Object.values(map).includes(j));
+    const ok = j => hs[j] && !used().includes(j) && !(FC_EXCLUDE[k] && FC_EXCLUDE[k].test(hs[j]));
+    let i = -1;
+    for (const sy of syn){ i = hs.findIndex((h, j) => h===sy && ok(j)); if (i >= 0) break; }                         // najpierw dokładna nazwa, wg ważności
+    if (i < 0) for (const sy of syn){ if (sy.length <= 3) continue; i = hs.findIndex((h, j) => h.includes(sy) && ok(j)); if (i >= 0) break; }
     if (i >= 0) map[k] = i;
   });
   return map;
@@ -279,7 +283,7 @@ document.addEventListener('change', async e => {
     if (!files.length){ box.innerHTML = '<span class="warnline">Nie udało się odczytać pliku. Zapisz go jako CSV albo .xlsx i spróbuj ponownie.</span>'; fcParsed = null; return; }
     // układy kolumn: każdy dopasowujemy raz (zapamiętane z poprzednich importów albo zgadnięte)
     const maps = {};
-    files.forEach(f => { if (!maps[f.sig]){ const saved = (fcSettings().maps || {})[f.sig]; maps[f.sig] = {heads: f.heads, map: saved ? {...saved} : fcGuess(f.heads)}; } });
+    files.forEach(f => { if (!maps[f.sig]){ const saved = (fcSettings().maps2 || {})[f.sig]; maps[f.sig] = {heads: f.heads, map: saved ? {...saved} : fcGuess(f.heads)}; } });
     fcParsed = {files, failed, maps, sigs: Object.keys(maps)};
     fcRenderMap();
   }
@@ -369,9 +373,9 @@ async function fcSave(){
       for (let i = 0; i < rows.length; i += 500){ ({error} = await sb.from('fuel_card_rows').insert(rows.slice(i, i + 500))); if (error) throw dbErr(error); }
       nF += j.fresh.filter(r => r.kind==='fuel').length; nO += j.fresh.filter(r => r.kind!=='fuel').length; fresh += j.fresh.length;
     }
-    const st = fcSettings(), maps = {...(st.maps || {})};
+    const st = fcSettings(), maps = {...(st.maps2 || {})};
     fcParsed.sigs.forEach(sig => { maps[sig] = fcParsed.maps[sig].map; });
-    await db.collection('settings').doc('fuelcard').set({provider: prov || st.provider || '', maps});
+    await db.collection('settings').doc('fuelcard').set({provider: prov || st.provider || '', maps2: maps});
     await refresh('fuelCardImports'); await refresh('fuelCardRows'); if (nO) await refresh('costs');
     fcImportId = lastId; fcFilter = 'all';
     closeForm();
