@@ -16,7 +16,7 @@ function viewCard(){
 
   const facts = [
     ['Przebieg', km(v.km)], ['Rok', esc(v.year||'—')], ['Napęd', esc(v.fuel||'—')], ['Odpowiedzialni', respOf(v).length?esc(respNames(v)):'—'],
-    ['VIN', `<span class="num">${esc(v.vin||'—')}</span>`], ['Numer polisy', esc(v.policyNo||'—')], ['Tachograf', v.hasTacho ? 'tak' : 'nie'], ['Opony', v.tires ? TIRES[v.tires] : '—'], ['Bak', (v.tankL || 90) + ' l'], ...(P().service ? [['Inspekcja', (lastInspection(v.id) ? fdate(lastInspection(v.id).date)+' · ' : '')+`<span class="pill ${inspDue(v).cls}">${esc(inspDue(v).txt)}</span>`], ['Sprzątanie', (lastCleaning(v.id) ? fdate(lastCleaning(v.id).date)+' · ' : '')+`<span class="pill ${cleanDue(v).cls}">${esc(cleanDue(v).txt)}</span>`]] : []), ['Śr. zużycie', cons ? cons.val.toFixed(1).replace('.',',')+' '+cons.unit : '—'],
+    ['VIN', `<span class="num">${esc(v.vin||'—')}</span>`], ['Polisa', policyHtml(v)], ['Tachograf', v.hasTacho ? 'tak' : 'nie'], ['Opony', v.tires ? TIRES[v.tires] : '—'], ['Bak', (v.tankL || 90) + ' l'], ...(P().service ? [['Inspekcja', (lastInspection(v.id) ? fdate(lastInspection(v.id).date)+' · ' : '')+`<span class="pill ${inspDue(v).cls}">${esc(inspDue(v).txt)}</span>`], ['Sprzątanie', (lastCleaning(v.id) ? fdate(lastCleaning(v.id).date)+' · ' : '')+`<span class="pill ${cleanDue(v).cls}">${esc(cleanDue(v).txt)}</span>`]] : []), ['Śr. zużycie', cons ? cons.val.toFixed(1).replace('.',',')+' '+cons.unit : '—'],
     [P().costs==='own'?'Moje koszty '+yr:'Koszty '+yr, zl(yearCost)], ['Status', `<span class="pill ${st.cls}">${esc(st.txt)}</span>`],
   ].map(([l,val]) => `<div><span class="label">${l}</span><span class="fv">${val}</span></div>`).join('');
 
@@ -85,4 +85,14 @@ async function uploadDocFile(file){
   if (!DOC_TYPES.includes(file.type)) throw {code:'bad_type'};
   if (file.size > 20*1024*1024) throw {code:'too_big'};
   return assetsNS.upload(file, {type: file.type});
+}
+
+/* Polisa: towarzystwo, numer, ważna do; assistance z przyciskiem „Zadzwoń” (tylko kierownicy) */
+function policyHtml(v){
+  const t = today(), parts = [v.insurer, v.policyNo].filter(Boolean).map(esc).join(' · ');
+  let until = '';
+  if (v.policyUntil){ const x = diffDays(t, v.policyUntil); until = `<div class="muted small" style="margin-top:2px">ważna do ${fdate(v.policyUntil)}${x < 0 ? ' <span class="pill bad">po terminie</span>' : x <= 30 ? ' <span class="pill warn">kończy się</span>' : ''}</div>`; }
+  const tel = String(v.assistancePhone || '').replace(/[^\d+]/g, '');
+  const call = (P().manage || P().service) && tel ? `<div class="muted small" style="margin-top:2px">assistance: <span class="num">${esc(v.assistancePhone)}</span></div><a class="btn small call" href="tel:${esc(tel)}">${ic('phone')}Zadzwoń</a>` : '';
+  return (parts || (until ? '' : '—')) + until + call;
 }
