@@ -1,28 +1,25 @@
-# Emage FLEET – wysyłka maili przez skrzynkę firmową (home.pl)
+# Emage FLEET – wysyłka maili (Gmail)
 
 Bez własnej wysyłki Supabase wysyła tylko kilka maili na godzinę i tylko do członków zespołu
 projektu – pracownicy nie dostaliby linków aktywacyjnych ani resetu hasła.
 
-## 1. Skrzynka na home.pl
-1. Panel home.pl → **Poczta** → **Dodaj skrzynkę**, np. `flota@emage.com.pl`
-   (albo `noreply@emage.com.pl`). Ustaw mocne hasło i zapisz je w menedżerze haseł.
-2. W panelu home.pl przy tej skrzynce znajdź **Konfiguracja programu pocztowego** / **Ustawienia SMTP**
-   i odczytaj:
-   - **serwer poczty wychodzącej (SMTP)** – w home.pl to zwykle nazwa Twojego serwera w postaci `serwerXXXXXXX.home.pl`,
-   - **port** – zwykle **465** (SSL),
-   - **login** – pełny adres skrzynki.
+## 1. Konto Gmail i hasło aplikacji
+1. Załóż (albo wybierz) konto Gmail do wysyłki, np. `emage.fleet@gmail.com`.
+2. Włącz na nim **weryfikację dwuetapową** (Konto Google → Bezpieczeństwo).
+3. Konto Google → Bezpieczeństwo → **Hasła do aplikacji** → utwórz hasło, np. o nazwie „Supabase”.
+   Google pokaże 16 znaków – to hasło wpiszesz w Supabase (nie hasło do konta).
 
 ## 2. Supabase → Authentication → Emails → SMTP Settings
 Włącz **Enable custom SMTP** i wpisz:
 
 | Pole | Wartość |
 | --- | --- |
-| Sender email | `flota@emage.com.pl` (adres skrzynki) |
+| Sender email | adres Gmail |
 | Sender name | `Emage FLEET` |
-| Host | serwer SMTP z panelu home.pl |
+| Host | `smtp.gmail.com` |
 | Port number | `465` |
-| Username | `flota@emage.com.pl` |
-| Password | hasło skrzynki |
+| Username | adres Gmail |
+| Password | hasło do aplikacji (16 znaków) |
 | Minimum interval between emails | `1` |
 
 **Save**. Hasło wpisujesz sam – nie wysyłaj go w czacie.

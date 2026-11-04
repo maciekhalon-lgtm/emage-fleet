@@ -39,17 +39,13 @@
       <a href="#moje" data-tab="moje" id="tab-mycar" data-ic="key" hidden>Moje auto</a>
       <a href="#pulpit" data-tab="pulpit" data-ic="home">Pulpit</a>
       <a href="#pojazdy" data-tab="pojazdy" data-ic="truck">Pojazdy <span class="count" id="c-pojazdy">0</span></a>
-      <a href="#przydzial" data-tab="przydzial" data-ic="cal">Rezerwacje <span class="count" id="c-przydzial">0</span></a>
-      <a href="#trasy" data-tab="trasy" id="tab-routes" data-ic="route" hidden>Trasy</a>
-      <a href="#kontrole" data-tab="kontrole" id="tab-checks" data-ic="check" hidden>Kontrole <span class="count" id="c-kontrole" hidden></span></a>
-      <a href="#terminy" data-tab="terminy" data-ic="clip">Terminy <span class="count" id="c-terminy">0</span></a>
-      <a href="#usterki" data-tab="usterki" data-ic="wrench">Usterki <span class="count" id="c-usterki">0</span></a>
+      <a href="#przydzial" data-group="rezerwacje" data-ic="cal">Rezerwacje <span class="count" hidden></span></a>
+      <a href="#usterki" data-group="serwis" data-ic="wrench">Serwis <span class="count" hidden></span></a>
       <a href="#koszty" data-tab="koszty" data-ic="fuel">Koszty i paliwo</a>
-      <span class="grp" id="grp-an">Analiza</span>
-      <a href="#raporty" data-tab="raporty" id="tab-reports" data-ic="chart" hidden>Raporty</a>
-      <a href="#historia" data-tab="historia" id="tab-history" data-ic="hist" hidden>Historia</a>
-      <span class="grp" id="grp-adm">Administracja</span>
-      <a href="#uzytkownicy" data-tab="uzytkownicy" id="tab-users" data-ic="users" hidden>Użytkownicy <span class="count" id="c-uzytkownicy" hidden></span></a>
+      <span class="grp" id="grp-an">Analiza i ludzie</span>
+      <a href="#raporty" data-group="raporty" data-ic="chart">Raporty</a>
+      <a href="#kierowcy" data-group="ludzie" data-ic="users">Ludzie <span class="count" hidden></span></a>
+      <a href="#ustawienia" data-tab="ustawienia" id="tab-settings" data-ic="cog" hidden>Ustawienia</a>
     </nav>
     <div class="side-foot">
       <div class="theme-sw" role="group" aria-label="Motyw"><button type="button" data-theme-set="light"></button><button type="button" data-theme-set="dark"></button></div>
@@ -65,15 +61,14 @@
       <div class="mtop-r" id="mtop-r"></div>
     </header>
     <div id="notices"></div>
-    <section class="strip" id="strip" aria-label="Podsumowanie"></section>
     <main id="view"></main>
   </div>
 
   <nav class="bottombar" id="bottombar" aria-label="Szybkie menu">
     <a href="#pulpit" data-tab="pulpit" data-ic="home">Pulpit</a>
     <a href="#pojazdy" data-tab="pojazdy" data-ic="truck">Pojazdy</a>
-    <a href="#przydzial" data-tab="przydzial" data-ic="cal">Rezerwacje</a>
-    <a href="#usterki" data-tab="usterki" id="bb-usterki" data-ic="wrench">Usterki</a>
+    <a href="#przydzial" data-group="rezerwacje" data-ic="cal">Rezerwacje</a>
+    <a href="#usterki" data-group="serwis" id="bb-usterki" data-ic="wrench">Serwis</a>
     <a href="#moje" data-tab="moje" id="bb-mycar" data-ic="key" hidden>Moje auto</a>
     <button type="button" data-action="nav-open" data-ic="menu">Więcej</button>
   </nav>
@@ -113,6 +108,7 @@
 <script src="kontrole.js"></script>
 <script src="automatyka.js"></script>
 <script src="offline.js"></script>
+<script src="porzadek.js"></script>
 <script src="kierowca.js"></script>
 <script src="pulpit.js"></script>
 <script src="powiadomienia.js"></script>

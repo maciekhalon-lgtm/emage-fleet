@@ -27,18 +27,7 @@ function labelFor(col, d){
   }
 }
 
-/* Zapis do dziennika – nie blokuje zapisu właściwego; błąd jest ignorowany. */
-/* Historię zapisuje baza (wyzwalacze), aplikacja niczego tu nie dopisuje. */
-function logChange(){}
-function _unusedLogChange(action, col, doc, extra = {}){
-  if (!db || !doc || doc.sample) return;
-  const e = {at: new Date().toISOString(), action, col, label: labelFor(col, doc).slice(0, 200), docId: doc.id || '', vehicleId: doc.vehicleId || (col==='vehicles' ? doc.id || '' : ''), ...extra};
-  if (myId) e.by = myId;
-  db.collection('log').doc().set(e).catch(() => {});
-}
-
 function viewHistory(){
-  needProfiles([...LOG.map(l => l.by), ...LOG.map(l => l.targetId)].filter(Boolean));
   const people = [...new Set(LOG.map(l => l.by).filter(Boolean))];
   const head = `<div class="bar"><h2>Historia zmian</h2><div class="tools">
     <select id="hist-who" aria-label="Osoba" style="width:auto"><option value="">Wszystkie osoby</option>${people.map(id => `<option value="${esc(id)}" ${histWho===id?'selected':''}>${esc(pName(id))}</option>`).join('')}</select>

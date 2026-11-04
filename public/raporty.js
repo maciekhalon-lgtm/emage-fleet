@@ -86,9 +86,7 @@ function viewReports(){
     ${repMode==='month' ? `<input id="rep-month" type="month" value="${repMonth}" style="width:auto" aria-label="Miesiąc">` : `<select id="rep-year" style="width:auto" aria-label="Rok">${[0,1,2,3].map(i => String(Number(today().slice(0,4))-i)).map(y => `<option ${y===repYear?'selected':''}>${y}</option>`).join('')}</select>`}
     <button class="primary" data-action="export-xlsx">Pobierz raport (Excel)</button></div></div>`;
   if (!S.vehicles.length) return head + `<div class="panel empty"><p>Dodaj pojazdy i koszty, aby zobaczyć raporty.</p></div>`;
-  const budgetBox = repMode==='month' ? `<div class="panel budget"><div><span class="label">Budżet floty / miesiąc</span>
-      ${P().reports==='rw' && canWrite ? `<div class="budget-edit"><input id="budget-in" type="number" min="0" inputmode="numeric" placeholder="np. 15000" value="${fb||''}" aria-label="Budżet miesięczny w zł"><button class="small" data-action="save-budget">Zapisz</button></div>` : `<b>${fb?zl(fb):'nie ustawiono'}</b>`}</div>
-      <div style="flex:1;min-width:220px">${fb ? limitBar(tot.cost, fb) : '<span class="muted">Ustaw budżet, aby śledzić wykorzystanie. Limity pojedynczych aut ustawisz w danych pojazdu.</span>'}</div></div>` : '';
+  const budgetBox = repMode==='month' && fb ? `<div class="panel budget"><div><span class="label">Budżet floty / miesiąc</span><b>${zl(fb)}</b></div><div style="flex:1;min-width:220px">${limitBar(tot.cost, fb)}</div></div>` : '';
   return head + `<div class="section">
     <div class="panel"><div class="totals">
       <div><span class="label">Koszty – ${label}</span><b>${zl(tot.cost)}</b></div>
@@ -114,7 +112,6 @@ async function saveBudget(){
   const v = Number($('#budget-in')?.value || 0);
   try {
     await db.collection('settings').doc('budget').set({monthly: v || null, updatedAt: new Date().toISOString(), updatedBy: myId || ''});
-    logChange('edit', 'settings', {id:'budget', label: v ? 'Budżet floty: '+zl(v)+' / mies.' : 'Usunięto budżet floty'});
     toast('Zapisano budżet');
   } catch(err){ handleWriteErr(err); }
 }

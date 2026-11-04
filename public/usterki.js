@@ -39,7 +39,6 @@ function viewIssues(){
   if (!S.issues.length) return head + loadingOr('issues', emptyBlock('Brak zgłoszonych usterek',
     'Kierowcy zgłaszają tu problemy z autem – od przepalonej żarówki po awarię. Kierownik serwisu zmienia status zgłoszenia, a auto oznaczone jako niesprawne znika z puli dostępnych.',
     '<button class="primary" data-new="issues">+ Zgłoś usterkę</button>', '', 'issues'));
-  needProfiles(S.issues.map(i => i.createdBy));
   const order = {nowe:0, naprawa:1, naprawione:2}, sevO = {stop:0, istotna:1, drobna:2};
   const list = S.issues.filter(i =>
       issueFilter==='all' || (issueFilter==='open' && i.status!=='naprawione') ||
@@ -55,7 +54,6 @@ async function setIssueStatus(id, status){
   if (status==='naprawione') body.resolvedAt = today();
   try {
     await db.collection('issues').doc(id).update(body);
-    const i = byId('issues', id); if (i) logChange('status', 'issues', {...i, ...body, id});
     toast(status==='naprawione' ? 'Oznaczono jako naprawione' : 'Przekazano do naprawy');
   } catch(err){ handleWriteErr(err); }
 }

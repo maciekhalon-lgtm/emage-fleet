@@ -27,5 +27,4 @@ function mine(col, doc){
 }
 const canEditDoc = (col, doc) => canWrite && (P()[col]==='rw' || (P()[col]==='own' && mine(col, doc) && !(col==='issues' && doc.status && doc.status!=='nowe') && !(col==='cleanings' && doc.status!=='pending')));
 const visibleCosts = () => S.costs;   // baza zwraca kierowcy tylko jego wpisy
-function needProfiles(){}             // nazwiska ładowane z bazy w całości
 const pName = id => names[id] || (me && id===me.id ? me.full_name : '') || 'Użytkownik';

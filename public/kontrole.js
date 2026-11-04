@@ -42,17 +42,10 @@ function viewChecks(){
     const bad = (x.items || []).filter(i => !i.ok);
     return `<div class="mini click" data-insp-view="${esc(x.id)}"><span class="num">${fdate(x.date)}</span><span>${vPlate(x.vehicleId)} ${bad.length ? `<span class="muted small">${bad.map(i => esc(i.item)).join(', ')}</span>` : '<span class="muted small">wszystko OK</span>'}</span><span class="pill ${bad.length ? 'warn' : 'ok'}">${bad.length ? bad.length+' uwag' : 'OK'}</span></div>`;
   }).join('');
-  const settings = fleet ? `<div class="panel"><div class="sec-head"><h3>Ustawienia kontroli</h3><button class="small" data-action="save-checks">Zapisz</button></div>
-    <div style="padding:14px 16px;display:flex;flex-direction:column;gap:12px">
-      <div class="budget-edit" style="flex-wrap:wrap;gap:12px"><label class="field" style="display:flex;flex-direction:column;gap:4px"><span class="label">Inspekcja co (dni)</span><input id="sch-insp" type="number" min="1" value="${sc.insp}" style="width:120px"></label>
-        <label class="field" style="display:flex;flex-direction:column;gap:4px"><span class="label">Sprzątanie co (dni)</span><input id="sch-clean" type="number" min="1" value="${sc.clean}" style="width:120px"></label>
-        <label class="field" style="display:flex;flex-direction:column;gap:4px"><span class="label">Kontrola paragonów (% dni pracy)</span><input id="sch-rcp" type="number" min="0" max="100" value="${receiptPercent()}" style="width:120px"></label></div>
-      <span class="muted small">Kontrola paragonów: system codziennie losuje kierowców, którzy muszą dodać zdjęcie paragonu do tankowania. 0 = wyłączone.</span>
-      <label class="muted small" for="insp-edit">Punkty inspekcji – jeden w linii. Punkt z uwagą trafi do serwisu jako usterka.</label>
-      <textarea id="insp-edit" rows="8">${esc(inspectionItems().join('\n'))}</textarea></div></div>` : '';
   return `<div class="section">${head}${pendHtml}
     <div class="panel tablewrap"><table><thead><tr><th>Auto</th><th>Inspekcja (co ${sc.insp} dni)</th><th>Sprzątanie (co ${sc.clean} dni)</th><th></th></tr></thead><tbody>${rows || '<tr><td colspan="4" class="muted">Brak aut.</td></tr>'}</tbody></table></div>
-    <div class="grid2"><div class="panel"><div class="sec-head"><h3>Ostatnie inspekcje</h3></div>${recent || '<p class="muted sec-empty">Brak inspekcji.</p>'}</div>${settings}</div></div>`;
+    <div class="panel"><div class="sec-head"><h3>Ostatnie inspekcje</h3></div>${recent || '<p class="muted sec-empty">Brak inspekcji.</p>'}</div>
+    ${fleet ? '<p class="muted small" style="margin:0">Co ile dni inspekcje i sprzątanie, punkty inspekcji i kontrolę paragonów ustawisz w Ustawieniach.</p>' : ''}</div>`;
 }
 
 /* ---------- inspekcja: okno ---------- */
@@ -117,6 +110,19 @@ function viewInspection(id){
   const del = $('#dlg-del'); del.hidden = !P().manage; del.classList.remove('armed'); del.textContent = 'Usuń';
   $('#scrim').hidden = false;
   hydrateFiles($('#dlg-body'));
+}
+
+function checksSettingsPanel(){
+  if (!P().manage) return '';
+  const sc = checkSchedule();
+  return `<div class="panel"><div class="sec-head"><h3>Ustawienia kontroli</h3><button class="small" data-action="save-checks">Zapisz</button></div>
+    <div style="padding:14px 16px;display:flex;flex-direction:column;gap:12px">
+      <div class="budget-edit" style="flex-wrap:wrap;gap:12px"><label class="field" style="display:flex;flex-direction:column;gap:4px"><span class="label">Inspekcja co (dni)</span><input id="sch-insp" type="number" min="1" value="${sc.insp}" style="width:120px"></label>
+        <label class="field" style="display:flex;flex-direction:column;gap:4px"><span class="label">Sprzątanie co (dni)</span><input id="sch-clean" type="number" min="1" value="${sc.clean}" style="width:120px"></label>
+        <label class="field" style="display:flex;flex-direction:column;gap:4px"><span class="label">Kontrola paragonów (% dni pracy)</span><input id="sch-rcp" type="number" min="0" max="100" value="${receiptPercent()}" style="width:120px"></label></div>
+      <span class="muted small">Kontrola paragonów: system codziennie losuje kierowców, którzy muszą dodać zdjęcie paragonu do tankowania. 0 = wyłączone.</span>
+      <label class="muted small" for="insp-edit">Punkty inspekcji – jeden w linii. Punkt z uwagą trafi do serwisu jako usterka.</label>
+      <textarea id="insp-edit" rows="8">${esc(inspectionItems().join('\n'))}</textarea></div></div>`;
 }
 
 async function decideCleaning(id, ok){

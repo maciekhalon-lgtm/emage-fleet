@@ -20,7 +20,7 @@ Supabase → **SQL Editor** → wklej `supabase/migrations/003_powiadomienia.sql
 Supabase → **Database → Extensions** → włącz **pg_cron** i **pg_net** (wyszukaj po nazwie, przełącznik → Enable).
 
 ## 3. Klucze
-1. W aplikacji Emage FLEET → zakładka **Użytkownicy** → panel **Powiadomienia – konfiguracja** → **Wygeneruj klucze**.
+1. W aplikacji Emage FLEET → zakładka **Ustawienia** → panel **Powiadomienia – konfiguracja** → **Wygeneruj klucze**.
    Klucze powstają w Twojej przeglądarce. Klucz publiczny aplikacja zapisuje sama w bazie.
 2. Zostaw tę kartę otwartą – za chwilę skopiujesz z niej wartości.
 

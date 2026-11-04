@@ -2,7 +2,7 @@
 'use strict';
 /* ---------- routing ---------- */
 const DRIVER_VIEWS = ['moje','wybierz','moje-dane'];
-const TABS = ['moje','wybierz','moje-dane','pulpit','pojazdy','trasy','kontrole','terminy','usterki','przydzial','koszty','raporty','historia','uzytkownicy'];
+const TABS = ['moje','wybierz','moje-dane','pulpit','pojazdy','trasy','kontrole','terminy','usterki','ksiazka','przydzial','koszty','raporty','historia','kierowcy','uzytkownicy','ustawienia'];
 const homeTab = () => P().mycar ? 'moje' : 'pulpit';
 let pendingCard = null;
 let tab = 'pulpit', q = '', costMonth = today().slice(0,7), dlFilter = 'all', assignView = 'kalendarz';
@@ -17,7 +17,6 @@ function render(){
   const gate = !role;
   const shell = $('#app');
   shell.classList.toggle('bare', gate || !!P().mycar);
-  $('#strip').hidden = true;
   renderTop(role);
   if (gate){
     renderNotices();
@@ -37,19 +36,23 @@ function render(){
   if (DRIVER_VIEWS.includes(tab) && !drive) tab = 'pulpit';
   const manage = !!P().manage;
   $('#tab-mycar').hidden = !drive; $('#bb-mycar').hidden = !drive; $('#bb-usterki').hidden = drive;
-  $('#tab-users').hidden = !manage; $('#grp-adm').hidden = !manage; $('#tab-routes').hidden = !manage; $('#tab-checks').hidden = !P().service;
-  $('#tab-reports').hidden = !P().reports;
-  $('#tab-history').hidden = !P().history;
-  $('#grp-an').hidden = !P().reports && !P().history;
-  if ((tab==='uzytkownicy' && !manage) || (tab==='trasy' && !manage) || (tab==='kontrole' && !P().service) || (tab==='raporty' && !P().reports) || (tab==='historia' && !P().history)) tab = 'pulpit';
-  const navTab = DRIVER_VIEWS.includes(tab) ? 'moje' : tab;
-  document.querySelectorAll('#tabs a, #bottombar a').forEach(a => { if (a.dataset.tab===navTab) a.setAttribute('aria-current','page'); else a.removeAttribute('aria-current'); });
+  $('#tab-settings').hidden = !manage;
+  syncNav();
+  if (!tabAllowed(tab) || (tab==='ustawienia' && !manage)){
+    const g = groupOf(tab), first = g && GROUPS[g].find(([, , ok]) => ok());
+    tab = first ? first[0] : 'pulpit';
+  }
+  const navTab = DRIVER_VIEWS.includes(tab) ? 'moje' : tab, navGroup = groupOf(tab);
+  document.querySelectorAll('#tabs a, #bottombar a').forEach(a => { if (a.dataset.tab===navTab || (a.dataset.group && a.dataset.group===navGroup)) a.setAttribute('aria-current','page'); else a.removeAttribute('aria-current'); });
   renderNotices();
-  if (manage){ const pend = pendingUsers().length + pendingRequests().length + openDisputes().length; const cu=$('#c-uzytkownicy'); cu.textContent = pend; cu.classList.toggle('bad', pend>0); cu.hidden = !pend; }
-  if (tab==='uzytkownicy'){ $('#view').innerHTML = viewUsers(); updateCounts(); return; }
   updateCounts();
   const v = $('#view');
-  if (tab==='wybierz') v.innerHTML = viewPickCar();
+  const st = subTabs();
+  if (tab==='uzytkownicy') v.innerHTML = viewUsers();
+  else if (tab==='kierowcy') v.innerHTML = viewDrivers();
+  else if (tab==='ksiazka') v.innerHTML = viewServiceBook();
+  else if (tab==='ustawienia') v.innerHTML = viewSettings();
+  else if (tab==='wybierz') v.innerHTML = viewPickCar();
   else if (tab==='moje-dane') v.innerHTML = viewMyData();
   else if (tab==='moje') v.innerHTML = viewMyCar();
   else if (tab==='pulpit') v.innerHTML = viewDashboard();
@@ -62,16 +65,11 @@ function render(){
   else if (tab==='historia') v.innerHTML = viewHistory();
   else if (tab==='przydzial') v.innerHTML = viewAssign();
   else v.innerHTML = viewCosts();
+  if (st) v.insertAdjacentHTML('afterbegin', st);
   hydrateFiles(v);
 }
 function updateCounts(){
-  const urgent = S.deadlines.filter(d => dlState(d).cls==='bad').length;
   $('#c-pojazdy').textContent = S.vehicles.length;
-  const ct = $('#c-terminy'); ct.textContent = urgent || S.deadlines.length; ct.classList.toggle('bad', urgent>0);
-  const cf = conflicts().size; const cp = $('#c-przydzial');
-  cp.textContent = cf ? cf/1 : S.bookings.filter(b=>bookingState(b).key<2).length; cp.classList.toggle('bad', cf>0);
-  if (P().service){ const n = (P().manage ? pendingCleanings().length : 0) + overdueInspections().length; const ck = $('#c-kontrole'); ck.textContent = n; ck.hidden = !n; ck.classList.toggle('bad', n>0); }
-  const oi = openIssues(); const cu = $('#c-usterki'); cu.textContent = oi.length; cu.classList.toggle('bad', oi.some(i=>i.severity==='stop'));
 }
 
 function renderWho(role){
@@ -92,19 +90,7 @@ function renderTop(role){
 }
 
 function renderNotices(){
-  const n = $('#notices'); let h='';
-  if (dbState==='slow') h += `<div class="notice err"><span>Nie udało się połączyć z bazą danych. Sprawdź internet – strona spróbuje ponownie sama.</span></div>`;
-  if (tab==='pulpit' && !P().mycar){ n.innerHTML = h; return; }   // na Pulpicie wszystko jest w „Wymaga uwagi”
-  if (P().manage && openDisputes().length && tab!=='uzytkownicy') h += `<div class="notice err"><span>${openDisputes().length} ${isPlural(openDisputes().length,'sporny wpis','sporne wpisy','spornych wpisów')} w podwójnej obsadzie czeka na Twoją decyzję.</span><button class="small" data-go="uzytkownicy">Rozstrzygnij</button></div>`;
-  if (P().manage && pendingRequests().length && tab!=='uzytkownicy') h += `<div class="notice"><span>${pendingRequests().length} ${isPlural(pendingRequests().length,'zmiana danych czeka','zmiany danych czekają','zmian danych czeka')} na akceptację.</span><button class="small" data-go="uzytkownicy">Sprawdź</button></div>`;
-  if (P().manage && pendingUsers().length && tab!=='uzytkownicy') h += `<div class="notice"><span>${pendingUsers().length} ${isPlural(pendingUsers().length,'konto czeka','konta czekają','kont czeka')} na zatwierdzenie.</span><button class="small" data-go="uzytkownicy">Zatwierdź</button></div>`;
-  if (P().reports && tab!=='raporty'){
-    const la = limitAlerts();
-    const over = la.vehicles.filter(x => x.over), near = la.vehicles.filter(x => !x.over);
-    if (la.fleet) h += `<div class="notice ${la.fleet.over?'err':''}"><span>Koszty floty w tym miesiącu: <b>${zl(la.fleet.sum)}</b> z budżetu ${zl(la.fleet.lim)}${la.fleet.over?' – budżet przekroczony':''}.</span><button class="small" data-go="raporty">Raporty</button></div>`;
-    if (over.length || near.length) h += `<div class="notice ${over.length?'err':''}"><span>${over.length?`Limit kosztów przekroczony: <b>${over.map(x=>esc(x.v.plate)).join(', ')}</b>. `:''}${near.length?`Blisko limitu (ponad 90%): ${near.map(x=>esc(x.v.plate)).join(', ')}.`:''}</span><button class="small" data-go="raporty">Raporty</button></div>`;
-  }
-  n.innerHTML = h;
+  $('#notices').innerHTML = dbState==='slow' ? `<div class="notice err"><span>Nie udało się połączyć z bazą danych. Sprawdź internet – strona spróbuje ponownie sama.</span></div>` : '';
 }
 
 function emptyBlock(title, text, btn, extra='', col=''){
@@ -141,7 +127,7 @@ document.addEventListener('click', e => {
   if (t.dataset.dlf){ dlFilter = t.dataset.dlf; render(); return; }
 });
 document.addEventListener('keydown', e => {
-  if ((e.key==='Enter'||e.key===' ') && e.target.matches('.dl-row,.drv,.is-row,.cal-bar,tr[data-card],.fl-row')){ e.preventDefault(); e.target.click(); }
+  if ((e.key==='Enter'||e.key===' ') && e.target.matches('.dl-row,.is-row,.cal-bar,tr[data-card],.fl-row')){ e.preventDefault(); e.target.click(); }
 });
 document.addEventListener('input', e => {
   if (e.target.id==='search'){ q = e.target.value; const pos=e.target.selectionStart; render(); const s=$('#search'); s.focus(); s.setSelectionRange(pos,pos); }

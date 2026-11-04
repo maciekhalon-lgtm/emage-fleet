@@ -268,13 +268,6 @@ td .sub{display:block;color:var(--muted);font-size:12.5px}
 .totals div{display:flex;flex-direction:column;gap:3px}
 .totals b{font-family:var(--f-display);font-size:28px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.05}
 
-.drivers{display:flex;flex-direction:column}
-.drv{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line);cursor:pointer}
-.drv:last-child{border-bottom:0}
-.drv:hover{background:var(--sunk)}
-.drv .who{min-width:0;background:none;padding:0}
-.drv .who b{display:block}
-.drv .who span{color:var(--muted);font-size:13px}
 
 /* ---- okna (formularze) ---- */
 .scrim{position:fixed;inset:0;background:var(--scrim);display:flex;align-items:flex-start;justify-content:center;padding:max(24px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) 24px max(16px,env(safe-area-inset-left,0px));overflow-y:auto;z-index:50;backdrop-filter:blur(2px)}
@@ -349,7 +342,6 @@ td .sub{display:block;color:var(--muted);font-size:12.5px}
 .cal-bar[data-noop]:not(.svc){cursor:default}
 .key{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px;border:1px solid}
 .key.mine{background:var(--accent-soft);border-color:var(--accent)} .key.bad{background:var(--bad-soft);border-color:var(--bad);margin-left:8px}
-.drv-below{margin-top:20px;max-width:640px}
 
 /* ---- karta pojazdu ---- */
 .card-head{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
@@ -542,7 +534,6 @@ details.few summary{padding:12px 16px;cursor:pointer;color:var(--muted);font-wei
   .fl-row .plate{justify-self:start}
   .dcard .is-pills{grid-column:1/-1;justify-content:flex-start}
 }
-.drv.off{opacity:.6}
 .crew-hist{margin-top:20px}
 .fx-prev{padding:8px 10px;background:var(--sunk);border-radius:8px}
 .checks{display:flex;flex-direction:column;gap:6px;max-height:180px;overflow:auto;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--sunk)}
@@ -575,3 +566,10 @@ details.few summary{padding:12px 16px;cursor:pointer;color:var(--muted);font-wei
 .more-box .route-pick{display:flex;flex-direction:column;gap:4px}
 .ck-all{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px;border:1px solid var(--ok);background:var(--ok-soft);border-radius:12px;font-weight:600;color:var(--ok)}
 .ck-all .muted{font-weight:500}
+/* ---- zakładki w grupach menu ---- */
+.subtabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:18px;overflow-x:auto}
+.subtabs a{display:flex;align-items:center;gap:7px;padding:9px 14px;color:var(--muted);text-decoration:none;font-weight:600;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap}
+.subtabs a:hover{color:var(--ink)}
+.subtabs a[aria-current="page"]{color:var(--ink);border-bottom-color:var(--accent)}
+.subtabs .count{margin-left:0}
+.settings .roles{padding:14px 16px}

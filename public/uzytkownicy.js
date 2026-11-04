@@ -91,9 +91,6 @@ function viewUsers(){
     <div class="bar"><h2>Użytkownicy i role</h2>${pend ? `<span class="pill warn">${pend} ${isPlural(pend,'konto czeka','konta czekają','kont czeka')} na zatwierdzenie</span>` : ''}</div>
     <div class="panel tablewrap"><table><thead><tr><th>Osoba</th><th>Status</th><th>Rola</th><th>Powiązany kierowca</th><th></th></tr></thead>
       <tbody>${rows || '<tr><td colspan="5" class="muted">Nikt się jeszcze nie zarejestrował. Wyślij pracownikom adres strony – po rejestracji pojawią się tutaj.</td></tr>'}</tbody></table></div>
-    ${pushSetupPanel()}
-    ${checklistPanel()}
-    <div class="panel roles">${Object.values(ROLES).map(r => `<div><b>${esc(r.name)}</b><span class="sub">${esc(r.desc)}</span></div>`).join('')}</div>
     <p class="muted small" style="margin:0;max-width:80ch">Nowa osoba rejestruje się sama na stronie i potwierdza adres e-mail. Do czasu zatwierdzenia nie widzi żadnych danych. Kierowcę powiąż z jego wpisem na liście kierowców – wtedy jego tankowania i rezerwacje przypiszą się automatycznie.</p>
   </div>`;
 }

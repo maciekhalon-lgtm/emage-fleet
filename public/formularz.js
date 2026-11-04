@@ -377,7 +377,6 @@ $('#dialog').addEventListener('submit', async e => {
     const ref = id ? db.collection(col).doc(id) : db.collection(col).doc();
     await ref.set(data);
     let okMsg = '';
-    logChange(editing && editing.renew ? 'done' : id ? 'edit' : 'add', col, {...data, id: ref.id});
     if (col==='vehicles' && data.applyModel && data.consGood && data.consOk){
       const same = S.vehicles.filter(v => v.id!==ref.id && String(v.make).trim().toUpperCase()===String(data.make).trim().toUpperCase() && String(v.model).trim().toUpperCase()===String(data.model).trim().toUpperCase());
       for (const v of same) await db.collection('vehicles').doc(v.id).update({consGood: data.consGood, consOk: data.consOk});
@@ -404,7 +403,6 @@ $('#dlg-del').addEventListener('click', async e => {
   try {
     const doc = byId(editing.col, editing.id);
     await db.collection(editing.col).doc(editing.id).delete();
-    logChange('delete', editing.col, doc);
     if (editing.col==='docs' && doc && doc.assetId && assetsNS) assetsNS.delete(doc.assetId).catch(()=>{});
     if (editing.col==='vehicles' && cardId===editing.id) cardId = null;
     closeForm(); toast('Usunięto');

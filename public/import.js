@@ -96,7 +96,6 @@ async function runImport(){
       if (r.state==='update') await db.collection('vehicles').doc(r.existing.id).update({...fields, ...meta});
       else await db.collection('vehicles').doc().set({status:'aktywny', fuel:'Diesel', ...fields, ...meta, ...(myId?{createdBy:myId}:{})});
     }
-    logChange('import', 'vehicles', {id:'', label: `${todo.length} ${isPlural(todo.length,'pojazd','pojazdy','pojazdów')} z pliku`});
     closeForm(); toast(`Zaimportowano ${todo.length} ${isPlural(todo.length,'pojazd','pojazdy','pojazdów')}`);
   } catch(err){ handleWriteErr(err); toast(`Przerwano po ${done-1} z ${todo.length}`); }
   finally { btn.disabled = false; btn.textContent = 'Zapisz'; }
