@@ -64,14 +64,18 @@ function suspPanel(){
     <button class="small ${ch.has(r.id) ? 'ghost' : ''}" data-sp-ok="${esc(r.id)}">${ch.has(r.id) ? 'Cofnij' : `${ic('check')}Sprawdzone`}</button></div>`).join('');
   return `<details class="panel fold susp" ${todo.length ? 'open' : ''}><summary class="sec-head"><h3>Podejrzane tankowania</h3><span class="count ${todo.length ? 'bad' : ''}">${todo.length}</span></summary>
     <div class="sp-tools"><span class="muted small">Ze wszystkich zestawień: więcej niż bak, dużo litrów w ciągu doby, dwa tankowania w 3 godziny, wysoka cena za litr, auto poza grafikiem.</span>
-      <label class="check small"><input type="checkbox" data-sp-all ${suspShowChecked ? 'checked' : ''}> pokaż sprawdzone (${all.length - todo.length})</label></div>
+      <span class="sp-tr">${todo.length > 5 ? `<button class="small ghost" data-sp-allok>Wszystkie jako sprawdzone</button>` : ''}<label class="check small"><input type="checkbox" data-sp-all ${suspShowChecked ? 'checked' : ''}> pokaż sprawdzone (${all.length - todo.length})</label></span></div>
     ${rows || '<p class="muted sec-empty">Wszystko sprawdzone.</p>'}${list.length > 200 ? `<p class="muted small sec-empty">Pokazano 200 z ${list.length}.</p>` : ''}</details>`;
 }
 
 async function suspMark(id){
-  const set = fcCheckedIds(); const on = !set.has(id); on ? set.add(id) : set.delete(id);
-  try { await db.collection('settings').doc('fc_checked').set({ids: [...set]}); toast(on ? 'Oznaczono jako sprawdzone' : 'Cofnięto'); }
+  const set = fcCheckedIds(); let on;
+  if (id==='*'){ fcSuspicious().forEach(x => set.add(x.row.id)); on = true; }
+  else { on = !set.has(id); on ? set.add(id) : set.delete(id); }
+  try { await db.collection('settings').doc('fc_checked').set({ids: [...set]}); toast(id==='*' ? 'Wszystkie oznaczone jako sprawdzone' : on ? 'Oznaczono jako sprawdzone' : 'Cofnięto'); }
   catch(err){ handleWriteErr(err); }
 }
-document.addEventListener('click', e => { const t = e.target.closest('[data-sp-ok]'); if (!t) return; e.preventDefault(); suspMark(t.dataset.spOk); });
+document.addEventListener('click', e => {
+  if (e.target.closest('[data-sp-allok]')){ e.preventDefault(); suspMark('*'); return; }
+  const t = e.target.closest('[data-sp-ok]'); if (!t) return; e.preventDefault(); suspMark(t.dataset.spOk); });
 document.addEventListener('change', e => { if (e.target.matches('[data-sp-all]')){ suspShowChecked = e.target.checked; render(); } });

@@ -279,3 +279,4 @@ input:focus,select:focus,textarea:focus{border-color:var(--ink)!important;box-sh
 .se-grid{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:8px}
 .se-grid .se-wide{grid-column:1 / -1}
 @media (max-width:640px){.se-grid{grid-template-columns:minmax(0,1fr)}}
+.sp-tr{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
