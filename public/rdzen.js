@@ -89,6 +89,8 @@ function conflicts(){
   for (let i=0;i<list.length;i++) for (let j=i+1;j<list.length;j++){
     const a=list[i], b=list[j];
     if (a.vehicleId===b.vehicleId && a.from<=b.to && b.from<=a.to){ set.add(a.id); set.add(b.id); }
+    // ten sam kierowca z dwoma różnymi autami, które zaczyna tego samego dnia (nocna zmiana na styku dni nie jest konfliktem)
+    else if (a.vehicleId!==b.vehicleId && a.from===b.from && crewOf(a).some(d => crewOf(b).includes(d))){ set.add(a.id); set.add(b.id); }
   }
   return set;
 }

@@ -131,7 +131,7 @@ function viewSchedule(){
       const add = canCreate('bookings') && P().bookings==='rw' && !bs.length ? `data-sched="${esc(dr.id)}|${d}" title="Przydziel auto"` : '';
       return `<td class="sch-cell ${d===t?'today':''} ${wd>4?'we':''} ${add?'add':''}" ${add}>${cell}</td>`; }).join('')}</tr>`).join('');
   return nav + `<div class="panel tablewrap sch"><table><thead>${head}</thead><tbody>${rows}</tbody></table></div>
-    <p class="muted small" style="margin:0">Kliknij puste pole, aby przydzielić kierowcy auto, trasę i uwagi na ten dzień. Kliknij przydział, aby go zmienić. Na czerwono – to samo auto u dwóch kierowców. Ikona paczki – kto wiezie towar dla tej trasy.</p>`;
+    <p class="muted small" style="margin:0">Kliknij puste pole, aby przydzielić kierowcy auto, trasę i uwagi na ten dzień. Kliknij przydział, aby go zmienić. Na czerwono – to samo auto u dwóch kierowców albo kierowca z dwoma autami tego samego dnia. Ikona paczki – kto wiezie towar dla tej trasy.</p>`;
 }
 function copyWeekAsk(){
   const from = addDays(calStart, -7), to = addDays(calStart, -1);
