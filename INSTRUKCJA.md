@@ -27,7 +27,7 @@ Na komputerze menu jest na górze strony (czarny pasek), na telefonie – na dol
 | **Serwis** | zakładki **Usterki**, **Terminy** (domyślnie tylko pilne: po terminie i do 60 dni – „Pokaż wszystkie” pokazuje resztę), **Książka serwisowa** |
 | **Paliwo** | (kierownik floty) zakładki **Karty paliwowe**, **Spalanie i przebiegi**, **Liczniki**, **Miesiąc do miesiąca** (spalanie pojazdów i kierowców: dwa miesiące i zmiana) i **Przejazdy i parkingi** |
 | **Koszty** | zakładki **Koszty** (koszty miesiąca, tankowania do wyjaśnienia) i **Raporty** (koszty, kilometry ze wszystkich liczników, koszt/km, limity, Excel) |
-| **Pracownicy** | zakładki **Kierowcy** i **Użytkownicy** (konta, role, spory w obsadzie, zmiany danych kierowców) |
+| **Pracownicy** | zakładki **Kierowcy** (kliknięcie kierowcy – karta: dni pracy, tankowania, spalanie na jego odcinkach, złe liczniki, sprawy do wyjaśnienia; 30 albo 90 dni) i **Użytkownicy** (konta, role, spory w obsadzie, zmiany danych kierowców) |
 | **Ustawienia** | zakładki **Ustawienia** (budżet floty, kontrola paragonów, checklista przejęcia) i **Historia zmian** |
 
 ## Najczęstsze czynności

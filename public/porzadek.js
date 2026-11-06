@@ -72,7 +72,7 @@ function viewDrivers(){
     const now = S.bookings.find(b => holds(b) && crewOf(b).includes(d.id));
     const docs = [['licenseExpiry','Prawo jazdy'],['medicalExpiry','Badania'],['psychExpiry','Psychotesty']].map(([k, l]) => { if (!d[k]) return ''; const x = diffDays(t, d[k]);
       return x < 0 ? `<span class="pill bad">${l} wygasło</span>` : x <= 30 ? `<span class="pill warn">${l} do ${fdate(d[k])}</span>` : ''; }).join(' ');
-    return `<tr ${canEditDoc('drivers', d) ? `class="click" data-edit="drivers" data-id="${esc(d.id)}"` : ''} ${d.active===false ? 'style="opacity:.6"' : ''}>
+    return `<tr ${P().manage ? `class="click" data-drv-card="${esc(d.id)}"` : canEditDoc('drivers', d) ? `class="click" data-edit="drivers" data-id="${esc(d.id)}"` : ''} ${d.active===false ? 'style="opacity:.6"' : ''}>
       <td><b>${esc(d.name)}</b>${d.active===false ? ' <span class="pill off">nieaktywny</span>' : ''}<span class="sub">${esc([d.phone, d.categories ? 'kat. ' + d.categories : ''].filter(Boolean).join(' · '))}</span></td>
       <td>${now ? `${vPlate(now.vehicleId)}<span class="sub">${now.routeId ? esc(rLabel(now.routeId)) : 'w trasie'}</span>` : '<span class="muted">—</span>'}</td>
       <td>${veh.length ? veh.map(v => esc(v.plate)).join(', ') : '<span class="muted">—</span>'}</td>
