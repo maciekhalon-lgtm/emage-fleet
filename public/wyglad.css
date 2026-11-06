@@ -184,3 +184,15 @@ input:focus,select:focus,textarea:focus{border-color:var(--ink)!important;box-sh
 .bar{row-gap:14px}
 :root[data-theme="dark"] .kpi:nth-child(1),:root[data-theme="dark"] .kpi:nth-child(1):hover{background:#2a2621}
 @media (max-width:1000px){.kpis.k3 .kpi b{font-size:46px}.kpis.k3 .kpi{padding:18px 20px}}
+.bar h1+*,.bar h2+*{margin-top:10px}
+.bar .sub,.bar h1+.muted,.bar h2+.muted{margin-top:6px}
+@media (max-width:640px){
+  .att-row{grid-template-columns:8px minmax(0,1fr);row-gap:8px;column-gap:12px;padding:14px 4px}
+  .att-row .stripe{grid-row:1;grid-column:1;height:8px;align-self:center}
+  .att-row .plate,.att-row .att-ic{grid-column:2;grid-row:1;justify-self:start}
+  .att-row .att-t{grid-column:2;grid-row:2}
+  .att-row .att-act{grid-column:2;grid-row:3;flex-wrap:wrap}
+  .att-row .att-act:empty{display:none}
+  .att-t .pill{white-space:normal}
+  td .pill,.pill{white-space:normal;max-width:100%}
+}
