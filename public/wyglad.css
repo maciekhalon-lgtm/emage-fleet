@@ -232,3 +232,12 @@ input:focus,select:focus,textarea:focus{border-color:var(--ink)!important;box-sh
 .auth-brand .wordmark b{color:var(--on-accent)}
 .dl-row .sub{display:block}
 .field:has(#ho-issue:not(:checked)) #ho-sev{display:none}
+
+/* podejrzane tankowania */
+.sp-tools{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:0 22px 10px}
+.sp-row{display:grid;grid-template-columns:90px minmax(150px,1.2fr) 110px minmax(0,2fr) auto;gap:14px;align-items:center;padding:12px 22px;border-top:1px solid var(--line)}
+.sp-row.done{opacity:.55}
+.sp-d{display:flex;flex-direction:column;line-height:1.25}.sp-d em{font-style:normal;color:var(--muted);font-size:12.5px}
+.sp-v .sub,.sp-a .sub{display:block}
+.sp-w{display:flex;flex-wrap:wrap;gap:4px}
+@media (max-width:900px){.sp-row{grid-template-columns:80px minmax(0,1fr) auto;padding:12px 16px}.sp-w{grid-column:1 / -1}.sp-row>button{grid-column:1 / -1;justify-self:start}.sp-tools{padding:0 16px 10px}}

@@ -57,6 +57,8 @@ cena ±15% od średniej, słabe spalanie). Pulpit / Koszty → **OK** albo **Wyj
 
 **Karty paliwowe** – Paliwo → **Karty paliwowe** → **Importuj zestawienie**: dostawca, nr faktury, faktura (PDF) i plik CSV/Excel.
 Można zaznaczyć kilka plików naraz – każdy to osobne rozliczenie (fakturę dołączysz potem: **Dodaj fakturę**).
+Na górze zakładki – **Podejrzane tankowania** ze wszystkich zestawień: więcej litrów niż bak, ponad 1,2 baku w ciągu doby, dwa tankowania
+w 3 godziny, cena za litr ponad 15% wyżej niż mediana miesiąca, auto poza grafikiem. Po wyjaśnieniu kliknij **Sprawdzone** (liczba znika z menu).
 **Spalanie i przebiegi** – zakres dat (domyślnie całość): przebieg, litry i spalanie każdego busa, średnia floty; sortowanie kliknięciem
 w nagłówek kolumny. To samo spalanie widać w Pojazdach, karcie auta, kosztach i raportach.
 Przy pierwszym pliku danego układu sprawdź dopasowanie kolumn (data, nr rejestracyjny, litry, kwota brutto, licznik…) – system je zapamięta.

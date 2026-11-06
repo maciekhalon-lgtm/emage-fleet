@@ -19,6 +19,7 @@ function tabCount(t){
   if (t==='terminy'){ const u = S.deadlines.filter(d => dlState(d).cls==='bad').length; return {n: u, bad: u > 0}; }
   if (t==='uzytkownicy' && P().manage){ const n = pendingUsers().length + pendingRequests().length + openDisputes().length; return {n, bad: n > 0}; }
   if (t==='liczniki' && P().manage){ const n = odoTodoCount(); return {n, bad: n > 0}; }
+  if (t==='karty' && P().manage){ const n = suspTodoCount(); return {n, bad: n > 0}; }
   if (t==='spalanie' && P().manage){ const n = theftVehicles().length; return {n, bad: n > 0}; }
   if (t==='przydzial'){ const cf = conflicts().size; return {n: cf, bad: cf > 0}; }
   return {n: 0, bad: false};
