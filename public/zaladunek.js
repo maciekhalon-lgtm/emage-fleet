@@ -122,6 +122,7 @@ function mySchedulePanel(){
       <b>${b.routeId ? esc(rLabel(b.routeId)) : 'bez trasy'}</b>
       <span class="sub">${v ? esc(v.plate) : ''}${partner ? ' · z: ' + esc(dName(partner)) : ''}</span>
       ${b.purpose ? `<span class="ms-note">${esc(b.purpose)}</span>` : ''}
+      ${b.routeId && typeof stopsOf==='function' && stopsOf(b.routeId).length ? `<span class="sub">${ic('route')} ${stopsOf(b.routeId).length} ${isPlural(stopsOf(b.routeId).length,'przystanek','przystanki','przystanków')}: ${esc(stopsOf(b.routeId).slice(0, 3).map(x => x.client).join(', '))}${stopsOf(b.routeId).length > 3 ? '…' : ''}</span>` : ''}
       ${loaders.length ? `<span class="ms-load">${ic('box')}Twój towar wiezie:</span>${loaders.map(x => personRow(x)).join('')}` : ''}
     </span></div>`; }).join('');
   return `<div class="panel myschedule"><div class="sec-head"><h3>Mój grafik</h3>${work.length > 3 ? `<button class="small ghost" data-action="sched-all">${schedAll ? 'Mniej' : `Wszystkie (${work.length})`}</button>` : ''}</div>
