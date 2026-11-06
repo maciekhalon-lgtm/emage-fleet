@@ -308,6 +308,11 @@ function bookingCheck(){
     const c = S.bookings.find(b => b.id!==editing.id && !b.returned && crewOf(b).includes(dr) && b.from<=t && f<=b.to);
     if (c) msg = dName(dr)+' ma już w tym dniu przydział: '+((byId('vehicles', c.vehicleId)||{}).plate||'?')+'.';
   }
+  if (!msg && dr && f){   // dokumenty kierowcy ważne w dniu przydziału
+    const d = byId('drivers', dr) || {};
+    const bad = [['licenseExpiry','prawo jazdy'],['medicalExpiry','badania lekarskie'],['psychExpiry','badania psychologiczne']].filter(([k]) => d[k] && d[k] < f).map(([, l]) => l);
+    if (bad.length) msg = `Uwaga: ${dName(dr)} – nieważne ${bad.join(', ')} w dniu ${fdate(f)}. Możesz zapisać – to tylko ostrzeżenie.`;
+  }
   const r = routeById(g('routeId')), veh = byId('vehicles', v);
   if (!msg && r && r.tacho && veh && !veh.hasTacho) msg = `Uwaga: trasa ${r.code} wymaga tachografu, a ${veh.plate} nie ma tachografu. Możesz zapisać – to tylko informacja.`;
   w.textContent=msg; w.hidden=!msg;
