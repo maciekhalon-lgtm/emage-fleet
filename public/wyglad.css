@@ -255,3 +255,11 @@ input:focus,select:focus,textarea:focus{border-color:var(--ink)!important;box-sh
 .dc-facts b{font-size:17px}
 @media (max-width:640px){#dlg-body .dc-facts{grid-template-columns:repeat(2,minmax(0,1fr))}}
 #dlg-body .dc-range{justify-self:start;width:max-content}
+:root[data-theme="dark"] .d-hero:not(.empty){background:#2a2621}
+@media (min-width:1001px){:root[data-theme="dark"] .side{background:#211e1a;box-shadow:0 18px 40px -18px rgba(0,0,0,.8)}}
+@media (max-width:1000px){:root[data-theme="dark"] .bottombar{background:#211e1a}}
+@media (min-width:1001px){
+  .side .sync{position:static;padding:0 6px;background:none;box-shadow:none;font-size:0;gap:0}
+  .side .sync i{width:9px;height:9px}
+  .side .sync.err{font-size:12px;color:#ff8a7e;gap:6px}
+}

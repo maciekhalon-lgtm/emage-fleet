@@ -143,7 +143,7 @@ const schedule = () => { if (pending) return; pending = true; requestAnimationFr
   else render();
 }); };
 const syncEl = () => $('#sync');
-function setSync(cls, txt){ const el = syncEl(); if (!el) return; el.className = 'sync '+cls; el.querySelector('span').textContent = txt; }
+function setSync(cls, txt){ const el = syncEl(); if (!el) return; el.className = 'sync '+cls; el.querySelector('span').textContent = txt; el.title = txt; }
 
 S.fuelAll = [];
 async function refresh(col){
