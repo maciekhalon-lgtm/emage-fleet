@@ -23,7 +23,7 @@ Na komputerze menu jest na górze strony (czarny pasek), na telefonie – na dol
 | **Moje auto** | (kierownik floty powiązany z wpisem kierowcy) ten sam ekran co u kierowcy |
 | **Pulpit** | trzy liczby (w trasie, wymaga uwagi, koszty miesiąca), „Wymaga uwagi” (blokady, terminy, niesprawne auta, tankowania do wyjaśnienia, konta, spory, budżet, opony) i flota teraz |
 | **Pojazdy** | lista z filtrami (w trasie, wolne, wymaga uwagi) i karta auta w zakładkach: **Dane** (polisa, assistance, grafik, dokumenty), **Terminy i serwis**, **Paliwo i koszty**, **Historia**; dokumenty, książka serwisowa, historia |
-| **Grafik** | zakładki **Grafik** (tydzień: kierowcy × dni, załadunek ze zmiany, auta teraz w trasie) i **Trasy** |
+| **Grafik** | zakładki **Grafik** (tydzień: kierowcy × dni, załadunek ze zmiany, auta teraz w trasie) i **Trasy** (przy każdej trasie przycisk **Przystanki**: klienci w kolejności jazdy – adres, godzina, telefon, uwagi) |
 | **Serwis** | zakładki **Usterki**, **Terminy** (domyślnie tylko pilne: po terminie i do 60 dni – „Pokaż wszystkie” pokazuje resztę), **Książka serwisowa** |
 | **Paliwo** | (kierownik floty) zakładki **Karty paliwowe**, **Spalanie i przebiegi**, **Liczniki**, **Miesiąc do miesiąca** (spalanie pojazdów i kierowców: dwa miesiące i zmiana) i **Przejazdy i parkingi** |
 | **Koszty** | zakładki **Koszty** (koszty miesiąca, tankowania do wyjaśnienia) i **Raporty** (koszty, kilometry ze wszystkich liczników, koszt/km, limity, Excel) |
@@ -85,6 +85,7 @@ Ekran ma jedną dużą kartę „co teraz”:
 2. Auto przejęte: na karcie trasa (kliknij, żeby zmienić) i licznik, a pod spodem trzy przyciski –
    **Zatankuj** (litry, kwota, licznik; „Tankuję za granicą” – EUR/CZK z kursem NBP), **Załadunek** (trasy, których towar zabierasz,
    waga i zdjęcie przy trasie z załadunkiem) i **Usterka** – oraz duży przycisk **Zdaj auto** (tylko licznik i uwagi).
+   Jeśli trasa ma przystanki, pod kartą auta jest lista klientów: **Nawiguj** (Mapy Google), telefon i „Cała trasa w Mapach Google”.
 3. **Mój grafik** – najbliższe 3 dni pracy (przycisk „Wszystkie” – 2 tygodnie): auto, trasa, uwagi, kto wiezie Twój towar.
 4. Ikona osoby w prawym górnym rogu – **Moje dane**: ostatnie tankowania, zgłoszone usterki, dane i telefon (zmiana do akceptacji).
 5. Wylosowany do kontroli paragonów musi dodać zdjęcie paragonu. Bez zasięgu tankowanie i zdanie auta zapisują się w telefonie

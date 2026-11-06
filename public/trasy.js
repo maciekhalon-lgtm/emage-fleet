@@ -51,9 +51,10 @@ function viewRoutes(){
       <td>${r.tacho ? '<span class="pill info">tachograf</span>' : '<span class="muted">—</span>'}</td>
       <td>${r.loading ? '<span class="pill soon">załadunkowa</span>' : '<span class="muted">—</span>'}</td>
       <td>${r.active===false ? '<span class="pill off">nieaktywna</span>' : '<span class="pill ok">aktywna</span>'}</td>
-      <td>${on.length ? on.map(b => `${vPlate(b.vehicleId)} <span class="sub">${esc(crewName(b))}</span>`).join('') : '<span class="muted">—</span>'}</td></tr>`;
+      <td>${on.length ? on.map(b => `${vPlate(b.vehicleId)} <span class="sub">${esc(crewName(b))}</span>`).join('') : '<span class="muted">—</span>'}</td>
+      ${P().manage ? `<td><button class="small" data-stops="${esc(r.id)}">${(n => n ? `${n} ${isPlural(n,'przystanek','przystanki','przystanków')}` : `${ic('plus')}Przystanki`)(stopsOf(r.id).length)}</button></td>` : ''}</tr>`;
   }).join('');
-  return `<div class="section">${head}<div class="panel tablewrap"><table><thead><tr><th>Kod</th><th>Nazwa</th><th>Tachograf</th><th>Załadunek</th><th>Status</th><th>Teraz w trasie</th></tr></thead><tbody>${rows}</tbody></table></div>
+  return `<div class="section">${head}<div class="panel tablewrap"><table><thead><tr><th>Kod</th><th>Nazwa</th><th>Tachograf</th><th>Załadunek</th><th>Status</th><th>Teraz w trasie</th>${P().manage ? '<th>Przystanki (klienci)</th>' : ''}</tr></thead><tbody>${rows}</tbody></table></div>
     <p class="muted small" style="margin:0;max-width:90ch">Trasę przypisujesz w grafiku (Grafik → pole kierowcy w danym dniu → Trasa). Tankowania i koszty z tych dni dostają trasę automatycznie. Tachograf to tylko informacja – nie blokuje przydziału.</p></div>`;
 }
 

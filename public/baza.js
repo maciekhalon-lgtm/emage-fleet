@@ -5,7 +5,7 @@ const sb = supabase.createClient(CONFIG.supabaseUrl, CONFIG.supabaseKey, {
 });
 
 /* nazwa w aplikacji → tabela w bazie */
-const TABLES = {vehicles:'vehicles', drivers:'drivers', deadlines:'deadlines', bookings:'bookings', costs:'costs', issues:'issues', docs:'documents', settings:'settings', requests:'data_change_requests', crewChanges:'crew_changes', routes:'routes', serviceEntries:'service_entries', inspections:'inspections', cleanings:'cleanings', blockOverrides:'block_overrides', loadings:'loadings', loadingReports:'loading_reports', fuelCardImports:'fuel_card_imports', fuelCardRows:'fuel_card_rows', members:'profiles'};
+const TABLES = {vehicles:'vehicles', drivers:'drivers', deadlines:'deadlines', bookings:'bookings', costs:'costs', issues:'issues', docs:'documents', settings:'settings', routeStops:'route_stops', requests:'data_change_requests', crewChanges:'crew_changes', routes:'routes', serviceEntries:'service_entries', inspections:'inspections', cleanings:'cleanings', blockOverrides:'block_overrides', loadings:'loadings', loadingReports:'loading_reports', fuelCardImports:'fuel_card_imports', fuelCardRows:'fuel_card_rows', members:'profiles'};
 const COL_OF = Object.fromEntries(Object.entries(TABLES).map(([a, b]) => [b, a]));
 
 /* pole w aplikacji → kolumna w bazie */
@@ -20,6 +20,7 @@ const FIELDS = {
   deadlines: {vehicleId:'vehicle_id', kmDue:'km_due', intervalMonths:'interval_months', intervalKm:'interval_km', remindKm:'remind_km'},
   serviceEntries: {vehicleId:'vehicle_id', tiresSet:'tires_set', oilChange:'oil_change', timingChange:'timing_change', deadlineId:'deadline_id', issueIds:'issue_ids', costId:'cost_id', assetId:'storage_path', fileName:'file_name', contentType:'content_type'},
   loadings:  {routeId:'route_id', driverId:'driver_id', loadDate:'load_date', forDate:'for_date'},
+  routeStops: {routeId:'route_id', timeFrom:'time_from'},
   loadingReports: {driverId:'driver_id', loadDate:'load_date', weightKg:'weight_kg'},
   fuelCardImports: {invoiceNo:'invoice_no', invoicePath:'invoice_path', fileName:'file_name', periodFrom:'period_from', periodTo:'period_to', rowsTotal:'rows_total', rowsOurs:'rows_ours'},
   fuelCardRows: {importId:'import_id', vehicleId:'vehicle_id', txDate:'tx_date', txTime:'tx_time', cardNo:'card_no', costId:'cost_id'},
@@ -42,6 +43,7 @@ const WRITABLE = {
   deadlines: ['id','vehicle_id','type','date','km_due','interval_months','interval_km','remind_km','note'],
   serviceEntries: ['id','vehicle_id','date','km','workshop','description','cost','oil_change','deadline_id','issue_ids','note','storage_path','file_name','content_type','tires_set','timing_change'],
   loadings:  ['id','route_id','driver_id'],
+  routeStops: ['id','route_id','pos','client','address','time_from','phone','note'],
   loadingReports: ['id','driver_id','weight_kg','photo'],
   bookings:  ['id','vehicle_id','driver_id','date_from','date_to','purpose','route_id','pickup_at','pickup_km','pickup_fuel','pickup_note','pickup_photos','pickup_by','pickup_checklist','return_at','return_km','return_fuel','return_note','return_photos','return_by','co_driver_id'],
   costs:     ['id','date','vehicle_id','driver_id','category','amount','liters','odometer','full_tank','note','photos','co_driver_id','confirm_status','currency','amount_orig','fx_rate','fx_manual','station','flag_state','flag_question'],
@@ -154,10 +156,11 @@ async function refresh(col){
   const key = col==='settings' ? 'key' : 'id', PAGE = 1000, data = [];
   for (let from = 0; ; from += PAGE){
     const {data: part, error} = await sb.from(table).select('*').order(key).range(from, from + PAGE - 1);
-    if (error){ got[col] = true; return; }
+    if (error){ got[col] = true; if (col==='routeStops') stopsReady = false; return; }
     data.push(...(part || []));
     if (!part || part.length < PAGE) break;
   }
+  if (col==='routeStops') stopsReady = true;
   if (col==='members') profiles = data;
   else S[col] = data.map(r => toApp(col, r));
   got[col] = true;
@@ -198,7 +201,7 @@ function queueRefresh(col){
   timers[col] = setTimeout(() => { refresh(col); if (P().history) refreshLog(); }, 400);
 }
 
-let channel = null;
+let channel = null, stopsChannel = null, stopsReady = false;
 async function loadAll(){
   db = dbApi;
   setSync('', 'Wczytywanie danych…');
@@ -209,7 +212,8 @@ async function loadAll(){
   if (typeof saveSnapshot==='function'){ saveSnapshot(); processQueue(); }
   if (channel) sb.removeChannel(channel);
   channel = sb.channel('zmiany');
-  Object.values(TABLES).forEach(t => channel.on('postgres_changes', {event:'*', schema:'public', table:t}, p => {
+  // route_stops ma osobny kanał – dopóki migracja 022 nie jest uruchomiona, błąd tej subskrypcji nie zatrzymuje reszty
+  Object.values(TABLES).filter(t => t!=='route_stops').forEach(t => channel.on('postgres_changes', {event:'*', schema:'public', table:t}, p => {
     const col = COL_OF[p.table];
     if (col==='members' || p.table==='profiles'){ onProfileChange(p); return; }
     queueRefresh(col);
@@ -218,6 +222,8 @@ async function loadAll(){
     if (status==='SUBSCRIBED') setSync('live', 'Dane na żywo');
     else if (status==='CHANNEL_ERROR' || status==='TIMED_OUT'){ setSync('err', 'Odświeżanie na żywo wstrzymane'); }
   });
+  if (stopsChannel) sb.removeChannel(stopsChannel);
+  if (stopsReady) stopsChannel = sb.channel('przystanki').on('postgres_changes', {event:'*', schema:'public', table:'route_stops'}, () => queueRefresh('routeStops')).subscribe();
   if (P().manage) sb.rpc('prune_change_log').then(() => {}, () => {});
   schedule();
 }
