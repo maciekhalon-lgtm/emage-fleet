@@ -166,6 +166,13 @@ async function exportXlsx(){
     const ws3 = X.utils.json_to_sheet(ds.length ? ds : [{'Informacja':'Brak danych kierowców w okresie'}]);
     ws3['!cols'] = [{wch:24},{wch:14},{wch:10},{wch:12},{wch:16},{wch:12},{wch:12},{wch:22},{wch:14},{wch:16},{wch:14},{wch:11},{wch:15},{wch:16},{wch:60}];
     X.utils.book_append_sheet(wb, ws3, 'Ranking kierowców');
+    if (typeof fcSuspicious==='function'){
+      const ch = fcCheckedIds();
+      const sp = fcSuspicious().filter(x => x.row.txDate >= a && x.row.txDate <= b).map(({row: r, why}) => ({'Data': fdate(r.txDate), 'Godzina': r.txTime || '', 'Rejestracja': byId('vehicles', r.vehicleId)?.plate || r.plate || '',
+        'Kierowca (z grafiku)': fcDriver(r, null) || '', 'Litry': Number(r.liters || 0), 'Kwota': Number(r.amount || 0), 'Waluta': r.currency || 'PLN', 'Stacja': r.station || '', 'Licznik': r.odometer || '',
+        'Powód': why.join('; '), 'Sprawdzone': ch.has(r.id) ? 'tak' : 'nie'}));
+      if (sp.length){ const ws4 = X.utils.json_to_sheet(sp); ws4['!cols'] = [{wch:12},{wch:8},{wch:12},{wch:24},{wch:8},{wch:10},{wch:7},{wch:18},{wch:10},{wch:60},{wch:11}]; X.utils.book_append_sheet(wb, ws4, 'Podejrzane tankowania'); }
+    }
   }
   const data = X.write(wb, {type:'array', bookType:'xlsx'});
   const tag = repMode==='year' ? repYear : repMonth;
