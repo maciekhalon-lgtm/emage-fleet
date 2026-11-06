@@ -229,3 +229,5 @@ input:focus,select:focus,textarea:focus{border-color:var(--ink)!important;box-sh
   .veh-tbl .vt-dl .sub{display:inline}
 }
 .vt-dl .sub,.dl-row .sub{font-family:var(--f-body);letter-spacing:0}
+.auth-brand .wordmark b{color:var(--on-accent)}
+.dl-row .sub{display:block}
