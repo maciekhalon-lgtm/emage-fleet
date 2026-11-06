@@ -101,6 +101,7 @@ function tireReminder(){
 
 /* ---------- grafik tygodniowy: kierowcy × dni ---------- */
 let schedDay = '';
+const docsBad = d => [['licenseExpiry','prawo jazdy'],['medicalExpiry','badania lekarskie'],['psychExpiry','badania psychologiczne']].filter(([k]) => d[k] && d[k] < today()).map(([, l]) => l).join(', ');
 function viewSchedule(){
   const days = Array.from({length:7}, (_, i) => addDays(calStart, i)), t = today(), end = days[6];
   const nav = `<div class="cal-nav"><button class="small" data-cal="-7" aria-label="Poprzedni tydzień">‹</button><button class="small" data-cal="0">Ten tydzień</button><button class="small" data-cal="7" aria-label="Następny tydzień">›</button><span class="label num">${fdate(calStart)} – ${fdate(end)}</span>
@@ -118,11 +119,11 @@ function viewSchedule(){
       const chips = bs.map(b => { const v = byId('vehicles', b.vehicleId);
         return `<span class="sch-chip ${conf.has(b.id)?'bad':''} ${b.pickup && !b.returned ? 'out' : ''} ${b.returned ? 'back' : ''}" ${canEditDoc('bookings', b) ? `data-edit="bookings" data-id="${esc(b.id)}"` : ''}><b>${esc(v ? v.plate : '?')}</b>${b.routeId ? `<i>${esc(rLabel(b.routeId))}</i>` : ''}${crewOf(b).length > 1 ? `<i>+ ${esc(dName(crewOf(b).find(x => x!==dr.id)))}</i>` : ''}${b.purpose ? `<i class="sch-note">${esc(b.purpose)}</i>` : ''}</span>`; }).join('');
       const add = canCreate('bookings') && P().bookings==='rw' && !bs.length ? `<button class="small ghost" data-sched="${esc(dr.id)}|${d}">${ic('plus')}Przydziel</button>` : '';
-      return `<div class="sch-li ${bs.length ? '' : 'free'}"><b class="sch-li-n">${esc(dr.name)}</b><div class="sch-li-c">${chips || (add || '<span class="muted small">wolne</span>')}</div></div>`; }).join('');
+      return `<div class="sch-li ${bs.length ? '' : 'free'}"><b class="sch-li-n">${esc(dr.name)}${docsBad(dr) ? ' <span class="pill bad">dokumenty!</span>' : ''}</b><div class="sch-li-c">${chips || (add || '<span class="muted small">wolne</span>')}</div></div>`; }).join('');
     return nav + pills + `<div class="panel sch-list">${list}</div>`;
   }
   const head = `<tr><th>Kierowca</th>${days.map(d => { const dt = parse(d), wd = (dt.getDay()+6)%7; return `<th class="sch-day ${d===t?'today':''} ${wd>4?'we':''}">${DOW[wd]} <b class="num">${dt.getDate()}</b></th>`; }).join('')}</tr>`;
-  const rows = drivers.map(dr => `<tr><td class="sch-name"><b>${esc(dr.name)}</b></td>${days.map(d => {
+  const rows = drivers.map(dr => `<tr><td class="sch-name"><b>${esc(dr.name)}</b>${docsBad(dr) ? `<span class="pill bad" title="${esc(docsBad(dr))}">nieważne dokumenty</span>` : ''}</td>${days.map(d => {
       const bs = S.bookings.filter(b => crewOf(b).includes(dr.id) && b.from<=d && b.to>=d);
       const wd = (parse(d).getDay()+6)%7;
       const cell = bs.map(b => { const v = byId('vehicles', b.vehicleId);
