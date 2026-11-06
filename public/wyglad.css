@@ -241,3 +241,11 @@ input:focus,select:focus,textarea:focus{border-color:var(--ink)!important;box-sh
 .sp-v .sub,.sp-a .sub{display:block}
 .sp-w{display:flex;flex-wrap:wrap;gap:4px}
 @media (max-width:900px){.sp-row{grid-template-columns:80px minmax(0,1fr) auto;padding:12px 16px}.sp-w{grid-column:1 / -1}.sp-row>button{grid-column:1 / -1;justify-self:start}.sp-tools{padding:0 16px 10px}}
+
+/* tabele na telefonie: pierwsza kolumna (auto / kierowca) zostaje na miejscu przy przewijaniu w bok */
+@media (max-width:640px){
+  .tablewrap:not(.veh-tbl):not(.sch) th:first-child,.tablewrap:not(.veh-tbl):not(.sch) td:first-child{position:sticky;left:0;z-index:2;background:var(--surface);box-shadow:6px 0 8px -8px rgba(22,19,14,.35)}
+  .tablewrap:not(.veh-tbl):not(.sch) th:first-child{z-index:3}
+  .tablewrap table{font-size:13px}
+  .tablewrap td,.tablewrap th{padding:10px 12px}
+}
