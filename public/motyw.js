@@ -8,7 +8,7 @@ function applyTheme(t){
   const dark = t ? t==='dark' : systemDark();
   document.documentElement.dataset.theme = dark ? 'dark' : 'light';
   const m = document.querySelector('meta[name="theme-color"]');
-  if (m) m.setAttribute('content', dark ? '#0b0f14' : '#f3f4f7');
+  if (m) m.setAttribute('content', dark ? '#12110f' : '#f3efe6');
 }
 function setTheme(t){
   try { localStorage.setItem(THEME_KEY, t); } catch(_){}
