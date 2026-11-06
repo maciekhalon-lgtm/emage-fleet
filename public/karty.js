@@ -131,12 +131,6 @@ const fcAnchorCard = (vid, imp) => S.fuelCardRows.filter(x => x.vehicleId===vid 
   .sort((a, b) => b.txDate.localeCompare(a.txDate)).slice(0, 1);
 const fcAnchorApp = (vid, imp) => appFuel().filter(c => c.vehicleId===vid && c.date < imp.periodFrom && Number(c.odometer) > 0)
   .sort((a, b) => b.date.localeCompare(a.date)).slice(0, 1);
-function fcConsTxt(vid, c, lab){
-  if (!c || c.rate==null) return `<span class="fc-cons muted small">${lab}: za mało liczników${c && c.bad.size ? ` · ${c.bad.size} ${isPlural(c.bad.size,'licznik podejrzany','liczniki podejrzane','liczników podejrzanych')}` : ''}</span>`;
-  const r = c.rate.toFixed(1).replace('.', ',');
-  const badTxt = c.bad.size ? ` <span class="pill off" title="Pominięte przy liczeniu">${c.bad.size} ${isPlural(c.bad.size,'licznik pominięty','liczniki pominięte','liczników pominiętych')}</span>` : '';
-  return `<span class="fc-cons"><span class="muted small">${lab}:</span> ${new Intl.NumberFormat('pl-PL').format(c.km)} km · <b>${r} l/100</b> ${c.unsure ? '<span class="pill off">niepewne – sprawdź liczniki</span>' : levelPill(levelFor(vid, c.rate))}${badTxt}</span>`;
-}
 /* Kierowca przy tankowaniu z karty: z wpisu albo z grafiku w tym dniu */
 function fcDriver(r, c){
   if (c) return dName(fillDriver(c) || c.driverId) || '';

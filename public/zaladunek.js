@@ -107,12 +107,6 @@ async function saveLoading(before, withWeight, wd){
   finally { btn.disabled = false; }
 }
 
-/* ---------- „Mój grafik” – najbliższe 7 dni (kierowca) ---------- */
-function dayLabel(d){
-  const t = today(), x = diffDays(t, d);
-  if (x===0) return 'Dziś'; if (x===1) return 'Jutro';
-  const dt = parse(d); return `${DOW[(dt.getDay()+6)%7]} ${dt.getDate()}.${String(dt.getMonth()+1).padStart(2,'0')}`;
-}
 let schedAll = false;
 function mySchedulePanel(){
   const me_ = myDriverId(); if (!me_) return '';
@@ -134,12 +128,6 @@ function mySchedulePanel(){
     ${shown.map(row).join('') || '<p class="muted sec-empty">W najbliższych dniach nie masz nic w grafiku.</p>'}</div>`;
 }
 document.addEventListener('click', e => { if (e.target.closest('[data-action="sched-all"]')){ schedAll = !schedAll; render(); } });
-/* Przycisk na ekranie kierowcy */
-function loadingBtn(){
-  if (!myDriverId() || !loadRoutes().length) return '';
-  const n = S.loadings.filter(l => l.driverId===myDriverId() && l.forDate===workDay()).length;
-  return big('data-action="loading"', 'Załadunek', n ? `zabierasz ${n} ${isPlural(n,'trasę','trasy','tras')}` : 'zaznacz trasy, które zabierasz', 'wide', 'box');
-}
 
 /* ---------- kierownik: załadunek pod grafikiem (zmiana dzisiejsza i wczorajsza) ---------- */
 function loadingDay(d){

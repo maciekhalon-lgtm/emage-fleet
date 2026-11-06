@@ -120,14 +120,6 @@ function vsPill(vs){
   return `<span class="pill ${cls}">${p>0?'+':''}${p}%</span>`;
 }
 
-function driverRowsHtml(list){
-  return list.map(r => `<tr>
-    <td><b>${esc(dName(r.driverId))}</b>${r.vehicles.length ? r.vehicles.map(x => `<span class="sub">${esc(byId('vehicles',x.vid)?.plate||'')} · ${fmtInt(x.km)} km · ${x.rate?fmt1(x.rate)+' '+x.unit:'—'}</span>`).join('') : ''}</td>
-    <td class="r num">${r.km ? fmtInt(r.km)+' km' : '—'}</td>
-    <td class="r num">${r.fills}</td>
-    <td class="r num">${zl(r.fuelCost)}</td>
-    <td>${vsPill(r.vs)}</td></tr>`).join('');
-}
 
 /* Ranking kierowców (tylko kierownik floty): kolejność według poziomów spalania, obok terminowość, checklista i usterki. */
 const RANK_MIN_KM = 300;
@@ -139,33 +131,6 @@ function driverExtras(driverId, a, b){
   const accounts = profiles.filter(p => p.driver_id===driverId).map(p => p.id);
   const iss = S.issues.filter(i => accounts.includes(i.createdBy) && i.date >= a && i.date <= b).length;
   return {days: mineB.length, late, ck, iss};
-}
-function driversSection(){
-  const [a, b, label] = periodRange();
-  const all = driverStats(a, b).map(r => ({...r, ex: driverExtras(r.driverId, a, b)}));
-  const ranked = all.filter(r => r.km >= RANK_MIN_KM).sort((x, y) => (y.score ?? -1) - (x.score ?? -1) || (x.vs ?? 9) - (y.vs ?? 9) || y.km - x.km);
-  const few = all.filter(r => r.km < RANK_MIN_KM);
-  const noLevels = S.vehicles.filter(v => v.status!=='wycofany' && (!v.consGood || !v.consOk)).length;
-  const odd = S.vehicles.flatMap(v => fuelSegments(v.id).filter(s => s.odd && s.date >= a && s.date <= b));
-  const bar = r => { const t = r.levelKm || 1; const w = k => (r.lv[k] / t * 100).toFixed(0);
-    return r.levelKm ? `<div class="lvbar" title="bardzo dobre ${w('vgood')}% · dobre ${w('good')}% · słabe ${w('weak')}%"><i class="vg" style="width:${w('vgood')}%"></i><i class="gd" style="width:${w('good')}%"></i><i class="wk" style="width:${w('weak')}%"></i></div><span class="sub">${w('vgood')}% · ${w('good')}% · ${w('weak')}%</span>` : '<span class="muted small">brak progów na autach</span>'; };
-  const row = (r, i) => `<tr>
-    <td class="num rank">${i!=null ? i+1 : ''}</td>
-    <td><b>${esc(dName(r.driverId))}</b>${r.vehicles.map(x => `<span class="sub">${esc(byId('vehicles',x.vid)?.plate||'')} · ${fmtInt(x.km)} km · ${x.rate?fmt1(x.rate)+' '+x.unit:'—'} ${levelPill(x.level)}</span>`).join('')}</td>
-    <td class="r num">${fmtInt(r.km)} km<span class="sub">${r.ex.days} ${isPlural(r.ex.days,'dzień','dni','dni')}</span></td>
-    <td style="min-width:150px">${bar(r)}</td>
-    <td class="r num"><b>${r.score ?? '—'}</b></td>
-    <td>${vsPill(r.vs)}</td>
-    <td class="r num">${r.ex.late ? `<span class="pill warn">${r.ex.late}</span>` : '0'}</td>
-    <td class="r num">${r.ex.ck}</td>
-    <td class="r num">${r.ex.iss}</td></tr>`;
-  const head = '<thead><tr><th>#</th><th>Kierowca i auta</th><th class="r">Przejechane</th><th>Km w poziomach</th><th class="r">Wynik</th><th>vs średnia auta</th><th class="r">Spóźnione zdania</th><th class="r">Uwagi w checkliście</th><th class="r">Zgłoszone usterki</th></tr></thead>';
-  return `<div class="section"><div class="bar"><h2>Ranking kierowców – ${label}</h2><span class="muted small">widzi tylko kierownik floty</span></div>
-    ${noLevels ? `<div class="notice"><span>${noLevels} ${isPlural(noLevels,'auto nie ma','auta nie mają','aut nie ma')} ustawionych poziomów spalania – ich kilometry nie wchodzą do wyniku. Ustawisz je w danych auta (Pojazdy → auto → Edytuj dane).</span></div>` : ''}
-    ${ranked.length ? `<div class="panel tablewrap"><table>${head}<tbody>${ranked.map(row).join('')}</tbody></table></div>` : '<div class="panel empty"><p>Brak kierowców z przebiegiem co najmniej 300 km w tym okresie.</p></div>'}
-    ${few.length ? `<details class="panel few"><summary>Poza rankingiem – mniej niż ${RANK_MIN_KM} km w okresie (${few.length})</summary><div class="tablewrap"><table>${head}<tbody>${few.map(r => row(r, null)).join('')}</tbody></table></div></details>` : ''}
-    ${odd.length ? `<div class="notice"><span>Do sprawdzenia: ${odd.map(s => `${esc(byId('vehicles',s.vehId)?.plate||'')} ${fdate(s.date)} – wynik ${fmt1(s.rate)} ${unitOf(s.vehId)}`).join('; ')}. Pominięto je w wynikach – zwykle to literówka w litrach lub liczniku albo tankowanie nie do pełna.</span></div>` : ''}
-    <p class="muted" style="margin:0;font-size:13px;max-width:90ch"><b>Wynik</b> 0–100: 100 = wszystkie kilometry w poziomie bardzo dobrym, 50 = w dobrym, 0 = w słabym. Spalanie liczymy między tankowaniami do pełna; w podwójnej obsadzie odcinek liczy się obu kierowcom z pełnymi km, a kilometry floty raz. Tankowania czekające na potwierdzenie drugiego kierowcy nie są liczone.</p></div>`;
 }
 
 /* Widok kierowcy: tylko własne statystyki (miesiąc z zakładki Koszty i cały rok). */
@@ -180,14 +145,3 @@ function myStatsPanel(){
     ${sY && sY.vehicles.length ? `<div class="tablewrap"><table><thead><tr><th>Auto (rok ${y})</th><th class="r">Twoje km</th><th class="r">Twoje spalanie</th><th class="r">Średnia auta</th></tr></thead><tbody>${sY.vehicles.map(x => { const avg = vehicleConsumption(x.vid); return `<tr><td>${plate(byId('vehicles',x.vid)?.plate)}</td><td class="r num">${fmtInt(x.km)} km</td><td class="r num">${x.rate?fmt1(x.rate)+' '+x.unit:'—'} ${levelPill(x.level)}</td><td class="r num">${avg?fmt1(avg.val)+' '+avg.unit:'—'}</td></tr>`; }).join('')}</tbody></table></div>` : '<p class="muted sec-empty">Zaznaczaj „Zatankowano do pełna”, a po dwóch takich tankowaniach zobaczysz tu swoje spalanie.</p>'}</div>`;
 }
 
-/* Kontrola licznika przy wpisie: nie niższy niż ostatni znany odczyt z tej samej lub wcześniejszej daty. */
-function odometerProblem(vehId, date, odo, selfId){
-  const prior = [];
-  S.costs.forEach(c => { if (c.vehicleId===vehId && c.odometer && c.id!==selfId && c.date <= date) prior.push(Number(c.odometer)); });
-  S.bookings.forEach(b => { if (b.vehicleId!==vehId) return; if (b.pickup && b.pickup.at <= date) prior.push(Number(b.pickup.km)); if (b.returned && b.returned.at <= date) prior.push(Number(b.returned.km)); });
-  const v = byId('vehicles', vehId);
-  if (v && v.km && date >= today()) prior.push(Number(v.km));
-  const max = prior.length ? Math.max(...prior) : 0;
-  if (odo < max) return `Stan licznika ${fmtInt(odo)} km jest niższy niż ostatni zapisany dla tego auta (${fmtInt(max)} km). Sprawdź wpis.`;
-  return '';
-}

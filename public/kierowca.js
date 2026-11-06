@@ -136,30 +136,12 @@ function viewPickCar(){
   </div>`;
 }
 
-/* ---------- moje dane i statystyki ---------- */
+/* ---------- moje dane: tankowania, usterki, dane osobowe ---------- */
 function viewMyData(){
   if (!myDriverId()) return notLinked();
   const me_ = myDriverId(), d = meDriver() || {};
   const [y, m] = costMonth.split('-').map(Number);
   const mA = costMonth+'-01', mB = costMonth+'-'+pad(new Date(y, m, 0).getDate());
-  const days = S.bookings.filter(b => b.driverId===me_ && b.pickup).sort((a, b) => (b.pickup.at||'') < (a.pickup.at||'') ? -1 : 1);
-  const daysM = days.filter(b => b.pickup.at >= mA && b.pickup.at <= mB);
-  const kmM = daysM.reduce((s, b) => s + (b.returned && b.returned.km > b.pickup.km ? b.returned.km - b.pickup.km : 0), 0);
-
-  // a) statystyki
-  const statsA = `<div class="panel"><div class="sec-head"><h3>Statystyki</h3><input id="month" type="month" value="${costMonth}" style="width:auto" aria-label="Miesiąc"></div>
-    <div class="totals">
-      <div><span class="label">Dni pracy</span><b>${daysM.length}</b></div>
-      <div><span class="label">Przejechane (zdane auta)</span><b>${kmM ? new Intl.NumberFormat('pl-PL').format(kmM)+' km' : '—'}</b></div>
-    </div></div>${myStatsPanel()}`;
-
-  // b) historia dni pracy
-  const histB = `<div class="panel"><div class="sec-head"><h3>Historia dni pracy</h3><span class="muted small">ostatnie 30</span></div>
-    ${days.length ? `<div class="tablewrap"><table><thead><tr><th>Data</th><th>Auto</th><th class="r">Przejęcie</th><th class="r">Zdanie</th><th class="r">Przejechane</th><th>Checklista</th></tr></thead><tbody>
-    ${days.slice(0,30).map(b => { const ck = b.pickup.checklist || [], bad = ck.filter(x => !x.ok).length; const dist = b.returned && b.returned.km > b.pickup.km ? b.returned.km - b.pickup.km : null;
-      return `<tr><td class="num">${fdate(b.pickup.at)}</td><td>${vPlate(b.vehicleId)}</td><td class="r num">${km(b.pickup.km)}</td><td class="r num">${b.returned ? km(b.returned.km) : '<span class="pill info">w trasie</span>'}</td><td class="r num">${dist!==null ? new Intl.NumberFormat('pl-PL').format(dist)+' km' : '—'}</td><td>${ck.length ? (bad ? `<span class="pill warn">${bad} ${isPlural(bad,'uwaga','uwagi','uwag')}</span>` : '<span class="pill ok">OK</span>') : '—'}</td></tr>`; }).join('')}
-    </tbody></table></div>` : '<p class="muted sec-empty">Nie masz jeszcze zapisanych dni pracy.</p>'}</div>`;
-
   // c) moje tankowania
   const fuel = S.costs.filter(c => isFuel(c) && (c.driverId===me_ || c.createdBy===myId)).sort((a, b) => a.date < b.date ? 1 : -1);
   const fuelM = fuel.filter(c => c.date >= mA && c.date <= mB);
@@ -192,7 +174,6 @@ function viewMyData(){
     </div>
     <p class="muted small sec-empty">Pozostałe dane zmienia kierownik floty. Jeśli coś się nie zgadza, daj mu znać.</p></div>`;
 
-  void statsA; void histB;
   return `<div class="section driver">${backBtn()}<h2>Moje dane</h2>${fuelC}${issD}${dataF}</div>`;
 }
 

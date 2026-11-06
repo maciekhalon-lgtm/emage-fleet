@@ -48,12 +48,3 @@ function viewHistory(){
 }
 
 let pruned = false;
-async function _unusedPruneLog(){
-  if (pruned || !db || !P().manage || !canWrite) return;
-  pruned = true;
-  try {
-    const cut = addDays(today(), -LOG_KEEP_DAYS);
-    const old = await db.collection('log').where('at', '<', cut).limit(50).get();
-    for (const d of old.docs) await db.collection('log').doc(d.id).delete();
-  } catch(_){}
-}
