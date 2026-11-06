@@ -289,3 +289,19 @@ input:focus,select:focus,textarea:focus{border-color:var(--ink)!important;box-sh
 .ms-main .sub svg.i{width:13px;height:13px;vertical-align:-2px}
 .fl-sub{padding:14px 22px 4px;border-top:1px solid var(--line);margin-top:6px}
 .sch-name .pill{display:block;width:max-content;margin-top:4px;font-size:11px}
+.cal-r{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
+@media print{
+  @page{size:A4 landscape;margin:10mm}
+  html,body{background:#fff!important;color:#000}
+  .side,.bottombar,.mtop,#notices,.subtabs,.bar .tools,.cal-nav button,.no-print,details.fold,.section>p.muted,.nav-scrim,.side .sync{display:none!important}
+  .main{padding:0!important;max-width:none!important}
+  .panel{box-shadow:none!important;border:1px solid #ccc!important;border-radius:6px}
+  .sch table{font-size:10px}.sch td,.sch th{padding:4px 6px!important}
+  .sch-chip{border:1px solid #999!important;background:#fff!important;color:#000!important;opacity:1!important}
+  .sch-chip *{color:#000!important}
+  .notice{display:none!important}
+  .sch-name b{font-size:11px}
+  .sch-cell.today,.sch-day.today{background:#f3f3f3!important}
+  .tablewrap{overflow:visible!important}
+  th{position:static!important}
+}

@@ -105,11 +105,11 @@ const docsBad = d => [['licenseExpiry','prawo jazdy'],['medicalExpiry','badania 
 function viewSchedule(){
   const days = Array.from({length:7}, (_, i) => addDays(calStart, i)), t = today(), end = days[6];
   const nav = `<div class="cal-nav"><button class="small" data-cal="-7" aria-label="Poprzedni tydzień">‹</button><button class="small" data-cal="0">Ten tydzień</button><button class="small" data-cal="7" aria-label="Następny tydzień">›</button><span class="label num">${fdate(calStart)} – ${fdate(end)}</span>
-    ${canCreate('bookings') && P().bookings==='rw' ? `<button class="small" data-action="copy-week" style="margin-left:auto">Kopiuj poprzedni tydzień</button>` : ''}</div>`;
+    <span class="cal-r">${canCreate('bookings') && P().bookings==='rw' ? `<button class="small" data-action="copy-week">Kopiuj poprzedni tydzień</button>` : ''}<button class="small ghost no-print" data-print-week>${ic('clip')}Drukuj</button></span></div>`;
   const drivers = S.drivers.filter(d => d.active!==false).sort((a, b) => a.name.localeCompare(b.name, 'pl'));
   if (!drivers.length) return nav + '<div class="panel empty"><p>Dodaj kierowców, aby układać grafik.</p></div>';
   const conf = conflicts();
-  if (matchMedia('(max-width:640px)').matches){   // telefon: jeden dzień naraz zamiast tabeli tygodnia
+  if (matchMedia('(max-width:640px)').matches && !document.documentElement.classList.contains('printing')){   // telefon: jeden dzień naraz zamiast tabeli tygodnia
     if (!days.includes(schedDay)) schedDay = days.includes(t) ? t : days[0];
     const d = schedDay;
     const pills = `<div class="sch-days">${days.map(x => { const dt = parse(x), wd = (dt.getDay()+6)%7, n = S.bookings.filter(b => b.from<=x && b.to>=x).length;
@@ -177,3 +177,10 @@ document.addEventListener('click', e => {
 document.addEventListener('click', e => { const t = e.target.closest('[data-schday]'); if (t){ schedDay = t.dataset.schday; render(); } });
 let schedMobile = matchMedia('(max-width:640px)').matches;
 addEventListener('resize', () => { const m = matchMedia('(max-width:640px)').matches; if (m!==schedMobile){ schedMobile = m; if (location.hash==='#przydzial') render(); } });
+
+/* Druk grafiku: zawsze widok tygodnia (także na telefonie) */
+document.addEventListener('click', e => {
+  if (!e.target.closest('[data-print-week]')) return;
+  document.documentElement.classList.add('printing'); render();
+  setTimeout(() => { window.print(); document.documentElement.classList.remove('printing'); render(); }, 50);
+});
