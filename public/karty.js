@@ -135,7 +135,10 @@ const fcAnchorApp = (vid, imp) => appFuel().filter(c => c.vehicleId===vid && c.d
 function fcDriver(r, c){
   if (c) return dName(fillDriver(c) || c.driverId) || '';
   const b = S.bookings.find(x => x.vehicleId===r.vehicleId && x.from<=r.txDate && x.to>=r.txDate);
-  return b ? crewName(b) : '';
+  if (b) return crewName(b);
+  // brak grafiku tego dnia: jeśli auto ma jednego odpowiedzialnego kierowcę – podpowiadamy go (z dopiskiem)
+  const v = byId('vehicles', r.vehicleId), resp = v ? respOf(v) : [];
+  return resp.length===1 && byId('drivers', resp[0]) ? dName(resp[0]) + ' (odpowiedzialny)' : '';
 }
 
 /* ---------- widok ---------- */
