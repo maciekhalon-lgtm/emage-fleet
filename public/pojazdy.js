@@ -21,11 +21,11 @@ function viewVehicles(){
     const st = vehicleState(v); const nd = nextDeadline(v.id); const ds = nd && dlState(nd); const c = consumption(v.id);
     return `<tr class="click" data-card="${esc(v.id)}" tabindex="0" title="Otwórz kartę pojazdu">
       <td>${plate(v.plate)}<span class="sub">${esc(v.make)} ${esc(v.model)} · ${km(v.km)}</span></td>
-      <td><span class="pill ${st.cls}">${esc(st.txt)}</span></td>
-      <td>${nd?`<span class="pill ${ds.cls}">${esc(nd.type)}</span><span class="sub num">${esc(ds.txt)}</span>`:'<span class="muted">brak terminów</span>'}</td>
-      <td class="r num">${c ? `<b>${c.val.toFixed(1).replace('.', ',')}</b> <span class="muted small">l/100</span>` : '<span class="muted">—</span>'}</td>
+      <td class="vt-st"><span class="pill ${st.cls}">${esc(st.txt)}</span></td>
+      <td class="vt-dl">${nd?`<span class="pill ${ds.cls}">${esc(nd.type)}</span><span class="sub num">${esc(ds.txt)}</span>`:'<span class="muted">brak terminów</span>'}</td>
+      <td class="r num vt-c">${c ? `<b>${c.val.toFixed(1).replace('.', ',')}</b> <span class="muted small">l/100</span>` : '<span class="muted">—</span>'}</td>
     </tr>`; }).join('');
-  return head + chips + `<div class="panel tablewrap"><table><thead><tr><th>Auto</th><th>Status</th><th>Najbliższy termin</th><th class="r">Spalanie</th></tr></thead><tbody>${rows || `<tr><td colspan="4" class="muted">Brak pojazdów${q ? ` pasujących do „${esc(q)}”` : ' w tym filtrze'}.</td></tr>`}</tbody></table></div>`;
+  return head + chips + `<div class="panel tablewrap veh-tbl"><table><thead><tr><th>Auto</th><th>Status</th><th>Najbliższy termin</th><th class="r">Spalanie</th></tr></thead><tbody>${rows || `<tr><td colspan="4" class="muted">Brak pojazdów${q ? ` pasujących do „${esc(q)}”` : ' w tym filtrze'}.</td></tr>`}</tbody></table></div>`;
 }
 let vehFilter = 'all';
 document.addEventListener('click', e => { const t = e.target.closest('[data-vf]'); if (!t) return; vehFilter = t.dataset.vf; render(); });

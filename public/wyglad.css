@@ -196,3 +196,36 @@ input:focus,select:focus,textarea:focus{border-color:var(--ink)!important;box-sh
   .att-t .pill{white-space:normal}
   td .pill,.pill{white-space:normal;max-width:100%}
 }
+
+/* grafik na telefonie – jeden dzień */
+.sch-days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.sch-dp{flex-direction:column;gap:1px;padding:8px 0 6px;border-radius:16px;border:1px solid var(--line-2);background:var(--surface);min-height:62px;position:relative}
+.sch-dp span{font-size:11px;color:var(--muted);font-weight:600}
+.sch-dp b{font-family:var(--f-head);font-size:19px;line-height:1.1}
+.sch-dp i{font-style:normal;font-size:10.5px;color:var(--muted);min-height:13px}
+.sch-dp.today b{color:var(--accent-ink)}
+.sch-dp.on{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+.sch-dp.on span,.sch-dp.on i{color:var(--bg);opacity:.7}
+.sch-dp.on.today b{color:var(--accent)}
+.sch-list{padding:4px 0}
+.sch-li{display:grid;grid-template-columns:minmax(0,0.9fr) minmax(0,1.6fr);gap:10px;align-items:center;padding:12px 16px}
+.sch-li+.sch-li{border-top:1px solid var(--line)}
+.sch-li-n{font-weight:600;font-size:14px}
+.sch-li.free .sch-li-n{color:var(--muted);font-weight:500}
+.sch-li-c{display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+.sch-li-c .sch-chip{width:100%}
+
+/* lista pojazdów na telefonie – karty zamiast tabeli */
+@media (max-width:640px){
+  .veh-tbl{overflow:visible}
+  .veh-tbl table,.veh-tbl tbody{display:block}
+  .veh-tbl thead{display:none}
+  .veh-tbl tr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 10px;padding:14px 16px;border-bottom:1px solid var(--line)}
+  .veh-tbl tr:last-child{border-bottom:0}
+  .veh-tbl td{padding:0;border:0;display:block;background:none!important}
+  .veh-tbl .vt-c{grid-column:2;grid-row:1;align-self:start}
+  .veh-tbl .vt-st,.veh-tbl .vt-dl{grid-column:1 / -1}
+  .veh-tbl .vt-dl{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .veh-tbl .vt-dl .sub{display:inline}
+}
+.vt-dl .sub,.dl-row .sub{font-family:var(--f-body);letter-spacing:0}
