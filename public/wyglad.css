@@ -287,3 +287,4 @@ input:focus,select:focus,textarea:focus{border-color:var(--ink)!important;box-sh
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}}
 @media (max-width:420px){.d-meta{display:grid;grid-template-columns:minmax(0,1fr) auto}.d-route{min-width:0}.d-km{font-size:13px;padding:9px 10px}.d-km em{display:none}}
 .ms-main .sub svg.i{width:13px;height:13px;vertical-align:-2px}
+.fl-sub{padding:14px 22px 4px;border-top:1px solid var(--line);margin-top:6px}

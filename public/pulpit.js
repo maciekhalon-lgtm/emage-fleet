@@ -80,8 +80,14 @@ function fleetNowCard(){
     const since = v.km && b.pickup.km ? v.km - b.pickup.km : 0;
     return `<div class="fl-row" data-card-go="${esc(b.vehicleId)}" tabindex="0">${vPlate(b.vehicleId)}<div class="att-t"><b>${esc(crewName(b))}</b><span class="sub">${b.routeId ? esc(rLabel(b.routeId)) + ' · ' : ''}od ${fdate(b.pickup.at)}${since > 0 ? ' · ' + km(since) : ''}</span></div><span class="pill ${st.cls}" title="${esc(st.txt)}">${st.cls==='warn' ? 'Do potwierdzenia' : st.cls==='bad' ? 'Nie zdane' : b.coDriverId ? 'Obsada' : 'W trasie'}</span></div>`;
   }).join('');
+  const t = today();
+  const wait = S.bookings.filter(b => b.from<=t && b.to>=t && !b.pickup && !b.returned).sort((a, b) => crewName(a).localeCompare(crewName(b), 'pl'));
+  const phoneOf = b => (byId('drivers', b.driverId) || {}).phone;
+  const waitRows = wait.slice(0, 10).map(b => `<div class="fl-row">${vPlate(b.vehicleId)}<div class="att-t"><b>${esc(crewName(b))}</b><span class="sub">${b.routeId ? esc(rLabel(b.routeId)) : 'bez trasy'}${b.purpose ? ' · ' + esc(b.purpose) : ''}</span></div>
+    ${phoneOf(b) ? `<a class="btn small" href="tel:${esc(String(phoneOf(b)).replace(/[^\d+]/g, ''))}" aria-label="Zadzwoń">${ic('phone')}</a>` : '<span class="pill soon">czeka</span>'}</div>`).join('');
   return card('Flota teraz', list.length ? list.length + ' w trasie' : 'w trasie',
-    rows ? `<div class="fl">${rows}</div>${list.length > 8 ? `<p class="muted small more">i ${list.length - 8} więcej – zobacz Grafik.</p>` : ''}` : '<p class="muted sec-empty">Żadne auto nie jest teraz w trasie.</p>');
+    (rows ? `<div class="fl">${rows}</div>${list.length > 8 ? `<p class="muted small more">i ${list.length - 8} więcej – zobacz Grafik.</p>` : ''}` : '<p class="muted sec-empty">Żadne auto nie jest teraz w trasie.</p>')
+    + (wait.length ? `<div class="fl-sub"><span class="label">Dziś w grafiku – jeszcze nie przejęte (${wait.length})</span></div><div class="fl">${waitRows}</div>` : ''));
 }
 
 
