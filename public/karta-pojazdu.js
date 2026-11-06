@@ -78,6 +78,7 @@ function viewCard(){
       <div><span class="label">Źródło</span><span class="fv">${fc && fc.src ? (fc.src==='karta' ? 'karty paliwowe' : 'wpisy kierowców') : '—'}</span></div>
       <div><span class="label">${P().costs==='own' ? 'Moje koszty ' + yr : 'Koszty ' + yr}</span><span class="fv">${zl(yearCost)}</span></div></div>
     ${P().manage && fc && fc.parts && fc.parts.length ? sec('Odcinki z najwyższym spalaniem', '', topLegsHtml(fc), '') : ''}
+    ${P().manage && typeof fcSuspicious==='function' ? (sp => sp.length ? sec(`Podejrzane tankowania z kart (${sp.length})`, `<button class="small" data-go="karty">Wszystkie</button>`, sp.slice(0, 8).map(({row: r, why}) => `<div class="mini"><span class="num">${fdate(r.txDate)}${r.txTime ? ' ' + esc(r.txTime) : ''}</span><span>${fl(r.liters)} · ${fm(r.amount, r.currency)}<span class="sub">${esc(fcDriver(r, null) || 'kierowca nieustalony')}${r.station ? ' · ' + esc(r.station) : ''}</span></span><span class="mini-r">${why.map(w => `<span class="pill warn">${esc(w)}</span>`).join(' ')}</span></div>`).join(''), '') : '')(fcSuspicious().filter(x => x.row.vehicleId===v.id && !fcCheckedIds().has(x.row.id))) : ''}
     <div class="grid2"><div class="section">${P().manage ? sec('Tankowania z kart (ostatnie 30)', '', fuelHtml, 'Brak tankowań z kart paliwowych.') : ''}</div>
     <div class="section">${sec('Koszty (ostatnie 40)', add('costs','+ Koszt'), costRows, 'Brak kosztów.')}</div></div>`;
   else if (cardTab==='historia') body = sec('Historia', '', histHtml ? `<div class="tlist">${histHtml}</div>` : '', 'Brak wpisów – tu pojawią się koszty, usterki, naprawy i wyjazdy tego auta.');
@@ -120,6 +121,6 @@ function topLegsHtml(fc){
   const drv = typeof cmpDriverOf==='function' ? cmpDriverOf() : () => '';
   const legs = fc.parts.filter(p => p.km >= 100).map(p => ({...p, r: p.l / p.km * 100})).sort((a, b) => b.r - a.r).slice(0, 10);
   return legs.map(p => `<div class="mini"><span class="num">${fdate(p.d0)} – ${fdate(p.d1)}</span>
-    <span>${new Intl.NumberFormat('pl-PL').format(p.km)} km · ${fl(p.l)}<span class="sub">${esc(dName(drv(p.id)) || 'kierowca nieustalony')}</span></span>
+    <span>${new Intl.NumberFormat('pl-PL').format(p.km)} km · ${fl(p.l)}<span class="sub">${esc(drv(p.id) ? dName(drv(p.id)) : 'kierowca nieustalony')}</span></span>
     <span class="mini-r"><b class="${p.r > THEFT_RATE ? 'neg' : ''}">${p.r.toFixed(1).replace('.', ',')} l/100</b></span></div>`).join('');
 }
