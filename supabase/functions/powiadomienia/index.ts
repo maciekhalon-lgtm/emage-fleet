@@ -17,7 +17,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2.49.4';
 
 // ===== LOGIKA (bez zależności – testowana osobno) =====
 export type Row = Record<string, any>;
-export type Data = {profiles: Row[]; drivers: Row[]; vehicles: Row[]; deadlines: Row[]; bookings: Row[]; issues: Row[]; costs: Row[]; settings: Row[]};
+export type Data = {profiles: Row[]; drivers: Row[]; vehicles: Row[]; deadlines: Row[]; bookings: Row[]; issues: Row[]; costs: Row[]; settings: Row[]; cardRows?: Row[]};
 
 const DAY = 864e5;
 export const addDays = (iso: string, n: number) => new Date(Date.parse(iso + 'T12:00:00Z') + n * DAY).toISOString().slice(0, 10);
@@ -51,8 +51,7 @@ export function itemsFor(p: Row, d: Data, today: string): {pri: number; text: st
       if (dd < 0) out.push({pri: 0, text: `${label} ${lost} ważność ${dm(x)}`});
       else if ([30, 14, 7, 3, 1, 0].includes(dd)) out.push({pri: dd <= 7 ? 0 : 2, text: `${label} ${valid} do ${dm(x)}`});
     }
-    // busy, za które kierowca odpowiada: terminy, przebieg, sprzątanie, niesprawność
-    const cDays = Number(d.settings.find(s => s.key === 'schedule')?.value?.cleaningDays) || 14;
+    // busy, za które kierowca odpowiada: terminy, przebieg, niesprawność
     d.vehicles.filter(v => v.status !== 'wycofany' && (v.responsible || []).includes(p.driver_id)).forEach(v => {
       d.deadlines.filter(t => t.vehicle_id === v.id).forEach(t => {
         const dd = diffDays(today, t.date);
@@ -64,7 +63,6 @@ export function itemsFor(p: Row, d: Data, today: string): {pri: number; text: st
           else if (left <= (t.remind_km || 1000)) out.push({pri: 1, text: `Twój bus ${v.plate}: ${t.type} za ${kmf(left)}`});
         }
       });
-      if (!v.last_clean || diffDays(v.last_clean, today) > cDays) out.push({pri: 2, text: `Twój bus ${v.plate}: czas na sprzątanie`});
       d.issues.filter(i => i.vehicle_id === v.id && i.status !== 'naprawione' && i.severity === 'stop')
         .forEach(i => out.push({pri: 0, text: `Twój bus ${v.plate} niesprawny: ${i.title}`}));
     });
@@ -105,6 +103,10 @@ export function itemsFor(p: Row, d: Data, today: string): {pri: number; text: st
   if (p.role === 'floty'){
     const fl = d.costs.filter(c => c.flag_state === 'open').length;
     if (fl) out.push({pri: 1, text: `${fl} ${fl === 1 ? 'tankowanie' : 'tankowań/tankowania'} do wyjaśnienia`});
+    // tankowania z kart: więcej niż bak, jeszcze nie oznaczone jako sprawdzone (ostatnie 35 dni)
+    const checked = new Set<string>(d.settings.find(s => s.key === 'fc_checked')?.value?.ids || []);
+    const over = (d.cardRows || []).filter(r => r.kind !== 'other' && !checked.has(r.id) && Number(r.liters) > Number(veh(r.vehicle_id)?.tank_l || 90) * 1.05);
+    if (over.length) out.push({pri: 1, text: `${over.length} ${over.length === 1 ? 'tankowanie' : 'tankowań/tankowania'} z karty ponad pojemność baku – Paliwo → Karty paliwowe`});
     const pend = d.profiles.filter(x => x.status === 'pending').length;
     if (pend) out.push({pri: 1, text: `${pend} ${pend === 1 ? 'konto czeka' : pend < 5 ? 'konta czekają' : 'kont czeka'} na zatwierdzenie`});
     const month = today.slice(0, 7);
@@ -197,6 +199,7 @@ Deno.serve(async (req) => {
     deadlines: await load('deadlines'), bookings: await load('bookings', b => b.gte('date_to', addDays(today, -60))),
     issues: await load('issues', b => b.neq('status', 'naprawione')), costs: await load('costs', b => b.gte('date', monthStart)),
     settings: await load('settings'),
+    cardRows: await load('fuel_card_rows', b => b.gte('tx_date', addDays(today, -35))),
   };
   const report: Record<string, unknown>[] = [];
   for (const p of d.profiles.filter(x => x.status === 'active')){
