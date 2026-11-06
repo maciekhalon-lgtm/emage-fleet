@@ -41,6 +41,7 @@ function attentionItems(serviceOnly){
   });
   if (!serviceOnly && P().manage){
     theftVehicles().forEach(({v, c}) => out.push({w: 1, html: attRow('bad', v.id, `Podejrzane spalanie: ${c.rate.toFixed(1).replace('.', ',')} l/100 km`, `powyżej ${THEFT_RATE} l/100 km – możliwa kradzież paliwa · ${new Intl.NumberFormat('pl-PL').format(Math.round(c.km))} km`, `<button class="small" data-card-go="${esc(v.id)}" data-ctab-go="paliwo">Sprawdź</button>`)}));
+    const spN = typeof suspTodoCount==='function' ? suspTodoCount() : 0; if (spN) out.push({w: 2, html: attRow('warn', '', `${spN} ${isPlural(spN,'podejrzane tankowanie','podejrzane tankowania','podejrzanych tankowań')} z kart`, 'ponad bak, dużo litrów w ciągu doby, wysoka cena albo auto poza grafikiem', `<button class="small" data-go="karty">Pokaż</button>`)});
     const odoN = odoTodoCount(); if (odoN) out.push({w: 2, html: attRow('warn', '', `${odoN} ${isPlural(odoN,'licznik','liczniki','liczników')} z czapy do sprawdzenia`, 'zmyślone albo niepasujące liczniki z kart i tankowań', `<button class="small" data-go="liczniki">Pokaż</button>`)});
   }
   if (!serviceOnly){
