@@ -92,6 +92,7 @@ function viewSettings(){
   if (!P().manage) return '';
   return `<div class="section settings"><div class="bar"><h2>Ustawienia</h2></div>
     ${budgetPanel()}
+    ${pushSetupPanel()}
     ${checksSettingsPanel()}
     ${checklistPanel()}
   </div>`;

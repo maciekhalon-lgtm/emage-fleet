@@ -305,3 +305,5 @@ input:focus,select:focus,textarea:focus{border-color:var(--ink)!important;box-sh
   .tablewrap{overflow:visible!important}
   th{position:static!important}
 }
+.keys{display:flex;flex-direction:column;gap:10px;padding:0 22px 18px}.keyrow{display:grid;grid-template-columns:150px minmax(0,1fr) auto;gap:10px;align-items:center}.keyrow code{overflow-wrap:anywhere;font-family:var(--f-num);font-size:12px;background:var(--sunk);padding:8px 10px;border-radius:10px;max-height:120px;overflow:auto}@media (max-width:640px){.keyrow{grid-template-columns:1fr}}
+.keys>button{align-self:flex-start}
