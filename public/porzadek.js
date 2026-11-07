@@ -118,7 +118,19 @@ function viewSettings(){
   return `<div class="section settings"><div class="bar"><h2>Ustawienia</h2></div>
     ${budgetPanel()}
     ${pushSetupPanel()}
+    ${P().manage ? `<div class="panel"><div class="sec-head"><h3>Kopia danych</h3><button class="small" data-action="backup">${ic('clip')}Pobierz kopię (JSON)</button></div><p class="muted sec-empty">Wszystkie dane floty w jednym pliku: auta, kierowcy, grafik, koszty, terminy, usterki, książka serwisowa, karty paliwowe, trasy i przystanki. Zrób kopię raz w miesiącu i trzymaj ją na dysku firmy. Zdjęcia i skany zostają w Supabase.</p></div>` : ''}
     ${checksSettingsPanel()}
     ${checklistPanel()}
   </div>`;
 }
+
+/* Kopia danych do pliku JSON (kierownik floty) */
+async function backupJson(){
+  const cols = ['vehicles','drivers','bookings','routes','routeStops','costs','deadlines','issues','serviceEntries','docs','settings','loadings','loadingReports','fuelCardImports','fuelCardRows'];
+  const data = {app:'Emage FLEET', exportedAt: new Date().toISOString(), by: me.full_name || '', tables: {}};
+  cols.forEach(c => { if (Array.isArray(S[c])) data.tables[c] = S[c]; });
+  const n = Object.values(data.tables).reduce((s, x) => s + x.length, 0);
+  await saveFile(`Emage-FLEET-kopia-${today()}.json`, new Blob([JSON.stringify(data, null, 1)], {type:'application/json'}));
+  toast(`Kopia gotowa: ${n} rekordów`);
+}
+document.addEventListener('click', e => { if (e.target.closest('[data-action="backup"]')){ e.preventDefault(); backupJson(); } });
