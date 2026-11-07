@@ -314,6 +314,16 @@ function bookingCheck(){
     const bad = [['licenseExpiry','prawo jazdy'],['medicalExpiry','badania lekarskie'],['psychExpiry','badania psychologiczne']].filter(([k]) => d[k] && d[k] < f).map(([, l]) => l);
     if (bad.length) msg = `Uwaga: ${dName(dr)} – nieważne ${bad.join(', ')} w dniu ${fdate(f)}. Możesz zapisać – to tylko ostrzeżenie.`;
   }
+  if (!msg && v && t && typeof BLOCK_TYPES!=='undefined'){   // przegląd / OC auta ważne przez cały przydział
+    const bad = BLOCK_TYPES.map(ty => [ty, S.deadlines.filter(x => x.vehicleId===v && x.type===ty && x.date).reduce((m, x) => !m || x.date > m ? x.date : m, '')]).filter(([, d]) => d && d < t);
+    if (bad.length) msg = `Uwaga: ${bad.map(([ty, d]) => `${ty.replace('Ubezpieczenie ', '').toLowerCase().replace('oc', 'OC')} ważne do ${fdate(d)}`).join(', ')} – auto nie może wtedy wyjechać. Odnów termin albo wybierz inne auto.`;
+  }
+  const co = g('coDriverId');
+  if (!msg && co && f){
+    const d = byId('drivers', co) || {};
+    const bad = [['licenseExpiry','prawo jazdy'],['medicalExpiry','badania lekarskie'],['psychExpiry','badania psychologiczne']].filter(([k]) => d[k] && d[k] < f).map(([, l]) => l);
+    if (bad.length) msg = `Uwaga: ${dName(co)} (drugi kierowca) – nieważne ${bad.join(', ')} w dniu ${fdate(f)}.`;
+  }
   const r = routeById(g('routeId')), veh = byId('vehicles', v);
   if (!msg && r && r.tacho && veh && !veh.hasTacho) msg = `Uwaga: trasa ${r.code} wymaga tachografu, a ${veh.plate} nie ma tachografu. Możesz zapisać – to tylko informacja.`;
   w.textContent=msg; w.hidden=!msg;
