@@ -105,7 +105,7 @@ const docsBad = d => [['licenseExpiry','prawo jazdy'],['medicalExpiry','badania 
 function viewSchedule(){
   const days = Array.from({length:7}, (_, i) => addDays(calStart, i)), t = today(), end = days[6];
   const nav = `<div class="cal-nav"><button class="small" data-cal="-7" aria-label="Poprzedni tydzień">‹</button><button class="small" data-cal="0">Ten tydzień</button><button class="small" data-cal="7" aria-label="Następny tydzień">›</button><span class="label num">${fdate(calStart)} – ${fdate(end)}</span>
-    <span class="cal-r">${canCreate('bookings') && P().bookings==='rw' ? `<button class="small" data-action="copy-week">Kopiuj poprzedni tydzień</button>` : ''}<button class="small ghost no-print" data-print-week>${ic('clip')}Drukuj</button></span></div>`;
+    <span class="cal-r">${canCreate('bookings') && P().bookings==='rw' ? `<button class="small" data-action="copy-week">Kopiuj poprzedni tydzień</button>` : ''}<button class="small ghost no-print" data-day-plan>${ic('users')}Plan dnia do wysłania</button><button class="small ghost no-print" data-print-week>${ic('clip')}Drukuj</button></span></div>`;
   const drivers = S.drivers.filter(d => d.active!==false).sort((a, b) => a.name.localeCompare(b.name, 'pl'));
   if (!drivers.length) return nav + '<div class="panel empty"><p>Dodaj kierowców, aby układać grafik.</p></div>';
   const conf = conflicts();
@@ -189,3 +189,26 @@ document.addEventListener('click', e => {
   document.documentElement.classList.add('printing'); render();
   setTimeout(() => { window.print(); document.documentElement.classList.remove('printing'); render(); }, 50);
 });
+
+/* Plan dnia jako tekst do wklejenia w SMS / WhatsApp / grupę kierowców */
+function dayPlanText(d){
+  const bs = S.bookings.filter(b => b.from<=d && b.to>=d).sort((a, b) => crewName(a).localeCompare(crewName(b), 'pl'));
+  const dt = parse(d), head = `Grafik ${['niedziela','poniedziałek','wtorek','środa','czwartek','piątek','sobota'][dt.getDay()]} ${fdate(d)}`;
+  if (!bs.length) return head + '\n(brak przydziałów)';
+  return head + '\n' + bs.map(b => { const v = byId('vehicles', b.vehicleId);
+    return `• ${crewName(b)} – ${v ? v.plate : '?'}${b.routeId ? ' – ' + rLabel(b.routeId) : ''}${b.purpose ? ' – ' + b.purpose : ''}`; }).join('\n');
+}
+function openDayPlan(d){
+  editing = {col:'day-plan', id: null, base:{}, special: () => closeForm()};
+  $('#dlg-title').textContent = 'Plan dnia do wysłania';
+  $('#dlg-body').innerHTML = `<div class="field"><label for="dp-day">Dzień</label><input id="dp-day" type="date" value="${d}"></div><div class="field"></div>
+    <div class="field full"><textarea id="dp-text" rows="10" readonly>${esc(dayPlanText(d))}</textarea></div>
+    <div class="field full dp-act"><button type="button" class="primary small" data-dp-copy>${ic('check')}Kopiuj tekst</button>${navigator.share ? `<button type="button" class="small" data-dp-share>Udostępnij (SMS, WhatsApp…)</button>` : ''}</div>`;
+  $('#dlg-save').textContent = 'Zamknij'; $('#dlg-del').hidden = true; $('#scrim').hidden = false;
+}
+document.addEventListener('click', async e => {
+  if (e.target.closest('[data-day-plan]')){ e.preventDefault(); openDayPlan(addDays(today(), new Date().getHours() >= 12 ? 1 : 0)); return; }
+  if (e.target.closest('[data-dp-copy]')){ e.preventDefault(); const t = $('#dp-text').value; try { await navigator.clipboard.writeText(t); toast('Skopiowano – wklej w SMS lub WhatsApp'); } catch(_){ $('#dp-text').select(); toast('Zaznaczono – skopiuj ręcznie'); } return; }
+  if (e.target.closest('[data-dp-share]')){ e.preventDefault(); try { await navigator.share({text: $('#dp-text').value}); } catch(_){} }
+});
+document.addEventListener('change', e => { if (e.target.id==='dp-day' && e.target.value) $('#dp-text').value = dayPlanText(e.target.value); });
