@@ -5,6 +5,8 @@
 const ACC_KINDS = ['Kolizja z innym pojazdem', 'Uszkodzenie przy manewrowaniu / na parkingu', 'Uderzenie w obiekt (słupek, brama, rampa)', 'Szyba – uderzenie kamienia', 'Kradzież lub włamanie', 'Inna szkoda'];
 const ACC_MAX_PHOTOS = 8;
 const isAccident = i => /^Szkoda:/.test(i.title || '');
+/* w już zescapowanym tekście zamienia link GPS z „Moja lokalizacja” na klikalne „mapa” */
+const mapLinks = html => String(html).replace(/\(?(https:\/\/maps\.google\.com\/\?q=-?[\d.]+,-?[\d.]+)\)?/g, (_, u) => `<a class="maplink" href="${u}" target="_blank" rel="noopener">${ic('route')}mapa</a>`);
 
 function openAccident(vid){
   const v = byId('vehicles', vid); if (!v) return;
@@ -111,7 +113,7 @@ async function printAccident(id){
       ${row('Licznik', i.km ? km(i.km) : '')}
       ${row('Status naprawy', esc({nowe:'zgłoszona', naprawa:'w naprawie', naprawione:'naprawiona'}[i.status] || i.status))}
     </table>
-    <h2>Przebieg zdarzenia</h2><div class="pa-desc">${esc(i.description || '').replace(/\n/g, '<br>')}</div>
+    <h2>Przebieg zdarzenia</h2><div class="pa-desc">${esc(i.description || '').replace(/\n/g, '<br>').replace(/https:\/\/maps\.google\.com\/\?q=[\d.,-]+/g, u => `<a href="${u}">${u}</a>`)}</div>
     ${i.repairNote ? `<h2>Naprawa</h2><div class="pa-desc">${esc(i.repairNote)}</div>` : ''}
     ${(i.photos || []).length ? `<h2>Zdjęcia (${i.photos.length})</h2><div class="pa-ph">${i.photos.map(p => `<img data-file="${esc(p)}" alt="Zdjęcie szkody">`).join('')}</div>` : ''}
     <div class="pa-sign"><div>Podpis kierowcy</div><div>Podpis kierownika floty</div></div>

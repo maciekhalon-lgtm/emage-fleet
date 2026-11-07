@@ -106,7 +106,7 @@ function loadingOr(col, html){ return (!got[col] && db) ? `<div class="panel emp
 document.addEventListener('click', e => {
   const t = e.target.closest('[data-new],[data-edit],[data-go],[data-dlf],[data-renew],[data-action],[data-card],[data-back],[data-cal],[data-noop],[data-isf],[data-issue-st],[data-ho],[data-transfer],[data-take],[data-rep],[data-card-go]');
   if (!t || t.closest('#dialog')) return;
-  if (e.target.closest('.thumbs a, a.btn')) return;
+  if (e.target.closest('.thumbs a, a.btn, a.maplink')) return;
   if (t.dataset.noop) return;
   if (t.dataset.renew){ e.stopPropagation(); renew(t.dataset.renew); return; }
   if (t.dataset.issueSt) return setIssueStatus(t.dataset.id, t.dataset.issueSt);
