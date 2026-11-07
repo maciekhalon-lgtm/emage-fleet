@@ -73,3 +73,5 @@ Nowa wersja dodaje:
   prośba o wyjaśnienie tankowania (kierowca),
 - w porannym podsumowaniu: badania psychologiczne, przypomnienie N km przed terminem (np. 2000 km przed olejem),
   auta zablokowane, opony do wymiany, tankowania do wyjaśnienia.
+- (07.11) poranne podsumowanie kierownika floty: tankowania z karty ponad pojemność baku, auto niesprawne / w serwisie,
+  a dziś lub jutro w grafiku, oraz kierowca w grafiku dziś / jutro z nieważnymi dokumentami.

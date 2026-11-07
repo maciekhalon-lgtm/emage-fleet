@@ -128,6 +128,17 @@ export function itemsFor(p: Row, d: Data, today: string): {pri: number; text: st
       if (a.vehicle_id === b.vehicle_id && a.date_from <= b.date_to && b.date_from <= a.date_to) clash.add(a.vehicle_id);
     }
     clash.forEach(id => out.push({pri: 1, text: `${plate(id)}: nakładające się rezerwacje w najbliższym tygodniu`}));
+    // dziś / jutro w grafiku: auto niesprawne lub w serwisie, albo kierowca z nieważnymi dokumentami
+    const tm = addDays(today, 1);
+    d.bookings.filter(b => b.pickup_km == null && b.return_km == null && b.date_to >= today && b.date_from <= tm).forEach(b => {
+      const when = b.date_from <= today ? 'dziś' : 'jutro', v = veh(b.vehicle_id);
+      const day = b.date_from <= today ? today : tm;
+      if ((v && v.status === 'serwis') || d.issues.some(i => i.vehicle_id === b.vehicle_id && i.status !== 'naprawione' && i.severity === 'stop'))
+        out.push({pri: 0, text: `${plate(b.vehicle_id)} niesprawne, a ${when} w grafiku (${drvName(b.driver_id)}) – zmień auto`});
+      [b.driver_id, b.co_driver_id].filter(Boolean).forEach(id => { const dr = d.drivers.find(x => x.id === id); if (!dr) return;
+        const bad = [['license_expiry', 'prawo jazdy'], ['medical_expiry', 'badania lekarskie'], ['psych_expiry', 'badania psych.']].filter(([k]) => dr[k] && dr[k] < day).map(([, l]) => l);
+        if (bad.length) out.push({pri: 0, text: `${dr.full_name} ${when} w grafiku, a ma nieważne: ${bad.join(', ')}`}); });
+    });
   }
   return out;
 }
