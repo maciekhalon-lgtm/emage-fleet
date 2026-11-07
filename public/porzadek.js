@@ -56,7 +56,13 @@ function viewServiceBook(){
       <td><b>${esc(x.description)}</b><span class="sub">${[x.workshop, x.note].filter(Boolean).map(esc).join(' · ')}</span>
         <span class="svc-tags">${x.oilChange ? '<span class="pill soon">olej</span>' : ''}${x.timingChange ? '<span class="pill soon">rozrząd</span>' : ''}${x.tiresSet ? `<span class="pill info">opony ${esc((TIRES[x.tiresSet] || '').toLowerCase())}</span>` : ''}${(x.issueIds || []).length ? `<span class="pill ok">usterki: ${x.issueIds.length}</span>` : ''}</span></td>
       <td class="r num">${x.cost ? zl2(x.cost) : '—'}</td><td>${x.assetId ? `<a class="btn small" data-file="${esc(x.assetId)}" href="#" target="_blank" rel="noopener">Faktura</a>` : ''}</td></tr>`).join('');
-  return head + `<div class="panel tablewrap"><table><thead><tr><th>Data</th><th>Auto</th><th>Co zrobiono</th><th class="r">Koszt</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
+  // warsztaty z ostatnich 12 miesięcy: ile wizyt, ile kosztowały, średnio na wizytę
+  const y1 = addDays(today(), -365), ws = {};
+  list.filter(x => x.date >= y1 && (x.workshop || '').trim()).forEach(x => { const k = x.workshop.trim(); (ws[k] = ws[k] || {n:0, c:0, cars:new Set()}); ws[k].n++; ws[k].c += Number(x.cost || 0); ws[k].cars.add(x.vehicleId); });
+  const wl = Object.entries(ws).sort((a, b) => b[1].c - a[1].c);
+  const wsPanel = wl.length >= 2 ? `<details class="panel fold"><summary class="sec-head"><h3>Warsztaty – ostatnie 12 miesięcy</h3><span class="muted small">${wl.length} ${isPlural(wl.length,'warsztat','warsztaty','warsztatów')}</span></summary>
+    ${wl.slice(0, 10).map(([k, x]) => `<div class="mini"><span><b>${esc(k)}</b><span class="sub">${x.n} ${isPlural(x.n,'wizyta','wizyty','wizyt')} · ${x.cars.size} ${isPlural(x.cars.size,'auto','auta','aut')}</span></span><span class="muted small">średnio ${x.n ? zl(x.c / x.n) : '—'}</span><span class="mini-r num"><b>${zl(x.c)}</b></span></div>`).join('')}</details>` : '';
+  return head + wsPanel + `<div class="panel tablewrap"><table><thead><tr><th>Data</th><th>Auto</th><th>Co zrobiono</th><th class="r">Koszt</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
     <p class="muted small" style="margin:0">${list.length} ${isPlural(list.length,'wpis','wpisy','wpisów')} · razem ${zl(sum)}</p>`;
 }
 document.addEventListener('change', e => { if (e.target.id==='svc-veh'){ svcVeh = e.target.value; render(); } });
