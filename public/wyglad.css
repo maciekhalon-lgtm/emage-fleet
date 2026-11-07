@@ -291,7 +291,9 @@ input:focus,select:focus,textarea:focus{border-color:var(--ink)!important;box-sh
 .sch-name .pill{display:block;width:max-content;margin-top:4px;font-size:11px}
 .cal-r{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
 @media print{
-  @page{size:A4 landscape;margin:10mm}
+  @page{size:A4;margin:12mm}
+  @page wide{size:A4 landscape;margin:10mm}
+  html.printing .main{page:wide}
   html,body{background:#fff!important;color:#000}
   .side,.bottombar,.mtop,#notices,.subtabs,.bar .tools,.cal-nav button,.no-print,details.fold,.section>p.muted,.nav-scrim,.side .sync{display:none!important}
   .main{padding:0!important;max-width:none!important}
@@ -356,3 +358,20 @@ input:focus,select:focus,textarea:focus{border-color:var(--ink)!important;box-sh
 .pl-d{display:flex;flex-direction:column;line-height:1.2;font-weight:600}.pl-d em{font-style:normal;font-size:12px;color:var(--muted);font-weight:500}
 .pl-t .sub{display:block}
 @media (max-width:640px){.pl-it{grid-template-columns:52px minmax(0,1fr);padding:10px 16px}.pl-it .plate{grid-column:2;justify-self:start}.pl-t{grid-column:2}.pl-it>button{grid-column:2;justify-self:start}.pl-h{padding:14px 16px 6px}}
+
+/* druk zgłoszenia szkody */
+#print-area{display:none}
+@media print{
+  html.print-doc #app,html.print-doc #scrim,html.print-doc #pal{display:none!important}
+  html.print-doc #print-area{display:block}
+}
+.pa{font-family:var(--f-body);color:#000;font-size:12px}
+.pa-h{display:flex;justify-content:space-between;border-bottom:2px solid #000;padding-bottom:8px;margin-bottom:14px}
+.pa-h b{display:block;font-size:16px}.pa-r{text-align:right}
+.pa h1{font-size:20px;margin:0 0 10px}.pa h2{font-size:14px;margin:16px 0 6px}
+.pa-t{border-collapse:collapse;width:100%}.pa-t th,.pa-t td{border:1px solid #bbb;padding:5px 8px;text-align:left;position:static;background:none;color:#000;font-size:12px;text-transform:none;letter-spacing:0}
+.pa-t th{width:30%;font-weight:600}
+.pa-desc{border:1px solid #bbb;padding:8px;line-height:1.5}
+.pa-ph{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.pa-ph img{width:100%;max-height:260px;object-fit:contain;border:1px solid #ccc}
+.pa-sign{display:flex;gap:40px;margin-top:40px}.pa-sign div{flex:1;border-top:1px solid #000;padding-top:4px;text-align:center}
+.pa-f{color:#666;font-size:10px;margin-top:20px}

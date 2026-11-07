@@ -79,3 +79,33 @@ async function saveAccident(){
 }
 document.addEventListener('change', e => { if (e.target.id==='acc-kind') accToggle(); });
 document.addEventListener('click', e => { const t = e.target.closest('[data-accident]'); if (!t) return; e.preventDefault(); openAccident(t.dataset.accident); });
+
+/* Druk zgłoszenia szkody (np. dla ubezpieczyciela): dane auta i polisy, kierowca z grafiku, opis, zdjęcia */
+async function printAccident(id){
+  const i = byId('issues', id); if (!i) return;
+  const v = byId('vehicles', i.vehicleId) || {};
+  const b = S.bookings.find(x => x.vehicleId===i.vehicleId && x.from<=i.date && x.to>=i.date);
+  const row = (l, x) => x ? `<tr><th>${l}</th><td>${x}</td></tr>` : '';
+  let el = $('#print-area'); if (!el){ el = document.createElement('div'); el.id = 'print-area'; document.body.appendChild(el); }
+  el.innerHTML = `<div class="pa">
+    <div class="pa-h"><div><b>Emage Group</b><span>Zgłoszenie szkody komunikacyjnej</span></div><div class="pa-r">Nr ${esc(String(i.id).slice(0, 8).toUpperCase())}<br>${fdate(i.date)}</div></div>
+    <h1>${esc(i.title.replace(/^Szkoda:\s*/, ''))}</h1>
+    <table class="pa-t">
+      ${row('Pojazd', `${esc(v.plate || '')} · ${esc([v.make, v.model].filter(Boolean).join(' '))}${v.year ? ' · ' + esc(String(v.year)) : ''}`)}
+      ${row('VIN', esc(v.vin || ''))}
+      ${row('Ubezpieczyciel (OC)', esc([v.insurer, v.policyNo ? 'polisa ' + v.policyNo : ''].filter(Boolean).join(' · ')))}
+      ${row('Polisa ważna do', v.policyUntil ? fdate(v.policyUntil) : '')}
+      ${row('Kierowca (grafik)', b ? esc(crewName(b)) : '')}
+      ${row('Licznik', i.km ? km(i.km) : '')}
+      ${row('Status naprawy', esc({nowe:'zgłoszona', naprawa:'w naprawie', naprawione:'naprawiona'}[i.status] || i.status))}
+    </table>
+    <h2>Przebieg zdarzenia</h2><div class="pa-desc">${esc(i.description || '').replace(/\n/g, '<br>')}</div>
+    ${i.repairNote ? `<h2>Naprawa</h2><div class="pa-desc">${esc(i.repairNote)}</div>` : ''}
+    ${(i.photos || []).length ? `<h2>Zdjęcia (${i.photos.length})</h2><div class="pa-ph">${i.photos.map(p => `<img data-file="${esc(p)}" alt="Zdjęcie szkody">`).join('')}</div>` : ''}
+    <div class="pa-sign"><div>Podpis kierowcy</div><div>Podpis kierownika floty</div></div>
+    <p class="pa-f">Wygenerowano w Emage FLEET ${new Date().toLocaleString('pl-PL')}</p></div>`;
+  try { await hydrateFiles(el); await Promise.all([...el.querySelectorAll('img')].map(im => im.complete ? 0 : new Promise(r => { im.onload = im.onerror = r; setTimeout(r, 4000); }))); } catch(_){}
+  document.documentElement.classList.add('print-doc');
+  setTimeout(() => { window.print(); document.documentElement.classList.remove('print-doc'); }, 60);
+}
+document.addEventListener('click', e => { const t = e.target.closest('[data-print-acc]'); if (!t) return; e.preventDefault(); e.stopPropagation(); printAccident(t.dataset.printAcc); }, true);

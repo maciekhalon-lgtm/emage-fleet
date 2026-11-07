@@ -22,6 +22,7 @@ function issueRow(i, showVeh = true){
   const quick = P().issues==='rw' && canWrite
     ? (i.status==='nowe' ? `<button class="small" data-issue-st="naprawa" data-id="${esc(i.id)}">Do naprawy</button>` : '')
       + (i.status!=='naprawione' ? `<button class="small" data-issue-st="naprawione" data-id="${esc(i.id)}">Naprawione</button>` : '')
+      + (typeof isAccident==='function' && isAccident(i) ? `<button class="small ghost" data-print-acc="${esc(i.id)}" title="Druk / PDF dla ubezpieczyciela">${ic('clip')}Drukuj</button>` : '')
       + (i.status!=='naprawione' && P().service && canCreate('serviceEntries') ? `<button class="small ghost" data-svc-issue="${esc(i.id)}" title="Wpis do książki serwisowej – po zapisaniu usterka zamknie się sama">${ic('wrench')}Wpis serwisowy</button>` : '')
     : '';
   return `<div class="is-row ${i.status==='naprawione'?'done':sev.cls}" ${edit?`data-edit="issues" data-id="${esc(i.id)}" tabindex="0"`:'style="cursor:default"'}>
