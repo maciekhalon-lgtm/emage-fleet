@@ -343,3 +343,16 @@ input:focus,select:focus,textarea:focus{border-color:var(--ink)!important;box-sh
 .pal-it.on svg.i{color:var(--accent-ink)}
 .pal-none{padding:18px}
 @media (max-width:640px){.pal-scrim{padding:12px}.pal{max-height:88vh}}
+
+/* plan serwisu na 8 tygodni */
+.pl{padding:6px 0}
+.pl-week+.pl-week{border-top:1px solid var(--line)}
+.pl-h{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:16px 22px 8px}
+.pl-h b{font-family:var(--f-head);font-size:17px}
+.pl-h .pill{margin-left:auto}
+.pl-week.over .pl-h b{color:var(--bad)}
+.pl-it{display:grid;grid-template-columns:62px auto minmax(0,1fr) auto;gap:14px;align-items:center;padding:10px 22px;cursor:pointer}
+.pl-it:hover{background:var(--sunk)}
+.pl-d{display:flex;flex-direction:column;line-height:1.2;font-weight:600}.pl-d em{font-style:normal;font-size:12px;color:var(--muted);font-weight:500}
+.pl-t .sub{display:block}
+@media (max-width:640px){.pl-it{grid-template-columns:52px minmax(0,1fr);padding:10px 16px}.pl-it .plate{grid-column:2;justify-self:start}.pl-t{grid-column:2}.pl-it>button{grid-column:2;justify-self:start}.pl-h{padding:14px 16px 6px}}

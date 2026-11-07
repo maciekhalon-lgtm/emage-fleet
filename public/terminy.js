@@ -2,9 +2,10 @@
 'use strict';
 function viewDeadlines(){
   if (dlFilter==='soon' || dlFilter==='later') dlFilter = 'urgent';
-  const chips = [['urgent','Pilne'],['over','Po terminie'],['all','Pokaż wszystkie']];
+  const chips = [['urgent','Pilne'],['over','Po terminie'],['plan','Plan 8 tygodni'],['all','Pokaż wszystkie']];
   const head = `<div class="bar"><h2>Terminy i przypomnienia</h2><div class="tools">${chips.map(([k,l])=>`<button class="small ${dlFilter===k?'primary':''}" data-dlf="${k}">${l}</button>`).join('')}${canCreate('deadlines')?'<button class="primary" data-new="deadlines">+ Dodaj termin</button>':''}</div></div>`;
   if (!S.deadlines.length) return head + loadingOr('deadlines', emptyBlock('Brak zapisanych terminów','Zapisz daty przeglądów technicznych, końca polis OC/AC, serwisów i wymiany opon. Strona podświetli to, co zbliża się w ciągu 30 dni.', '<button class="primary" data-new="deadlines">+ Dodaj termin</button>', '', 'deadlines'));
+  if (dlFilter==='plan') return head + deadlinePlan();
   const all = S.deadlines.map(d => ({d, s:dlState(d)})).sort((a,b)=> a.d.date<b.d.date?-1:a.d.date>b.d.date?1:0);
   // pilne: po terminie albo w ciągu 60 dni (przy terminach na km – gdy zbliża się przypomnienie)
   const f = all.filter(({s}) => dlFilter==='all' || (dlFilter==='over' && s.d<=0) || (dlFilter==='urgent' && s.d<=60));
@@ -43,3 +44,39 @@ function renew(id){
     $('#dlg-title').textContent = 'Wykonane – ustaw kolejny termin'; },30);
 }
 
+
+/* Średni dzienny przebieg auta z ostatnich 60 dni (wszystkie liczniki) – do przewidywania terminów „na km” */
+function kmPerDay(vid){
+  if (typeof odoRange!=='function') return 0;
+  const t = today(), r = odoRange(vid, addDays(t, -60), t);
+  return r && r.km > 0 ? r.km / 60 : 0;
+}
+/* Kiedy termin faktycznie wypadnie: data albo (wcześniej) dzień, w którym auto dojedzie do km_due */
+function dueEstimate(d){
+  const v = byId('vehicles', d.vehicleId) || {};
+  let when = d.date, byKm = false, rate = 0;
+  if (d.kmDue && v.km){
+    rate = kmPerDay(d.vehicleId);
+    const left = Number(d.kmDue) - Number(v.km);
+    const kd = left <= 0 ? today() : rate > 0 ? addDays(today(), Math.floor(left / rate)) : null;
+    if (kd && (!when || kd < when)){ when = kd; byKm = true; }
+  }
+  return {when, byKm, rate};
+}
+function deadlinePlan(){
+  const t = today(), mon = mondayOf(t), end = addDays(mon, 7 * 8 - 1);
+  const items = S.deadlines.map(d => ({d, e: dueEstimate(d)})).filter(x => x.e.when && x.e.when <= end).sort((a, b) => a.e.when < b.e.when ? -1 : 1);
+  if (!items.length) return '<div class="panel"><div class="empty"><p>W najbliższych 8 tygodniach nie ma żadnych terminów.</p></div></div>';
+  const weeks = [{k:'over', l:'Po terminie', f: x => x.e.when < t}];
+  for (let i = 0; i < 8; i++){ const a = addDays(mon, 7 * i), b = addDays(a, 6);
+    weeks.push({k: a, l: i===0 ? 'Ten tydzień' : i===1 ? 'Przyszły tydzień' : `Tydzień ${fdate(a).slice(0, 5)} – ${fdate(b).slice(0, 5)}`, sub: i < 2 ? `${fdate(a).slice(0, 5)} – ${fdate(b).slice(0, 5)}` : '', f: x => x.e.when >= (i===0 ? t : a) && x.e.when <= b}); }
+  const html = weeks.map(w => { const xs = items.filter(w.f); if (!xs.length) return '';
+    const cars = new Set(xs.map(x => x.d.vehicleId)).size;
+    return `<div class="pl-week ${w.k==='over' ? 'over' : ''}"><div class="pl-h"><b>${w.l}</b>${w.sub ? `<span class="muted small">${w.sub}</span>` : ''}<span class="pill ${w.k==='over' ? 'bad' : 'soon'}">${xs.length} ${isPlural(xs.length,'termin','terminy','terminów')} · ${cars} ${isPlural(cars,'auto','auta','aut')}</span></div>
+      ${xs.map(({d, e}) => `<div class="pl-it" ${canEditDoc('deadlines', d) ? `data-edit="deadlines" data-id="${esc(d.id)}" tabindex="0"` : ''}>
+        <span class="pl-d num">${fdate(e.when).slice(0, 5)}<em>${DOW[(parse(e.when).getDay() + 6) % 7]}</em></span>
+        ${vPlate(d.vehicleId)}
+        <span class="pl-t"><b>${esc(d.type)}</b><span class="sub">${e.byKm ? `wg przebiegu: ${km(d.kmDue)} (jeździ ok. ${Math.round(e.rate)} km/dzień)` : d.kmDue ? `albo przy ${km(d.kmDue)}` : 'termin kalendarzowy'}</span></span>
+        ${canEditDoc('deadlines', d) ? `<button class="small" data-renew="${esc(d.id)}">Wykonane</button>` : ''}</div>`).join('')}</div>`; }).join('');
+  return `<p class="muted small" style="margin:0">Terminy „na kilometry” są przeliczone na datę według tego, ile auto jeździło w ostatnich 60 dniach – widać, kiedy naprawdę trzeba zjechać do serwisu.</p><div class="panel pl">${html}</div>`;
+}
