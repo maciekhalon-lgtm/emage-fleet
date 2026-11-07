@@ -168,6 +168,8 @@ input:focus,select:focus,textarea:focus{border-color:var(--ink)!important;box-sh
 .d-me{border-radius:50%;background:var(--surface);border:0}
 .d-hero{border-radius:28px;border:0;background:var(--night);box-shadow:none}
 .d-hero.empty{background:var(--surface)}
+.d-note.warn{background:rgba(240,165,79,.16);color:#ffd9a8;border-radius:12px;padding:8px 10px}.d-note.warn svg.i{color:#f0a54f}
+.d-note.bad{background:rgba(255,111,97,.18);color:#ffc9c2;border-radius:12px;padding:8px 10px}.d-note.bad svg.i{color:#ff6f61}
 .d-kicker{font-family:var(--f-body);font-size:13px;letter-spacing:0;text-transform:none;color:var(--accent)}
 .d-car>span{color:var(--night-muted)}
 .d-route,.d-km{border-radius:999px;background:rgba(255,255,255,.07);border:0}

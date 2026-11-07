@@ -74,6 +74,7 @@ function viewMyCar(){
       ${driverMore && S.routes.length ? `<div class="route-pick">${routeSelect('my-route', active.routeId, `data-route-for="${esc(active.id)}"`)}</div>` : ''}
       ${active.coDriverId ? `<div class="d-note">${ic('users')}<span>Z: <b>${esc(dName(partnerOf(active)))}</b>${!active.pickupConfirmedAt ? ' · przejęcie czeka na potwierdzenie' : ''}</span></div>` : ''}
       ${active.purpose ? `<div class="d-note">${ic('clip')}<span>${esc(active.purpose)}</span></div>` : ''}
+      ${myDueNote(v)}
       <div class="d-actions">
         <button class="d-act" data-fuel="${esc(v.id)}">${ic('fuel')}<b>Zatankuj</b></button>
         ${loadingRoutesOk() ? `<button class="d-act" data-action="loading">${ic('box')}<b>Załadunek</b>${loadingCount() ? `<em>${loadingCount()}</em>` : ''}</button>` : ''}
@@ -243,6 +244,24 @@ document.addEventListener('click', e => {
 });
 
 /* Dokumenty auta dla kierowcy (np. przy kontroli drogowej): dowód, polisa, inne skany dodane przez kierownika */
+/* Kierowca widzi, gdy zbliża się termin, który dotyczy jazdy (przegląd, OC, olej, opony…): ≤ 14 dni albo ≤ 1500 km */
+const DRV_DL = ['Przegląd techniczny','Ubezpieczenie OC','Serwis olejowy','Wymiana rozrządu','Wymiana opon','Legalizacja tachografu'];
+function myDueNote(v){
+  if (!v || !v.id) return '';
+  const t = today();
+  const xs = (S.deadlines || []).filter(d => d.vehicleId===v.id && DRV_DL.includes(d.type)).map(d => {
+    const days = d.date ? Math.round((parse(d.date) - parse(t)) / 864e5) : null;
+    const left = d.kmDue && v.km ? Number(d.kmDue) - Number(v.km) : null;
+    const hot = (days != null && days <= 14) || (left != null && left <= 1500);
+    const over = (days != null && days < 0) || (left != null && left <= 0);
+    const txt = [left != null && left <= 1500 ? (left <= 0 ? `przekroczony o ${km(-left)}` : `za ${km(left)}`) : '', days != null && days <= 14 ? (days < 0 ? `po terminie (${fdate(d.date)})` : days===0 ? 'dziś' : `za ${days} ${isPlural(days,'dzień','dni','dni')}`) : ''].filter(Boolean).join(' / ');
+    return {d, hot, over, txt, k: Math.min(days == null ? 999 : days, left == null ? 999 : left / 100)};
+  }).filter(x => x.hot).sort((a, b) => a.k - b.k);
+  if (!xs.length) return '';
+  const x = xs[0], more = xs.length - 1;
+  return `<div class="d-note ${x.over ? 'bad' : 'warn'}">${ic('alert')}<span><b>${esc(x.d.type)}</b> ${esc(x.txt)}${more ? ` · i ${more} ${isPlural(more,'inny termin','inne terminy','innych terminów')}` : ''}${x.over ? ' – zgłoś kierownikowi' : ''}</span></div>`;
+}
+
 function openMyDocs(vid){
   const v = byId('vehicles', vid) || {}, docs = (S.docs || []).filter(d => d.vehicleId===vid);
   editing = {col:'my-docs', id: vid, base:{}, special: () => closeForm()};
