@@ -431,3 +431,6 @@ input:focus,select:focus,textarea:focus{border-color:var(--ink)!important;box-sh
 .pa-s{color:#444;font-size:11px}
 .wo-t td{height:34px;vertical-align:top}
 .wo-t th{width:auto}.wo-t th:first-child{width:24px}.wo-t th:last-child{width:32%}
+
+/* wykorzystanie aut */
+.ut-row{grid-template-columns:auto minmax(0,1fr) auto}.ut-bar{height:8px;border-radius:99px;background:var(--line);overflow:hidden}.ut-bar i{display:block;height:100%;background:var(--info);border-radius:99px}.ut-bar i.lo{background:var(--bad)}.ut-bar i.hi{background:var(--ok)}
