@@ -144,7 +144,7 @@ function viewDashboard(){
       svcKpi, dlKpi,
       kpi({label:'Naprawy – ' + MONTHS_FULL[Number(m.slice(5)) - 1], icon:'coins', cls:'acc', value: zl(rep).replace(/\s?zł/, ''), small:' zł', bar:[], foot:'serwis, naprawy i opony', go:'koszty'}),
     ].join('');
-    return `<div class="section dash">${head}<div class="kpis k4">${kp}</div>
+    return `<div class="section dash">${head}${sinceLastVisit()}<div class="kpis k4">${kp}</div>
       <div class="dgrid"><div class="dcol">${attentionCard(true)}${issuesCard()}</div><div class="dcol">${serviceCarsCard()}${deadlinesCard()}</div></div></div>`;
   }
   const mc = sumOf(inM), fb = Number(budget().monthly) || 0;
@@ -156,7 +156,28 @@ function viewDashboard(){
   ].join('');
   const myCar = canDrive() && typeof myActive==='function' ? myActive() : null;
   const myCarTile = myCar ? `<a class="tile" href="#moje"><span class="t-ic">${ic('key')}</span><span class="t-txt"><b>Prowadzisz ${esc(byId('vehicles', myCar.vehicleId)?.plate || '')}</b><span>Przejęte ${fdate(myCar.pickup.at)} · zatankuj albo zdaj pojazd w „Moje auto”</span></span>${ic('chev','chev')}</a>` : '';
-  return `<div class="section dash">${head}${myCarTile}<div class="kpis k3">${kp}</div>
+  return `<div class="section dash">${head}${sinceLastVisit()}${myCarTile}<div class="kpis k3">${kp}</div>
     <div class="dgrid"><div class="dcol">${attentionCard(false)}</div>
     <div class="dcol">${fleetNowCard()}</div></div></div>`;
+}
+
+/* „Od Twojej ostatniej wizyty” – krótkie podsumowanie nowości dla kierowników (pamiętane w tej przeglądarce) */
+let sinceTs = null;
+function sinceLastVisit(){
+  if (!P().manage && !P().service) return '';
+  if (sinceTs===null){ try { sinceTs = localStorage.getItem('ef-last-visit') || ''; localStorage.setItem('ef-last-visit', new Date().toISOString()); } catch(_){ sinceTs = ''; } }
+  if (!sinceTs) return '';
+  const after = x => (x.createdAt || '') > sinceTs;
+  const iss = S.issues.filter(after), acc = iss.filter(i => /^Szkoda:/.test(i.title || ''));
+  const fuel = S.costs.filter(c => after(c) && (c.category==='Paliwo' || c.category==='Ładowanie'));
+  const ret = S.bookings.filter(b => b.returned && (b.returned.at || '') > sinceTs.slice(0, 10) && (b.updatedAt || '') > sinceTs);
+  const items = [
+    acc.length && [`${acc.length} ${isPlural(acc.length,'szkoda','szkody','szkód')}`, 'usterki', 'bad'],
+    iss.length - acc.length > 0 && [`${iss.length - acc.length} ${isPlural(iss.length - acc.length,'nowa usterka','nowe usterki','nowych usterek')}`, 'usterki', 'warn'],
+    fuel.length && [`${fuel.length} ${isPlural(fuel.length,'tankowanie','tankowania','tankowań')}`, 'koszty', ''],
+    ret.length && [`${ret.length} ${isPlural(ret.length,'zdane auto','zdane auta','zdanych aut')}`, 'przydzial', ''],
+  ].filter(Boolean);
+  if (!items.length) return '';
+  const d = new Date(sinceTs);
+  return `<div class="since"><span class="muted small">Od ostatniej wizyty (${d.toLocaleDateString('pl-PL', {day:'numeric', month:'short'})} ${d.toLocaleTimeString('pl-PL', {hour:'2-digit', minute:'2-digit'})}):</span>${items.map(([t, go, cls]) => `<button class="small ${cls ? 'since-' + cls : ''}" data-go="${go}">${t}</button>`).join('')}</div>`;
 }
