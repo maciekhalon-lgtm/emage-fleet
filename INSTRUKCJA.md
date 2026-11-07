@@ -26,11 +26,11 @@ Na komputerze menu jest na górze strony (czarny pasek), na telefonie – na dol
 | **Pulpit** | przycisk **Komunikat** – wiadomość do wszystkich kierowców (widzą ją na górze swojego ekranu do wybranej daty, aż klikną „Przeczytane”); trzy liczby (w trasie, wymaga uwagi, koszty miesiąca), „Wymaga uwagi” (blokady, terminy, niesprawne auta, tankowania do wyjaśnienia, konta, spory, budżet, opony, podejrzane spalanie i tankowania z kart, złe liczniki) i „Flota teraz” (auta w trasie oraz dzisiejsze przydziały jeszcze nie przejęte – z telefonem do kierowcy) |
 | **Pojazdy** | lista z filtrami (w trasie, wolne, wymaga uwagi – także auta z podejrzanym spalaniem albo tankowaniami z kart) i karta auta w zakładkach: **Dane** (polisa, assistance, grafik, dokumenty), **Terminy i serwis**, **Paliwo i koszty**, **Historia**; dokumenty, książka serwisowa, historia |
 | **Grafik** | zakładki **Grafik** (tydzień: kierowcy × dni, załadunek ze zmiany, auta teraz w trasie; **Drukuj** – tydzień na A4 poziomo; przy kierowcy z nieważnymi dokumentami czerwone oznaczenie, a formularz przydziału ostrzega) i **Trasy** (przy każdej trasie przycisk **Przystanki**: klienci w kolejności jazdy – adres, godzina, telefon, uwagi) |
-| **Serwis** | zakładki **Usterki** (przy usterce **Wpis serwisowy** – od razu do książki; szkody z oznaczeniem „szkoda”), **Terminy** (domyślnie tylko pilne; **Plan 8 tygodni** – terminy tydzień po tygodniu, a terminy „na km” przeliczone na datę według tego, ile auto jeździ), **Książka serwisowa** |
+| **Serwis** | zakładki **Usterki** (przy usterce **Wpis serwisowy** – od razu do książki; szkody z oznaczeniem „szkoda”, filtr **Szkody**), **Terminy** (domyślnie tylko pilne; **Plan 8 tygodni** – terminy tydzień po tygodniu, a terminy „na km” przeliczone na datę według tego, ile auto jeździ), **Książka serwisowa** |
 | **Paliwo** | (kierownik floty) zakładki **Karty paliwowe**, **Spalanie i przebiegi**, **Liczniki**, **Miesiąc do miesiąca** (spalanie pojazdów i kierowców: dwa miesiące i zmiana) i **Przejazdy i parkingi** |
-| **Koszty** | zakładki **Koszty** (koszty miesiąca, tankowania do wyjaśnienia) i **Raporty** (koszty, kilometry ze wszystkich liczników, koszt/km, limity, Excel) |
+| **Koszty** | zakładki **Koszty** (koszty miesiąca, tankowania do wyjaśnienia) i **Raporty** (koszty, kilometry ze wszystkich liczników, koszt/km, limity, Excel, **Wykorzystanie aut – 30 dni**: dni robocze w grafiku i km, auta, które prawie stoją) |
 | **Pracownicy** | zakładki **Kierowcy** (kliknięcie kierowcy – karta: dni pracy, tankowania, spalanie na jego odcinkach, złe liczniki, sprawy do wyjaśnienia; 30 albo 90 dni) i **Użytkownicy** (konta, role, spory w obsadzie, zmiany danych kierowców) |
-| **Ustawienia** | zakładki **Ustawienia** (budżet floty, kontrola paragonów, checklista przejęcia) i **Historia zmian** |
+| **Ustawienia** | zakładki **Ustawienia** (**Kompletność danych** – czego brakuje dla alarmów i druków, budżet floty, kontrola paragonów, checklista przejęcia) i **Historia zmian** |
 
 ## Najczęstsze czynności
 
@@ -89,7 +89,9 @@ Ekran ma jedną dużą kartę „co teraz”:
    waga i zdjęcie przy trasie z załadunkiem) i **Usterka** – oraz duży przycisk **Zdaj auto** (tylko licznik i uwagi).
    Jeśli trasa ma przystanki, pod kartą auta jest lista klientów: **Nawiguj** (Mapy Google), telefon i „Cała trasa w Mapach Google”.
    Pod przyciskiem „Zdaj auto” – **Kolizja lub szkoda**: najpierw bezpieczeństwo (112), potem rodzaj, miejsce, dane drugiej strony,
-   sprawca, policja, opis i do 8 zdjęć. Zgłoszenie trafia do Serwis → Usterki z oznaczeniem „szkoda”.
+   sprawca, policja, opis i do 8 zdjęć. **Moja lokalizacja** dopisuje GPS i link do mapy. Jeśli auto ma telefon assistance,
+   jest on w zgłoszeniu i obok jako **Assistance**. Zgłoszenie trafia do Serwis → Usterki z oznaczeniem „szkoda” (link „mapa”).
+   Gdy zbliża się termin auta (przegląd, OC, olej, rozrząd, opony, tachograf – 14 dni / 1500 km), na karcie jest ostrzeżenie.
 3. **Mój grafik** – najbliższe 3 dni pracy (przycisk „Wszystkie” – 2 tygodnie): auto, trasa, uwagi, kto wiezie Twój towar.
 4. Ikona osoby w prawym górnym rogu – **Moje dane**: ostatnie tankowania, zgłoszone usterki, dane i telefon (zmiana do akceptacji).
 5. Wylosowany do kontroli paragonów musi dodać zdjęcie paragonu. Bez zasięgu tankowanie i zdanie auta zapisują się w telefonie

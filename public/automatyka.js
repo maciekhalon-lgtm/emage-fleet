@@ -94,7 +94,8 @@ const TIRES = {letnie:'Letnie', zimowe:'Zimowe', caloroczne:'Całoroczne'};
 function tireReminder(){
   const md = today().slice(5);
   const act = S.vehicles.filter(v => v.status!=='wycofany');
-  if (md >= '10-01' && md <= '12-31'){ const list = act.filter(v => v.tires==='letnie'); return list.length ? {list, to:'zimowe', urgent: md >= '10-15', txt:'na letnich oponach – czas na zimowe (do 15.10)'} : null; }
+  // sezon zimowy trwa do końca marca – auto na letnich w styczniu też trzeba zgłosić
+  if (md >= '10-01' || md <= '03-31'){ const list = act.filter(v => v.tires==='letnie'); return list.length ? {list, to:'zimowe', urgent: md >= '10-15' || md <= '03-31', txt: md >= '10-15' || md <= '03-31' ? 'nadal na letnich oponach – zmień na zimowe' : 'na letnich oponach – czas na zimowe (do 15.10)'} : null; }
   if (md >= '04-01' && md <= '05-31'){ const list = act.filter(v => v.tires==='zimowe'); return list.length ? {list, to:'letnie', urgent: md >= '04-20', txt:'na zimowych oponach – czas na letnie (od 1.04)'} : null; }
   return null;
 }
