@@ -22,6 +22,7 @@ function issueRow(i, showVeh = true){
   const quick = P().issues==='rw' && canWrite
     ? (i.status==='nowe' ? `<button class="small" data-issue-st="naprawa" data-id="${esc(i.id)}">Do naprawy</button>` : '')
       + (i.status!=='naprawione' ? `<button class="small" data-issue-st="naprawione" data-id="${esc(i.id)}">Naprawione</button>` : '')
+      + (i.status!=='naprawione' && P().service && canCreate('serviceEntries') ? `<button class="small ghost" data-svc-issue="${esc(i.id)}" title="Wpis do książki serwisowej – po zapisaniu usterka zamknie się sama">${ic('wrench')}Wpis serwisowy</button>` : '')
     : '';
   return `<div class="is-row ${i.status==='naprawione'?'done':sev.cls}" ${edit?`data-edit="issues" data-id="${esc(i.id)}" tabindex="0"`:'style="cursor:default"'}>
     <div class="dl-date">${fdate(i.date)}</div>
@@ -57,3 +58,12 @@ async function setIssueStatus(id, status){
     toast(status==='naprawione' ? 'Oznaczono jako naprawione' : 'Przekazano do naprawy');
   } catch(err){ handleWriteErr(err); }
 }
+
+/* Usterka → wpis do książki serwisowej jednym kliknięciem (zapis wpisu sam zamyka usterkę – trigger w bazie) */
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-svc-issue]'); if (!t) return;
+  e.preventDefault(); e.stopPropagation();
+  const i = byId('issues', t.dataset.svcIssue); if (!i) return;
+  const v = byId('vehicles', i.vehicleId) || {};
+  openForm('serviceEntries', null, {vehicleId: i.vehicleId, issueIds: [i.id], date: today(), km: v.km || i.km || null, description: i.title});
+}, true);
