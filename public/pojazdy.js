@@ -1,7 +1,7 @@
 /* Emage FLEET — pojazdy: lista pojazdów */
 'use strict';
 function viewVehicles(){
-  const head = `<div class="bar"><h2>Pojazdy</h2><div class="tools"><input class="search" id="search" type="search" placeholder="Szukaj: rejestracja, marka…" value="${esc(q)}" aria-label="Szukaj pojazdu">${canCreate('vehicles')?'<button data-action="open-import">Import z Excela</button><button class="primary" data-new="vehicles">+ Dodaj pojazd</button>':''}</div></div>`;
+  const head = `<div class="bar"><h2>Pojazdy</h2><div class="tools"><input class="search" id="search" type="search" placeholder="Szukaj: rejestracja, marka…" value="${esc(q)}" aria-label="Szukaj pojazdu">${P().manage || P().reports ? `<button data-action="veh-xlsx" title="Lista floty do Excela">${ic('chart')}Eksport</button>` : ''}${canCreate('vehicles')?'<button data-action="open-import">Import z Excela</button><button class="primary" data-new="vehicles">+ Dodaj pojazd</button>':''}</div></div>`;
   if (!S.vehicles.length) return head + loadingOr('vehicles', emptyBlock('Brak pojazdów w ewidencji','Dodaj pierwszy pojazd – numer rejestracyjny, markę i przebieg. Potem przypiszesz kierowców, terminy przeglądów i koszty.','<button class="primary" data-new="vehicles">+ Dodaj pojazd</button>', (canCreate('vehicles')?'<button data-action="open-import">Importuj z Excela</button>':''), 'vehicles'));
   const ql = q.toLowerCase();
   const urgentDl = v => { const nd = nextDeadline(v.id); return nd && ['bad','warn'].includes(dlState(nd).cls); };
@@ -32,3 +32,21 @@ function viewVehicles(){
 }
 let vehFilter = 'all';
 document.addEventListener('click', e => { const t = e.target.closest('[data-vf]'); if (!t) return; vehFilter = t.dataset.vf; render(); });
+
+/* Lista floty do Excela (np. dla ubezpieczyciela lub księgowości): dane auta, polisa, najbliższe terminy, przebieg, kto jeździ */
+async function vehiclesXlsx(){
+  let X; try { X = await loadXLSX(); } catch(_){ return toast('Nie udało się wczytać modułu Excel – sprawdź połączenie'); }
+  const dl = (vid, type) => { const d = S.deadlines.filter(x => x.vehicleId===vid && x.type===type).sort((a, b) => a.date < b.date ? -1 : 1)[0]; return d ? fdate(d.date) : ''; };
+  const rows = S.vehicles.slice().sort((a, b) => String(a.plate).localeCompare(b.plate)).map(v => {
+    const b = S.bookings.find(x => x.vehicleId===v.id && holds(x));
+    return {'Rejestracja': v.plate, 'Marka': v.make || '', 'Model': v.model || '', 'Rok': v.year || '', 'VIN': v.vin || '', 'Paliwo': v.fuel || '', 'Przebieg (km)': v.km || '',
+      'Status': vehicleState(v).txt, 'Ubezpieczyciel': v.insurer || '', 'Nr polisy': v.policyNo || '', 'Polisa do': v.policyUntil ? fdate(v.policyUntil) : '',
+      'Przegląd techniczny': dl(v.id, 'Przegląd techniczny'), 'OC': dl(v.id, 'Ubezpieczenie OC'), 'Serwis olejowy': dl(v.id, 'Serwis olejowy'),
+      'Odpowiedzialni': respOf(v).map(dName).join(', '), 'Teraz jedzie': b ? crewName(b) : ''};
+  });
+  const wb = X.utils.book_new(), ws = X.utils.json_to_sheet(rows);
+  ws['!cols'] = Object.keys(rows[0] || {}).map(k => ({wch: Math.max(10, k.length + 2)}));
+  X.utils.book_append_sheet(wb, ws, 'Flota');
+  await saveFile(`Emage-FLEET-flota-${today()}.xlsx`, new Uint8Array(X.write(wb, {type:'array', bookType:'xlsx'})));
+}
+document.addEventListener('click', e => { if (e.target.closest('[data-action="veh-xlsx"]')){ e.preventDefault(); vehiclesXlsx(); } });
