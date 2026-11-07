@@ -77,6 +77,7 @@ function viewCard(){
       <div><span class="label">Policzone km</span><span class="fv">${fc && fc.km ? new Intl.NumberFormat('pl-PL').format(fc.km) + ' km' : '—'}</span></div>
       <div><span class="label">Źródło</span><span class="fv">${fc && fc.src ? (fc.src==='karta' ? 'karty paliwowe' : 'wpisy kierowców') : '—'}</span></div>
       <div><span class="label">${P().costs==='own' ? 'Moje koszty ' + yr : 'Koszty ' + yr}</span><span class="fv">${zl(yearCost)}</span></div></div>
+    ${P().manage || P().reports ? sec('Koszt utrzymania – ostatnie 12 miesięcy', '', tcoHtml(v, VC), '') : ''}
     ${P().manage && fc && fc.parts && fc.parts.length ? sec('Odcinki z najwyższym spalaniem', '', topLegsHtml(fc), '') : ''}
     ${P().manage && typeof fcSuspicious==='function' ? (sp => sp.length ? sec(`Podejrzane tankowania z kart (${sp.length})`, `<button class="small" data-go="karty">Wszystkie</button>`, sp.slice(0, 8).map(({row: r, why}) => `<div class="mini"><span class="num">${fdate(r.txDate)}${r.txTime ? ' ' + esc(r.txTime) : ''}</span><span>${fl(r.liters)} · ${fm(r.amount, r.currency)}<span class="sub">${esc(fcDriver(r, null) || 'kierowca nieustalony')}${r.station ? ' · ' + esc(r.station) : ''}</span></span><span class="mini-r">${why.map(w => `<span class="pill warn">${esc(w)}</span>`).join(' ')}</span></div>`).join(''), '') : '')(fcSuspicious().filter(x => x.row.vehicleId===v.id && !fcCheckedIds().has(x.row.id))) : ''}
     <div class="grid2"><div class="section">${P().manage ? sec('Tankowania z kart (ostatnie 30)', '', fuelHtml, 'Brak tankowań z kart paliwowych.') : ''}</div>
@@ -123,4 +124,24 @@ function topLegsHtml(fc){
   return legs.map(p => `<div class="mini"><span class="num">${fdate(p.d0)} – ${fdate(p.d1)}</span>
     <span>${new Intl.NumberFormat('pl-PL').format(p.km)} km · ${fl(p.l)}<span class="sub">${esc(drv(p.id) ? dName(drv(p.id)) : 'kierowca nieustalony')}</span></span>
     <span class="mini-r"><b class="${p.r > THEFT_RATE ? 'neg' : ''}">${p.r.toFixed(1).replace('.', ',')} l/100</b></span></div>`).join('');
+}
+
+/* Koszt utrzymania auta: 12 miesięcy w słupkach (paliwo / serwis / reszta), suma, koszt na km */
+function tcoHtml(v, VC){
+  const t = today(), months = [];
+  const y0 = +t.slice(0, 4), m0 = +t.slice(5, 7) - 1;
+  for (let i = 11; i >= 0; i--){ const k = y0 * 12 + m0 - i; months.push(`${Math.floor(k / 12)}-${String(k % 12 + 1).padStart(2, '0')}`); }
+  const from = months[0] + '-01';
+  const grp = c => c.category==='Paliwo' || c.category==='Ładowanie' ? 'fuel' : c.category==='Serwis i naprawy' || c.category==='Opony' ? 'svc' : 'oth';
+  const per = months.map(m => { const xs = VC.filter(c => (c.date || '').startsWith(m)); const o = {m, fuel:0, svc:0, oth:0};
+    xs.forEach(c => { o[grp(c)] += Number(c.amount || 0); }); o.sum = o.fuel + o.svc + o.oth; return o; });
+  const total = per.reduce((s, x) => s + x.sum, 0), max = Math.max(1, ...per.map(x => x.sum));
+  if (!total) return '<p class="muted sec-empty">Brak kosztów w ostatnich 12 miesiącach.</p>';
+  const kmR = typeof odoRange==='function' ? (odoRange(v.id, from, t).km || 0) : 0;
+  const sumOf = k => per.reduce((s, x) => s + x[k], 0);
+  const MN = ['sty','lut','mar','kwi','maj','cze','lip','sie','wrz','paź','lis','gru'];
+  return `<div class="tco-f"><div><span class="label">Razem</span><b class="num">${zl(total)}</b></div><div><span class="label">Paliwo</span><b class="num">${zl(sumOf('fuel'))}</b></div><div><span class="label">Serwis i opony</span><b class="num">${zl(sumOf('svc'))}</b></div><div><span class="label">Pozostałe</span><b class="num">${zl(sumOf('oth'))}</b></div>
+      <div><span class="label">Koszt na km</span><b class="num">${kmR > 500 ? (total / kmR).toFixed(2).replace('.', ',') + ' zł' : '—'}</b>${kmR > 500 ? `<span class="sub">${new Intl.NumberFormat('pl-PL').format(Math.round(kmR))} km</span>` : ''}</div></div>
+    <div class="tco-ch" role="img" aria-label="Koszty w kolejnych miesiącach">${per.map(x => `<div class="tco-c" title="${x.m}: ${zl(x.sum)}"><div class="tco-b" style="height:${Math.round(x.sum / max * 100)}%">${['oth','svc','fuel'].map(k => x[k] ? `<i class="tco-${k}" style="flex:${x[k]}"></i>` : '').join('')}</div><span>${MN[+x.m.slice(5) - 1]}</span></div>`).join('')}</div>
+    <div class="tco-lg"><span><i class="tco-fuel"></i>paliwo</span><span><i class="tco-svc"></i>serwis i opony</span><span><i class="tco-oth"></i>pozostałe</span></div>`;
 }
