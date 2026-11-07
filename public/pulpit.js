@@ -131,7 +131,7 @@ function viewDashboard(){
   const head = `<div class="bar dash-head"><div><h1>Pulpit</h1><span class="muted">${esc(dateTxt)}${dbState==='live' ? ' · dane na żywo' : ''}</span></div>
     <div class="tools">${service
       ? (canCreate('serviceEntries') ? `<button data-new="serviceEntries">${ic('plus')}Wpis serwisowy</button>` : '') + (canCreate('issues') ? `<button class="primary" data-new="issues">${ic('plus')}Zgłoś usterkę</button>` : '')
-      : (canCreate('bookings') ? `<button data-new="costs">${ic('plus')}Koszt</button><button class="primary" data-new="bookings">${ic('plus')}Przydział</button>` : '')}</div></div>`;
+      : (P().manage ? `<button data-action="announce">${ic('bell')}Komunikat${annActive().length ? ` <span class="count">${annActive().length}</span>` : ''}</button>` : '') + (canCreate('bookings') ? `<button data-new="costs">${ic('plus')}Koszt</button><button class="primary" data-new="bookings">${ic('plus')}Przydział</button>` : '')}</div></div>`;
   const dlKpi = kpi({label:'Terminy 30 dni', icon:'clip', cls:'bad', value: soon30, bar:[[pct(over, Math.max(soon30, 1)), 'bad'], [pct(soon30 - over, Math.max(soon30, 1)), 'warn']], foot: over ? `${over} po terminie lub dziś` : 'wszystko na czas', go:'terminy', dl:'soon'});
   const svcKpi = kpi({label:'W serwisie', icon:'wrench', cls:'warn', value: svc + stop, bar:[[pct(svc + stop, n), 'warn']], foot: stop ? `${stop} ${isPlural(stop,'niesprawne','niesprawne','niesprawnych')} – usterka` : 'brak niesprawnych', go:'usterki'});
 

@@ -100,7 +100,7 @@ function viewMyCar(){
       <a class="d-main" href="#wybierz">${ic('key')}Wybierz auto</a>
       ${loadingRoutesOk() ? `<button class="d-link" data-action="loading">${ic('box')} Załadunek${loadingCount() ? ` (${loadingCount()})` : ''}</button>` : ''}</div>`;
   }
-  return `<div class="section driver">${hello}${myExpiryNotes()}
+  return `<div class="section driver">${hello}${typeof myAnnouncements==='function' ? myAnnouncements() : ''}${myExpiryNotes()}
     ${offlineNote()}
     ${toConfirmPanel()}
     ${myExplainPanel()}

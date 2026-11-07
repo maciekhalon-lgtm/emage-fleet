@@ -83,7 +83,7 @@ po każdej zmianie w GitHubie (ok. 1–2 minut). Adres strony: **https://emage-f
 ## E. Uruchomienie aplikacji
 
 ### 1. Skrypty bazy
-Supabase → **SQL Editor** → uruchom po kolei wszystkie pliki z `supabase/migrations/` (001, 002, … 022).
+Supabase → **SQL Editor** → uruchom po kolei wszystkie pliki z `supabase/migrations/` (001, 002, … 023).
 Każdy plik wklejasz w całości i klikasz **Run**.
 
 ### 2. Adres strony w ustawieniach logowania
