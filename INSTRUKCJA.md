@@ -84,7 +84,8 @@ zamknąć usterki, odnotować wymianę oleju (następna za 12 000 km, przypomnie
 - Przydział z czerwoną ramką i ⚠ – w tym dniu przegląd / OC auta albo dokumenty kierowcy są nieważne (szczegóły pod kursorem).
   Jeśli to dziś lub jutro, sprawa jest na górze „Wymaga uwagi” z przyciskiem **Zmień przydział**.
 - Formularz przydziału ostrzega, gdy przegląd / OC wygasa w trakcie przydziału albo drugi kierowca ma nieważne dokumenty.
-- Karta „Auta w serwisie i niesprawne”: od ilu dni auto stoi i czy jest w grafiku w najbliższych 3 dniach.
+- Auto niesprawne lub w serwisie, a w grafiku na najbliższe 3 dni – na Pulpicie kierownika z przyciskiem **Zmień auto**.
+  Serwis w karcie „Auta w serwisie i niesprawne” widzi, od ilu dni auto stoi i kiedy jest potrzebne.
 - Gdy dane floty są uzupełnione poniżej 70%, Pulpit przypomina o **Kompletności danych** (bak i opony – „Ustaw wszystkim”).
 - Skróty klawiszowe (komputer): **?** – lista, **g** + litera – zakładka (np. g g – Grafik), **Ctrl+K** lub **/** – szukaj.
 

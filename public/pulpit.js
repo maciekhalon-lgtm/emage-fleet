@@ -25,6 +25,12 @@ function attentionItems(serviceOnly){
     + S.deadlines.filter(d => d.vehicleId===v.id && BLOCK_TYPES.includes(d.type) && d.date < today() && canEditDoc('deadlines', d)).map(d => `<button class="small" data-renew="${esc(d.id)}">${d.type==='Ubezpieczenie OC' ? 'OC odnowione' : 'Przegląd zrobiony'}</button>`).join(''))}));
   if (P().manage && got.vehicles && got.drivers && typeof dqChecks==='function'){ const q = dqChecks();
     if (q.total && q.pct < 70) out.push({w: 2.5, html: attRow('warn', '', `Dane floty uzupełnione w ${q.pct}%`, 'brakuje m.in.: ' + esc(q.checks.slice(0, 3).map(c => c[1]==='VIN' ? c[1] : c[1][0].toLowerCase() + c[1].slice(1)).join(', ')) + ' – bez nich część alarmów nie działa', `<a class="btn small" href="#ustawienia">Uzupełnij</a>`)}); }
+  // auto niesprawne / w serwisie, a w grafiku na najbliższe 3 dni – trzeba podmienić auto
+  if (!serviceOnly && P().bookings==='rw') S.bookings.filter(b => !b.returned && !b.pickup && b.to >= today() && b.from <= addDays(today(), 3)).forEach(b => {
+    const v = byId('vehicles', b.vehicleId); if (!v) return;
+    const si = stopIssue(v.id); if (!si && v.status!=='serwis') return;
+    const when = b.from <= today() ? 'dziś' : b.from===addDays(today(), 1) ? 'jutro' : fdate(b.from).slice(0, 5);
+    out.push({w: b.from <= addDays(today(), 1) ? 0 : 1, html: attRow('bad', v.id, `Auto ${si ? 'niesprawne' : 'w serwisie'}, a w grafiku ${when}: ${esc(crewName(b))}`, si ? esc(si.title) : 'status: w serwisie', canEditDoc('bookings', b) ? `<button class="small" data-edit="bookings" data-id="${esc(b.id)}">Zmień auto</button>` : '')}); });
   // jutro (i dziś) w grafiku przydział z nieważnym przeglądem / OC albo dokumentami kierowcy
   if ((P().manage || P().bookings==='rw') && typeof bookingDayIssue==='function') [today(), addDays(today(), 1)].forEach((d, k) => S.bookings.filter(b => !b.returned && !b.pickup && b.from<=d && b.to>=d).forEach(b => {
     const iss = bookingDayIssue(b, d); if (!iss.length) return;
