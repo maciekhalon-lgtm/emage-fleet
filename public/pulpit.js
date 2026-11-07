@@ -112,7 +112,7 @@ function serviceCarsCard(){
   const list = S.vehicles.filter(v => v.status!=='wycofany' && (v.status==='serwis' || stopIssue(v.id)));
   return card('Auta w serwisie i niesprawne', list.length ? String(list.length) : '',
     list.length ? `<div class="fl">${list.map(v => { const st = vehicleState(v), si = stopIssue(v.id);
-      return `<div class="fl-row" data-card-go="${esc(v.id)}" tabindex="0">${plate(v.plate)}<div class="att-t"><b>${esc(v.make)} ${esc(v.model)}</b><span class="sub">${si ? esc(si.title) : 'status: w serwisie'}</span></div><span class="pill ${st.cls}">${esc(st.txt.split(' – ')[0])}</span></div>`; }).join('')}</div>`
+      return `<div class="fl-row" data-card-go="${esc(v.id)}" tabindex="0">${plate(v.plate)}<div class="att-t"><b>${esc(v.make)} ${esc(v.model)}</b><span class="sub">${si ? esc(si.title) : 'status: w serwisie'}${si && si.date ? ` · od ${(n => n <= 0 ? 'dziś' : n + ' ' + isPlural(n,'dnia','dni','dni'))(diffDays(si.date, today()))}` : ''}${(b => b ? ` · <b class="neg">w grafiku ${b.from <= today() ? 'dziś' : fdate(b.from).slice(0, 5)}: ${esc(crewName(b))}</b>` : '')(S.bookings.filter(b => b.vehicleId===v.id && !b.returned && b.to >= today() && b.from <= addDays(today(), 3)).sort((a, b) => a.from < b.from ? -1 : 1)[0])}</span></div><span class="pill ${st.cls}">${esc(st.txt.split(' – ')[0])}</span></div>`; }).join('')}</div>`
       : '<p class="muted sec-empty">Wszystkie auta są sprawne.</p>');
 }
 function deadlinesCard(){
