@@ -120,7 +120,8 @@ function viewSchedule(){
         return `<span class="sch-chip ${conf.has(b.id)?'bad':''} ${b.pickup && !b.returned ? 'out' : ''} ${b.returned ? 'back' : ''}" ${canEditDoc('bookings', b) ? `data-edit="bookings" data-id="${esc(b.id)}"` : ''}><b>${esc(v ? v.plate : '?')}</b>${b.routeId ? `<i>${esc(rLabel(b.routeId))}</i>` : ''}${crewOf(b).length > 1 ? `<i>+ ${esc(dName(crewOf(b).find(x => x!==dr.id)))}</i>` : ''}${b.purpose ? `<i class="sch-note">${esc(b.purpose)}</i>` : ''}</span>`; }).join('');
       const add = canCreate('bookings') && P().bookings==='rw' && !bs.length ? `<button class="small ghost" data-sched="${esc(dr.id)}|${d}">${ic('plus')}Przydziel</button>` : '';
       return `<div class="sch-li ${bs.length ? '' : 'free'}"><b class="sch-li-n">${esc(dr.name)}${docsBad(dr) ? ' <span class="pill bad">dokumenty!</span>' : ''}</b><div class="sch-li-c">${chips || (add || '<span class="muted small">wolne</span>')}</div></div>`; }).join('');
-    return nav + pills + `<div class="panel sch-list">${list}</div>`;
+    const frM = S.vehicles.filter(v => v.status==='aktywny' && vehicleState(v).cls!=='bad' && !S.bookings.some(b => b.vehicleId===v.id && b.from<=d && b.to>=d));
+    return nav + pills + `<div class="panel sch-list">${list}<div class="sch-li free"><b class="sch-li-n">Wolne auta (${frM.length})</b><div class="sch-li-c"><span class="muted small">${esc(frM.map(v => v.plate).join(', ')) || 'brak'}</span></div></div></div>`;
   }
   const head = `<tr><th>Kierowca</th>${days.map(d => { const dt = parse(d), wd = (dt.getDay()+6)%7; return `<th class="sch-day ${d===t?'today':''} ${wd>4?'we':''}">${DOW[wd]} <b class="num">${dt.getDate()}</b></th>`; }).join('')}</tr>`;
   const rows = drivers.map(dr => `<tr><td class="sch-name"><b>${esc(dr.name)}</b>${docsBad(dr) ? `<span class="pill bad" title="${esc(docsBad(dr))}">nieważne dokumenty</span>` : ''}</td>${days.map(d => {
@@ -131,7 +132,11 @@ function viewSchedule(){
           <b>${esc(v ? v.plate : '?')}</b>${b.routeId ? `<i>${esc(rCode(b.routeId))}</i>` : ''}${crewOf(b).length > 1 ? `<i>+ ${esc(dName(crewOf(b).find(x => x!==dr.id)).split(' ')[0])}</i>` : ''}${b.purpose ? `<i class="sch-note">${esc(b.purpose)}</i>` : ''}${b.routeId && routeLoaders(b.routeId, d).length ? `<i class="sch-load">${ic('box')}${esc(routeLoaders(b.routeId, d).map(x => x.name.split(' ')[0]).join(', '))}</i>` : ''}</span>`; }).join('');
       const add = canCreate('bookings') && P().bookings==='rw' && !bs.length ? `data-sched="${esc(dr.id)}|${d}" title="Przydziel auto"` : '';
       return `<td class="sch-cell ${d===t?'today':''} ${wd>4?'we':''} ${add?'add':''}" ${add}>${cell}</td>`; }).join('')}</tr>`).join('');
-  return nav + `<div class="panel tablewrap sch"><table><thead>${head}</thead><tbody>${rows}</tbody></table></div>
+  // wiersz „Wolne auta”: sprawne auta bez przydziału danego dnia
+  const okVeh = S.vehicles.filter(v => v.status==='aktywny' && vehicleState(v).cls!=='bad');
+  const freeRow = `<tr class="sch-free"><td class="sch-name"><b>Wolne auta</b></td>${days.map(d => { const fr = okVeh.filter(v => !S.bookings.some(b => b.vehicleId===v.id && b.from<=d && b.to>=d && !(b.returned && b.returned.at && b.returned.at.slice(0, 10) < d)));
+    return `<td class="sch-cell ${d===t?'today':''}" title="${esc(fr.map(v => v.plate).join(', '))}"><b class="num">${fr.length}</b>${fr.length ? `<i>${esc(fr.slice(0, 3).map(v => v.plate).join(', '))}${fr.length > 3 ? '…' : ''}</i>` : ''}</td>`; }).join('')}</tr>`;
+  return nav + `<div class="panel tablewrap sch"><table><thead>${head}</thead><tbody>${rows}${freeRow}</tbody></table></div>
     <p class="muted small" style="margin:0">Kliknij puste pole, aby przydzielić kierowcy auto, trasę i uwagi na ten dzień. Kliknij przydział, aby go zmienić. Na czerwono – to samo auto u dwóch kierowców albo kierowca z dwoma autami tego samego dnia. Ikona paczki – kto wiezie towar dla tej trasy.</p>`;
 }
 function copyWeekAsk(){
