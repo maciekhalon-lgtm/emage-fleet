@@ -143,7 +143,7 @@ async function saveHandover({id, kind, vehicleId, minKm, items}){
     const bk = byId('bookings', bid) || {};
     const partner = coDriverId ? dName(coDriverId) : (bk.coDriverId ? dName(crewOf(bk).find(d => d!==myDriverId()) || bk.coDriverId) : '');
     if (partner) return toast(kind==='pickup' ? `Przejęto auto – ${partner} musi potwierdzić przejęcie u siebie` : `Zdano pojazd – ${partner} musi potwierdzić zdanie u siebie`);
-    toast(kind==='pickup' ? (issues.length ? `Przejęto auto · zgłoszono ${issues.length} ${isPlural(issues.length,'usterkę','usterki','usterek')}` : 'Przejęto auto – szerokiej drogi!') : (issues.length ? 'Zdano pojazd i zgłoszono usterkę' : 'Zdano pojazd – dziękujemy'));
+    toast(kind==='pickup' ? (issues.length ? `Przejęto auto · zgłoszono ${issues.length} ${isPlural(issues.length,'usterkę','usterki','usterek')}` : 'Przejęto auto – szerokiej drogi!') : (issues.length ? 'Zdano pojazd i zgłoszono usterkę' : (bk.pickup && bk.pickup.km && kmV > bk.pickup.km ? `Zdano pojazd – przejechane ${new Intl.NumberFormat('pl-PL').format(kmV - bk.pickup.km)} km. Dziękujemy!` : 'Zdano pojazd – dziękujemy')));
   } catch(err){ handleWriteErr(err); }
   finally { btn.disabled = false; }
 }

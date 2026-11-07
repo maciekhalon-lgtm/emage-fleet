@@ -68,9 +68,28 @@ function viewServiceBook(){
 document.addEventListener('change', e => { if (e.target.id==='svc-veh'){ svcVeh = e.target.value; render(); } });
 
 /* ---------- kierowcy ---------- */
+let drvMonth = today().slice(0, 7);
+/* Zestawienie kierowców za miesiąc (np. do rozliczeń i premii): dni pracy, tankowania, spalanie, usterki, szkody, złe liczniki */
+async function driversXlsx(){
+  let X; try { X = await loadXLSX(); } catch(_){ return toast('Nie udało się wczytać modułu Excel – sprawdź połączenie'); }
+  const a = drvMonth + '-01', b = (d => { d.setMonth(d.getMonth() + 1); d.setDate(0); return isoOf(d); })(parse(a));
+  const rows = S.drivers.filter(d => d.active!==false).sort((x, y) => x.name.localeCompare(y.name, 'pl')).map(d => {
+    const s = drvCardStats(d.id, a, b > today() ? today() : b);
+    const iss = S.issues.filter(i => i.date>=a && i.date<=b && S.bookings.some(k => k.vehicleId===i.vehicleId && crewOf(k).includes(d.id) && k.from<=i.date && k.to>=i.date));
+    return {'Kierowca': d.name, 'Dni pracy (grafik)': s.days, 'Tankowania': s.fuel.length, 'Litry': +s.fuel.reduce((x, c) => x + Number(c.liters || 0), 0).toFixed(1),
+      'Kwota tankowań (zł)': +s.fuel.reduce((x, c) => x + Number(c.amount || 0), 0).toFixed(2), 'Km na jego odcinkach': Math.round(s.km), 'Spalanie l/100': s.rate != null ? +s.rate.toFixed(1) : '',
+      'Usterki w jego dniach': iss.filter(i => !/^Szkoda:/.test(i.title)).length, 'Szkody': iss.filter(i => /^Szkoda:/.test(i.title)).length, 'Złe liczniki': s.bad.length, 'Sprawy do wyjaśnienia': s.flagged.length + s.susp.length};
+  });
+  const wb = X.utils.book_new(), ws = X.utils.json_to_sheet(rows);
+  ws['!cols'] = [{wch:24},{wch:12},{wch:11},{wch:9},{wch:14},{wch:14},{wch:12},{wch:14},{wch:8},{wch:12},{wch:14}];
+  X.utils.book_append_sheet(wb, ws, 'Kierowcy ' + drvMonth);
+  await saveFile(`Emage-FLEET-kierowcy-${drvMonth}.xlsx`, new Uint8Array(X.write(wb, {type:'array', bookType:'xlsx'})));
+}
+document.addEventListener('click', e => { if (e.target.closest('[data-action="drv-xlsx"]')){ e.preventDefault(); driversXlsx(); } });
+document.addEventListener('change', e => { if (e.target.id==='drv-month' && e.target.value){ drvMonth = e.target.value; } });
 function viewDrivers(){
   const t = today();
-  const head = `<div class="bar"><h2>Kierowcy</h2>${canCreate('drivers') ? `<button class="primary" data-new="drivers">${ic('plus')}Dodaj kierowcę</button>` : ''}</div>`;
+  const head = `<div class="bar"><h2>Kierowcy</h2><div class="tools">${P().manage ? `<input type="month" id="drv-month" value="${drvMonth}" style="width:auto" aria-label="Miesiąc zestawienia"><button data-action="drv-xlsx">${ic('chart')}Zestawienie (Excel)</button>` : ''}${canCreate('drivers') ? `<button class="primary" data-new="drivers">${ic('plus')}Dodaj kierowcę</button>` : ''}</div></div>`;
   if (!S.drivers.length) return head + loadingOr('drivers', emptyBlock('Brak kierowców', 'Dodaj osoby, które korzystają z aut służbowych – z kategorią i ważnością prawa jazdy.', `<button class="primary" data-new="drivers">${ic('plus')}Dodaj kierowcę</button>`, '', 'drivers'));
   const list = S.drivers.slice().sort((a, b) => (a.active===false) - (b.active===false) || a.name.localeCompare(b.name, 'pl'));
   const rows = list.map(d => {
