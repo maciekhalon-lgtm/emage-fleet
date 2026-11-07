@@ -80,7 +80,7 @@ function viewMyCar(){
         <button class="d-act" data-new="issues" data-veh="${esc(v.id)}">${ic('wrench')}<b>Usterka</b></button>
       </div>
       <button class="d-main" data-ho="return" data-id="${esc(active.id)}">${ic('key')}Zdaj auto</button>
-      <button class="d-link" data-accident="${esc(v.id)}">${ic('alert')} Kolizja lub szkoda</button>
+      <div class="d-links"><button class="d-link" data-accident="${esc(v.id)}">${ic('alert')} Kolizja lub szkoda</button>${(S.docs || []).some(d => d.vehicleId===v.id) ? `<button class="d-link" data-mydocs="${esc(v.id)}">${ic('clip')} Dokumenty auta</button>` : ''}</div>
     </div>`;
   } else if (meDriver() && meDriver().active===false){
     hero = inactiveNote();
@@ -240,3 +240,15 @@ document.addEventListener('click', e => {
   const send = e.target.closest('[data-disp-send]'); if (send){ const n = ($('#disp-note')||{}).value?.trim() || ''; if (n.length < 3) return toast('Napisz krótko, co się nie zgadza'); return confirmItem(send.dataset.dispSend, false, n); }
   if (e.target.closest('[data-disp-cancel]')){ disputeOpen = null; render(); }
 });
+
+/* Dokumenty auta dla kierowcy (np. przy kontroli drogowej): dowód, polisa, inne skany dodane przez kierownika */
+function openMyDocs(vid){
+  const v = byId('vehicles', vid) || {}, docs = (S.docs || []).filter(d => d.vehicleId===vid);
+  editing = {col:'my-docs', id: vid, base:{}, special: () => closeForm()};
+  $('#dlg-title').textContent = `Dokumenty · ${v.plate || ''}`;
+  $('#dlg-body').innerHTML = `${v.insurer || v.policyNo ? `<div class="field full"><div class="notice"><span>OC: <b>${esc([v.insurer, v.policyNo].filter(Boolean).join(' · '))}</b>${v.policyUntil ? ` · ważna do ${fdate(v.policyUntil)}` : ''}</span></div></div>` : ''}
+    <div class="field full">${docs.map(d => `<div class="mini"><span>${ic('clip')}</span><span><b>${esc(d.name || d.kind || 'Dokument')}</b><span class="sub">${esc(d.kind || '')}${d.validUntil ? ' · ważny do ' + fdate(d.validUntil) : ''}</span></span><span class="mini-r">${d.assetId ? `<a class="btn small" data-file="${esc(d.assetId)}" href="#" target="_blank" rel="noopener">Otwórz</a>` : ''}</span></div>`).join('') || '<span class="muted">Brak dokumentów.</span>'}</div>`;
+  $('#dlg-save').textContent = 'Zamknij'; $('#dlg-del').hidden = true; $('#scrim').hidden = false;
+  hydrateFiles($('#dlg-body'));
+}
+document.addEventListener('click', e => { const t = e.target.closest('[data-mydocs]'); if (!t) return; e.preventDefault(); openMyDocs(t.dataset.mydocs); });
