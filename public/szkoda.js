@@ -15,7 +15,7 @@ function openAccident(vid){
   $('#dlg-title').textContent = `Kolizja / szkoda · ${v.plate}`;
   $('#dlg-body').innerHTML = `<div class="field full"><div class="acc-safe">
       <b>Najpierw bezpieczeństwo</b>
-      <ol><li>Włącz światła awaryjne, załóż kamizelkę, ustaw trójkąt.</li><li>Są ranni? Dzwoń <a class="btn small" href="tel:112">${ic('phone')}112</a></li><li>Zrób zdjęcia, zanim auta zostaną przestawione (jeśli to bezpieczne).</li></ol>
+      <ol><li>Włącz światła awaryjne, załóż kamizelkę, ustaw trójkąt.</li><li>Są ranni? Dzwoń <a class="btn small" href="tel:112">${ic('phone')}112</a></li>${v.assistancePhone ? `<li>Auto nie jedzie? Assistance: <a class="btn small" href="tel:${esc(String(v.assistancePhone).replace(/\s/g, ''))}">${ic('phone')}${esc(v.assistancePhone)}</a></li>` : ''}<li>Zrób zdjęcia, zanim auta zostaną przestawione (jeśli to bezpieczne).</li></ol>
     </div></div>
     <div class="field full"><label for="acc-kind">Co się stało?</label><select id="acc-kind">${ACC_KINDS.map(k => `<option>${esc(k)}</option>`).join('')}</select></div>
     <div class="field"><label for="acc-when">Kiedy</label><input id="acc-when" type="datetime-local" value="${nowLocal}"></div>

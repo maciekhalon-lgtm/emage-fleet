@@ -116,12 +116,38 @@ function budgetPanel(){
 function viewSettings(){
   if (!P().manage) return '';
   return `<div class="section settings"><div class="bar"><h2>Ustawienia</h2></div>
+    ${dataQualityPanel()}
     ${budgetPanel()}
     ${pushSetupPanel()}
     ${P().manage ? `<div class="panel"><div class="sec-head"><h3>Kopia danych</h3><button class="small" data-action="backup">${ic('clip')}Pobierz kopię (JSON)</button></div><p class="muted sec-empty">Wszystkie dane floty w jednym pliku: auta, kierowcy, grafik, koszty, terminy, usterki, książka serwisowa, karty paliwowe, trasy i przystanki. Zrób kopię raz w miesiącu i trzymaj ją na dysku firmy. Zdjęcia i skany zostają w Supabase.</p></div>` : ''}
     ${checksSettingsPanel()}
     ${checklistPanel()}
   </div>`;
+}
+
+/* Kompletność danych: czego brakuje, żeby działały alarmy (bak → podejrzane tankowania, opony → przypomnienie o sezonie,
+   polisa → druk szkody, telefon i dokumenty kierowcy → ostrzeżenia w grafiku). Kliknięcie otwiera formularz. */
+function dataQualityPanel(){
+  const vs = S.vehicles.filter(v => v.status!=='wycofany'), ds = S.drivers.filter(d => d.active!==false);
+  const checks = [
+    ['vehicles', 'VIN', 'potrzebny do druku szkody i zlecenia warsztatowego', vs.filter(v => !v.vin)],
+    ['vehicles', 'Pojemność baku', 'bez niej podejrzane tankowania liczą się od 90 l', vs.filter(v => !v.tankL)],
+    ['vehicles', 'Założone opony', 'przypomnienie o zmianie opon działa tylko, gdy wiadomo, jakie są', vs.filter(v => !v.tires)],
+    ['vehicles', 'Polisa OC (ubezpieczyciel, numer, ważność)', 'dane trafiają do zgłoszenia szkody', vs.filter(v => !v.insurer || !v.policyNo || !v.policyUntil)],
+    ['vehicles', 'Telefon assistance', 'kierowca dzwoni z ekranu „Moje auto” i ze zgłoszenia szkody', vs.filter(v => !v.assistancePhone)],
+    ['drivers', 'Telefon kierowcy', 'szybki kontakt z pulpitu i grafiku', ds.filter(d => !d.phone)],
+    ['drivers', 'Ważność prawa jazdy / badań', 'grafik ostrzega o przeterminowanych dokumentach', ds.filter(d => !d.licenseExpiry || !d.medicalExpiry)],
+  ].filter(c => c[3].length);
+  const total = vs.length * 5 + ds.length * 2, miss = checks.reduce((s, c) => s + c[3].length, 0);
+  if (!total) return '';
+  const pct = Math.round((1 - miss / total) * 100);
+  if (!checks.length) return `<div class="panel"><div class="sec-head"><h3>Kompletność danych</h3><span class="pill ok">100%</span></div></div>`;
+  const name = (col, x) => col==='vehicles' ? x.plate : x.name;
+  return `<details class="panel fold dq" ${pct < 90 ? 'open' : ''}><summary class="sec-head"><h3>Kompletność danych</h3><span class="pill ${pct >= 90 ? 'ok' : pct >= 70 ? 'soon' : 'bad'}">${pct}%</span></summary>
+    <p class="muted small sec-empty">Uzupełnione dane włączają alarmy i druki. Kliknij rejestrację albo nazwisko, żeby uzupełnić.</p>
+    ${checks.map(([col, l, why, xs]) => `<div class="dq-row"><div><b>${l}</b><span class="sub">${why}</span></div><span class="count">${xs.length}</span>
+      <div class="dq-list">${xs.slice(0, 9).map(x => `<button type="button" class="chip" data-edit="${col}" data-id="${esc(x.id)}">${esc(name(col, x) || '?')}</button>`).join('')}${xs.length > 9 ? `<span class="muted small">+${xs.length - 9}</span>` : ''}</div></div>`).join('')}
+  </details>`;
 }
 
 /* Kopia danych do pliku JSON (kierownik floty) */

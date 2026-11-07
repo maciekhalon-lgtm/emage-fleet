@@ -81,7 +81,7 @@ function viewMyCar(){
         <button class="d-act" data-new="issues" data-veh="${esc(v.id)}">${ic('wrench')}<b>Usterka</b></button>
       </div>
       <button class="d-main" data-ho="return" data-id="${esc(active.id)}">${ic('key')}Zdaj auto</button>
-      <div class="d-links"><button class="d-link" data-accident="${esc(v.id)}">${ic('alert')} Kolizja lub szkoda</button>${(S.docs || []).some(d => d.vehicleId===v.id) ? `<button class="d-link" data-mydocs="${esc(v.id)}">${ic('clip')} Dokumenty auta</button>` : ''}</div>
+      <div class="d-links"><button class="d-link" data-accident="${esc(v.id)}">${ic('alert')} Kolizja lub szkoda</button>${v.assistancePhone ? `<a class="d-link" href="tel:${esc(String(v.assistancePhone).replace(/\s/g, ''))}">${ic('phone')} Assistance</a>` : ''}${(S.docs || []).some(d => d.vehicleId===v.id) ? `<button class="d-link" data-mydocs="${esc(v.id)}">${ic('clip')} Dokumenty auta</button>` : ''}</div>
     </div>`;
   } else if (meDriver() && meDriver().active===false){
     hero = inactiveNote();
