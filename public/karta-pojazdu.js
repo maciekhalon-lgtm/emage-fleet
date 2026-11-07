@@ -68,7 +68,8 @@ function viewCard(){
   const tabs = [['dane','Dane', 0], ['serwis','Terminy i serwis', openIss + urgentDl], ['paliwo','Paliwo i koszty', 0], ['historia','Historia', 0]];
   const tabNav = `<nav class="subtabs card-tabs" aria-label="Karta pojazdu">${tabs.map(([k, l, n]) => `<a href="#" data-ctab="${k}" ${cardTab===k ? 'aria-current="page"' : ''}>${l}${n ? ` <span class="count bad">${n}</span>` : ''}</a>`).join('')}</nav>`;
   let body = '';
-  if (cardTab==='serwis') body = `<div class="grid2"><div class="section">
+  const stdMiss = canCreate('deadlines') ? STD_DL.filter(t => !S.deadlines.some(d => d.vehicleId===v.id && d.type===t)) : [];
+  if (cardTab==='serwis') body = (stdMiss.length ? `<div class="notice"><span>Brakuje podstawowych terminów: <b>${stdMiss.join(', ')}</b> – bez nich system nie przypomni o nich ani nie zablokuje auta po terminie.</span><button class="small" data-std-dl="${esc(v.id)}">Uzupełnij</button></div>` : '') + `<div class="grid2"><div class="section">
       ${sec('Terminy', add('deadlines','+ Termin'), dlHtml, 'Brak zapisanych terminów.')}
       ${sec('Usterki', add('issues','+ Zgłoś'), iss.length ? `<div class="dl">${iss.map(i => issueRow(i, false)).join('')}</div>` : '', 'Brak zgłoszonych usterek.')}</div>
     <div class="section">${P().service ? sec('Książka serwisowa', add('serviceEntries','+ Wpis serwisowy'), svcHtml, 'Brak wpisów – zapisuj tu naprawy i wymiany: co zrobiono, przy jakim przebiegu, gdzie i za ile.') : ''}</div></div>`;
@@ -145,3 +146,28 @@ function tcoHtml(v, VC){
     <div class="tco-ch" role="img" aria-label="Koszty w kolejnych miesiącach">${per.map(x => `<div class="tco-c" title="${x.m}: ${zl(x.sum)}"><div class="tco-b" style="height:${Math.round(x.sum / max * 100)}%">${['oth','svc','fuel'].map(k => x[k] ? `<i class="tco-${k}" style="flex:${x[k]}"></i>` : '').join('')}</div><span>${MN[+x.m.slice(5) - 1]}</span></div>`).join('')}</div>
     <div class="tco-lg"><span><i class="tco-fuel"></i>paliwo</span><span><i class="tco-svc"></i>serwis i opony</span><span><i class="tco-oth"></i>pozostałe</span></div>`;
 }
+
+/* Podstawowe terminy auta – szybkie uzupełnienie w jednym oknie */
+const STD_DL = ['Przegląd techniczny','Ubezpieczenie OC','Serwis olejowy'];
+function openStdDeadlines(vid){
+  const v = byId('vehicles', vid) || {};
+  const miss = STD_DL.filter(t => !S.deadlines.some(d => d.vehicleId===vid && d.type===t));
+  editing = {col:'std-dl', id: vid, base:{}, special: saveStdDeadlines};
+  $('#dlg-title').textContent = `Podstawowe terminy · ${v.plate || ''}`;
+  $('#dlg-body').innerHTML = `<div class="field full"><span class="muted small">Wpisz daty z dowodu rejestracyjnego, polisy i ostatniej książki serwisowej. Puste pola pominiemy. Kolejne terminy po „Wykonane” ustawią się same (przegląd i OC co 12 mies., olej co 12 mies. albo 15 000 km).</span></div>
+    ${miss.map((t, i) => `<div class="field"><label for="std-${i}">${t} – do kiedy</label><input id="std-${i}" type="date" data-std-type="${esc(t)}" ${t==='Ubezpieczenie OC' && v.policyUntil ? `value="${v.policyUntil}"` : ''}></div>
+      ${t==='Serwis olejowy' ? `<div class="field"><label for="std-km">albo przy przebiegu (km)</label><input id="std-km" type="number" inputmode="numeric" placeholder="${v.km ? 'np. ' + (Math.ceil((Number(v.km) + 15000) / 1000) * 1000) : ''}"></div>` : '<div class="field"></div>'}`).join('')}
+    <div class="warnline" id="dlg-warn" hidden></div>`;
+  $('#dlg-save').textContent = 'Zapisz terminy'; $('#dlg-del').hidden = true; $('#scrim').hidden = false;
+}
+async function saveStdDeadlines(){
+  const vid = editing.id, items = [...document.querySelectorAll('[data-std-type]')].filter(i => i.value).map(i => ({type: i.dataset.stdType, date: i.value}));
+  const kmDue = Number(($('#std-km') || {}).value) || null;
+  if (!items.length){ const w = $('#dlg-warn'); w.textContent = 'Wpisz co najmniej jedną datę.'; w.hidden = false; return; }
+  try {
+    for (const it of items){ const def = DL_INTERVALS[it.type] || [12, null];
+      await db.collection('deadlines').doc().set({vehicleId: vid, type: it.type, date: it.date, intervalMonths: def[0], intervalKm: it.type==='Serwis olejowy' ? def[1] : null, kmDue: it.type==='Serwis olejowy' ? kmDue : null, remindKm: it.type==='Serwis olejowy' && kmDue ? 2000 : null}); }
+    closeForm(); toast(`Dodano ${items.length} ${isPlural(items.length,'termin','terminy','terminów')}`);
+  } catch(err){ handleWriteErr(err); }
+}
+document.addEventListener('click', e => { const t = e.target.closest('[data-std-dl]'); if (!t) return; e.preventDefault(); openStdDeadlines(t.dataset.stdDl); });
