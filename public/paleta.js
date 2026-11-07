@@ -10,7 +10,13 @@ function palActions(){
   if (act && !act.returned) a.push({ic:'fuel', t:'Zatankuj', s:'tankowanie auta, którym jedziesz', run: () => document.querySelector(`[data-fuel="${act.vehicleId}"]`)?.click() || openForm('costs', null, {vehicleId: act.vehicleId, category:'Paliwo'})});
   if (canCreate('issues')) a.push({ic:'wrench', t:'Zgłoś usterkę', s:'nowe zgłoszenie', run: () => openForm('issues', null, act ? {vehicleId: act.vehicleId} : undefined)});
   if (act && !act.returned && typeof openAccident==='function') a.push({ic:'alert', t:'Kolizja lub szkoda', s:'zgłoszenie krok po kroku', run: () => openAccident(act.vehicleId)});
+  if (act && !act.returned && typeof openMyDocs==='function') a.push({ic:'clip', t:'Dokumenty auta', s:'dowód, OC, przegląd – do kontroli', run: () => openMyDocs(act.vehicleId)});
   if (canCreate('bookings') && P().bookings==='rw') a.push({ic:'cal', t:'Nowy przydział', s:'kierowca + auto + trasa', run: () => openForm('bookings')});
+  if (P().manage && typeof openAnnounce==='function') a.push({ic:'bell', t:'Komunikat do kierowców', s:'wiadomość na ekranie każdego kierowcy', run: () => openAnnounce()});
+  if (P().manage && typeof openDayPlan==='function'){
+    a.push({ic:'route', t:'Plan dnia – dziś', s:'grafik do skopiowania / wysłania', run: () => openDayPlan(today())});
+    a.push({ic:'route', t:'Plan dnia – jutro', s:'grafik do skopiowania / wysłania', run: () => openDayPlan(addDays(today(), 1))});
+  }
   if (canCreate('costs') && P().manage) a.push({ic:'coins', t:'Dodaj koszt', s:'paliwo, serwis, opłaty…', run: () => openForm('costs')});
   if (canCreate('serviceEntries') && P().service) a.push({ic:'clip', t:'Wpis serwisowy', s:'do książki serwisowej', run: () => openForm('serviceEntries')});
   if (canCreate('deadlines')) a.push({ic:'cal', t:'Dodaj termin', s:'przegląd, OC, serwis…', run: () => openForm('deadlines')});

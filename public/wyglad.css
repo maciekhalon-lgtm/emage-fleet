@@ -317,6 +317,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--ink)!important;box-sh
 .acc-safe .btn{margin-left:6px;padding:3px 10px}
 #dlg-body .acc-other{border:1px solid var(--line-2);border-radius:16px;padding:10px 12px 12px;margin:0;display:flex;flex-direction:column;gap:8px}
 .acc-other legend{font-weight:600;font-size:13px;padding:0 6px}
+.acc-loc{display:flex;gap:8px;align-items:center}.acc-loc input{flex:1;min-width:0}.acc-loc button{white-space:nowrap}
 .acc-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 .acc-l{font-size:12.5px;color:var(--muted);font-weight:600}
 .acc-checks{display:flex;flex-direction:column;gap:6px}

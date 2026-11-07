@@ -18,7 +18,7 @@ function openAccident(vid){
     <div class="field full"><label for="acc-kind">Co się stało?</label><select id="acc-kind">${ACC_KINDS.map(k => `<option>${esc(k)}</option>`).join('')}</select></div>
     <div class="field"><label for="acc-when">Kiedy</label><input id="acc-when" type="datetime-local" value="${nowLocal}"></div>
     <div class="field"><label for="acc-km">Licznik (km)</label><input id="acc-km" type="number" inputmode="numeric" placeholder="${esc(String(v.km || ''))}"></div>
-    <div class="field full"><label for="acc-where">Gdzie (miejscowość, ulica / droga)</label><input id="acc-where" placeholder="np. Legnica, ul. Jaworzyńska przy Orlenie"></div>
+    <div class="field full"><label for="acc-where">Gdzie (miejscowość, ulica / droga)</label><div class="acc-loc"><input id="acc-where" placeholder="np. Legnica, ul. Jaworzyńska przy Orlenie">${navigator.geolocation ? `<button type="button" class="small ghost" data-acc-gps>${ic('route')}Moja lokalizacja</button>` : ''}</div><span class="muted small" id="acc-gps-info" hidden></span></div>
     <fieldset class="field full acc-other" id="acc-other"><legend>Druga strona</legend>
       <div class="acc-grid">
         <input id="acc-o-name" placeholder="Imię i nazwisko kierowcy" aria-label="Imię i nazwisko drugiego kierowcy">
@@ -78,6 +78,18 @@ async function saveAccident(){
   finally { btn.disabled = false; }
 }
 document.addEventListener('change', e => { if (e.target.id==='acc-kind') accToggle(); });
+/* GPS: dopisuje współrzędne i link do mapy (kierownik od razu wie, gdzie stoi auto) */
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-acc-gps]'); if (!b) return; e.preventDefault();
+  const info = $('#acc-gps-info'); b.disabled = true; info.hidden = false; info.textContent = 'Ustalam lokalizację…';
+  navigator.geolocation.getCurrentPosition(p => {
+    const la = p.coords.latitude.toFixed(5), lo = p.coords.longitude.toFixed(5), inp = $('#acc-where');
+    const tag = `GPS ${la}, ${lo} (https://maps.google.com/?q=${la},${lo})`;
+    if (inp){ const base = inp.value.replace(/(\s*·\s*)?GPS [\d.,\s-]+\(https:[^)]*\)/, '').trim(); inp.value = base ? base + ' · ' + tag : tag; }
+    info.textContent = `Dodano lokalizację (dokładność ok. ${Math.round(p.coords.accuracy)} m). Dopisz miejscowość / ulicę, jeśli znasz.`; b.disabled = false;
+  }, err => { info.textContent = err.code===1 ? 'Brak zgody na lokalizację – wpisz miejsce ręcznie.' : 'Nie udało się ustalić lokalizacji – wpisz miejsce ręcznie.'; b.disabled = false; },
+  {enableHighAccuracy: true, timeout: 15000, maximumAge: 60000});
+});
 document.addEventListener('click', e => { const t = e.target.closest('[data-accident]'); if (!t) return; e.preventDefault(); openAccident(t.dataset.accident); });
 
 /* Druk zgłoszenia szkody (np. dla ubezpieczyciela): dane auta i polisy, kierowca z grafiku, opis, zdjęcia */
