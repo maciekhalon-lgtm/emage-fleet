@@ -127,7 +127,7 @@ function viewSettings(){
 
 /* Kompletność danych: czego brakuje, żeby działały alarmy (bak → podejrzane tankowania, opony → przypomnienie o sezonie,
    polisa → druk szkody, telefon i dokumenty kierowcy → ostrzeżenia w grafiku). Kliknięcie otwiera formularz. */
-function dataQualityPanel(){
+function dqChecks(){
   const vs = S.vehicles.filter(v => v.status!=='wycofany'), ds = S.drivers.filter(d => d.active!==false);
   const checks = [
     ['vehicles', 'VIN', 'potrzebny do druku szkody i zlecenia warsztatowego', vs.filter(v => !v.vin)],
@@ -139,8 +139,11 @@ function dataQualityPanel(){
     ['drivers', 'Ważność prawa jazdy / badań', 'grafik ostrzega o przeterminowanych dokumentach', ds.filter(d => !d.licenseExpiry || !d.medicalExpiry)],
   ].filter(c => c[3].length);
   const total = vs.length * 5 + ds.length * 2, miss = checks.reduce((s, c) => s + c[3].length, 0);
+  return {checks, total, pct: total ? Math.round((1 - miss / total) * 100) : 100};
+}
+function dataQualityPanel(){
+  const {checks, total, pct} = dqChecks();
   if (!total) return '';
-  const pct = Math.round((1 - miss / total) * 100);
   if (!checks.length) return `<div class="panel"><div class="sec-head"><h3>Kompletność danych</h3><span class="pill ok">100%</span></div></div>`;
   const name = (col, x) => col==='vehicles' ? x.plate : x.name;
   return `<details class="panel fold dq" ${pct < 90 ? 'open' : ''}><summary class="sec-head"><h3>Kompletność danych</h3><span class="pill ${pct >= 90 ? 'ok' : pct >= 70 ? 'soon' : 'bad'}">${pct}%</span></summary>

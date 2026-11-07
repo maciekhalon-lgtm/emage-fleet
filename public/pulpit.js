@@ -23,6 +23,8 @@ function attentionItems(serviceOnly){
   blockedVehicles().forEach(({v, bl}) => out.push({w: bl.override ? 3 : 0, html: attRow(bl.override ? 'warn' : 'bad', v.id, bl.override ? 'Zgoda na wyjazd dziś' : 'Auto zablokowane', esc(bl.reason) + (bl.override ? ' · „' + esc(bl.override.reason) + '”' : ''),
     (!bl.override && P().manage ? `<button class="small" data-override="${esc(v.id)}">Zezwól dziś</button>` : '')
     + S.deadlines.filter(d => d.vehicleId===v.id && BLOCK_TYPES.includes(d.type) && d.date < today() && canEditDoc('deadlines', d)).map(d => `<button class="small" data-renew="${esc(d.id)}">${d.type==='Ubezpieczenie OC' ? 'OC odnowione' : 'Przegląd zrobiony'}</button>`).join(''))}));
+  if (P().manage && got.vehicles && got.drivers && typeof dqChecks==='function'){ const q = dqChecks();
+    if (q.total && q.pct < 70) out.push({w: 2.5, html: attRow('warn', '', `Dane floty uzupełnione w ${q.pct}%`, 'brakuje m.in.: ' + esc(q.checks.slice(0, 3).map(c => c[1]==='VIN' ? c[1] : c[1][0].toLowerCase() + c[1].slice(1)).join(', ')) + ' – bez nich część alarmów nie działa', `<a class="btn small" href="#ustawienia">Uzupełnij</a>`)}); }
   const tr = tireReminder();
   if (tr) out.push({w: tr.urgent ? 1 : 3, html: attRow(tr.urgent ? 'bad' : 'warn', '', `${tr.list.length} ${isPlural(tr.list.length,'auto','auta','aut')} ${tr.txt}`, tr.list.slice(0, 8).map(v => esc(v.plate)).join(', ') + (tr.list.length > 8 ? '…' : ''), canCreate('serviceEntries') ? `<button class="small" data-new="serviceEntries">Wpis serwisowy</button>` : '')});
   S.deadlines.forEach(d => {
