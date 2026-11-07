@@ -437,3 +437,4 @@ input:focus,select:focus,textarea:focus{border-color:var(--ink)!important;box-sh
 
 /* kompletność danych */
 .dq-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 12px;padding:12px 16px;border-top:1px solid var(--line)}.dq-row .sub{display:block;color:var(--muted);font-size:13px}.dq-row>.count{align-self:start}.dq-list{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px}.dq-list .chip{font:600 12px/1 'Geist Mono',ui-monospace,monospace;color:var(--ink);padding:6px 10px;border-radius:99px;border:1px solid var(--line);background:var(--surface);cursor:pointer}.dq-list .chip:hover{border-color:var(--ink)}
+.dq-bulk{grid-column:1/-1;display:flex;gap:8px;align-items:center;flex-wrap:wrap}.dq-bulk input{width:90px}.dq-bulk select{width:auto}

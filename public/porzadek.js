@@ -149,9 +149,30 @@ function dataQualityPanel(){
   return `<details class="panel fold dq" ${pct < 90 ? 'open' : ''}><summary class="sec-head"><h3>Kompletność danych</h3><span class="pill ${pct >= 90 ? 'ok' : pct >= 70 ? 'soon' : 'bad'}">${pct}%</span></summary>
     <p class="muted small sec-empty">Uzupełnione dane włączają alarmy i druki. Kliknij rejestrację albo nazwisko, żeby uzupełnić.</p>
     ${checks.map(([col, l, why, xs]) => `<div class="dq-row"><div><b>${l}</b><span class="sub">${why}</span></div><span class="count">${xs.length}</span>
-      <div class="dq-list">${xs.slice(0, 9).map(x => `<button type="button" class="chip" data-edit="${col}" data-id="${esc(x.id)}">${esc(name(col, x) || '?')}</button>`).join('')}${xs.length > 9 ? `<span class="muted small">+${xs.length - 9}</span>` : ''}</div></div>`).join('')}
+      ${dqBulk(l, xs)}<div class="dq-list">${xs.slice(0, 9).map(x => `<button type="button" class="chip" data-edit="${col}" data-id="${esc(x.id)}">${esc(name(col, x) || '?')}</button>`).join('')}${xs.length > 9 ? `<span class="muted small">+${xs.length - 9}</span>` : ''}</div></div>`).join('')}
   </details>`;
 }
+
+/* Szybkie uzupełnienie jednym kliknięciem dla wszystkich aut z brakiem (bak, opony) – zwykle cała flota to te same busy */
+function dqBulk(label, xs){
+  if (xs.length < 2 || !canWrite) return '';
+  if (label==='Pojemność baku') return `<div class="dq-bulk"><input id="dq-tank" type="number" min="20" max="400" inputmode="numeric" value="90" aria-label="Pojemność baku w litrach"><span class="muted small">l</span><button class="small" data-dq-bulk="tank">Ustaw wszystkim (${xs.length})</button></div>`;
+  if (label==='Założone opony') return `<div class="dq-bulk"><select id="dq-tires" aria-label="Rodzaj opon">${Object.entries(TIRES).map(([k, v]) => `<option value="${k}" ${k===(today().slice(5) >= '10-15' || today().slice(5) < '04-15' ? 'zimowe' : 'letnie') ? 'selected' : ''}>${v}</option>`).join('')}</select><button class="small" data-dq-bulk="tires">Ustaw wszystkim (${xs.length})</button></div>`;
+  return '';
+}
+async function dqBulkSave(kind, btn){
+  const {checks} = dqChecks();
+  const c = checks.find(x => x[1]===(kind==='tank' ? 'Pojemność baku' : 'Założone opony')); if (!c) return;
+  const val = kind==='tank' ? Number($('#dq-tank').value) : $('#dq-tires').value;
+  if (kind==='tank' && !(val >= 20 && val <= 400)){ toast('Podaj pojemność baku 20–400 l'); return; }
+  btn.disabled = true;
+  try {
+    for (const v of c[3]) await db.collection('vehicles').doc(v.id).update(kind==='tank' ? {tankL: val} : {tires: val});
+    toast(`Uzupełniono ${c[3].length} ${isPlural(c[3].length,'auto','auta','aut')}`);
+  } catch(err){ handleWriteErr(err); }
+  finally { btn.disabled = false; }
+}
+document.addEventListener('click', e => { const b = e.target.closest('[data-dq-bulk]'); if (!b) return; e.preventDefault(); dqBulkSave(b.dataset.dqBulk, b); });
 
 /* Kopia danych do pliku JSON (kierownik floty) */
 async function backupJson(){
