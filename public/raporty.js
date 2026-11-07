@@ -95,6 +95,7 @@ function viewReports(){
       <div><span class="label">Średni koszt / km</span><b>${tot.km ? zl2(tot.cost/tot.km).replace(/\s?zł/,'')+' zł' : '—'}</b></div>
     </div></div>
     ${budgetBox}
+    ${fleetTrendSection()}
     <div class="panel tablewrap"><table><thead><tr><th>Pojazd</th><th class="r">Koszty</th><th class="r">Paliwo</th><th class="r">Przejechane</th><th>Koszt / km</th>${repMode==='month'?'<th>Limit miesięczny</th>':''}</tr></thead><tbody>
       ${rows.map(r => `<tr class="click" data-card-go="${esc(r.v.id)}"><td>${plate(r.v.plate)}<span class="sub">${esc(r.v.make+' '+r.v.model)}</span></td>
         <td class="r num">${zl(r.cost)}</td><td class="r num">${zl(r.fuel)}</td><td class="r num">${r.km ? new Intl.NumberFormat('pl-PL').format(r.km)+' km' : '<span class="muted">—</span>'}</td>
@@ -177,4 +178,13 @@ async function exportXlsx(){
   const data = X.write(wb, {type:'array', bookType:'xlsx'});
   const tag = repMode==='year' ? repYear : repMonth;
   await saveFile(`Emage-FLEET-raport-${tag}.xlsx`, new Uint8Array(data));
+}
+
+/* Koszty całej floty – 12 miesięcy (paliwo / serwis i opony / pozostałe), ten sam wykres co w karcie auta */
+function fleetTrendSection(){
+  if (!P().manage && !P().reports) return '';
+  const cs = visibleCosts();
+  if (cs.length < 5 || typeof tcoHtml!=='function') return '';
+  const html = tcoHtml({id:'__fleet__'}, cs).replace(/<div><span class="label">Koszt na km<\/span>[\s\S]*?<\/div>(?=<\/div>)/, '');
+  return `<div class="panel"><div class="sec-head"><h3>Koszty floty – ostatnie 12 miesięcy</h3></div>${html}</div>`;
 }
