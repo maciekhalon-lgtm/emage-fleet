@@ -46,7 +46,14 @@ function viewIssues(){
       issueFilter==='all' || (issueFilter==='open' && i.status!=='naprawione') ||
       (issueFilter==='stop' && i.status!=='naprawione' && i.severity==='stop') || (issueFilter==='done' && i.status==='naprawione'))
     .sort((a,b) => (order[a.status]-order[b.status]) || (sevO[a.severity]-sevO[b.severity]) || (a.date<b.date?1:-1));
-  return head + `<div class="panel dl">${list.map(i => issueRow(i)).join('') || '<div class="empty"><p>Brak usterek w tym filtrze.</p></div>'}</div>`;
+  const t90 = addDays(today(), -90), fixed = S.issues.filter(i => i.status==='naprawione' && i.resolvedAt && i.resolvedAt >= t90 && i.date);
+  const avgFix = fixed.length ? fixed.reduce((x, i) => x + Math.max(0, diffDays(i.date, i.resolvedAt)), 0) / fixed.length : null;
+  const open = S.issues.filter(i => i.status!=='naprawione'), stopCars = new Set(open.filter(i => i.severity==='stop').map(i => i.vehicleId)).size;
+  const oldest = open.reduce((m, i) => !m || i.date < m ? i.date : m, '');
+  const stats = `<div class="is-stats"><div><span class="label">Otwarte</span><b class="num">${open.length}</b></div><div><span class="label">Auta niesprawne</span><b class="num ${stopCars ? 'neg' : ''}">${stopCars}</b></div>
+    <div><span class="label">Najstarsza otwarta</span><b class="num">${oldest ? diffDays(oldest, today()) + ' ' + isPlural(diffDays(oldest, today()),'dzień','dni','dni') : '—'}</b></div>
+    <div><span class="label">Śr. czas naprawy (90 dni)</span><b class="num">${avgFix!=null ? avgFix.toFixed(1).replace('.', ',') + ' dni' : '—'}</b></div></div>`;
+  return head + stats + `<div class="panel dl">${list.map(i => issueRow(i)).join('') || '<div class="empty"><p>Brak usterek w tym filtrze.</p></div>'}</div>`;
 }
 
 async function setIssueStatus(id, status){
