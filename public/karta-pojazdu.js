@@ -93,6 +93,8 @@ function viewCard(){
       <div class="tools">${canEditDoc('vehicles',v)?`<button data-edit="vehicles" data-id="${esc(v.id)}">Edytuj dane</button>`:''}</div></div>
     <div class="card-head">${plate(v.plate)}<div><h2>${esc(v.make)} ${esc(v.model)}</h2><span class="muted">${km(v.km)}${v.notes ? ' · ' + esc(v.notes) : ''}</span></div><span class="pill ${st.cls}">${esc(st.txt)}</span></div>
     ${blockBanner(v)}
+    ${(b => { if (!b) return ''; const ph = crewOf(b).map(id => [id, (byId('drivers', id) || {}).phone]);
+      return `<div class="now-drv">${ic('key')}<span>Teraz jedzie: ${ph.map(([id, p]) => `<b>${esc(dName(id))}</b>${p ? ` <a class="btn small" href="tel:${esc(String(p).replace(/[^\d+]/g, ''))}" aria-label="Zadzwoń do ${esc(dName(id))}">${ic('phone')}${esc(p)}</a>` : ''}`).join(' · ')}${b.routeId ? ` · trasa ${esc(rLabel(b.routeId))}` : ''}${b.pickup && b.pickup.at ? ` · od ${fdate(b.pickup.at.slice(0, 10))}` : ''}</span></div>`; })(S.bookings.find(x => x.vehicleId===v.id && holds(x)))}
     ${tabNav}
     ${body}
   </div>`;
