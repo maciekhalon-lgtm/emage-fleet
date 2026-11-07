@@ -79,3 +79,23 @@ document.addEventListener('click', e => {
   if (e.target.closest('[data-sp-allok]')){ e.preventDefault(); suspMark('*'); return; }
   const t = e.target.closest('[data-sp-ok]'); if (!t) return; e.preventDefault(); suspMark(t.dataset.spOk); });
 document.addEventListener('change', e => { if (e.target.matches('[data-sp-all]')){ suspShowChecked = e.target.checked; render(); } });
+
+/* Cena paliwa z kart: średnia zł/l w ostatnich 6 miesiącach i stacje najdroższe / najtańsze (min. 5 tankowań) */
+function fuelPricePanel(){
+  const rows = (S.fuelCardRows || []).filter(r => r.kind!=='other' && (!r.currency || r.currency==='PLN') && Number(r.liters) > 5 && Number(r.amount) > 0);
+  if (rows.length < 10) return '';
+  const byM = {}; rows.forEach(r => { const m = r.txDate.slice(0, 7); (byM[m] = byM[m] || {l:0, a:0, n:0}); byM[m].l += +r.liters; byM[m].a += +r.amount; byM[m].n++; });
+  const ms = Object.keys(byM).sort().slice(-6);
+  const pr = m => byM[m].a / byM[m].l;
+  const lo = Math.min(...ms.map(pr)) * 0.97, hi = Math.max(...ms.map(pr)) * 1.01;
+  const MN = ['sty','lut','mar','kwi','maj','cze','lip','sie','wrz','paź','lis','gru'];
+  const st = {}; rows.forEach(r => { const k = (r.station || '').trim(); if (!k) return; (st[k] = st[k] || {l:0, a:0, n:0}); st[k].l += +r.liters; st[k].a += +r.amount; st[k].n++; });
+  const all = rows.reduce((s, r) => s + +r.amount, 0) / rows.reduce((s, r) => s + +r.liters, 0);
+  const sl = Object.entries(st).filter(([, x]) => x.n >= 5).map(([k, x]) => ({k, p: x.a / x.l, n: x.n, l: x.l})).sort((a, b) => b.p - a.p);
+  const f2 = x => x.toFixed(2).replace('.', ',');
+  const stRow = x => `<div class="mini"><span>${esc(x.k)}</span><span class="muted small">${x.n} tank. · ${fl(x.l)}</span><span class="mini-r num"><b class="${x.p > all * 1.03 ? 'neg' : x.p < all * 0.98 ? 'pos' : ''}">${f2(x.p)} zł/l</b></span></div>`;
+  return `<details class="panel fold"><summary class="sec-head"><h3>Cena paliwa</h3><span class="muted small">średnio ${f2(all)} zł/l</span></summary>
+    <div class="fp-ch">${ms.map(m => `<div class="fp-c"><b class="num">${f2(pr(m))}</b><div class="fp-b" style="height:${Math.round((pr(m) - lo) / Math.max(0.01, hi - lo) * 100)}%"></div><span>${MN[+m.slice(5) - 1]}</span></div>`).join('')}</div>
+    ${sl.length >= 4 ? `<div class="grid2 fp-st"><div><span class="label">Najdroższe stacje</span>${sl.slice(0, Math.min(5, Math.floor(sl.length / 2))).map(stRow).join('')}</div><div><span class="label">Najtańsze stacje</span>${sl.slice(-Math.min(5, Math.floor(sl.length / 2))).reverse().map(stRow).join('')}</div></div>
+      <p class="muted small sec-empty">Kwoty brutto z kart, tylko stacje z co najmniej 5 tankowaniami. Warto podpowiedzieć kierowcom tańsze stacje na trasach.</p>` : ''}</details>`;
+}
