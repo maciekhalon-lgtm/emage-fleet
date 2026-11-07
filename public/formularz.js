@@ -443,3 +443,21 @@ $('#dialog').addEventListener('click', e => {
 $('#scrim').addEventListener('click', e => { if (e.target.id==='scrim' || e.target.closest('[data-action="close"]')) closeForm(); });
 document.addEventListener('keydown', e => { if (e.key==='Escape' && !$('#scrim').hidden) closeForm(); });
 
+
+/* Nowy przydział: po wyborze kierowcy podpowiadamy jego auto (odpowiedzialny albo ostatnio jeżdżone, jeśli wolne) i ostatnią trasę */
+document.addEventListener('change', e => {
+  if (e.target.id!=='f-bookings-driverId' || !editing || editing.col!=='bookings' || editing.id) return;
+  const dr = e.target.value; if (!dr) return;
+  const vSel = $('#f-bookings-vehicleId'), rSel = $('#f-bookings-routeId');
+  const f = $('#f-bookings-from')?.value || today(), t = $('#f-bookings-to')?.value || f;
+  const free = vid => { const v = byId('vehicles', vid); return v && v.status==='aktywny' && vehicleState(v).cls!=='bad' && !S.bookings.some(b => !b.returned && b.vehicleId===vid && b.from<=t && f<=b.to); };
+  const past = S.bookings.filter(b => crewOf(b).includes(dr)).sort((a, b) => b.from.localeCompare(a.from));
+  const hint = [];
+  if (vSel && !vSel.value){
+    const resp = S.vehicles.filter(v => respOf(v).includes(dr)).map(v => v.id);
+    const cand = [...resp, ...past.map(b => b.vehicleId)].find(free);
+    if (cand && [...vSel.options].some(o => o.value===cand)){ vSel.value = cand; hint.push(`auto ${byId('vehicles', cand).plate}`); }
+  }
+  if (rSel && !rSel.value && past[0] && past[0].routeId && [...rSel.options].some(o => o.value===past[0].routeId)){ rSel.value = past[0].routeId; hint.push(`trasa ${rCode(past[0].routeId)}`); }
+  if (hint.length){ toast('Podpowiedź: ' + hint.join(', ') + ' – możesz zmienić'); bookingCheck(); }
+});
