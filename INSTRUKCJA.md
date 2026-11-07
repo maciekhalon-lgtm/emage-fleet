@@ -79,6 +79,15 @@ Podsumowanie według aut i kierowców; kliknięcie wpisu kierowcy pozwala go pop
 zamknąć usterki, odnotować wymianę oleju (następna za 12 000 km, przypomnienie 2 000 km wcześniej) i opon.
 
 
+## Ostrzeżenia w grafiku i na Pulpicie
+
+- Przydział z czerwoną ramką i ⚠ – w tym dniu przegląd / OC auta albo dokumenty kierowcy są nieważne (szczegóły pod kursorem).
+  Jeśli to dziś lub jutro, sprawa jest na górze „Wymaga uwagi” z przyciskiem **Zmień przydział**.
+- Formularz przydziału ostrzega, gdy przegląd / OC wygasa w trakcie przydziału albo drugi kierowca ma nieważne dokumenty.
+- Karta „Auta w serwisie i niesprawne”: od ilu dni auto stoi i czy jest w grafiku w najbliższych 3 dniach.
+- Gdy dane floty są uzupełnione poniżej 70%, Pulpit przypomina o **Kompletności danych** (bak i opony – „Ustaw wszystkim”).
+- Skróty klawiszowe (komputer): **?** – lista, **g** + litera – zakładka (np. g g – Grafik), **Ctrl+K** lub **/** – szukaj.
+
 ## Ekran kierowcy
 
 Ekran ma jedną dużą kartę „co teraz”:
