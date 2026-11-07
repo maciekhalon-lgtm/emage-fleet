@@ -85,7 +85,7 @@ function viewCard(){
     <div class="section">${sec('Koszty (ostatnie 40)', add('costs','+ Koszt'), costRows, 'Brak kosztów.')}</div></div>`;
   else if (cardTab==='historia') body = sec('Historia', '', histHtml ? `<div class="tlist">${histHtml}</div>` : '', 'Brak wpisów – tu pojawią się koszty, usterki, naprawy i wyjazdy tego auta.');
   else body = `<div class="facts">${facts}</div><div class="grid2">
-      <div class="section">${sec('Grafik', add('bookings','+ Przydział'), bkHtml, 'Brak przydziałów.')}</div>
+      <div class="section">${sec('Grafik', add('bookings','+ Przydział'), bkHtml, 'Brak przydziałów.')}${P().manage || P().service ? whoDroveHtml(v.id) : ''}</div>
       <div class="section">${sec('Dokumenty', canUpload ? `<button class="small" data-new="docs" data-veh="${esc(v.id)}">+ Dodaj plik</button>` : '', docHtml,
           'Brak dokumentów – dodaj skan dowodu rejestracyjnego, polisy lub umowy (PDF albo zdjęcie).')}</div></div>`;
   return `<div class="section">
@@ -171,3 +171,13 @@ async function saveStdDeadlines(){
   } catch(err){ handleWriteErr(err); }
 }
 document.addEventListener('click', e => { const t = e.target.closest('[data-std-dl]'); if (!t) return; e.preventDefault(); openStdDeadlines(t.dataset.stdDl); });
+
+/* Kto jeździł tym autem w ostatnich 90 dniach (dni z grafiku) */
+function whoDroveHtml(vid){
+  const t = today(), from = addDays(t, -89), cnt = {};
+  S.bookings.filter(b => b.vehicleId===vid && b.to>=from && b.from<=t).forEach(b => {
+    for (let d = b.from > from ? b.from : from; d <= (b.to < t ? b.to : t); d = addDays(d, 1)) crewOf(b).forEach(x => { cnt[x] = (cnt[x] || 0) + 1; }); });
+  const xs = Object.entries(cnt).sort((a, b) => b[1] - a[1]); if (!xs.length) return '';
+  const max = xs[0][1];
+  return `<div class="panel"><div class="sec-head"><h3>Kto jeździł – 90 dni</h3></div>${xs.slice(0, 8).map(([id, n]) => `<div class="mini"><span>${esc(dName(id))}</span><span class="wd-bar"><i style="width:${Math.round(n / max * 100)}%"></i></span><span class="mini-r num">${n} ${isPlural(n,'dzień','dni','dni')}</span></div>`).join('')}</div>`;
+}
