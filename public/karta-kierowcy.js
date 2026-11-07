@@ -17,7 +17,9 @@ function drvCardStats(id, from, to){
   const bad = name ? badOdometers().filter(x => x.d>=from && x.d<=to && String(x.who || '').includes(name)) : [];
   const flagged = flaggedCosts().filter(c => (fillDriver(c) || c.driverId)===id);
   const susp = typeof fcSuspicious==='function' && name ? fcSuspicious().filter(x => x.row.txDate>=from && x.row.txDate<=to && String(fcDriver(x.row, null) || '').includes(name)) : [];
-  return {days: days.size, fuel, km: km_, l, rate: km_ >= 300 ? l / km_ * 100 : null, veh, bad, flagged, susp};
+  // usterki i szkody z dni, w których jechał tym autem (wg grafiku)
+  const iss = S.issues.filter(i => i.date>=from && i.date<=to && S.bookings.some(b => b.vehicleId===i.vehicleId && crewOf(b).includes(id) && b.from<=i.date && b.to>=i.date)).sort((a, b) => a.date<b.date ? 1 : -1);
+  return {days: days.size, fuel, km: km_, l, rate: km_ >= 300 ? l / km_ * 100 : null, veh, bad, flagged, susp, iss, acc: iss.filter(i => typeof isAccident==='function' && isAccident(i))};
 }
 
 function openDriverCard(id){
@@ -43,10 +45,12 @@ function openDriverCard(id){
       ${fact('Przejechane (odcinki)', s.km ? new Intl.NumberFormat('pl-PL').format(Math.round(s.km)) + ' km' : '—')}
       ${fact('Złe liczniki', s.bad.length, s.bad.length ? 'neg' : '')}
       ${fact('Do wyjaśnienia', s.flagged.length + s.susp.length, s.flagged.length + s.susp.length ? 'neg' : '')}
+      ${fact('Usterki / szkody', `${s.iss.length - s.acc.length} / ${s.acc.length}`, s.acc.length ? 'neg' : '')}
     </div>
     ${s.rate != null && s.rate > THEFT_RATE ? `<div class="field full"><div class="notice err"><span>Spalanie powyżej ${THEFT_RATE} l/100 km na odcinkach, które zamknął jego tankowaniem – sprawdź w Paliwo → Miesiąc do miesiąca.</span></div></div>` : ''}
     ${s.bad.length ? `<div class="field full"><span class="label">Złe liczniki</span>${s.bad.slice(0, 5).map(x => `<div class="mini"><span class="num">${fdate(x.d)}</span><span>${vPlate(x.vid)}</span><span class="mini-r num">${km(x.odo)} <span class="pill warn">${esc(x.kind)}</span></span></div>`).join('')}</div>` : ''}
     ${s.susp.length ? `<div class="field full"><span class="label">Podejrzane tankowania z kart</span>${s.susp.slice(0, 5).map(x => `<div class="mini"><span class="num">${fdate(x.row.txDate)}</span><span>${vPlate(x.row.vehicleId)}</span><span class="mini-r"><span class="pill warn">${esc(x.why[0])}</span></span></div>`).join('')}</div>` : ''}
+    ${s.iss.length ? `<div class="field full"><span class="label">Usterki i szkody w jego dniach jazdy</span>${s.iss.slice(0, 6).map(i => `<div class="mini"><span class="num">${fdate(i.date)}</span><span>${esc(i.title)}<span class="sub">${esc(byId('vehicles', i.vehicleId)?.plate || '')}</span></span><span class="mini-r">${isAccident(i) ? '<span class="pill bad">szkoda</span>' : `<span class="pill">${esc({nowe:'nowe', naprawa:'w naprawie', naprawione:'naprawione'}[i.status] || i.status)}</span>`}</span></div>`).join('')}</div>` : ''}
     <div class="field full"><span class="label">Ostatnie tankowania</span>${s.fuel.slice(0, 8).map(c => `<div class="mini"><span class="num">${fdate(c.date)}</span><span>${vPlate(c.vehicleId)}</span><span class="mini-r num">${fl(c.liters)} · ${fm(c.amount)}</span></div>`).join('') || '<span class="muted small">Brak tankowań w tym okresie.</span>'}</div>`;
   $('#dlg-save').textContent = canEditDoc('drivers', d) ? 'Edytuj dane' : 'Zamknij';
   if (!canEditDoc('drivers', d)) editing.special = () => closeForm();

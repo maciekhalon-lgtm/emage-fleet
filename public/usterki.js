@@ -36,7 +36,7 @@ function issueRow(i, showVeh = true){
 }
 
 function viewIssues(){
-  const chips = [['open','Otwarte'],['stop','Auto niesprawne'],['done','Naprawione'],['all','Wszystkie']];
+  const chips = [['open','Otwarte'],['stop','Auto niesprawne'],...(typeof isAccident==='function' && S.issues.some(isAccident) ? [['acc','Szkody']] : []),['done','Naprawione'],['all','Wszystkie']];
   const head = `<div class="bar"><h2>Usterki</h2><div class="tools">${chips.map(([k,l])=>`<button class="small ${issueFilter===k?'primary':''}" data-isf="${k}">${l}</button>`).join('')}${canCreate('issues')?'<button class="primary" data-new="issues">+ Zgłoś usterkę</button>':''}</div></div>`;
   if (!S.issues.length) return head + loadingOr('issues', emptyBlock('Brak zgłoszonych usterek',
     'Kierowcy zgłaszają tu problemy z autem – od przepalonej żarówki po awarię. Kierownik serwisu zmienia status zgłoszenia, a auto oznaczone jako niesprawne znika z puli dostępnych.',
@@ -44,7 +44,7 @@ function viewIssues(){
   const order = {nowe:0, naprawa:1, naprawione:2}, sevO = {stop:0, istotna:1, drobna:2};
   const list = S.issues.filter(i =>
       issueFilter==='all' || (issueFilter==='open' && i.status!=='naprawione') ||
-      (issueFilter==='stop' && i.status!=='naprawione' && i.severity==='stop') || (issueFilter==='done' && i.status==='naprawione'))
+      (issueFilter==='stop' && i.status!=='naprawione' && i.severity==='stop') || (issueFilter==='acc' && typeof isAccident==='function' && isAccident(i)) || (issueFilter==='done' && i.status==='naprawione'))
     .sort((a,b) => (order[a.status]-order[b.status]) || (sevO[a.severity]-sevO[b.severity]) || (a.date<b.date?1:-1));
   const t90 = addDays(today(), -90), fixed = S.issues.filter(i => i.status==='naprawione' && i.resolvedAt && i.resolvedAt >= t90 && i.date);
   const avgFix = fixed.length ? fixed.reduce((x, i) => x + Math.max(0, diffDays(i.date, i.resolvedAt)), 0) / fixed.length : null;
