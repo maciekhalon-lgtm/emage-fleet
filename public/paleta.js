@@ -21,6 +21,7 @@ function palActions(){
   if (canCreate('serviceEntries') && P().service) a.push({ic:'clip', t:'Wpis serwisowy', s:'do książki serwisowej', run: () => openForm('serviceEntries')});
   if (canCreate('deadlines')) a.push({ic:'cal', t:'Dodaj termin', s:'przegląd, OC, serwis…', run: () => openForm('deadlines')});
   if (canCreate('vehicles')) a.push({ic:'truck', t:'Dodaj pojazd', s:'nowe auto we flocie', run: () => openForm('vehicles')});
+  if (!P().mycar || P().manage || P().service) a.push({ic:'search', t:'Skróty klawiszowe', s:'Ctrl+K, g + litera…', run: () => openShortcuts()});
   if (P().manage) a.push({ic:'fuel', t:'Import z karty paliwowej', s:'Paliwo → Karty paliwowe', run: () => { location.hash = 'karty'; setTimeout(() => document.querySelector('#view [data-action="fc-import"]')?.click(), 150); }});
   return a;
 }
@@ -82,4 +83,25 @@ document.addEventListener('click', e => {
   if (!palOpen) return;
   const it = e.target.closest('[data-pal]'); if (it){ palRun(+it.dataset.pal); return; }
   if (e.target.id==='pal') closePalette();
+});
+
+/* Skróty klawiszowe (komputer): „?” – lista skrótów, „g” + litera – przejście do zakładki */
+const KEY_GO = [['p','pulpit','Pulpit'],['a','pojazdy','Pojazdy'],['g','przydzial','Grafik'],['u','usterki','Usterki'],['t','terminy','Terminy'],['k','koszty','Koszty'],['r','raporty','Raporty'],['s','ustawienia','Ustawienia']];
+let keyG = 0;
+function openShortcuts(){
+  editing = {col:'shortcuts', id: null, base:{}, special: () => closeForm()};
+  const row = (k, l) => `<div class="mini"><span class="kb">${k}</span><span>${l}</span><span></span></div>`;
+  $('#dlg-title').textContent = 'Skróty klawiszowe';
+  $('#dlg-body').innerHTML = `<div class="field full">${row('<kbd>Ctrl</kbd> + <kbd>K</kbd> lub <kbd>/</kbd>', 'Szukaj: auto, kierowca, trasa, czynność')}${row('<kbd>Esc</kbd>', 'Zamknij okno')}${row('<kbd>?</kbd>', 'Ta lista')}</div>
+    <div class="field full"><span class="label">Przejdź do zakładki: najpierw <kbd>g</kbd>, potem litera</span>${KEY_GO.map(([k, , l]) => row(`<kbd>g</kbd> <kbd>${k}</kbd>`, l)).join('')}</div>`;
+  $('#dlg-save').textContent = 'Zamknij'; $('#dlg-del').hidden = true; $('#scrim').hidden = false;
+}
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey || e.metaKey || e.altKey || palOpen) return;
+  const typing = /^(INPUT|TEXTAREA|SELECT)$/.test((e.target || {}).tagName) || (e.target || {}).isContentEditable;
+  if (typing || $('#app').hidden || !$('#scrim').hidden) return;
+  if (e.key==='?'){ e.preventDefault(); openShortcuts(); return; }
+  if (keyG && Date.now() - keyG < 1200){ keyG = 0; const x = KEY_GO.find(([k]) => k===e.key.toLowerCase());
+    if (x){ e.preventDefault(); location.hash = x[1]; } return; }
+  if (e.key==='g' && !(P().mycar && !P().manage && !P().service)) keyG = Date.now();
 });
