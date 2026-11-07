@@ -397,3 +397,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--ink)!important;box-sh
 .ann-h{font-size:12px;font-weight:600;opacity:.75}
 .ann p{margin:4px 0 0;font-size:15px;font-weight:550;line-height:1.4}
 .ann>button{grid-column:2;justify-self:start;background:var(--on-accent);color:var(--accent);border-color:var(--on-accent)}
+.inst{display:grid;grid-template-columns:auto minmax(0,1fr);gap:12px;background:var(--surface);border-radius:22px;padding:16px;border:1px dashed var(--line-2)}
+.inst>svg.i{width:26px;height:26px;color:var(--accent-ink)}
+.inst>div>b{display:block}.inst>div>span{display:block;font-size:13.5px;color:var(--muted);margin-top:2px}
+.inst-a{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px}.inst-a span{color:var(--ink)}

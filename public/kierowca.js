@@ -107,6 +107,7 @@ function viewMyCar(){
     ${hero}
     ${typeof myStopsPanel==='function' ? myStopsPanel(active && !active.returned ? active.routeId : (todayB && todayB.routeId) || null) : ''}
     ${mySchedulePanel()}
+    ${typeof installHint==='function' ? installHint() : ''}
   </div>`;
 }
 const loadingRoutesOk = () => !!(myDriverId() && typeof loadRoutes==='function' && loadRoutes().length);
