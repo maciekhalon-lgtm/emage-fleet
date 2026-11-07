@@ -16,6 +16,8 @@ Kierownik floty: **Pracownicy → Użytkownicy** → rola, dla kierowcy jego wpi
 
 ## Menu kierownika
 
+**Szybkie wyszukiwanie:** lupa w menu albo **Ctrl+K** (lub „/”) – wpisz rejestrację, nazwisko, trasę, klienta albo czynność (np. „przydział”, „koszt”) i naciśnij Enter.
+
 Na komputerze menu jest na górze strony (czarny pasek), na telefonie – na dole ekranu („Więcej” otwiera resztę sekcji). Na telefonie grafik pokazuje jeden dzień naraz – dni tygodnia wybierasz u góry, a pojazdy są listą kart.
 
 | Pozycja | Co tam jest |

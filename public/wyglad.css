@@ -320,3 +320,26 @@ input:focus,select:focus,textarea:focus{border-color:var(--ink)!important;box-sh
 .acc-checks{display:flex;flex-direction:column;gap:6px}
 .sub.pre{white-space:pre-line}
 @media (max-width:640px){.acc-grid{grid-template-columns:1fr}}
+
+/* szybkie wyszukiwanie (Ctrl+K) */
+.side .k-open{color:var(--night-muted);border:0;background:rgba(255,255,255,.07);border-radius:999px;padding:8px}
+.side .k-open:hover{color:var(--night-ink);background:rgba(255,255,255,.14)}
+.side .k-open svg.i{width:17px;height:17px}
+.m-search{margin-left:auto;border:0;background:transparent;padding:8px}
+@media (min-width:1001px){.m-search{display:none}}
+.pal-scrim{position:fixed;inset:0;z-index:200;background:rgba(22,19,14,.45);backdrop-filter:blur(4px);display:flex;justify-content:center;align-items:flex-start;padding:10vh 16px 16px}
+.pal{width:100%;max-width:620px;background:var(--surface);border-radius:24px;box-shadow:var(--shadow);overflow:hidden;display:flex;flex-direction:column;max-height:76vh}
+.pal-in{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--line)}
+.pal-in svg.i{width:20px;height:20px;color:var(--muted)}
+.pal-in input{flex:1;border:0!important;background:transparent!important;box-shadow:none!important;font-size:17px;padding:6px 0}
+.pal-in kbd{font-family:var(--f-num);font-size:11px;border:1px solid var(--line-2);border-radius:6px;padding:2px 6px;color:var(--muted)}
+#pal-list{overflow:auto;padding:6px}
+.pal-g{font-size:11.5px;font-weight:600;color:var(--muted);padding:10px 12px 4px}
+.pal-it{display:flex;width:100%;align-items:center;gap:12px;padding:10px 12px;border:0;border-radius:14px;background:transparent;text-align:left;justify-content:flex-start}
+.pal-it svg.i{width:18px;height:18px;color:var(--muted);flex:none}
+.pal-it span{display:flex;flex-direction:column;min-width:0}
+.pal-it b{font-weight:600}.pal-it em{font-style:normal;font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pal-it.on,.pal-it:hover{background:var(--accent-soft)}
+.pal-it.on svg.i{color:var(--accent-ink)}
+.pal-none{padding:18px}
+@media (max-width:640px){.pal-scrim{padding:12px}.pal{max-height:88vh}}
