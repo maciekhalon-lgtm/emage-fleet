@@ -58,6 +58,7 @@ const FORMS = {
     {k:'vehicleId',l:'Auto',t:'select',o:vehOpts(),req:1,full:1},
     ...(P().bookings==='rw' ? [{k:'routeId',l:'Trasa',t:'select',o:routeOpts(),full:1}, {k:'coDriverId',l:'Drugi kierowca (opcjonalnie)',t:'select',o:drvOpts('— brak —'),full:1}] : []),
     {k:'purpose',l:'Uwagi',t:'textarea',full:1,ph:'np. załadunek o 6:00, klient czeka od 8:00'},
+    ...(!(editing && editing.id) && P().bookings==='rw' ? [{k:'repeatUntil',l:'Powtórz w dni robocze do (opcjonalnie)',t:'date',full:1}] : []),
   ]},
   costs: { title:['Nowy koszt','Edytuj koszt'], fields: () => costFieldsFor([
     {k:'date',l:'Data',t:'date',req:1},
@@ -392,9 +393,20 @@ $('#dialog').addEventListener('submit', async e => {
       if (ids === null) return;
       data.photos = [...(data.photos||[]), ...ids];
     }
+    const repeatUntil = data.repeatUntil; delete data.repeatUntil;
     const ref = id ? db.collection(col).doc(id) : db.collection(col).doc();
     await ref.set(data);
     let okMsg = '';
+    if (col==='bookings' && !id && repeatUntil && repeatUntil > data.from){   // ten sam przydział w kolejne dni robocze (bez sobót, niedziel i zajętych dni)
+      let made = 0, skip = 0;
+      for (let d = addDays(data.from, 1); d <= repeatUntil && made < 60; d = addDays(d, 1)){
+        const wd = parse(d).getDay(); if (wd===0 || wd===6) continue;
+        const crew = [data.driverId, data.coDriverId].filter(Boolean);
+        if (S.bookings.some(b => b.from<=d && b.to>=d && !b.returned && (b.vehicleId===data.vehicleId || crewOf(b).some(x => crew.includes(x))))){ skip++; continue; }
+        await db.collection('bookings').doc().set({...data, from: d, to: d}); made++;
+      }
+      okMsg = `Zapisano przydział i ${made} ${isPlural(made,'kolejny dzień','kolejne dni','kolejnych dni')}${skip ? ` (pominięto ${skip} – zajęte)` : ''}`;
+    }
     if (col==='vehicles' && data.applyModel && data.consGood && data.consOk){
       const same = S.vehicles.filter(v => v.id!==ref.id && String(v.make).trim().toUpperCase()===String(data.make).trim().toUpperCase() && String(v.model).trim().toUpperCase()===String(data.model).trim().toUpperCase());
       for (const v of same) await db.collection('vehicles').doc(v.id).update({consGood: data.consGood, consOk: data.consOk});
