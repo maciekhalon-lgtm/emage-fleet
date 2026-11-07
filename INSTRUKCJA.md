@@ -86,6 +86,8 @@ Ekran ma jedną dużą kartę „co teraz”:
    **Zatankuj** (litry, kwota, licznik; „Tankuję za granicą” – EUR/CZK z kursem NBP), **Załadunek** (trasy, których towar zabierasz,
    waga i zdjęcie przy trasie z załadunkiem) i **Usterka** – oraz duży przycisk **Zdaj auto** (tylko licznik i uwagi).
    Jeśli trasa ma przystanki, pod kartą auta jest lista klientów: **Nawiguj** (Mapy Google), telefon i „Cała trasa w Mapach Google”.
+   Pod przyciskiem „Zdaj auto” – **Kolizja lub szkoda**: najpierw bezpieczeństwo (112), potem rodzaj, miejsce, dane drugiej strony,
+   sprawca, policja, opis i do 8 zdjęć. Zgłoszenie trafia do Serwis → Usterki z oznaczeniem „szkoda”.
 3. **Mój grafik** – najbliższe 3 dni pracy (przycisk „Wszystkie” – 2 tygodnie): auto, trasa, uwagi, kto wiezie Twój towar.
 4. Ikona osoby w prawym górnym rogu – **Moje dane**: ostatnie tankowania, zgłoszone usterki, dane i telefon (zmiana do akceptacji).
 5. Wylosowany do kontroli paragonów musi dodać zdjęcie paragonu. Bez zasięgu tankowanie i zdanie auta zapisują się w telefonie

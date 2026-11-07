@@ -80,6 +80,7 @@ function viewMyCar(){
         <button class="d-act" data-new="issues" data-veh="${esc(v.id)}">${ic('wrench')}<b>Usterka</b></button>
       </div>
       <button class="d-main" data-ho="return" data-id="${esc(active.id)}">${ic('key')}Zdaj auto</button>
+      <button class="d-link" data-accident="${esc(v.id)}">${ic('alert')} Kolizja lub szkoda</button>
     </div>`;
   } else if (meDriver() && meDriver().active===false){
     hero = inactiveNote();

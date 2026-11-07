@@ -20,11 +20,11 @@ function photoField(prefix, existing = []){
 }
 
 /* Wgrywa wybrane pliki; zwraca listę id albo null, gdy coś poszło nie tak (komunikat już pokazany). */
-async function uploadPhotos(prefix, already = 0){
+async function uploadPhotos(prefix, already = 0, max = MAX_PHOTOS){
   const el = $('#'+prefix+'-photos');
   const files = el && el.files ? [...el.files] : [];
   if (!files.length) return [];
-  if (files.length + already > MAX_PHOTOS){ toast('Możesz dodać najwyżej '+MAX_PHOTOS+' zdjęcia'); return null; }
+  if (files.length + already > max){ toast('Możesz dodać najwyżej '+max+' zdjęć'); return null; }
   const bad = files.find(f => !PHOTO_TYPES.includes(f.type));
   if (bad){ toast('Plik „'+bad.name+'” nie jest zdjęciem JPG, PNG ani WebP'); return null; }
   const big = files.find(f => f.size > 10*1024*1024);

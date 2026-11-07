@@ -1,0 +1,81 @@
+/* Emage FLEET — zgłoszenie kolizji / szkody przez kierowcę (krok po kroku na jednym ekranie).
+   Zapisuje się jako usterka „Szkoda: …” z pełnym opisem (druga strona, policja, oświadczenie) i do 8 zdjęć,
+   więc kierownicy widzą ją od razu w Serwis → Usterki (i dostają powiadomienie o nowej usterce). */
+
+const ACC_KINDS = ['Kolizja z innym pojazdem', 'Uszkodzenie przy manewrowaniu / na parkingu', 'Uderzenie w obiekt (słupek, brama, rampa)', 'Szyba – uderzenie kamienia', 'Kradzież lub włamanie', 'Inna szkoda'];
+const ACC_MAX_PHOTOS = 8;
+const isAccident = i => /^Szkoda:/.test(i.title || '');
+
+function openAccident(vid){
+  const v = byId('vehicles', vid); if (!v) return;
+  const nowLocal = new Date(Date.now() - new Date().getTimezoneOffset() * 60e3).toISOString().slice(0, 16);
+  editing = {col:'accident', id: null, base:{vehicleId: vid}, special: saveAccident};
+  $('#dlg-title').textContent = `Kolizja / szkoda · ${v.plate}`;
+  $('#dlg-body').innerHTML = `<div class="field full"><div class="acc-safe">
+      <b>Najpierw bezpieczeństwo</b>
+      <ol><li>Włącz światła awaryjne, załóż kamizelkę, ustaw trójkąt.</li><li>Są ranni? Dzwoń <a class="btn small" href="tel:112">${ic('phone')}112</a></li><li>Zrób zdjęcia, zanim auta zostaną przestawione (jeśli to bezpieczne).</li></ol>
+    </div></div>
+    <div class="field full"><label for="acc-kind">Co się stało?</label><select id="acc-kind">${ACC_KINDS.map(k => `<option>${esc(k)}</option>`).join('')}</select></div>
+    <div class="field"><label for="acc-when">Kiedy</label><input id="acc-when" type="datetime-local" value="${nowLocal}"></div>
+    <div class="field"><label for="acc-km">Licznik (km)</label><input id="acc-km" type="number" inputmode="numeric" placeholder="${esc(String(v.km || ''))}"></div>
+    <div class="field full"><label for="acc-where">Gdzie (miejscowość, ulica / droga)</label><input id="acc-where" placeholder="np. Legnica, ul. Jaworzyńska przy Orlenie"></div>
+    <fieldset class="field full acc-other" id="acc-other"><legend>Druga strona</legend>
+      <div class="acc-grid">
+        <input id="acc-o-name" placeholder="Imię i nazwisko kierowcy" aria-label="Imię i nazwisko drugiego kierowcy">
+        <input id="acc-o-plate" placeholder="Nr rejestracyjny" aria-label="Nr rejestracyjny drugiego pojazdu">
+        <input id="acc-o-phone" type="tel" placeholder="Telefon" aria-label="Telefon drugiego kierowcy">
+        <input id="acc-o-ins" placeholder="Ubezpieczyciel i nr polisy OC" aria-label="Ubezpieczyciel drugiego pojazdu">
+      </div>
+      <label for="acc-fault" class="acc-l">Kto spowodował?</label>
+      <select id="acc-fault"><option value="">nie wiadomo / do ustalenia</option><option>druga strona</option><option>ja (kierowca Emage)</option><option>obie strony</option></select>
+      <label class="check"><input type="checkbox" id="acc-stmt"> Spisaliśmy oświadczenie sprawcy (zrób mu zdjęcie)</label>
+    </fieldset>
+    <div class="field full acc-checks">
+      <label class="check"><input type="checkbox" id="acc-police"> Była policja</label>
+      <label class="check"><input type="checkbox" id="acc-witness"> Są świadkowie (dane w opisie)</label>
+      <label class="check"><input type="checkbox" id="acc-stop"> Auto nie nadaje się do dalszej jazdy</label>
+    </div>
+    <div class="field full"><label for="acc-desc">Opis – co się stało, co jest uszkodzone</label><textarea id="acc-desc" rows="3" placeholder="np. cofając pod rampę uderzyłem tylnym zderzakiem w słupek"></textarea></div>
+    ${photoField('acc').replace(`(do ${MAX_PHOTOS}, JPG lub PNG)`, `(do ${ACC_MAX_PHOTOS}: całe miejsce, uszkodzenia, tablica drugiego auta, oświadczenie)`)}
+    <div class="warnline" id="dlg-warn" hidden></div>`;
+  $('#dlg-save').textContent = 'Wyślij zgłoszenie';
+  $('#dlg-del').hidden = true;
+  $('#scrim').hidden = false;
+  accToggle();
+}
+function accToggle(){
+  const k = ($('#acc-kind') || {}).value || '';
+  const other = /Kolizja|parkingu/.test(k);
+  const box = $('#acc-other'); if (box) box.hidden = !other;
+}
+async function saveAccident(){
+  const w = $('#dlg-warn'), g = id => (($('#' + id) || {}).value || '').trim(), c = id => !!($('#' + id) || {}).checked;
+  const kind = g('acc-kind'), where = g('acc-where'), desc = g('acc-desc');
+  if (!where){ w.textContent = 'Wpisz, gdzie to się stało.'; w.hidden = false; $('#acc-where').focus(); return; }
+  if (!desc){ w.textContent = 'Opisz krótko, co się stało i co jest uszkodzone.'; w.hidden = false; $('#acc-desc').focus(); return; }
+  const kmV = Number(g('acc-km')) || null;
+  const other = !$('#acc-other').hidden;
+  const when = g('acc-when');
+  const lines = [
+    `Rodzaj: ${kind}`,
+    `Kiedy: ${when ? when.replace('T', ' ') : '—'}`,
+    `Gdzie: ${where}`,
+    other ? `Druga strona: ${[g('acc-o-name'), g('acc-o-plate'), g('acc-o-phone'), g('acc-o-ins')].filter(Boolean).join(' · ') || 'brak danych'}` : '',
+    other ? `Sprawca: ${g('acc-fault') || 'do ustalenia'}${c('acc-stmt') ? ' · oświadczenie spisane' : ''}` : '',
+    `Policja: ${c('acc-police') ? 'tak' : 'nie'} · Świadkowie: ${c('acc-witness') ? 'tak' : 'nie'}`,
+    c('acc-stop') ? 'AUTO NIE NADAJE SIĘ DO JAZDY' : '',
+    '', desc,
+  ].filter(x => x !== '').join('\n');
+  const btn = $('#dlg-save'); btn.disabled = true;
+  try {
+    const photos = await uploadPhotos('acc', 0, ACC_MAX_PHOTOS);
+    if (photos === null) return;
+    await db.collection('issues').doc().set({vehicleId: editing.base.vehicleId, title: `Szkoda: ${kind}`, description: lines,
+      severity: c('acc-stop') ? 'stop' : 'istotna', status: 'nowe', date: (when || today()).slice(0, 10), km: kmV, photos});
+    closeForm();
+    toast('Zgłoszenie wysłane – kierownik je widzi');
+  } catch(err){ handleWriteErr(err); }
+  finally { btn.disabled = false; }
+}
+document.addEventListener('change', e => { if (e.target.id==='acc-kind') accToggle(); });
+document.addEventListener('click', e => { const t = e.target.closest('[data-accident]'); if (!t) return; e.preventDefault(); openAccident(t.dataset.accident); });
