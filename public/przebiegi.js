@@ -96,6 +96,7 @@ function viewFuelMileage(){
       <div><span class="label">Podejrzane (> ${THEFT_RATE} l/100)</span><b class="${res.some(x => x.rate!=null && x.rate > THEFT_RATE) ? 'neg' : ''}">${res.filter(x => x.rate!=null && x.rate > THEFT_RATE).length}</b></div>
       <div><span class="label">Średnio na auto</span><b>${nf(totalKm / Math.max(1, res.filter(x => x.km).length))} km</b></div></div>
     <div class="panel tablewrap fc-table"><table><thead><tr>${th('plate', 'Auto')}${th('rate', 'Spalanie', 1)}${th('km', 'Przebieg', 1)}${th('l', 'Litry', 1)}<th>Dane</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
+    ${routeConsPanel(res)}
     <p class="muted small" style="margin:0">Kliknij nagłówek kolumny, aby posortować (drugi raz – odwrotnie). Przebieg: wszystkie liczniki (karta, tankowania, przejęcie i zdanie auta). Spalanie: tankowania z kart paliwowych, a gdy ich brak – wpisy kierowców; liczone odcinkami, pojedynczy zły licznik pomijany, dziura (np. tankowanie inną kartą) przerywa liczenie. Wynik poza 5–25 l/100 km – „niepewne”, poza średnią floty. Kliknij auto, aby zobaczyć liczniki po kolei.</p>`;
 }
 document.addEventListener('change', e => {
@@ -108,3 +109,19 @@ document.addEventListener('click', e => {
   if (t.dataset.pbs){ const k = t.dataset.pbs; pbSort = pbSort.k===k ? {k, dir: -pbSort.dir} : {k, dir: k==='plate' ? 1 : -1}; render(); return; }
   pbOpen.has(t.dataset.pbv) ? pbOpen.delete(t.dataset.pbv) : pbOpen.add(t.dataset.pbv); render();
 });
+
+/* Spalanie wg tras: odcinki między tankowaniami przypisane do trasy z grafiku w dniu końca odcinka */
+function routeConsPanel(res){
+  if (!S.routes.length) return '';
+  const agg = {};
+  res.forEach(({v, c}) => (c && c.parts || []).forEach(p => {
+    if (!p.km || p.km < 50) return;
+    const b = S.bookings.find(x => x.vehicleId===v.id && x.routeId && x.from<=p.d1 && x.to>=p.d1); if (!b) return;
+    (agg[b.routeId] = agg[b.routeId] || {km:0, l:0, n:0}); agg[b.routeId].km += p.km; agg[b.routeId].l += p.l; agg[b.routeId].n++;
+  }));
+  const xs = Object.entries(agg).filter(([, x]) => x.km >= 300).map(([rid, x]) => ({rid, ...x, rate: x.l / x.km * 100})).sort((a, b) => b.rate - a.rate);
+  if (!xs.length) return '';
+  return `<details class="panel fold"><summary class="sec-head"><h3>Spalanie wg tras</h3><span class="muted small">${xs.length} ${isPlural(xs.length,'trasa','trasy','tras')}</span></summary>
+    ${xs.map(x => `<div class="mini"><span><b>${esc(rLabel(x.rid))}</b><span class="sub">${new Intl.NumberFormat('pl-PL').format(Math.round(x.km))} km · ${x.n} ${isPlural(x.n,'odcinek','odcinki','odcinków')}</span></span><span class="muted small">${fl(x.l)}</span><span class="mini-r num"><b class="${x.rate > THEFT_RATE ? 'neg' : ''}">${x.rate.toFixed(1).replace('.', ',')} l/100</b></span></div>`).join('')}
+    <p class="muted small sec-empty">Odcinek liczy się do trasy, którą auto miało w grafiku w dniu tankowania zamykającego odcinek. Trasy z autostradą i pełnym załadunkiem palą więcej – porównuj tę samą trasę w czasie.</p></details>`;
+}
