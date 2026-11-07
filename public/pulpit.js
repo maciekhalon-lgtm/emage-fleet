@@ -25,6 +25,10 @@ function attentionItems(serviceOnly){
     + S.deadlines.filter(d => d.vehicleId===v.id && BLOCK_TYPES.includes(d.type) && d.date < today() && canEditDoc('deadlines', d)).map(d => `<button class="small" data-renew="${esc(d.id)}">${d.type==='Ubezpieczenie OC' ? 'OC odnowione' : 'Przegląd zrobiony'}</button>`).join(''))}));
   if (P().manage && got.vehicles && got.drivers && typeof dqChecks==='function'){ const q = dqChecks();
     if (q.total && q.pct < 70) out.push({w: 2.5, html: attRow('warn', '', `Dane floty uzupełnione w ${q.pct}%`, 'brakuje m.in.: ' + esc(q.checks.slice(0, 3).map(c => c[1]==='VIN' ? c[1] : c[1][0].toLowerCase() + c[1].slice(1)).join(', ')) + ' – bez nich część alarmów nie działa', `<a class="btn small" href="#ustawienia">Uzupełnij</a>`)}); }
+  // jutro (i dziś) w grafiku przydział z nieważnym przeglądem / OC albo dokumentami kierowcy
+  if ((P().manage || P().bookings==='rw') && typeof bookingDayIssue==='function') [today(), addDays(today(), 1)].forEach((d, k) => S.bookings.filter(b => !b.returned && !b.pickup && b.from<=d && b.to>=d).forEach(b => {
+    const iss = bookingDayIssue(b, d); if (!iss.length) return;
+    out.push({w: k ? 1 : 0, html: attRow('bad', b.vehicleId, `${k ? 'Jutro' : 'Dziś'} w grafiku: ${esc(crewName(b))}`, esc(iss.join(' · ')), canEditDoc('bookings', b) ? `<button class="small" data-edit="bookings" data-id="${esc(b.id)}">Zmień przydział</button>` : '')}); }));
   const tr = tireReminder();
   if (tr) out.push({w: tr.urgent ? 1 : 3, html: attRow(tr.urgent ? 'bad' : 'warn', '', `${tr.list.length} ${isPlural(tr.list.length,'auto','auta','aut')} ${tr.txt}`, tr.list.slice(0, 8).map(v => esc(v.plate)).join(', ') + (tr.list.length > 8 ? '…' : ''), canCreate('serviceEntries') ? `<button class="small" data-new="serviceEntries">Wpis serwisowy</button>` : '')});
   S.deadlines.forEach(d => {
