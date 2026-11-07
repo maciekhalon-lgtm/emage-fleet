@@ -69,7 +69,8 @@ function viewCard(){
   const tabNav = `<nav class="subtabs card-tabs" aria-label="Karta pojazdu">${tabs.map(([k, l, n]) => `<a href="#" data-ctab="${k}" ${cardTab===k ? 'aria-current="page"' : ''}>${l}${n ? ` <span class="count bad">${n}</span>` : ''}</a>`).join('')}</nav>`;
   let body = '';
   const stdMiss = canCreate('deadlines') ? STD_DL.filter(t => !S.deadlines.some(d => d.vehicleId===v.id && d.type===t)) : [];
-  if (cardTab==='serwis') body = (stdMiss.length ? `<div class="notice"><span>Brakuje podstawowych terminów: <b>${stdMiss.join(', ')}</b> – bez nich system nie przypomni o nich ani nie zablokuje auta po terminie.</span><button class="small" data-std-dl="${esc(v.id)}">Uzupełnij</button></div>` : '') + `<div class="grid2"><div class="section">
+  const woBtn = P().service || P().manage ? `<div class="wo-bar"><button class="small" data-workorder="${esc(v.id)}">${ic('clip')}Zlecenie dla warsztatu (druk)</button></div>` : '';
+  if (cardTab==='serwis') body = woBtn + (stdMiss.length ? `<div class="notice"><span>Brakuje podstawowych terminów: <b>${stdMiss.join(', ')}</b> – bez nich system nie przypomni o nich ani nie zablokuje auta po terminie.</span><button class="small" data-std-dl="${esc(v.id)}">Uzupełnij</button></div>` : '') + `<div class="grid2"><div class="section">
       ${sec('Terminy', add('deadlines','+ Termin'), dlHtml, 'Brak zapisanych terminów.')}
       ${sec('Usterki', add('issues','+ Zgłoś'), iss.length ? `<div class="dl">${iss.map(i => issueRow(i, false)).join('')}</div>` : '', 'Brak zgłoszonych usterek.')}</div>
     <div class="section">${P().service ? sec('Książka serwisowa', add('serviceEntries','+ Wpis serwisowy'), svcHtml, 'Brak wpisów – zapisuj tu naprawy i wymiany: co zrobiono, przy jakim przebiegu, gdzie i za ile.') : ''}</div></div>`;
@@ -183,3 +184,32 @@ function whoDroveHtml(vid){
   const max = xs[0][1];
   return `<div class="panel"><div class="sec-head"><h3>Kto jeździł – 90 dni</h3></div>${xs.slice(0, 8).map(([id, n]) => `<div class="mini"><span>${esc(dName(id))}</span><span class="wd-bar"><i style="width:${Math.round(n / max * 100)}%"></i></span><span class="mini-r num">${n} ${isPlural(n,'dzień','dni','dni')}</span></div>`).join('')}</div>`;
 }
+
+/* Zlecenie dla warsztatu: auto, otwarte usterki, terminy do zrobienia, miejsce na uwagi warsztatu i podpisy */
+async function printWorkOrder(vid){
+  const v = byId('vehicles', vid) || {}, t = today();
+  const iss = S.issues.filter(i => i.vehicleId===vid && i.status!=='naprawione');
+  const dls = S.deadlines.filter(d => d.vehicleId===vid).map(d => ({d, s: dlState(d)})).filter(x => x.s.d <= 45).sort((a, b) => a.s.d - b.s.d);
+  let el = $('#print-area'); if (!el){ el = document.createElement('div'); el.id = 'print-area'; document.body.appendChild(el); }
+  const box = '<span class="wo-box"></span>';
+  el.innerHTML = `<div class="pa">
+    <div class="pa-h"><div><b>Emage Group</b><span>Zlecenie dla warsztatu</span></div><div class="pa-r">${fdate(t)}</div></div>
+    <h1>${esc(v.plate || '')} · ${esc([v.make, v.model].filter(Boolean).join(' '))}</h1>
+    <table class="pa-t">
+      <tr><th>VIN</th><td>${esc(v.vin || '')}</td></tr><tr><th>Rok / paliwo</th><td>${esc([v.year, v.fuel].filter(Boolean).join(' · '))}</td></tr>
+      <tr><th>Przebieg przy oddaniu</th><td>${v.km ? km(v.km) : ''} &nbsp; (sprawdź: ______________ km)</td></tr>
+      <tr><th>Opony</th><td>${v.tires ? esc(TIRES[v.tires] || '') : ''}</td></tr>
+    </table>
+    <h2>Do zrobienia</h2>
+    <table class="pa-t wo-t"><tr><th style="width:24px"></th><th>Zakres</th><th style="width:30%">Uwagi warsztatu</th></tr>
+      ${iss.map(i => `<tr><td>${box}</td><td><b>${esc(i.title)}</b>${i.description ? `<br><span class="pa-s">${esc(i.description).replace(/\n/g, '<br>')}</span>` : ''}</td><td></td></tr>`).join('')}
+      ${dls.map(({d, s}) => `<tr><td>${box}</td><td><b>${esc(d.type)}</b><br><span class="pa-s">${esc(s.txt)}${d.kmDue ? ' · do ' + km(d.kmDue) : ''}</span></td><td></td></tr>`).join('')}
+      ${[1, 2, 3].map(() => `<tr><td>${box}</td><td>&nbsp;</td><td></td></tr>`).join('')}
+    </table>
+    <h2>Koszt i części</h2><div class="pa-desc" style="min-height:90px"></div>
+    <div class="pa-sign"><div>Zlecający (Emage)</div><div>Warsztat – przyjęcie</div><div>Odbiór auta</div></div>
+    <p class="pa-f">Emage FLEET · po naprawie dodaj wpis w książce serwisowej – usterki i terminy zamkną się same.</p></div>`;
+  document.documentElement.classList.add('print-doc');
+  setTimeout(() => { window.print(); document.documentElement.classList.remove('print-doc'); }, 60);
+}
+document.addEventListener('click', e => { const t = e.target.closest('[data-workorder]'); if (!t) return; e.preventDefault(); printWorkOrder(t.dataset.workorder); });
