@@ -128,16 +128,16 @@ function viewSchedule(){
       const bs = S.bookings.filter(b => crewOf(b).includes(dr.id) && b.from<=d && b.to>=d);
       const wd = (parse(d).getDay()+6)%7;
       const cell = bs.map(b => { const v = byId('vehicles', b.vehicleId);
-        return `<span class="sch-chip ${conf.has(b.id)?'bad':''} ${b.pickup && !b.returned ? 'out' : ''} ${b.returned ? 'back' : ''}" ${canEditDoc('bookings', b) ? `data-edit="bookings" data-id="${esc(b.id)}"` : ''} title="${esc((v ? v.plate+' · '+v.make+' '+v.model : '') + (b.routeId ? ' · ' + rLabel(b.routeId) : '') + (b.purpose ? ' · ' + b.purpose : ''))}">
+        return `<span class="sch-chip ${conf.has(b.id)?'bad':''} ${b.pickup && !b.returned ? 'out' : ''} ${b.returned ? 'back' : ''}" ${b.from===b.to && !b.pickup && canEditDoc('bookings', b) && P().bookings==='rw' ? 'draggable="true"' : ''} ${canEditDoc('bookings', b) ? `data-edit="bookings" data-id="${esc(b.id)}"` : ''} title="${esc((v ? v.plate+' · '+v.make+' '+v.model : '') + (b.routeId ? ' · ' + rLabel(b.routeId) : '') + (b.purpose ? ' · ' + b.purpose : ''))}">
           <b>${esc(v ? v.plate : '?')}</b>${b.routeId ? `<i>${esc(rCode(b.routeId))}</i>` : ''}${crewOf(b).length > 1 ? `<i>+ ${esc(dName(crewOf(b).find(x => x!==dr.id)).split(' ')[0])}</i>` : ''}${b.purpose ? `<i class="sch-note">${esc(b.purpose)}</i>` : ''}${b.routeId && routeLoaders(b.routeId, d).length ? `<i class="sch-load">${ic('box')}${esc(routeLoaders(b.routeId, d).map(x => x.name.split(' ')[0]).join(', '))}</i>` : ''}</span>`; }).join('');
       const add = canCreate('bookings') && P().bookings==='rw' && !bs.length ? `data-sched="${esc(dr.id)}|${d}" title="Przydziel auto"` : '';
-      return `<td class="sch-cell ${d===t?'today':''} ${wd>4?'we':''} ${add?'add':''}" ${add}>${cell}</td>`; }).join('')}</tr>`).join('');
+      return `<td class="sch-cell ${d===t?'today':''} ${wd>4?'we':''} ${add?'add':''}" ${add} data-cell="${esc(dr.id)}|${d}">${cell}</td>`; }).join('')}</tr>`).join('');
   // wiersz „Wolne auta”: sprawne auta bez przydziału danego dnia
   const okVeh = S.vehicles.filter(v => v.status==='aktywny' && vehicleState(v).cls!=='bad');
   const freeRow = `<tr class="sch-free"><td class="sch-name"><b>Wolne auta</b></td>${days.map(d => { const fr = okVeh.filter(v => !S.bookings.some(b => b.vehicleId===v.id && b.from<=d && b.to>=d && !(b.returned && b.returned.at && b.returned.at.slice(0, 10) < d)));
     return `<td class="sch-cell ${d===t?'today':''}" title="${esc(fr.map(v => v.plate).join(', '))}"><b class="num">${fr.length}</b>${fr.length ? `<i>${esc(fr.slice(0, 3).map(v => v.plate).join(', '))}${fr.length > 3 ? '…' : ''}</i>` : ''}</td>`; }).join('')}</tr>`;
   return nav + `<div class="panel tablewrap sch"><table><thead>${head}</thead><tbody>${rows}${freeRow}</tbody></table></div>
-    <p class="muted small" style="margin:0">Kliknij puste pole, aby przydzielić kierowcy auto, trasę i uwagi na ten dzień. Kliknij przydział, aby go zmienić. Na czerwono – to samo auto u dwóch kierowców albo kierowca z dwoma autami tego samego dnia. Ikona paczki – kto wiezie towar dla tej trasy.</p>`;
+    <p class="muted small" style="margin:0">Kliknij puste pole, aby przydzielić kierowcy auto, trasę i uwagi na ten dzień. Kliknij przydział, aby go zmienić – albo przeciągnij go na innego kierowcę lub dzień. Na czerwono – to samo auto u dwóch kierowców albo kierowca z dwoma autami tego samego dnia. Ikona paczki – kto wiezie towar dla tej trasy.</p>`;
 }
 function copyWeekAsk(){
   const from = addDays(calStart, -7), to = addDays(calStart, -1);
@@ -212,3 +212,28 @@ document.addEventListener('click', async e => {
   if (e.target.closest('[data-dp-share]')){ e.preventDefault(); try { await navigator.share({text: $('#dp-text').value}); } catch(_){} }
 });
 document.addEventListener('change', e => { if (e.target.id==='dp-day' && e.target.value) $('#dp-text').value = dayPlanText(e.target.value); });
+
+/* Przeciąganie przydziałów w grafiku (komputer): chwyć jednodniowy, nieprzejęty przydział i upuść na innego kierowcę albo dzień */
+document.addEventListener('dragstart', e => {
+  const c = e.target.closest && e.target.closest('.sch-chip[data-id]'); if (!c) return;
+  const row = c.closest('td[data-cell]');
+  e.dataTransfer.setData('text/plain', c.dataset.id + '|' + (row ? row.dataset.cell.split('|')[0] : ''));
+  e.dataTransfer.effectAllowed = 'move'; c.classList.add('dragging');
+});
+document.addEventListener('dragend', e => { document.querySelectorAll('.dragging,.drop-on').forEach(x => x.classList.remove('dragging', 'drop-on')); });
+document.addEventListener('dragover', e => { const td = e.target.closest && e.target.closest('.sch td[data-cell]'); if (!td) return; e.preventDefault(); document.querySelectorAll('.drop-on').forEach(x => x!==td && x.classList.remove('drop-on')); td.classList.add('drop-on'); });
+document.addEventListener('drop', async e => {
+  const td = e.target.closest && e.target.closest('.sch td[data-cell]'); if (!td) return;
+  e.preventDefault(); td.classList.remove('drop-on');
+  const [bid, fromDr] = (e.dataTransfer.getData('text/plain') || '').split('|');
+  const b = byId('bookings', bid); if (!b) return;
+  const [dr, d] = td.dataset.cell.split('|');
+  if (dr===fromDr && d===b.from) return;
+  const upd = {from: d, to: d};
+  if (dr!==fromDr){ if (fromDr===b.coDriverId) upd.coDriverId = dr; else upd.driverId = dr; }
+  if ((upd.driverId || b.driverId)===(upd.coDriverId || b.coDriverId)) return toast('Ten kierowca już jest w tym przydziale');
+  const busy = S.bookings.find(x => x.id!==b.id && !x.returned && x.vehicleId===b.vehicleId && x.from<=d && x.to>=d);
+  if (busy) return toast(`Auto ${byId('vehicles', b.vehicleId)?.plate || ''} jest już przydzielone ${fdate(d)} – ${crewName(busy)}`);
+  try { await db.collection('bookings').doc(b.id).update(upd); toast(`Przeniesiono: ${dName(upd.driverId || upd.coDriverId || dr)} · ${fdate(d)}`); }
+  catch(err){ handleWriteErr(err); }
+});
