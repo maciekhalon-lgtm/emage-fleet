@@ -20,20 +20,25 @@ function attentionItems(serviceOnly){
   const out = [];
   const canDl = d => canEditDoc('deadlines', d);
   const canIs = P().issues==='rw' && canWrite;
-  blockedVehicles().forEach(({v, bl}) => out.push({w: bl.override ? 3 : 0, html: attRow(bl.override ? 'warn' : 'bad', v.id, bl.override ? 'Zgoda na wyjazd dziś' : 'Auto zablokowane', esc(bl.reason) + (bl.override ? ' · „' + esc(bl.override.reason) + '”' : ''),
-    (!bl.override && P().manage ? `<button class="small" data-override="${esc(v.id)}">Zezwól dziś</button>` : '')
-    + S.deadlines.filter(d => d.vehicleId===v.id && BLOCK_TYPES.includes(d.type) && d.date < today() && canEditDoc('deadlines', d)).map(d => `<button class="small" data-renew="${esc(d.id)}">${d.type==='Ubezpieczenie OC' ? 'OC odnowione' : 'Przegląd zrobiony'}</button>`).join(''))}));
+  // najbliższy (3 dni) nieprzejęty przydział auta – dopisujemy go do wiersza blokady / niesprawności zamiast osobnego wiersza
+  const plan = !serviceOnly && P().bookings==='rw';
+  const soonB = vid => plan ? S.bookings.filter(b => b.vehicleId===vid && !b.returned && !b.pickup && b.to >= today() && b.from <= addDays(today(), 3)).sort((a, b) => a.from < b.from ? -1 : 1)[0] : null;
+  const whenB = b => b.from <= today() ? 'dziś' : b.from===addDays(today(), 1) ? 'jutro' : fdate(b.from).slice(0, 5);
+  const bkTxt = b => b ? ` · <b class="neg">w grafiku ${whenB(b)}: ${esc(crewName(b))}</b>` : '';
+  const bkBtn = b => b && canEditDoc('bookings', b) ? `<button class="small" data-edit="bookings" data-id="${esc(b.id)}">Zmień auto</button>` : '';
+  const blockedIds = new Set();
+  blockedVehicles().forEach(({v, bl}) => { if (!bl.override) blockedIds.add(v.id); const b = bl.override ? null : soonB(v.id);
+    out.push({w: bl.override ? 3 : 0, html: attRow(bl.override ? 'warn' : 'bad', v.id, bl.override ? 'Zgoda na wyjazd dziś' : 'Auto zablokowane', esc(bl.reason) + (bl.override ? ' · „' + esc(bl.override.reason) + '”' : '') + bkTxt(b),
+    bkBtn(b) + (!bl.override && P().manage ? `<button class="small" data-override="${esc(v.id)}">Zezwól dziś</button>` : '')
+    + S.deadlines.filter(d => d.vehicleId===v.id && BLOCK_TYPES.includes(d.type) && d.date < today() && canEditDoc('deadlines', d)).map(d => `<button class="small" data-renew="${esc(d.id)}">${d.type==='Ubezpieczenie OC' ? 'OC odnowione' : 'Przegląd zrobiony'}</button>`).join(''))}); });
   if (P().manage && got.vehicles && got.drivers && typeof dqChecks==='function'){ const q = dqChecks();
     if (q.total && q.pct < 70) out.push({w: 2.5, html: attRow('warn', '', `Dane floty uzupełnione w ${q.pct}%`, 'brakuje m.in.: ' + esc(q.checks.slice(0, 3).map(c => c[1]==='VIN' ? c[1] : c[1][0].toLowerCase() + c[1].slice(1)).join(', ')) + ' – bez nich część alarmów nie działa', `<a class="btn small" href="#ustawienia">Uzupełnij</a>`)}); }
-  // auto niesprawne / w serwisie, a w grafiku na najbliższe 3 dni – trzeba podmienić auto
-  if (!serviceOnly && P().bookings==='rw') S.bookings.filter(b => !b.returned && !b.pickup && b.to >= today() && b.from <= addDays(today(), 3)).forEach(b => {
-    const v = byId('vehicles', b.vehicleId); if (!v) return;
-    const si = stopIssue(v.id); if (!si && v.status!=='serwis') return;
-    const when = b.from <= today() ? 'dziś' : b.from===addDays(today(), 1) ? 'jutro' : fdate(b.from).slice(0, 5);
-    out.push({w: b.from <= addDays(today(), 1) ? 0 : 1, html: attRow('bad', v.id, `Auto ${si ? 'niesprawne' : 'w serwisie'}, a w grafiku ${when}: ${esc(crewName(b))}`, si ? esc(si.title) : 'status: w serwisie', canEditDoc('bookings', b) ? `<button class="small" data-edit="bookings" data-id="${esc(b.id)}">Zmień auto</button>` : '')}); });
+  // auto w serwisie (bez usterki „stop”, ta ma własny wiersz niżej), a w grafiku na najbliższe 3 dni
+  S.vehicles.filter(v => v.status==='serwis' && !stopIssue(v.id) && !blockedIds.has(v.id)).forEach(v => { const b = soonB(v.id); if (!b) return;
+    out.push({w: b.from <= addDays(today(), 1) ? 0 : 1, html: attRow('bad', v.id, `Auto w serwisie, a w grafiku ${whenB(b)}: ${esc(crewName(b))}`, 'zmień auto w przydziale albo zakończ serwis', bkBtn(b))}); });
   // jutro (i dziś) w grafiku przydział z nieważnym przeglądem / OC albo dokumentami kierowcy
   if ((P().manage || P().bookings==='rw') && typeof bookingDayIssue==='function') [today(), addDays(today(), 1)].forEach((d, k) => S.bookings.filter(b => !b.returned && !b.pickup && b.from<=d && b.to>=d).forEach(b => {
-    const iss = bookingDayIssue(b, d); if (!iss.length) return;
+    const iss = bookingDayIssue(b, d).filter(x => !(blockedIds.has(b.vehicleId) && x.includes(' auta '))); if (!iss.length) return;   // blokada auta jest już wyżej
     out.push({w: k ? 1 : 0, html: attRow('bad', b.vehicleId, `${k ? 'Jutro' : 'Dziś'} w grafiku: ${esc(crewName(b))}`, esc(iss.join(' · ')), canEditDoc('bookings', b) ? `<button class="small" data-edit="bookings" data-id="${esc(b.id)}">Zmień przydział</button>` : '')}); }));
   const tr = tireReminder();
   if (tr) out.push({w: tr.urgent ? 1 : 3, html: attRow(tr.urgent ? 'bad' : 'warn', '', `${tr.list.length} ${isPlural(tr.list.length,'auto','auta','aut')} ${tr.txt}`, tr.list.slice(0, 8).map(v => esc(v.plate)).join(', ') + (tr.list.length > 8 ? '…' : ''), canCreate('serviceEntries') ? `<button class="small" data-new="serviceEntries">Wpis serwisowy</button>` : '')});
@@ -47,9 +52,10 @@ function attentionItems(serviceOnly){
   openIssues().forEach(i => {
     if (i.severity!=='stop') return;   // pozostałe usterki są w karcie „Usterki do obsługi”
     const stop = i.severity==='stop';
+    const b = soonB(i.vehicleId);
     out.push({w: stop ? 0 : 1, html: attRow(stop ? 'bad' : 'warn', i.vehicleId, (stop ? 'Niesprawne: ' : 'Usterka: ') + esc(i.title),
-      `${i.status==='naprawa' ? 'w naprawie · ' : ''}zgłosił(a) ${esc(i.createdBy ? pName(i.createdBy) : '—')} · ${fdate(i.date)}`,
-      canIs && i.status==='nowe' ? `<button class="small" data-issue-st="naprawa" data-id="${esc(i.id)}">Do naprawy</button>` : `<button class="small ghost" data-go="usterki">Szczegóły</button>`)});
+      `${i.status==='naprawa' ? 'w naprawie · ' : ''}zgłosił(a) ${esc(i.createdBy ? pName(i.createdBy) : '—')} · ${fdate(i.date)}` + bkTxt(b),
+      bkBtn(b) + (canIs && i.status==='nowe' ? `<button class="small" data-issue-st="naprawa" data-id="${esc(i.id)}">Do naprawy</button>` : `<button class="small ghost" data-go="usterki">Szczegóły</button>`))});
   });
   if (!serviceOnly && P().manage){
     theftVehicles().forEach(({v, c}) => out.push({w: 1, html: attRow('bad', v.id, `Podejrzane spalanie: ${c.rate.toFixed(1).replace('.', ',')} l/100 km`, `powyżej ${THEFT_RATE} l/100 km – możliwa kradzież paliwa · ${new Intl.NumberFormat('pl-PL').format(Math.round(c.km))} km`, `<button class="small" data-card-go="${esc(v.id)}" data-ctab-go="paliwo">Sprawdź</button>`)}));

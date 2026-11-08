@@ -456,3 +456,4 @@ kbd{display:inline-block;font:600 11px/1 "Geist Mono",ui-monospace,monospace;pad
   .setl tfoot tr{display:grid;grid-template-columns:1fr 1fr;gap:4px 14px;padding:12px 14px;border-top:2px solid var(--line)}
   .setl tfoot th{padding:0;border:0}.setl tfoot th:nth-child(n+3):nth-child(-n+7){display:none}.setl tfoot th{text-align:right}.setl tfoot th:first-child{text-align:left}
 }
+.att-row .neg, .att .sub b.neg{color:var(--bad)}
