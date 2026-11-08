@@ -143,3 +143,8 @@ Motyw jasny/ciemny: przełącznik słońce/księżyc w górnym pasku (komputer) 
 - **Raport tygodniowy** – w poniedziałek rano kierownik floty dostaje powiadomienie: koszty tygodnia (z porównaniem), tankowania, nowe usterki i terminy na 14 dni. Wymaga włączonych powiadomień na telefonie.
 - **Terminy floty w jednej tabeli** – Serwis → Terminy → „Terminy floty (N)” albo na Pulpicie „Uzupełnij wszystkie”: przegląd, OC i olej dla wszystkich aut, które ich nie mają, w jednym oknie. Puste pola są pomijane, OC podpowiada się z danych polisy.
 - **Stan floty i wymiana aut** – Koszty → Raporty: wiek, przebieg, km na miesiąc, naprawy i koszt/km z 12 miesięcy, kiedy auto dojdzie do 300 tys. km i ocena „w porządku / obserwuj / do rozważenia wymiany”.
+
+## Opony (Serwis → Opony) – po uruchomieniu 027_opony.sql
+- Komplety opon każdego auta: sezon, rozmiar, marka, rok produkcji (DOT), bieżnik, gdzie leżą (na aucie / w magazynie / zużyte).
+- **Załóż zimowe / letnie** – jedno kliknięcie: zdjęty komplet idzie do magazynu (miejsce i bieżnik), założony na auto, opcjonalnie koszt wymiany do kosztów auta.
+- Ostrzeżenia: bieżnik poniżej 1,6 mm (prawo), zimą poniżej 4 mm (zalecane w Niemczech i Austrii), opony 6+ lat. Karta auta pokazuje opony z bieżnikiem.

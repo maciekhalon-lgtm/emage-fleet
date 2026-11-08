@@ -118,6 +118,19 @@ const FORMS = {
     {k:'active',l:'Aktywna (można ją przypisywać)',t:'check'},
     {k:'note',l:'Notatka',t:'textarea',full:1},
   ]},
+  tires: { title:['Nowy komplet opon','Edytuj komplet opon'], fields: () => [
+    {k:'vehicleId',l:'Auto',t:'select',o:[['','— bez auta (zapas) —'], ...vehOpts().filter(([v]) => v)],full:1},
+    {k:'season',l:'Sezon',t:'select',o:Object.entries(TIRES),req:1},
+    {k:'location',l:'Gdzie jest',t:'select',o:Object.entries(TIRE_LOC),req:1},
+    {k:'size',l:'Rozmiar',ph:'np. 225/75 R16C'},
+    {k:'brand',l:'Marka i model',ph:'np. Michelin Agilis'},
+    {k:'dot',l:'Rok produkcji (DOT)',t:'number',ph:'np. 2023'},
+    {k:'treadMm',l:'Bieżnik (mm)',t:'number',step:'0.1',ph:'np. 6,5'},
+    {k:'storage',l:'Miejsce w magazynie',ph:'np. regał A3, przechowalnia Vulco',full:1},
+    {k:'mountedAt',l:'Założone dnia',t:'date'},
+    {k:'mountedKm',l:'Przy przebiegu (km)',t:'number'},
+    {k:'note',l:'Notatka',full:1},
+  ]},
   docs: { title:['Dodaj dokument','Edytuj dokument'], fields: () => [
     {k:'kind',l:'Rodzaj',t:'select',o:DOC_KINDS.map(k=>[k,k]),req:1},
     {k:'validUntil',l:'Ważny do',t:'date'},
@@ -126,6 +139,7 @@ const FORMS = {
   ]},
 };
 const DEFAULTS = {
+  tires: () => ({season: 'zimowe', location: 'magazyn'}),
   vehicles: () => ({status:'aktywny', fuel:'Diesel', tankL:90}),
   drivers: () => ({active:true}),
   routes: () => ({active:true}),
@@ -396,6 +410,11 @@ $('#dialog').addEventListener('submit', async e => {
       const ids = await uploadPhotos('f-'+col, (data.photos||[]).length);
       if (ids === null) return;
       data.photos = [...(data.photos||[]), ...ids];
+    }
+    if (col==='tires'){
+      if (data.location==='na_aucie' && !data.vehicleId){ const w = $('#dlg-warn'); if (w){ w.textContent = 'Komplet „na aucie” musi mieć wybrane auto.'; w.hidden = false; } return; }
+      // na auto zakładamy nowy komplet → poprzedni z tego auta schodzi do magazynu
+      if (data.location==='na_aucie') for (const o of S.tires.filter(x => x.vehicleId===data.vehicleId && x.location==='na_aucie' && x.id!==id)) await db.collection('tires').doc(o.id).update({location:'magazyn'});
     }
     const repeatUntil = data.repeatUntil; delete data.repeatUntil;
     const ref = id ? db.collection(col).doc(id) : db.collection(col).doc();

@@ -1,8 +1,8 @@
 /* Emage FLEET — role: role użytkowników i uprawnienia (interfejs; baza egzekwuje je osobno regułami RLS) */
 'use strict';
 const ROLES = {
-  floty:    {name:'Kierownik floty',   desc:'Pełne uprawnienia, zatwierdza konta i nadaje role', perm:{vehicles:'rw',deadlines:'rw',bookings:'rw',drivers:'rw',costs:'rw',issues:'rw',docs:'rw',routes:'rw',serviceEntries:'rw',blockOverrides:'rw',service:true,reports:'rw',history:'r',manage:true}},
-  serwisu:  {name:'Kierownik serwisu', desc:'Pojazdy, terminy, usterki, dokumenty i koszty; podgląd grafiku', perm:{vehicles:'rw',deadlines:'rw',bookings:'r',drivers:'r',costs:'rw',issues:'rw',docs:'rw',serviceEntries:'rw',service:true,reports:'r'}},
+  floty:    {name:'Kierownik floty',   desc:'Pełne uprawnienia, zatwierdza konta i nadaje role', perm:{vehicles:'rw',deadlines:'rw',bookings:'rw',drivers:'rw',costs:'rw',issues:'rw',docs:'rw',routes:'rw',serviceEntries:'rw',blockOverrides:'rw',tires:'rw',fines:'rw',contracts:'rw',service:true,reports:'rw',history:'r',manage:true}},
+  serwisu:  {name:'Kierownik serwisu', desc:'Pojazdy, terminy, usterki, dokumenty i koszty; podgląd grafiku', perm:{vehicles:'rw',deadlines:'rw',bookings:'r',drivers:'r',costs:'rw',issues:'rw',docs:'rw',serviceEntries:'rw',tires:'rw',fines:'r',contracts:'r',service:true,reports:'r'}},
   kierowca: {name:'Kierowca',          desc:'Moje auto, grafik, załadunek, tankowania i zgłoszenia usterek', perm:{vehicles:'r',deadlines:'r',bookings:'own',drivers:'r',costs:'own',issues:'own',docs:'r',mycar:true}},
 };
 const DRIVER_CATS = ['Paliwo','Ładowanie','Myjnia','Opłaty i parkingi'];

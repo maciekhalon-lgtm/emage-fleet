@@ -5,7 +5,7 @@ const sb = supabase.createClient(CONFIG.supabaseUrl, CONFIG.supabaseKey, {
 });
 
 /* nazwa w aplikacji → tabela w bazie */
-const TABLES = {vehicles:'vehicles', drivers:'drivers', deadlines:'deadlines', bookings:'bookings', costs:'costs', issues:'issues', docs:'documents', settings:'settings', routeStops:'route_stops', fleetCosts:'fleet_costs', requests:'data_change_requests', crewChanges:'crew_changes', routes:'routes', serviceEntries:'service_entries', blockOverrides:'block_overrides', loadings:'loadings', loadingReports:'loading_reports', fuelCardImports:'fuel_card_imports', fuelCardRows:'fuel_card_rows', members:'profiles'};
+const TABLES = {vehicles:'vehicles', drivers:'drivers', deadlines:'deadlines', bookings:'bookings', costs:'costs', issues:'issues', docs:'documents', settings:'settings', routeStops:'route_stops', fleetCosts:'fleet_costs', tires:'tires', fines:'fines', contracts:'vehicle_contracts', requests:'data_change_requests', crewChanges:'crew_changes', routes:'routes', serviceEntries:'service_entries', blockOverrides:'block_overrides', loadings:'loadings', loadingReports:'loading_reports', fuelCardImports:'fuel_card_imports', fuelCardRows:'fuel_card_rows', members:'profiles'};
 const COL_OF = Object.fromEntries(Object.entries(TABLES).map(([a, b]) => [b, a]));
 
 /* pole w aplikacji → kolumna w bazie */
@@ -20,6 +20,7 @@ const FIELDS = {
   loadings:  {routeId:'route_id', driverId:'driver_id', loadDate:'load_date', forDate:'for_date'},
   routeStops: {routeId:'route_id', timeFrom:'time_from'},
   fleetCosts: {},
+  tires: {vehicleId:'vehicle_id', treadMm:'tread_mm', mountedAt:'mounted_at', mountedKm:'mounted_km'},
   loadingReports: {driverId:'driver_id', loadDate:'load_date', weightKg:'weight_kg'},
   fuelCardImports: {invoiceNo:'invoice_no', invoicePath:'invoice_path', fileName:'file_name', periodFrom:'period_from', periodTo:'period_to', rowsTotal:'rows_total', rowsOurs:'rows_ours'},
   fuelCardRows: {importId:'import_id', vehicleId:'vehicle_id', txDate:'tx_date', txTime:'tx_time', cardNo:'card_no', costId:'cost_id'},
@@ -42,6 +43,7 @@ const WRITABLE = {
   loadings:  ['id','route_id','driver_id'],
   routeStops: ['id','route_id','pos','client','address','time_from','phone','note'],
   fleetCosts: ['id','date','category','amount','note'],
+  tires: ['id','vehicle_id','season','size','brand','dot','tread_mm','location','storage','mounted_at','mounted_km','note'],
   loadingReports: ['id','driver_id','weight_kg','photo'],
   bookings:  ['id','vehicle_id','driver_id','date_from','date_to','purpose','route_id','pickup_at','pickup_km','pickup_fuel','pickup_note','pickup_photos','pickup_by','pickup_checklist','return_at','return_km','return_fuel','return_note','return_photos','return_by','co_driver_id'],
   costs:     ['id','date','vehicle_id','driver_id','category','amount','liters','odometer','full_tank','note','photos','co_driver_id','confirm_status','currency','amount_orig','fx_rate','fx_manual','station','flag_state','flag_question'],
@@ -150,17 +152,19 @@ S.fuelAll = [];
 async function refresh(col){
   const table = TABLES[col]; if (!table) return;
   if ((col==='members' || col==='crewChanges' || col==='fuelCardImports' || col==='fuelCardRows' || col==='fleetCosts') && !P().manage) return;
+  if ((col==='tires' || col==='fines' || col==='contracts') && !P().manage && !P().service){ got[col] = true; return; }
   if (col==='serviceEntries' && !P().service) return;
   // Supabase oddaje najwyżej 1000 wierszy na zapytanie – pobieramy partiami aż do końca
   const key = col==='settings' ? 'key' : 'id', PAGE = 1000, data = [];
   for (let from = 0; ; from += PAGE){
     const {data: part, error} = await sb.from(table).select('*').order(key).range(from, from + PAGE - 1);
-    if (error){ got[col] = true; if (col==='routeStops') stopsReady = false; if (col==='fleetCosts') fleetCostsReady = false; return; }
+    if (error){ got[col] = true; if (col in OPT) OPT[col] = false; if (col==='routeStops') stopsReady = false; if (col==='fleetCosts') fleetCostsReady = false; return; }
     data.push(...(part || []));
     if (!part || part.length < PAGE) break;
   }
   if (col==='routeStops') stopsReady = true;
   if (col==='fleetCosts') fleetCostsReady = true;
+  if (col in OPT) OPT[col] = true;
   if (col==='members') profiles = data;
   else S[col] = data.map(r => toApp(col, r));
   got[col] = true;
@@ -202,6 +206,10 @@ function queueRefresh(col){
 }
 
 let channel = null, stopsChannel = null, stopsReady = false, fcChannel = null, fleetCostsReady = false;
+/* Tabele z nowszych migracji (027 opony, 028 mandaty, 029 umowy): dopóki SQL nie jest uruchomiony, moduł jest ukryty,
+   a reszta aplikacji działa normalnie. OPT[col] = true, gdy tabela istnieje i dane się wczytały. */
+const OPT = {tires: false, fines: false, contracts: false}, optChannels = {};
+const optOn = col => !!OPT[col];
 async function loadAll(){
   db = dbApi;
   setSync('', 'Wczytywanie danych…');
@@ -213,7 +221,7 @@ async function loadAll(){
   if (channel) sb.removeChannel(channel);
   channel = sb.channel('zmiany');
   // route_stops ma osobny kanał – dopóki migracja 022 nie jest uruchomiona, błąd tej subskrypcji nie zatrzymuje reszty
-  Object.values(TABLES).filter(t => t!=='route_stops' && t!=='fleet_costs').forEach(t => channel.on('postgres_changes', {event:'*', schema:'public', table:t}, p => {
+  Object.values(TABLES).filter(t => t!=='route_stops' && t!=='fleet_costs' && !(COL_OF[t] in OPT)).forEach(t => channel.on('postgres_changes', {event:'*', schema:'public', table:t}, p => {
     const col = COL_OF[p.table];
     if (col==='members' || p.table==='profiles'){ onProfileChange(p); return; }
     queueRefresh(col);
@@ -227,6 +235,8 @@ async function loadAll(){
   // koszty ogólne (migracja 024) – też osobny kanał
   if (fcChannel) sb.removeChannel(fcChannel);
   if (fleetCostsReady) fcChannel = sb.channel('koszty-ogolne').on('postgres_changes', {event:'*', schema:'public', table:'fleet_costs'}, () => queueRefresh('fleetCosts')).subscribe();
+  Object.keys(OPT).forEach(col => { if (optChannels[col]){ sb.removeChannel(optChannels[col]); delete optChannels[col]; }
+    if (OPT[col]) optChannels[col] = sb.channel('opt-' + col).on('postgres_changes', {event:'*', schema:'public', table: TABLES[col]}, () => queueRefresh(col)).subscribe(); });
   if (P().manage) sb.rpc('prune_change_log').then(() => {}, () => {});
   schedule();
 }

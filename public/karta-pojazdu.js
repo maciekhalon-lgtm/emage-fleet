@@ -16,8 +16,8 @@ function viewCard(){
 
   const facts = [
     ['Przebieg', km(v.km)], ['Rok', esc(v.year||'—')], ['Napęd', esc(v.fuel||'—')], ['Bak', (v.tankL || 90) + ' l'],
-    ['Odpowiedzialni', (respOf(v).length?esc(respNames(v)):'<span class="muted">nikt</span>') + (typeof canResp==='function' && canResp() ? ` <button class="small ghost" data-resp="${esc(v.id)}">${respOf(v).length ? 'Zmień' : 'Przypisz'}</button>` : '')], ['Tachograf', v.hasTacho ? 'tak' : 'nie'], ['Opony', v.tires ? TIRES[v.tires] : '—'], ['Polisa', policyHtml(v)], ['VIN', `<span class="num">${esc(v.vin||'—')}</span>`],
-  ].map(([l,val]) => `<div class="${l==='Polisa' || l==='Odpowiedzialni' || l==='VIN' ? 'wide' : ''}"><span class="label">${l}</span><span class="fv">${val}</span></div>`).join('');
+    ['Odpowiedzialni', (respOf(v).length?esc(respNames(v)):'<span class="muted">nikt</span>') + (typeof canResp==='function' && canResp() ? ` <button class="small ghost" data-resp="${esc(v.id)}">${respOf(v).length ? 'Zmień' : 'Przypisz'}</button>` : '')], ['Tachograf', v.hasTacho ? 'tak' : 'nie'], ['Opony', (typeof tiresFact==='function' && tiresFact(v)) || (v.tires ? TIRES[v.tires] : '—')], ['Polisa', policyHtml(v)], ['VIN', `<span class="num">${esc(v.vin||'—')}</span>`],
+  ].map(([l,val]) => `<div class="${l==='Polisa' || l==='Odpowiedzialni' || l==='VIN' || (l==='Opony' && typeof tiresOn==='function' && tiresOn() && tiresOf(v.id).length) ? 'wide' : ''}"><span class="label">${l}</span><span class="fv">${val}</span></div>`).join('');
 
   const dls = S.deadlines.filter(d => d.vehicleId===v.id).sort((a,b) => a.date<b.date?-1:1);
   const dlHtml = dls.map(d => { const s = dlState(d); return `<div class="mini ${canEditDoc('deadlines',d)?'click':''}" ${canEditDoc('deadlines',d)?`data-edit="deadlines" data-id="${esc(d.id)}"`:''}><span class="num">${fdate(d.date)}</span><span>${esc(d.type)}</span><span class="pill ${s.cls}">${esc(s.txt)}</span></div>`; }).join('');
