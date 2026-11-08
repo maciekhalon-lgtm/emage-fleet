@@ -5,7 +5,7 @@ const sb = supabase.createClient(CONFIG.supabaseUrl, CONFIG.supabaseKey, {
 });
 
 /* nazwa w aplikacji → tabela w bazie */
-const TABLES = {vehicles:'vehicles', drivers:'drivers', deadlines:'deadlines', bookings:'bookings', costs:'costs', issues:'issues', docs:'documents', settings:'settings', routeStops:'route_stops', fleetCosts:'fleet_costs', tires:'tires', fines:'fines', contracts:'vehicle_contracts', requests:'data_change_requests', crewChanges:'crew_changes', routes:'routes', serviceEntries:'service_entries', blockOverrides:'block_overrides', loadings:'loadings', loadingReports:'loading_reports', fuelCardImports:'fuel_card_imports', fuelCardRows:'fuel_card_rows', members:'profiles'};
+const TABLES = {vehicles:'vehicles', drivers:'drivers', deadlines:'deadlines', bookings:'bookings', costs:'costs', issues:'issues', docs:'documents', settings:'settings', routeStops:'route_stops', fleetCosts:'fleet_costs', tires:'tires', contracts:'vehicle_contracts', equipment:'equipment', requests:'data_change_requests', crewChanges:'crew_changes', routes:'routes', serviceEntries:'service_entries', blockOverrides:'block_overrides', loadings:'loadings', loadingReports:'loading_reports', fuelCardImports:'fuel_card_imports', fuelCardRows:'fuel_card_rows', members:'profiles'};
 const COL_OF = Object.fromEntries(Object.entries(TABLES).map(([a, b]) => [b, a]));
 
 /* pole w aplikacji → kolumna w bazie */
@@ -20,6 +20,7 @@ const FIELDS = {
   loadings:  {routeId:'route_id', driverId:'driver_id', loadDate:'load_date', forDate:'for_date'},
   routeStops: {routeId:'route_id', timeFrom:'time_from'},
   fleetCosts: {},
+  equipment: {vehicleId:'vehicle_id', validUntil:'valid_until', checkedAt:'checked_at'},
   tires: {vehicleId:'vehicle_id', treadMm:'tread_mm', mountedAt:'mounted_at', mountedKm:'mounted_km'},
   loadingReports: {driverId:'driver_id', loadDate:'load_date', weightKg:'weight_kg'},
   fuelCardImports: {invoiceNo:'invoice_no', invoicePath:'invoice_path', fileName:'file_name', periodFrom:'period_from', periodTo:'period_to', rowsTotal:'rows_total', rowsOurs:'rows_ours'},
@@ -43,6 +44,7 @@ const WRITABLE = {
   loadings:  ['id','route_id','driver_id'],
   routeStops: ['id','route_id','pos','client','address','time_from','phone','note'],
   fleetCosts: ['id','date','category','amount','note'],
+  equipment: ['id','vehicle_id','item','ok','valid_until','checked_at','note'],
   tires: ['id','vehicle_id','season','size','brand','dot','tread_mm','location','storage','mounted_at','mounted_km','note'],
   loadingReports: ['id','driver_id','weight_kg','photo'],
   bookings:  ['id','vehicle_id','driver_id','date_from','date_to','purpose','route_id','pickup_at','pickup_km','pickup_fuel','pickup_note','pickup_photos','pickup_by','pickup_checklist','return_at','return_km','return_fuel','return_note','return_photos','return_by','co_driver_id'],
@@ -152,7 +154,7 @@ S.fuelAll = [];
 async function refresh(col){
   const table = TABLES[col]; if (!table) return;
   if ((col==='members' || col==='crewChanges' || col==='fuelCardImports' || col==='fuelCardRows' || col==='fleetCosts') && !P().manage) return;
-  if ((col==='tires' || col==='fines' || col==='contracts') && !P().manage && !P().service){ got[col] = true; return; }
+  if ((col==='tires' || col==='contracts' || col==='equipment') && !P().manage && !P().service){ got[col] = true; return; }
   if (col==='serviceEntries' && !P().service) return;
   // Supabase oddaje najwyżej 1000 wierszy na zapytanie – pobieramy partiami aż do końca
   const key = col==='settings' ? 'key' : 'id', PAGE = 1000, data = [];
@@ -206,9 +208,9 @@ function queueRefresh(col){
 }
 
 let channel = null, stopsChannel = null, stopsReady = false, fcChannel = null, fleetCostsReady = false;
-/* Tabele z nowszych migracji (027 opony, 028 mandaty, 029 umowy): dopóki SQL nie jest uruchomiony, moduł jest ukryty,
+/* Tabele z nowszych migracji (027 opony, 028 wyposażenie, 029 umowy): dopóki SQL nie jest uruchomiony, moduł jest ukryty,
    a reszta aplikacji działa normalnie. OPT[col] = true, gdy tabela istnieje i dane się wczytały. */
-const OPT = {tires: false, fines: false, contracts: false}, optChannels = {};
+const OPT = {tires: false, contracts: false, equipment: false}, optChannels = {};
 const optOn = col => !!OPT[col];
 async function loadAll(){
   db = dbApi;

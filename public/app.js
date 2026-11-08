@@ -2,7 +2,7 @@
 'use strict';
 /* ---------- routing ---------- */
 const DRIVER_VIEWS = ['moje','wybierz','moje-dane'];
-const TABS = ['moje','wybierz','moje-dane','pulpit','pojazdy','trasy','terminy','usterki','ksiazka','przydzial','koszty','karty','oplaty','opony','mandaty','umowy','spalanie','liczniki','raporty','rozliczenie','porownanie','historia','kierowcy','uzytkownicy','ustawienia'];
+const TABS = ['moje','wybierz','moje-dane','pulpit','pojazdy','trasy','terminy','usterki','ksiazka','przydzial','koszty','karty','oplaty','opony','wyposazenie','umowy','spalanie','liczniki','raporty','rozliczenie','porownanie','historia','kierowcy','uzytkownicy','ustawienia'];
 const homeTab = () => P().mycar ? 'moje' : 'pulpit';
 let pendingCard = null;
 let tab = 'pulpit', q = '', costMonth = today().slice(0,7), dlFilter = 'urgent';
@@ -69,6 +69,7 @@ function render(){
   else if (tab==='liczniki') v.innerHTML = viewOdometers();
   else if (tab==='oplaty') v.innerHTML = viewTolls();
   else if (tab==='opony') v.innerHTML = viewTires();
+  else if (tab==='wyposazenie') v.innerHTML = viewEquipment();
   else v.innerHTML = viewCosts();
   if (st) v.insertAdjacentHTML('afterbegin', st);
   hydrateFiles(v);

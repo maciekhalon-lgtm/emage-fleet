@@ -148,3 +148,8 @@ Motyw jasny/ciemny: przełącznik słońce/księżyc w górnym pasku (komputer) 
 - Komplety opon każdego auta: sezon, rozmiar, marka, rok produkcji (DOT), bieżnik, gdzie leżą (na aucie / w magazynie / zużyte).
 - **Załóż zimowe / letnie** – jedno kliknięcie: zdjęty komplet idzie do magazynu (miejsce i bieżnik), założony na auto, opcjonalnie koszt wymiany do kosztów auta.
 - Ostrzeżenia: bieżnik poniżej 1,6 mm (prawo), zimą poniżej 4 mm (zalecane w Niemczech i Austrii), opony 6+ lat. Karta auta pokazuje opony z bieżnikiem.
+
+## Wyposażenie aut (Serwis → Wyposażenie) – po uruchomieniu 028_wyposazenie.sql
+- Tabela: każde auto × gaśnica, apteczka, trójkąt, kamizelki, koło zapasowe / zestaw, podnośnik, pasy do ładunku.
+- Kliknięcie pola: jest / brak, data ważności (gaśnica, apteczka), notatka. „Sprawdzone dziś” – całe auto jednym kliknięciem.
+- Ostrzeżenia: gaśnica po terminie lub ≤ 30 dni, braki, auta nigdy nie sprawdzane lub sprawdzane ponad 90 dni temu. Karta auta pokazuje braki.
