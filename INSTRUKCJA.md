@@ -27,7 +27,7 @@ Na komputerze menu jest na górze strony (czarny pasek), na telefonie – na dol
 | **Pojazdy** | lista z filtrami (w trasie, wolne, wymaga uwagi – także auta z podejrzanym spalaniem albo tankowaniami z kart) i karta auta w zakładkach: **Dane** (polisa, assistance, grafik, dokumenty), **Terminy i serwis**, **Paliwo i koszty**, **Historia**; dokumenty, książka serwisowa, historia |
 | **Grafik** | zakładki **Grafik** (tydzień: kierowcy × dni, załadunek ze zmiany, auta teraz w trasie; **Drukuj** – tydzień na A4 poziomo; przy kierowcy z nieważnymi dokumentami czerwone oznaczenie, a formularz przydziału ostrzega) i **Trasy** (przy każdej trasie przycisk **Przystanki**: klienci w kolejności jazdy – adres, godzina, telefon, uwagi) |
 | **Serwis** | zakładki **Usterki** (przy usterce **Wpis serwisowy** – od razu do książki; szkody z oznaczeniem „szkoda”, filtr **Szkody**), **Terminy** (domyślnie tylko pilne; **Plan 8 tygodni** – terminy tydzień po tygodniu, a terminy „na km” przeliczone na datę według tego, ile auto jeździ), **Książka serwisowa** |
-| **Paliwo** | (kierownik floty) zakładki **Karty paliwowe**, **Spalanie i przebiegi**, **Liczniki**, **Miesiąc do miesiąca** (spalanie pojazdów i kierowców: dwa miesiące i zmiana) i **Przejazdy i parkingi** |
+| **Paliwo** | (kierownik floty) zakładki **Karty**, **Spalanie**, **Porównanie miesięcy**, **Liczniki**, **Opłaty drogowe** (spalanie pojazdów i kierowców: dwa miesiące i zmiana) i **Przejazdy i parkingi** |
 | **Koszty** | zakładki **Koszty** (koszty miesiąca, tankowania do wyjaśnienia) i **Raporty** (koszty, kilometry ze wszystkich liczników, koszt/km, limity, Excel, **Wykorzystanie aut – 30 dni**: dni robocze w grafiku i km, auta, które prawie stoją) |
 | **Pracownicy** | zakładki **Kierowcy** (kliknięcie kierowcy – karta: dni pracy, tankowania, spalanie na jego odcinkach, złe liczniki, sprawy do wyjaśnienia; 30 albo 90 dni) i **Użytkownicy** (konta, role, spory w obsadzie, zmiany danych kierowców) |
 | **Ustawienia** | zakładki **Ustawienia** (**Kompletność danych** – czego brakuje dla alarmów i druków, budżet floty, kontrola paragonów, checklista przejęcia) i **Historia zmian** |
@@ -57,7 +57,7 @@ Nowy kierowca przyjmuje auto u siebie z checklistą.
 **Tankowania do wyjaśnienia** – baza sama oznacza podejrzane tankowania (więcej niż bak, nie to auto, dwa w ciągu 3 h,
 cena ±15% od średniej, słabe spalanie). Pulpit / Koszty → **OK** albo **Wyjaśnij** (pytanie do kierowcy).
 
-**Karty paliwowe** – Paliwo → **Karty paliwowe** → **Importuj zestawienie**: dostawca, nr faktury, faktura (PDF) i plik CSV/Excel.
+**Karty paliwowe** – Paliwo → **Karty** → **Importuj zestawienie**: dostawca, nr faktury, faktura (PDF) i plik CSV/Excel.
 Można zaznaczyć kilka plików naraz – każdy to osobne rozliczenie (fakturę dołączysz potem: **Dodaj fakturę**).
 Na górze zakładki – **Podejrzane tankowania** ze wszystkich zestawień: więcej litrów niż bak, ponad 1,2 baku w ciągu doby, dwa tankowania
 w 3 godziny, cena za litr ponad 15% wyżej niż mediana miesiąca, auto poza grafikiem. Po wyjaśnieniu kliknij **Sprawdzone** (liczba znika z menu).
@@ -65,7 +65,7 @@ w 3 godziny, cena za litr ponad 15% wyżej niż mediana miesiąca, auto poza gra
 w nagłówek kolumny. To samo spalanie widać w Pojazdach, karcie auta, kosztach i raportach.
 Przy pierwszym pliku danego układu sprawdź dopasowanie kolumn (data, nr rejestracyjny, litry, kwota brutto, licznik…) – system je zapamięta.
 Brane są tylko auta z systemu. Zaznaczone produkty to paliwo; pozostałe (opłaty drogowe, parkingi, myjnia, AdBlue) trafiają do zakładki
-**Przejazdy i parkingi** i same dopisują się do kosztów auta (usunięcie zestawienia usuwa też te koszty). Każde tankowanie z karty jest parowane z wpisem
+**Opłaty drogowe** i same dopisują się do kosztów auta (usunięcie zestawienia usuwa też te koszty). Każde tankowanie z karty jest parowane z wpisem
 kierowcy (to samo auto, dzień ±1, litry ±5%): **zgodne**, **różnice** (litry, kwota, licznik), **brak wpisu kierowcy**, a także **wpisy bez karty**.
 Przy każdym aucie przebieg i spalanie (l/100 km) z liczników karty i z wpisów kierowców, liczone odcinkami między tankowaniami;
 błędny licznik (np. brak cyfry) jest pomijany i oznaczony „licznik podejrzany”, wynik poza 5–25 l/100 km – „niepewne”.

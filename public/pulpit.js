@@ -32,7 +32,7 @@ function attentionItems(serviceOnly){
     bkBtn(b) + (!bl.override && P().manage ? `<button class="small" data-override="${esc(v.id)}">Zezwól dziś</button>` : '')
     + S.deadlines.filter(d => d.vehicleId===v.id && BLOCK_TYPES.includes(d.type) && d.date < today() && canEditDoc('deadlines', d)).map(d => `<button class="small" data-renew="${esc(d.id)}">${d.type==='Ubezpieczenie OC' ? 'OC odnowione' : 'Przegląd zrobiony'}</button>`).join(''))}); });
   if (P().manage && got.vehicles && got.drivers && typeof dqChecks==='function'){ const q = dqChecks();
-    if (q.total && q.pct < 70) out.push({w: 2.5, html: attRow('warn', '', `Dane floty uzupełnione w ${q.pct}%`, 'brakuje m.in.: ' + esc(q.checks.slice(0, 3).map(c => c[1]==='VIN' ? c[1] : c[1][0].toLowerCase() + c[1].slice(1)).join(', ')) + ' – bez nich część alarmów nie działa', `<a class="btn small" href="#ustawienia">Uzupełnij</a>`)}); }
+    if (q.total && q.pct < 70) out.push({w: 2.5, html: attRow('warn', '', `Dane floty uzupełnione w ${q.pct}%`, 'brakuje m.in.: ' + esc(q.checks.slice(0, 3).map(c => c[1]==='VIN' ? c[1] : c[1][0].toLowerCase() + c[1].slice(1)).join(', ')) + ' – bez nich część alarmów nie działa', `<a class="btn small" href="#ustawienia" data-dq-open>Uzupełnij</a>`)}); }
   // auto w serwisie (bez usterki „stop”, ta ma własny wiersz niżej), a w grafiku na najbliższe 3 dni
   S.vehicles.filter(v => v.status==='serwis' && !stopIssue(v.id) && !blockedIds.has(v.id)).forEach(v => { const b = soonB(v.id); if (!b) return;
     out.push({w: b.from <= addDays(today(), 1) ? 0 : 1, html: attRow('bad', v.id, `Auto w serwisie, a w grafiku ${whenB(b)}: ${esc(crewName(b))}`, 'zmień auto w przydziale albo zakończ serwis', bkBtn(b))}); });

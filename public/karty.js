@@ -405,7 +405,7 @@ const tlOpen = new Set();
 function viewTolls(){
   if (!P().manage) return '';
   const imps = fcImports();
-  const head = `<div class="bar"><h2>Przejazdy i parkingi</h2><div class="tools">${imps.length ? `<select id="fc-imp" style="width:auto" aria-label="Zestawienie">${imps.map(i => `<option value="${esc(i.id)}" ${i.id===(fcImportId || imps[0].id) ? 'selected' : ''}>${esc([i.provider, i.periodFrom ? fdate(i.periodFrom) + '–' + fdate(i.periodTo) : '', i.invoiceNo].filter(Boolean).join(' · '))}</option>`).join('')}</select>` : ''}
+  const head = `<div class="bar"><h2>Opłaty drogowe i parkingi</h2><div class="tools">${imps.length ? `<select id="fc-imp" style="width:auto" aria-label="Zestawienie">${imps.map(i => `<option value="${esc(i.id)}" ${i.id===(fcImportId || imps[0].id) ? 'selected' : ''}>${esc([i.provider, i.periodFrom ? fdate(i.periodFrom) + '–' + fdate(i.periodTo) : '', i.invoiceNo].filter(Boolean).join(' · '))}</option>`).join('')}</select>` : ''}
     <button class="primary" data-action="fc-import">${ic('plus')}Importuj zestawienie</button></div></div>`;
   if (!imps.length) return head + loadingOr('fuelCardImports', `<div class="panel empty"><p>Opłaty drogowe, parkingi i inne pozycje (np. myjnia, AdBlue) pojawią się tu po imporcie zestawienia z karty w zakładce Karty paliwowe. Dopisują się same do kosztów auta.</p></div>`);
   const imp = imps.find(i => i.id===fcImportId) || imps[0];

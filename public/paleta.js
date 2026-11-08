@@ -23,7 +23,7 @@ function palActions(){
   if (typeof canResp==='function' && canResp()) a.push({ic:'users', t:'Kierowcy odpowiedzialni za busy', s:'kto odpowiada za który bus', run: () => { location.hash = 'kierowcy'; }});
   if (canCreate('vehicles')) a.push({ic:'truck', t:'Dodaj pojazd', s:'nowe auto we flocie', run: () => openForm('vehicles')});
   if (!P().mycar || P().manage || P().service) a.push({ic:'search', t:'Skróty klawiszowe', s:'Ctrl+K, g + litera…', run: () => openShortcuts()});
-  if (P().manage) a.push({ic:'fuel', t:'Import z karty paliwowej', s:'Paliwo → Karty paliwowe', run: () => { location.hash = 'karty'; setTimeout(() => document.querySelector('#view [data-action="fc-import"]')?.click(), 150); }});
+  if (P().manage) a.push({ic:'fuel', t:'Import z karty paliwowej', s:'Paliwo → Karty', run: () => { location.hash = 'karty'; setTimeout(() => document.querySelector('#view [data-action="fc-import"]')?.click(), 150); }});
   return a;
 }
 function palTabs(){

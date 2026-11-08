@@ -6,7 +6,7 @@
 const GROUPS = {
   rezerwacje: [['przydzial','Grafik', () => true], ['trasy','Trasy', () => !!P().manage]],
   serwis:     [['usterki','Usterki', () => true], ['terminy','Terminy', () => true], ['ksiazka','Książka serwisowa', () => !!P().service]],
-  paliwo:     [['karty','Karty paliwowe', () => !!P().manage], ['spalanie','Spalanie i przebiegi', () => !!P().manage], ['liczniki','Liczniki', () => !!P().manage], ['porownanie','Miesiąc do miesiąca', () => !!P().manage], ['oplaty','Przejazdy i parkingi', () => !!P().manage]],
+  paliwo:     [['karty','Karty', () => !!P().manage], ['spalanie','Spalanie', () => !!P().manage], ['porownanie','Porównanie miesięcy', () => !!P().manage], ['liczniki','Liczniki', () => !!P().manage], ['oplaty','Opłaty drogowe', () => !!P().manage]],
   koszty:     [['koszty','Koszty', () => true], ['rozliczenie','Rozliczenie aut', () => !!P().manage], ['raporty','Raporty', () => !!P().reports]],
   ludzie:     [['kierowcy','Kierowcy', () => true], ['uzytkownicy','Użytkownicy', () => !!P().manage]],
   ustawienia: [['ustawienia','Ustawienia', () => !!P().manage], ['historia','Historia zmian', () => !!P().history]],
@@ -127,6 +127,8 @@ function viewSettings(){
 
 /* Kompletność danych: czego brakuje, żeby działały alarmy (bak → podejrzane tankowania, opony → przypomnienie o sezonie,
    polisa → druk szkody, telefon i dokumenty kierowcy → ostrzeżenia w grafiku). Kliknięcie otwiera formularz. */
+let dqOpen = false;   // rozwinięty tylko po kliknięciu „Uzupełnij” na Pulpicie
+document.addEventListener('click', e => { if (e.target.closest('[data-dq-open]')) dqOpen = true; }, true);
 function dqChecks(){
   const vs = S.vehicles.filter(v => v.status!=='wycofany'), ds = S.drivers.filter(d => d.active!==false);
   const checks = [
@@ -146,7 +148,8 @@ function dataQualityPanel(){
   if (!total) return '';
   if (!checks.length) return `<div class="panel"><div class="sec-head"><h3>Kompletność danych</h3><span class="pill ok">100%</span></div></div>`;
   const name = (col, x) => col==='vehicles' ? x.plate : x.name;
-  return `<details class="panel fold dq" ${pct < 90 ? 'open' : ''}><summary class="sec-head"><h3>Kompletność danych</h3><span class="pill ${pct >= 90 ? 'ok' : pct >= 70 ? 'soon' : 'bad'}">${pct}%</span></summary>
+  const open = dqOpen; dqOpen = false;
+  return `<details class="panel fold dq" ${open ? 'open' : ''}><summary class="sec-head"><h3>Kompletność danych</h3><span class="pill ${pct >= 90 ? 'ok' : pct >= 70 ? 'soon' : 'bad'}">${pct}%</span><span class="muted small dq-sum">${checks.length} ${isPlural(checks.length,'rzecz','rzeczy','rzeczy')} do uzupełnienia – rozwiń</span></summary>
     <p class="muted small sec-empty">Uzupełnione dane włączają alarmy i druki. Kliknij rejestrację albo nazwisko, żeby uzupełnić.</p>
     ${checks.map(([col, l, why, xs]) => `<div class="dq-row"><div><b>${l}</b><span class="sub">${why}</span></div><span class="count">${xs.length}</span>
       ${dqBulk(l, xs)}<div class="dq-list">${xs.slice(0, 9).map(x => `<button type="button" class="chip" data-edit="${col}" data-id="${esc(x.id)}">${esc(name(col, x) || '?')}</button>`).join('')}${xs.length > 9 ? `<span class="muted small">+${xs.length - 9}</span>` : ''}</div></div>`).join('')}
