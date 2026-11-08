@@ -28,7 +28,7 @@ function issueRow(i, showVeh = true){
   return `<div class="is-row ${i.status==='naprawione'?'done':sev.cls}" ${edit?`data-edit="issues" data-id="${esc(i.id)}" tabindex="0"`:'style="cursor:default"'}>
     <div class="dl-date">${fdate(i.date)}</div>
     <div style="min-width:0"><b>${esc(i.title)}</b>${typeof isAccident==='function' && isAccident(i) ? ' <span class="pill bad">szkoda</span>' : ''}<span class="sub ${typeof isAccident==='function' && isAccident(i) ? 'pre' : ''}">${typeof mapLinks==='function' ? mapLinks(esc(i.description||'')) : esc(i.description||'')}${i.repairNote?` · Naprawa: ${esc(i.repairNote)}`:''}</span>
-      <span class="sub">Zgłosił(a): ${esc(i.createdBy?pName(i.createdBy):'—')}${i.km?' · przy '+km(i.km):''}</span>${photoStrip(i.photos)}</div>
+      ${P().mycar && me && i.createdBy===me.id ? (i.km ? `<span class="sub">przy ${km(i.km)}</span>` : '') : `<span class="sub">Zgłosił(a): ${esc(i.createdBy?pName(i.createdBy):'—')}${i.km?' · przy '+km(i.km):''}</span>`}${photoStrip(i.photos)}</div>
     ${showVeh?`<div class="is-veh" style="min-width:0">${vPlate(i.vehicleId)}<span class="sub">${esc(vName(i.vehicleId))}</span></div>`:''}
     <div class="is-pills"><span class="pill ${sev.cls}">${sev.l}</span><span class="pill ${st.cls}">${st.l}</span></div>
     <div class="is-act">${quick}</div>

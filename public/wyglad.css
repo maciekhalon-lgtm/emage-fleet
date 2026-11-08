@@ -481,3 +481,4 @@ kbd{display:inline-block;font:600 11px/1 "Geist Mono",ui-monospace,monospace;pad
   .is-row .is-veh{display:flex;align-items:center;gap:8px}.is-row .is-veh .sub{display:inline}
   .is-row .is-pills{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-start}
 }
+details.panel.fold + .panel{margin-top:14px}
