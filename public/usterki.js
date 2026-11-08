@@ -29,7 +29,7 @@ function issueRow(i, showVeh = true){
     <div class="dl-date">${fdate(i.date)}</div>
     <div style="min-width:0"><b>${esc(i.title)}</b>${typeof isAccident==='function' && isAccident(i) ? ' <span class="pill bad">szkoda</span>' : ''}<span class="sub ${typeof isAccident==='function' && isAccident(i) ? 'pre' : ''}">${typeof mapLinks==='function' ? mapLinks(esc(i.description||'')) : esc(i.description||'')}${i.repairNote?` · Naprawa: ${esc(i.repairNote)}`:''}</span>
       <span class="sub">Zgłosił(a): ${esc(i.createdBy?pName(i.createdBy):'—')}${i.km?' · przy '+km(i.km):''}</span>${photoStrip(i.photos)}</div>
-    ${showVeh?`<div class="hide-sm" style="min-width:0">${vPlate(i.vehicleId)}<span class="sub">${esc(vName(i.vehicleId))}</span></div>`:''}
+    ${showVeh?`<div class="is-veh" style="min-width:0">${vPlate(i.vehicleId)}<span class="sub">${esc(vName(i.vehicleId))}</span></div>`:''}
     <div class="is-pills"><span class="pill ${sev.cls}">${sev.l}</span><span class="pill ${st.cls}">${st.l}</span></div>
     <div class="is-act">${quick}</div>
   </div>`;

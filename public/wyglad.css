@@ -474,4 +474,10 @@ kbd{display:inline-block;font:600 11px/1 "Geist Mono",ui-monospace,monospace;pad
   .dash .kpis.k3 .kpi .k-h{font-size:12px;line-height:1.2}
   .dash .kpis.k3 .kpi b{font-size:28px!important}.dash .kpis.k3 .kpi b small{font-size:12px}
 }
-#view a:not([class]){color:var(--ink);font-weight:600;text-underline-offset:3px}
+#view p a:not([class]),#view .muted a:not([class]){color:var(--ink);font-weight:600;text-underline-offset:3px}
+/* usterki na telefonie: jedna kolumna – tytuł, auto, znaczniki, przyciski (auto było ukryte) */
+@media (max-width:700px){
+  .is-row:has(.is-veh){grid-template-columns:minmax(0,1fr);gap:8px}
+  .is-row .is-veh{display:flex;align-items:center;gap:8px}.is-row .is-veh .sub{display:inline}
+  .is-row .is-pills{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-start}
+}
