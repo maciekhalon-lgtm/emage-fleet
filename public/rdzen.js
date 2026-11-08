@@ -1,7 +1,7 @@
 /* Emage FLEET — rdzeń: stan danych, pomocnicze funkcje dat i formatowania, logika domenowa */
 'use strict';
-const COLS = ['vehicles','drivers','deadlines','bookings','costs','issues','docs','settings','requests','crewChanges','routes','serviceEntries','inspections','cleanings','blockOverrides','loadings','loadingReports','fuelCardImports','fuelCardRows','routeStops','fleetCosts'];
-const S = {routeStops:[],fleetCosts:[],vehicles:[],drivers:[],deadlines:[],bookings:[],costs:[],issues:[],docs:[],settings:[],requests:[],crewChanges:[],routes:[],serviceEntries:[],inspections:[],cleanings:[],blockOverrides:[],loadings:[],loadingReports:[],fuelCardImports:[],fuelCardRows:[]};
+const COLS = ['vehicles','drivers','deadlines','bookings','costs','issues','docs','settings','requests','crewChanges','routes','serviceEntries','blockOverrides','loadings','loadingReports','fuelCardImports','fuelCardRows','routeStops','fleetCosts'];
+const S = {routeStops:[],fleetCosts:[],vehicles:[],drivers:[],deadlines:[],bookings:[],costs:[],issues:[],docs:[],settings:[],requests:[],crewChanges:[],routes:[],serviceEntries:[],blockOverrides:[],loadings:[],loadingReports:[],fuelCardImports:[],fuelCardRows:[]};
 const got = {};
 let db = null, canWrite = true, dbState = 'loading';
 let myId = null;
@@ -110,3 +110,8 @@ function consumption(vehId){
   return {val: qty/dist*100, unit: (v && v.fuel==='Elektryczny') ? 'kWh/100 km' : 'l/100 km'};
 }
 
+
+/* ---------- grafik: dni tygodnia i początek tygodnia (dawniej kalendarz.js) ---------- */
+const DOW = ['pn','wt','śr','cz','pt','so','nd'];
+function mondayOf(iso){ const d = parse(iso); d.setDate(d.getDate() - (d.getDay()+6)%7); return isoOf(d); }
+let calStart = mondayOf(today());

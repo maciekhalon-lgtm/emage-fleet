@@ -147,6 +147,7 @@ function loadingDay(d){
     ${rows ? `<div class="tablewrap"><table><thead><tr><th>Trasa</th><th>Towar zabrał</th><th>Trasą jedzie</th></tr></thead><tbody>${rows}</tbody></table></div>` : ''}</div>`;
 }
 function loadingsPanel(){
+  if (!modOn('zaladunek')) return '';
   const t = today(), html = [t, addDays(t, -1)].map(loadingDay).join('');
   const n = S.loadings.filter(l => l.forDate===t || l.forDate===addDays(t, -1)).length;
   return `<details class="panel fold"><summary class="sec-head"><h3>Załadunek</h3><span class="count">${n}</span></summary>${html || '<p class="muted sec-empty">Na dzisiejszą i wczorajszą zmianę nikt jeszcze nie zaznaczył załadunku.</p>'}</details>`;

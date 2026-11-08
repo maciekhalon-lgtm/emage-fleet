@@ -33,6 +33,7 @@ function palTabs(){
   if (!P().mycar || P().manage || P().service){ add('pulpit', 'Pulpit', 'home'); add('pojazdy', 'Pojazdy', 'truck'); }
   const icons = {rezerwacje:'cal', serwis:'wrench', paliwo:'fuel', koszty:'coins', ludzie:'users', ustawienia:'cog'};
   Object.entries(GROUPS).forEach(([g, subs]) => subs.forEach(([k, l, ok]) => { try { if (ok()) add(k, l, icons[g] || 'chev'); } catch(_){} }));
+  Object.entries(INNER).forEach(([par, subs]) => subs.forEach(([k, l, ok]) => { try { if (k!==par && ok() && tabAllowed(k)) add(k, l, 'chev'); } catch(_){} }));
   return out;
 }
 function palSearch(qs){

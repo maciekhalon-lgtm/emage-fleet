@@ -1,9 +1,9 @@
 /* Emage FLEET — role: role użytkowników i uprawnienia (interfejs; baza egzekwuje je osobno regułami RLS) */
 'use strict';
 const ROLES = {
-  floty:    {name:'Kierownik floty',   desc:'Pełne uprawnienia, zatwierdza konta i nadaje role', perm:{vehicles:'rw',deadlines:'rw',bookings:'rw',drivers:'rw',costs:'rw',issues:'rw',docs:'rw',routes:'rw',serviceEntries:'rw',inspections:'rw',cleanings:'rw',blockOverrides:'rw',service:true,reports:'rw',history:'r',manage:true}},
-  serwisu:  {name:'Kierownik serwisu', desc:'Pojazdy, terminy, usterki, dokumenty i koszty; podgląd grafiku', perm:{vehicles:'rw',deadlines:'rw',bookings:'r',drivers:'r',costs:'rw',issues:'rw',docs:'rw',serviceEntries:'rw',inspections:'r',cleanings:'r',service:true,reports:'r'}},
-  kierowca: {name:'Kierowca',          desc:'Moje auto, grafik, załadunek, tankowania i zgłoszenia usterek', perm:{vehicles:'r',deadlines:'r',bookings:'own',drivers:'r',costs:'own',issues:'own',docs:'r',cleanings:'own',mycar:true}},
+  floty:    {name:'Kierownik floty',   desc:'Pełne uprawnienia, zatwierdza konta i nadaje role', perm:{vehicles:'rw',deadlines:'rw',bookings:'rw',drivers:'rw',costs:'rw',issues:'rw',docs:'rw',routes:'rw',serviceEntries:'rw',blockOverrides:'rw',service:true,reports:'rw',history:'r',manage:true}},
+  serwisu:  {name:'Kierownik serwisu', desc:'Pojazdy, terminy, usterki, dokumenty i koszty; podgląd grafiku', perm:{vehicles:'rw',deadlines:'rw',bookings:'r',drivers:'r',costs:'rw',issues:'rw',docs:'rw',serviceEntries:'rw',service:true,reports:'r'}},
+  kierowca: {name:'Kierowca',          desc:'Moje auto, grafik, załadunek, tankowania i zgłoszenia usterek', perm:{vehicles:'r',deadlines:'r',bookings:'own',drivers:'r',costs:'own',issues:'own',docs:'r',mycar:true}},
 };
 const DRIVER_CATS = ['Paliwo','Ładowanie','Myjnia','Opłaty i parkingi'];
 
@@ -21,11 +21,10 @@ const canCreate = col => canWrite && ['rw','own'].includes(P()[col]);
 function mine(col, doc){
   if (!doc) return false;
   if (col==='costs' || col==='issues') return !!myId && doc.createdBy===myId;
-  if (col==='cleanings') return !!myDriverId() && doc.driverId===myDriverId();
   if (col==='bookings') return (!!myId && doc.createdBy===myId) || (!!myDriverId() && (doc.driverId===myDriverId() || doc.coDriverId===myDriverId()));
   return false;
 }
-const canEditDoc = (col, doc) => canWrite && !(doc && doc.virtual) && (P()[col]==='rw' || (P()[col]==='own' && mine(col, doc) && !(col==='issues' && doc.status && doc.status!=='nowe') && !(col==='cleanings' && doc.status!=='pending')));
+const canEditDoc = (col, doc) => canWrite && !(doc && doc.virtual) && (P()[col]==='rw' || (P()[col]==='own' && mine(col, doc) && !(col==='issues' && doc.status && doc.status!=='nowe')));
 /* Koszty do sum i wykresów: wpisy z aplikacji + tankowania z kart paliwowych, które nie mają swojego wpisu
    (karty importuje kierownik floty; tankowanie połączone z wpisem kierowcy liczy się raz – z wpisu). */
 let cardFuelMemo = {k: '', v: []};

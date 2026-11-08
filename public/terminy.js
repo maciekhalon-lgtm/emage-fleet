@@ -3,7 +3,7 @@
 function viewDeadlines(){
   if (dlFilter==='soon' || dlFilter==='later') dlFilter = 'urgent';
   const chips = [['urgent','Pilne'],['over','Po terminie'],['plan','Plan 8 tygodni'],['all','Pokaż wszystkie']];
-  const head = `<div class="bar"><h2>Terminy i przypomnienia</h2><div class="tools">${chips.map(([k,l])=>`<button class="small ${dlFilter===k?'primary':''}" data-dlf="${k}">${l}</button>`).join('')}${canCreate('deadlines')?'<button class="primary" data-new="deadlines">+ Dodaj termin</button>':''}</div></div>`;
+  const head = `<div class="bar"><h2>Terminy i przypomnienia</h2><div class="tools">${chips.map(([k,l])=>`<button class="small ${dlFilter===k?'primary':''}" data-dlf="${k}">${l}</button>`).join('')}${P().manage ? `<button class="small" data-action="cal-open" title="Terminy w kalendarzu Google lub iPhone">${ic('cal')}W kalendarzu</button>` : ''}${canCreate('deadlines')?'<button class="primary" data-new="deadlines">+ Dodaj termin</button>':''}</div></div>`;
   if (!S.deadlines.length) return head + loadingOr('deadlines', emptyBlock('Brak zapisanych terminów','Zapisz daty przeglądów technicznych, końca polis OC/AC, serwisów i wymiany opon. Strona podświetli to, co zbliża się w ciągu 30 dni.', '<button class="primary" data-new="deadlines">+ Dodaj termin</button>', '', 'deadlines'));
   if (dlFilter==='plan') return head + deadlinePlan();
   const all = S.deadlines.map(d => ({d, s:dlState(d)})).sort((a,b)=> a.d.date<b.d.date?-1:a.d.date>b.d.date?1:0);

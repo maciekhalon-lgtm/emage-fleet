@@ -6,13 +6,26 @@
 const GROUPS = {
   rezerwacje: [['przydzial','Grafik', () => true], ['trasy','Trasy', () => !!P().manage]],
   serwis:     [['usterki','Usterki', () => true], ['terminy','Terminy', () => true], ['ksiazka','Książka serwisowa', () => !!P().service]],
-  paliwo:     [['karty','Karty', () => !!P().manage], ['spalanie','Spalanie', () => !!P().manage], ['porownanie','Porównanie miesięcy', () => !!P().manage], ['liczniki','Liczniki', () => !!P().manage], ['oplaty','Opłaty drogowe', () => !!P().manage]],
+  paliwo:     [['karty','Karty', () => !!P().manage], ['spalanie','Spalanie i liczniki', () => !!P().manage], ['oplaty','Opłaty drogowe', () => !!P().manage]],
   koszty:     [['koszty','Koszty', () => true], ['rozliczenie','Rozliczenie aut', () => !!P().manage], ['raporty','Raporty', () => !!P().reports]],
   ludzie:     [['kierowcy','Kierowcy', () => true], ['uzytkownicy','Użytkownicy', () => !!P().manage]],
   ustawienia: [['ustawienia','Ustawienia', () => !!P().manage], ['historia','Historia zmian', () => !!P().history]],
 };
-const groupOf = t => Object.keys(GROUPS).find(g => GROUPS[g].some(([k]) => k===t)) || '';
-const tabAllowed = t => { const g = groupOf(t); if (!g) return true; const e = GROUPS[g].find(([k]) => k===t); return !!(e && e[2]()); };
+/* Zakładki „w środku” innej zakładki: przełącznik na górze strony zamiast osobnej pozycji w menu */
+const INNER = {
+  spalanie: [['spalanie','Spalanie i przebiegi', () => true], ['liczniki','Liczniki do sprawdzenia', () => true]],
+  raporty:  [['raporty','Raporty', () => true], ['porownanie','Porównanie miesięcy', () => !!P().manage]],
+};
+const innerParent = t => Object.keys(INNER).find(p => INNER[p].some(([k]) => k===t && k!==p)) || '';
+const groupOf = t => { t = innerParent(t) || t; return Object.keys(GROUPS).find(g => GROUPS[g].some(([k]) => k===t)) || ''; };
+const tabAllowed = t => { const par = innerParent(t); if (par){ const e = INNER[par].find(([k]) => k===t); if (!e[2]()) return false; t = par; }
+  const g = groupOf(t); if (!g) return true; const e = GROUPS[g].find(([k]) => k===t); return !!(e && e[2]()); };
+function innerTabs(){
+  const par = INNER[tab] ? tab : innerParent(tab); if (!par) return '';
+  const list = INNER[par].filter(([, , ok]) => ok()); if (list.length < 2) return '';
+  return `<div class="seg inner-tabs" role="group" aria-label="Widok">${list.map(([k, l]) => { const c = k==='liczniki' && P().manage ? odoTodoCount() : 0;
+    return `<a href="#${k}" class="${k===tab ? 'on' : ''}" ${k===tab ? 'aria-current="true"' : ''}>${l}${c ? ` <span class="count bad">${c}</span>` : ''}</a>`; }).join('')}</div>`;
+}
 /* Liczniki przy zakładkach */
 function tabCount(t){
   if (t==='usterki'){ const oi = openIssues(); return {n: oi.length, bad: oi.some(i => i.severity==='stop')}; }
@@ -24,13 +37,13 @@ function tabCount(t){
   if (t==='przydzial'){ const cf = conflicts().size; return {n: cf, bad: cf > 0}; }
   return {n: 0, bad: false};
 }
-function groupCount(g){ const c = GROUPS[g].filter(([k, , ok]) => ok() && k!=='liczniki').map(([k]) => tabCount(k)); /* liczniki tylko w swojej zakładce */ return {n: c.reduce((s, x) => s + x.n, 0), bad: c.some(x => x.bad)}; }
+function groupCount(g){ const c = GROUPS[g].filter(([, , ok]) => ok()).map(([k]) => tabCount(k)); return {n: c.reduce((s, x) => s + x.n, 0), bad: c.some(x => x.bad)}; }
 function subTabs(){
   const g = groupOf(tab); if (!g) return '';
   const list = GROUPS[g].filter(([, , ok]) => ok());
-  if (list.length < 2) return '';
+  if (list.length < 2) return innerTabs();
   return `<nav class="subtabs" aria-label="Zakładki">${list.map(([k, l]) => { const c = tabCount(k);
-    return `<a href="#${k}" ${k===tab ? 'aria-current="page"' : ''}>${l}${c.n ? ` <span class="count ${c.bad ? 'bad' : ''}">${c.n}</span>` : ''}</a>`; }).join('')}</nav>`;
+    return `<a href="#${k}" ${k===(innerParent(tab) || tab) ? 'aria-current="page"' : ''}>${l}${c.n ? ` <span class="count ${c.bad ? 'bad' : ''}">${c.n}</span>` : ''}</a>`; }).join('')}</nav>` + innerTabs();
 }
 /* Link w menu prowadzi do pierwszej dostępnej zakładki grupy */
 function syncNav(){
@@ -119,6 +132,8 @@ function viewSettings(){
     ${dataQualityPanel()}
     ${budgetPanel()}
     ${pushSetupPanel()}
+    ${modulesPanel()}
+    ${calendarPanel()}
     ${P().manage ? `<div class="panel"><div class="sec-head"><h3>Kopia danych</h3><button class="small" data-action="backup">${ic('clip')}Pobierz kopię (JSON)</button></div><p class="muted sec-empty">Wszystkie dane floty w jednym pliku: auta, kierowcy, grafik, koszty, terminy, usterki, książka serwisowa, karty paliwowe, trasy i przystanki. Zrób kopię raz w miesiącu i trzymaj ją na dysku firmy. Zdjęcia i skany zostają w Supabase.</p></div>` : ''}
     ${checksSettingsPanel()}
     ${checklistPanel()}
@@ -187,3 +202,26 @@ async function backupJson(){
   toast(`Kopia gotowa: ${n} rekordów`);
 }
 document.addEventListener('click', e => { if (e.target.closest('[data-action="backup"]')){ e.preventDefault(); backupJson(); } });
+
+/* ---------- kontrola paragonów (dawniej kontrole.js) ---------- */
+/* Kontrola paragonów: losowanie kierowców, którzy muszą dodać zdjęcie paragonu (ustawienie w Ustawieniach) */
+const receiptPercent = () => { const s = S.settings.find(x => x.id==='receipts'); return s && s.percent!=null ? Number(s.percent) : 20; };
+
+function checksSettingsPanel(){
+  if (!P().manage) return '';
+  return `<div class="panel"><div class="sec-head"><h3>Kontrola paragonów</h3><button class="small" data-action="save-checks">Zapisz</button></div>
+    <div style="padding:14px 16px;display:flex;flex-direction:column;gap:8px">
+      <label class="field" style="display:flex;flex-direction:column;gap:4px"><span class="label">Losowo % dni pracy</span><input id="sch-rcp" type="number" min="0" max="100" value="${receiptPercent()}" style="width:120px"></label>
+      <span class="muted small">System codziennie losuje kierowców, którzy muszą dodać zdjęcie paragonu do tankowania. 0 = wyłączone.</span></div></div>`;
+}
+
+async function saveChecks(){
+  const rp = Math.min(100, Math.max(0, Math.round(Number($('#sch-rcp').value))));
+  if (Number.isNaN(rp)) return toast('Wpisz liczbę od 0 do 100');
+  try { await db.collection('settings').doc('receipts').set({percent: rp}); toast('Zapisano kontrolę paragonów'); }
+  catch(err){ handleWriteErr(err); }
+}
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-action="save-checks"]');
+  if (t && !t.closest('#dialog')) saveChecks();
+});

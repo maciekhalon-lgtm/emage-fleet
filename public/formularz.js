@@ -60,7 +60,7 @@ const FORMS = {
     {k:'from',l:'Dzień',t:'date',req:1},
     ...(editing && editing.base && editing.base.to && editing.base.to!==editing.base.from ? [{k:'to',l:'Do (przydział na kilka dni)',t:'date',req:1}] : []),
     {k:'vehicleId',l:'Auto',t:'select',o:vehOpts(),req:1,full:1},
-    ...(P().bookings==='rw' ? [{k:'routeId',l:'Trasa',t:'select',o:routeOpts(),full:1}, {k:'coDriverId',l:'Drugi kierowca (opcjonalnie)',t:'select',o:drvOpts('— brak —'),full:1}] : []),
+    ...(P().bookings==='rw' ? [{k:'routeId',l:'Trasa',t:'select',o:routeOpts(),full:1}, ...(modOn('obsada') ? [{k:'coDriverId',l:'Drugi kierowca (opcjonalnie)',t:'select',o:drvOpts('— brak —'),full:1}] : [])] : []),
     {k:'purpose',l:'Uwagi',t:'textarea',full:1,ph:'np. załadunek o 6:00, klient czeka od 8:00'},
     ...(!(editing && editing.id) && P().bookings==='rw' ? [{k:'repeatUntil',l:'Powtórz w dni robocze do (opcjonalnie)',t:'date',full:1}] : []),
   ]},
@@ -93,14 +93,6 @@ const FORMS = {
       {k:'status',l:'Status',t:'select',o:Object.entries(ISSUE_ST).map(([k,v])=>[k,v.l]),req:1},
       {k:'repairNote',l:'Opis naprawy',ph:'np. wymiana łącznika stabilizatora'},
     ] : []),
-    {k:'photos',t:'photos'},
-  ]},
-  cleanings: { title:['Sprzątanie / mycie auta','Edytuj sprzątanie'], fields: () => [
-    {k:'vehicleId',l:'Pojazd',t:'select',o:vehOpts(),req:1,full:1},
-    {k:'date',l:'Data',t:'date',req:1},
-    {k:'kind',l:'Co zrobiono',t:'select',o:Object.entries(CLEAN_KINDS)},
-    ...(P().cleanings==='rw' ? [{k:'status',l:'Status',t:'select',o:[['confirmed','Potwierdzone'],['pending','Do potwierdzenia'],['rejected','Odrzucone']]}] : []),
-    {k:'note',l:'Uwagi',full:1,ph:'np. odkurzona kabina, umyta paka'},
     {k:'photos',t:'photos'},
   ]},
   serviceEntries: { title:['Nowy wpis serwisowy','Edytuj wpis serwisowy'], fields: () => [
@@ -138,7 +130,6 @@ const DEFAULTS = {
   drivers: () => ({active:true}),
   routes: () => ({active:true}),
   serviceEntries: () => ({date: today()}),
-  cleanings: () => ({date: today(), kind:'sprzatanie', status: P().cleanings==='rw' ? 'confirmed' : 'pending'}),
   deadlines: () => ({type:'Przegląd techniczny', date: addDays(today(),30), intervalMonths:12}),
   bookings: () => ({from: today(), to: today(), driverId: P().bookings==='own' ? myDriverId() : ''}),
   costs: () => {
@@ -361,7 +352,6 @@ $('#dialog').addEventListener('submit', async e => {
     if ((data.consGood && !data.consOk) || (!data.consGood && data.consOk)){ const w = $('#dlg-warn'); w.textContent = 'Podaj oba progi spalania albo żaden.'; w.hidden = false; return; }
     if (data.consGood && data.consOk && data.consGood >= data.consOk){ const w = $('#dlg-warn'); w.textContent = 'Próg „bardzo dobre” musi być niższy niż próg „dobre”.'; w.hidden = false; return; }
   }
-  if (col==='cleanings' && P().cleanings==='own') data.driverId = myDriverId();
   const asDriver = col==='costs' && (P().costs==='own' || !!base.mode);
   if (col==='costs'){
     data.station = data.stationSel==='Inna' ? (data.stationOther || 'Inna') : (data.stationSel || null);
@@ -426,7 +416,6 @@ $('#dialog').addEventListener('submit', async e => {
       for (const v of same) await db.collection('vehicles').doc(v.id).update({consGood: data.consGood, consOk: data.consOk});
       if (same.length) okMsg = `Zapisano – poziomy spalania ustawione także dla ${same.length} ${isPlural(same.length,'auta','aut','aut')} ${data.make} ${data.model}`;
     }
-    if (col==='cleanings' && P().cleanings==='own') okMsg = 'Zapisano – kierownik potwierdzi sprzątanie';
     if (col==='serviceEntries'){ await Promise.all(['costs','issues','deadlines','vehicles'].map(refresh)); okMsg = 'Zapisano wpis serwisowy'; }
     if (col==='costs' && data.confirmStatus==='pending') okMsg = 'Zapisano – tankowanie czeka na potwierdzenie drugiego kierowcy';
     if (col==='costs' && data.odometer){

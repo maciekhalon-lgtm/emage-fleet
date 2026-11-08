@@ -5,16 +5,14 @@ const sb = supabase.createClient(CONFIG.supabaseUrl, CONFIG.supabaseKey, {
 });
 
 /* nazwa w aplikacji → tabela w bazie */
-const TABLES = {vehicles:'vehicles', drivers:'drivers', deadlines:'deadlines', bookings:'bookings', costs:'costs', issues:'issues', docs:'documents', settings:'settings', routeStops:'route_stops', fleetCosts:'fleet_costs', requests:'data_change_requests', crewChanges:'crew_changes', routes:'routes', serviceEntries:'service_entries', inspections:'inspections', cleanings:'cleanings', blockOverrides:'block_overrides', loadings:'loadings', loadingReports:'loading_reports', fuelCardImports:'fuel_card_imports', fuelCardRows:'fuel_card_rows', members:'profiles'};
+const TABLES = {vehicles:'vehicles', drivers:'drivers', deadlines:'deadlines', bookings:'bookings', costs:'costs', issues:'issues', docs:'documents', settings:'settings', routeStops:'route_stops', fleetCosts:'fleet_costs', requests:'data_change_requests', crewChanges:'crew_changes', routes:'routes', serviceEntries:'service_entries', blockOverrides:'block_overrides', loadings:'loadings', loadingReports:'loading_reports', fuelCardImports:'fuel_card_imports', fuelCardRows:'fuel_card_rows', members:'profiles'};
 const COL_OF = Object.fromEntries(Object.entries(TABLES).map(([a, b]) => [b, a]));
 
 /* pole w aplikacji → kolumna w bazie */
 const FIELDS = {
   common:    {createdBy:'created_by', createdAt:'created_at', updatedBy:'updated_by', updatedAt:'updated_at'},
-  vehicles:  {driverId:'driver_id', responsible:'responsible', monthlyLimit:'monthly_limit', consGood:'cons_good', consOk:'cons_ok', policyNo:'policy_no', insurer:'insurer', policyUntil:'policy_until', assistancePhone:'assistance_phone', hasTacho:'has_tacho', lastClean:'last_clean', tankL:'tank_l'},
+  vehicles:  {driverId:'driver_id', responsible:'responsible', monthlyLimit:'monthly_limit', consGood:'cons_good', consOk:'cons_ok', policyNo:'policy_no', insurer:'insurer', policyUntil:'policy_until', assistancePhone:'assistance_phone', hasTacho:'has_tacho', tankL:'tank_l'},
   blockOverrides: {vehicleId:'vehicle_id'},
-  inspections: {vehicleId:'vehicle_id'},
-  cleanings: {vehicleId:'vehicle_id', driverId:'driver_id', decidedBy:'decided_by', decidedAt:'decided_at', rejectNote:'reject_note'},
   drivers:   {name:'full_name', licenseExpiry:'license_expiry', medicalExpiry:'medical_expiry', psychExpiry:'psych_expiry'},
   crewChanges: {vehicleId:'vehicle_id', bookingId:'booking_id', newBookingId:'new_booking_id', fromDriverId:'from_driver_id', fromCoDriverId:'from_co_driver_id', toDriverId:'to_driver_id'},
   deadlines: {vehicleId:'vehicle_id', kmDue:'km_due', intervalMonths:'interval_months', intervalKm:'interval_km', remindKm:'remind_km'},
@@ -38,8 +36,6 @@ const WRITABLE = {
   drivers:   ['id','full_name','phone','categories','license_expiry','medical_expiry','psych_expiry','active'],
   crewChanges: [],
   routes:    ['id','code','name','tacho','loading','active','note'],
-  inspections: ['id','vehicle_id','date','km','items','note','photos'],
-  cleanings: ['id','vehicle_id','date','kind','driver_id','note','photos','status','reject_note'],
   blockOverrides: ['id','vehicle_id','date','reason'],
   deadlines: ['id','vehicle_id','type','date','km_due','interval_months','interval_km','remind_km','note'],
   serviceEntries: ['id','vehicle_id','date','km','workshop','description','cost','oil_change','deadline_id','issue_ids','note','storage_path','file_name','content_type','tires_set','timing_change'],
@@ -154,7 +150,7 @@ S.fuelAll = [];
 async function refresh(col){
   const table = TABLES[col]; if (!table) return;
   if ((col==='members' || col==='crewChanges' || col==='fuelCardImports' || col==='fuelCardRows' || col==='fleetCosts') && !P().manage) return;
-  if ((col==='serviceEntries' || col==='inspections') && !P().service) return;
+  if (col==='serviceEntries' && !P().service) return;
   // Supabase oddaje najwyżej 1000 wierszy na zapytanie – pobieramy partiami aż do końca
   const key = col==='settings' ? 'key' : 'id', PAGE = 1000, data = [];
   for (let from = 0; ; from += PAGE){

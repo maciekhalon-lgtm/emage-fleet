@@ -7,6 +7,8 @@
 //    → testowe powiadomienie tylko do tej osoby,
 //  • od razu z bazy przy zdarzeniu (auto niesprawne, podejrzane tankowanie, spory, sprawy do potwierdzenia)
 //    z nagłówkiem x-cron-secret i treścią {mode:'event', roles, users, title, body, tag}.
+//  • w poniedziałek poranne wywołanie wysyła kierownikom floty dodatkowo „Tydzień floty” (koszty, tankowania, usterki, terminy),
+//  • GET ?kal=<token> – kalendarz terminów (.ics) do subskrypcji w Google / iPhone; token tworzy aplikacja (Ustawienia).
 //
 // Sekrety funkcji (Edge Functions → Secrets):
 //   VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT (np. mailto:flota@firma.pl), CRON_SECRET
@@ -143,6 +145,49 @@ export function itemsFor(p: Row, d: Data, today: string): {pri: number; text: st
   return out;
 }
 
+/* Podsumowanie tygodnia dla kierownika floty (wysyłane w poniedziałek rano). */
+export function weekly(d: Data, today: string, costs: Row[]){
+  const w0 = addDays(today, -7), w1 = addDays(today, -14);
+  const sum = (a: string, b: string) => costs.filter(c => c.date >= a && c.date < b).reduce((s, c) => s + Number(c.amount || 0), 0);
+  const now = sum(w0, today), prev = sum(w1, w0);
+  const fills = costs.filter(c => c.date >= w0 && c.date < today && c.category === 'Paliwo').length
+    + (d.cardRows || []).filter(r => r.kind !== 'other' && r.tx_date >= w0 && r.tx_date < today && !r.cost_id).length;
+  const newIss = d.issues.filter(i => i.date >= w0).length;
+  const soon = d.deadlines.filter(t => { const v = d.vehicles.find(x => x.id === t.vehicle_id); return v && v.status !== 'wycofany' && diffDays(today, t.date) <= 14; }).length;
+  const ch = prev ? Math.round((now - prev) / prev * 100) : null;
+  const lines = [
+    `• Koszty: ${zl(now)}${ch !== null ? ` (${ch > 0 ? '+' : ''}${ch}% wobec poprzedniego tygodnia)` : ''}`,
+    `• Tankowania: ${fills}`,
+    `• Nowe usterki: ${newIss}`,
+    `• Terminy w ciągu 14 dni (lub po terminie): ${soon}`,
+  ];
+  return {title: `Emage FLEET – tydzień ${dm(w0)}–${dm(addDays(today, -1))}`, body: lines.join('\n')};
+}
+
+/* Kalendarz terminów (iCalendar) – aut i dokumentów kierowców. */
+export function ics(d: Data, stamp: string){
+  const esc = (t: string) => String(t).replace(/\\/g, '\\\\').replace(/[,;]/g, m => '\\' + m).replace(/\n/g, '\\n');
+  const day = (iso: string) => iso.replace(/-/g, '');
+  const ev: string[] = [];
+  const add = (uid: string, date: string, title: string, desc: string) => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date || '')) return;
+    ev.push(['BEGIN:VEVENT', `UID:${uid}@emage-fleet`, `DTSTAMP:${stamp}`, `DTSTART;VALUE=DATE:${day(date)}`, `DTEND;VALUE=DATE:${day(addDays(date, 1))}`,
+      `SUMMARY:${esc(title)}`, `DESCRIPTION:${esc(desc)}`, 'TRANSP:TRANSPARENT',
+      'BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${esc(title)}`, 'TRIGGER:-P7D', 'END:VALARM', 'END:VEVENT'].join('\r\n'));
+  };
+  d.deadlines.forEach(t => { const v = d.vehicles.find(x => x.id === t.vehicle_id); if (!v || v.status === 'wycofany') return;
+    add('dl-' + t.id, t.date, `${v.plate}: ${t.type}`, `${[v.make, v.model].filter(Boolean).join(' ')}${t.km_due ? ' · lub przy ' + kmf(t.km_due) : ''}${t.note ? ' · ' + t.note : ''}`); });
+  d.drivers.filter(x => x.active !== false).forEach(x => [['license_expiry', 'prawo jazdy'], ['medical_expiry', 'badania lekarskie'], ['psych_expiry', 'badania psychologiczne']]
+    .forEach(([k, l]) => x[k] && add(`dr-${x.id}-${k}`, x[k], `${x.full_name}: ${l}`, `ważne do ${x[k].split('-').reverse().join('.')}`)));
+  // linie dłuższe niż 75 bajtów zawijamy (wymóg formatu), licząc bajty UTF-8 – polskie litery mają 2
+  const fold = (line: string) => { const enc = new TextEncoder(), out: string[] = []; let cur = '', n = 0;
+    for (const ch of line){ const b = enc.encode(ch).length; if (n + b > 73){ out.push(cur); cur = ' '; n = 1; } cur += ch; n += b; }
+    out.push(cur); return out.join('\r\n'); };
+  return ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Emage Group//Emage FLEET//PL', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
+    'X-WR-CALNAME:Emage FLEET – terminy', 'X-WR-TIMEZONE:Europe/Warsaw', 'REFRESH-INTERVAL;VALUE=DURATION:PT6H', 'X-PUBLISHED-TTL:PT6H',
+    ...ev.flatMap(e => e.split('\r\n')).map(fold), 'END:VCALENDAR'].join('\r\n') + '\r\n';
+}
+
 /* Jedno powiadomienie z listy spraw. */
 export function digest(items: {pri: number; text: string}[], title?: string){
   const s = items.slice().sort((a, b) => a.pri - b.pri);
@@ -164,6 +209,19 @@ Deno.serve(async (req) => {
   // klucz serwisowy: nowe projekty mają SUPABASE_SECRET_KEYS (JSON), starsze SUPABASE_SERVICE_ROLE_KEY – bierzemy, co jest
   const secretKey = (() => { try { const o = JSON.parse(env('SUPABASE_SECRET_KEYS') || '{}'); return String(o.default || Object.values(o)[0] || ''); } catch { return ''; } })() || env('SUPABASE_SERVICE_ROLE_KEY');
   const sb = createClient(env('SUPABASE_URL'), secretKey, {auth: {persistSession: false}});
+
+  // kalendarz terminów: GET ?kal=<token> (token z ustawień „calendar”, tworzony w aplikacji)
+  const kal = new URL(req.url).searchParams.get('kal');
+  if (req.method === 'GET' && kal){
+    const {data: cal} = await sb.from('settings').select('value').eq('key', 'calendar').maybeSingle();
+    const tok = String(cal?.value?.token || '');
+    if (!tok || tok.length < 20 || kal !== tok) return new Response('Nieprawidłowy link kalendarza', {status: 403});
+    const all = async (t: string) => { const {data} = await sb.from(t).select('*').limit(20000); return data || []; };
+    const dd = {profiles: [], vehicles: await all('vehicles'), drivers: await all('drivers'), deadlines: await all('deadlines'), bookings: [], issues: [], costs: [], settings: []} as Data;
+    const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z');
+    return new Response(ics(dd, stamp), {headers: {'Content-Type': 'text/calendar; charset=utf-8', 'Content-Disposition': 'inline; filename="emage-fleet.ics"', 'Cache-Control': 'max-age=1800'}});
+  }
+
   if (!key('VAPID_PUBLIC_KEY') || !key('VAPID_PRIVATE_KEY')) return json({error: 'Brak kluczy VAPID w sekretach funkcji'}, 500);
   // klucz publiczny: ten zapisany przez aplikację w bazie (settings 'push') jest pewny – sekret VAPID_PUBLIC_KEY tylko awaryjnie
   const {data: pushRow} = await sb.from('settings').select('value').eq('key', 'push').maybeSingle();
@@ -233,6 +291,13 @@ Deno.serve(async (req) => {
     if (!items.length) continue;
     const r = await send(p.id, {...digest(items), url: './', tag: 'podsumowanie-' + today});
     report.push({user: p.id, items: items.length, ...r});
+  }
+  // poniedziałek: „Tydzień floty” dla kierowników floty
+  if (new Date(today + 'T12:00:00Z').getUTCDay() === 1){
+    const c14 = await load('costs', b => b.gte('date', addDays(today, -14)));
+    const w = weekly(d, today, c14);
+    for (const p of d.profiles.filter(x => x.status === 'active' && x.role === 'floty'))
+      report.push({user: p.id, weekly: true, ...(await send(p.id, {...w, url: './#raporty', tag: 'tydzien-' + today}))});
   }
   return json({today, users: report.length, report});
 });

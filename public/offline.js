@@ -78,7 +78,7 @@ document.addEventListener('click', e => {
 });
 
 /* Dane z ostatniej synchronizacji (kierowca) – aplikacja otworzy się bez zasięgu */
-const SNAP_COLS = ['vehicles','drivers','bookings','routes','routeStops','settings','costs','cleanings','blockOverrides','deadlines','issues'];
+const SNAP_COLS = ['vehicles','drivers','bookings','routes','routeStops','settings','costs','blockOverrides','deadlines','issues'];
 function saveSnapshot(){
   if (!me || !P().mycar) return;
   try { localStorage.setItem(SNAP, JSON.stringify({uid: myId, at: new Date().toISOString(), me, names, S: Object.fromEntries(SNAP_COLS.map(c => [c, S[c]]))})); } catch(_){}

@@ -111,7 +111,7 @@ function viewMyCar(){
     ${typeof installHint==='function' ? installHint() : ''}
   </div>`;
 }
-const loadingRoutesOk = () => !!(myDriverId() && typeof loadRoutes==='function' && loadRoutes().length);
+const loadingRoutesOk = () => !!(modOn('zaladunek') && myDriverId() && typeof loadRoutes==='function' && loadRoutes().length);
 const loadingCount = () => typeof workDay==='function' ? S.loadings.filter(l => l.driverId===myDriverId() && l.forDate===workDay()).length : 0;
 
 /* ---------- wybór auta ---------- */

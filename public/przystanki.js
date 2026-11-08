@@ -3,7 +3,7 @@
    Kierowca: lista przystanków swojej dzisiejszej trasy pod kartą auta – nawigacja i telefon jednym kliknięciem.
    Tabela route_stops powstaje w migracji 022_przystanki.sql. */
 
-const stopsOf = rid => (S.routeStops || []).filter(s => s.routeId===rid).sort((a, b) => (a.pos || 0) - (b.pos || 0));
+const stopsOf = rid => !modOn('przystanki') ? [] : (S.routeStops || []).filter(s => s.routeId===rid).sort((a, b) => (a.pos || 0) - (b.pos || 0));
 const mapsUrl = addr => 'https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(addr);
 function routeMapsUrl(stops){
   const a = stops.map(s => s.address).filter(Boolean); if (!a.length) return '';
