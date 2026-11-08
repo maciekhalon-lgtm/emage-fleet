@@ -149,7 +149,8 @@ function viewSchedule(){
   const freeRow = `<tr class="sch-free"><td class="sch-name"><b>Wolne auta</b></td>${days.map(d => { const fr = okVeh.filter(v => !S.bookings.some(b => b.vehicleId===v.id && b.from<=d && b.to>=d && !(b.returned && b.returned.at && b.returned.at.slice(0, 10) < d)));
     return `<td class="sch-cell ${d===t?'today':''}" title="${esc(fr.map(v => v.plate).join(', '))}"><b class="num">${fr.length}</b>${fr.length ? `<i>${esc(fr.slice(0, 3).map(v => v.plate).join(', '))}${fr.length > 3 ? '…' : ''}</i>` : ''}</td>`; }).join('')}</tr>`;
   return nav + `<div class="panel tablewrap sch"><table><thead>${head}</thead><tbody>${rows}${freeRow}</tbody></table></div>
-    <p class="muted small" style="margin:0">Kliknij puste pole, aby przydzielić kierowcy auto, trasę i uwagi na ten dzień. Kliknij przydział, aby go zmienić – albo przeciągnij go na innego kierowcę lub dzień. Na czerwono – to samo auto u dwóch kierowców albo kierowca z dwoma autami tego samego dnia. Ikona paczki – kto wiezie towar dla tej trasy.</p>`;
+    <div class="sch-legend muted small"><span>Puste pole – <b>nowy przydział</b></span><span>Przeciągnij – <b>przenieś</b></span>
+      <span><i class="lg out"></i>w trasie</span><span><i class="lg back"></i>zwrócone</span><span><i class="lg bad"></i>konflikt</span><span><i class="lg issue"></i>nieważne dokumenty</span><span>${ic('box')} załadunek</span></div>`;
 }
 function copyWeekAsk(){
   const from = addDays(calStart, -7), to = addDays(calStart, -1);

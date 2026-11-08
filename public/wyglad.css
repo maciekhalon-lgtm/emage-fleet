@@ -463,3 +463,6 @@ kbd{display:inline-block;font:600 11px/1 "Geist Mono",ui-monospace,monospace;pad
 .vfacts>div.wide{grid-column:span 2}
 @media (max-width:700px){.vfacts{grid-template-columns:repeat(2,minmax(0,1fr))}.vfacts>div.wide{grid-column:1/-1}}
 .sec-empty a{color:var(--ink);font-weight:600;text-underline-offset:3px}
+.sch-legend{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:center;margin:0}.sch-legend span{display:inline-flex;align-items:center;gap:6px}.sch-legend svg{width:13px;height:13px}
+.sch-legend .lg{width:14px;height:10px;border-radius:3px;border:1.5px solid var(--line);background:var(--surface)}.sch-legend .lg.out{border-color:var(--info);background:color-mix(in srgb,var(--info) 15%,transparent)}.sch-legend .lg.back{opacity:.5}.sch-legend .lg.bad{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 15%,transparent)}.sch-legend .lg.issue{border:2px solid var(--bad)}
+.fold>summary.sec-head>h3+.count{margin-right:auto;margin-left:10px}
