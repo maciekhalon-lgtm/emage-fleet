@@ -323,7 +323,7 @@ function bookingCheck(){
   if (!msg && r && r.tacho && veh && !veh.hasTacho) msg = `Uwaga: trasa ${r.code} wymaga tachografu, a ${veh.plate} nie ma tachografu. Możesz zapisać – to tylko informacja.`;
   w.textContent=msg; w.hidden=!msg;
 }
-function closeForm(){ $('#scrim').hidden = true; editing = null; $('#dlg-save').textContent = 'Zapisz'; $('#dialog').removeEventListener('input', bookingCheck); $('#dialog').removeEventListener('input', costFxUi); $('#dialog').removeEventListener('input', svcUi); }
+function closeForm(){ $('#scrim').hidden = true; $('#dialog').classList.remove('dlg-wide'); editing = null; $('#dlg-save').textContent = 'Zapisz'; $('#dialog').removeEventListener('input', bookingCheck); $('#dialog').removeEventListener('input', costFxUi); $('#dialog').removeEventListener('input', svcUi); }
 
 $('#dialog').addEventListener('submit', async e => {
   e.preventDefault();

@@ -176,6 +176,40 @@ async function saveStdDeadlines(){
 }
 document.addEventListener('click', e => { const t = e.target.closest('[data-std-dl]'); if (!t) return; e.preventDefault(); openStdDeadlines(t.dataset.stdDl); });
 
+/* Podstawowe terminy całej floty w jednej tabeli: każde auto bez przeglądu, OC albo oleju w jednym wierszu */
+const stdMissing = () => S.vehicles.filter(v => v.status!=='wycofany').map(v => ({v, miss: STD_DL.filter(t => !S.deadlines.some(d => d.vehicleId===v.id && d.type===t))})).filter(x => x.miss.length)
+  .sort((a, b) => String(a.v.plate).localeCompare(b.v.plate));
+function openStdBulk(){
+  const list = stdMissing(); if (!list.length) return toast('Wszystkie auta mają podstawowe terminy');
+  editing = {col:'std-bulk', id: null, base:{}, special: saveStdBulk};
+  const has = (v, t) => S.deadlines.find(d => d.vehicleId===v.id && d.type===t);
+  const cell = (v, t) => { const d = has(v, t); if (d) return `<td class="muted small">${fdate(d.date)}</td>`;
+    return `<td><input type="date" data-sb-veh="${esc(v.id)}" data-sb-type="${esc(t)}" aria-label="${esc(v.plate)} – ${esc(t)}" ${t==='Ubezpieczenie OC' && v.policyUntil ? `value="${v.policyUntil}"` : ''}></td>`; };
+  $('#dlg-title').textContent = `Podstawowe terminy floty · ${list.length} ${isPlural(list.length,'auto','auta','aut')}`;
+  $('#dlg-body').innerHTML = `<p class="muted small field full" style="margin:0">Wpisz daty z dowodów rejestracyjnych, polis i książek serwisowych. Puste pola pominiemy – możesz uzupełniać na raty. Kolejne terminy po „Wykonane” ustawią się same.</p>
+    <div class="field full tablewrap sb-wrap"><table class="sb-tbl"><thead><tr><th>Auto</th><th>Przegląd techniczny</th><th>Ubezpieczenie OC</th><th>Serwis olejowy – data</th><th>albo przy km</th></tr></thead><tbody>
+    ${list.map(({v, miss}) => `<tr><td>${plate(v.plate)}<span class="sub">${v.km ? km(v.km) : ''}</span></td>${STD_DL.map(t => cell(v, t)).join('')}
+      <td>${miss.includes('Serwis olejowy') ? `<input type="number" inputmode="numeric" data-sb-km="${esc(v.id)}" aria-label="${esc(v.plate)} – olej przy km" placeholder="${v.km ? Math.ceil((Number(v.km) + 15000) / 1000) * 1000 : 'km'}" style="width:110px">` : ''}</td></tr>`).join('')}
+    </tbody></table></div><div class="warnline" id="dlg-warn" hidden></div>`;
+  $('#dlg-save').textContent = 'Zapisz terminy'; $('#dlg-del').hidden = true; $('#scrim').hidden = false;
+  $('#dialog')?.classList.add('dlg-wide');
+}
+async function saveStdBulk(){
+  const items = [...document.querySelectorAll('[data-sb-type]')].filter(i => i.value).map(i => ({vid: i.dataset.sbVeh, type: i.dataset.sbType, date: i.value}));
+  const kmOf = vid => Number((document.querySelector(`[data-sb-km="${vid}"]`) || {}).value) || null;
+  // olej tylko z przebiegiem (bez daty) – termin z datą za 12 miesięcy, żeby przypomnienie działało też po czasie
+  document.querySelectorAll('[data-sb-km]').forEach(i => { const vid = i.dataset.sbKm; if (Number(i.value) > 0 && !items.some(x => x.vid===vid && x.type==='Serwis olejowy')) items.push({vid, type:'Serwis olejowy', date: addDays(today(), 365)}); });
+  if (!items.length){ const w = $('#dlg-warn'); w.textContent = 'Wpisz co najmniej jedną datę.'; w.hidden = false; return; }
+  const btn = $('#dlg-save'); btn.disabled = true; let n = 0;
+  try {
+    for (const it of items){ const def = DL_INTERVALS[it.type] || [12, null], oil = it.type==='Serwis olejowy', kd = oil ? kmOf(it.vid) : null;
+      await db.collection('deadlines').doc().set({vehicleId: it.vid, type: it.type, date: it.date, intervalMonths: def[0], intervalKm: oil ? def[1] : null, kmDue: kd, remindKm: oil && kd ? 2000 : null}); n++; }
+    closeForm(); toast(`Dodano ${n} ${isPlural(n,'termin','terminy','terminów')}`);
+  } catch(err){ handleWriteErr(err); if (n) toast(`Zapisano ${n} z ${items.length} – reszta nie przeszła`); }
+  finally { btn.disabled = false; }
+}
+document.addEventListener('click', e => { if (e.target.closest('[data-action="std-bulk"]')){ e.preventDefault(); openStdBulk(); } });
+
 /* Kto jeździł tym autem w ostatnich 90 dniach (dni z grafiku) */
 function whoDroveHtml(vid){
   const t = today(), from = addDays(t, -89), cnt = {};
