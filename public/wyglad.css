@@ -457,3 +457,8 @@ kbd{display:inline-block;font:600 11px/1 "Geist Mono",ui-monospace,monospace;pad
   .setl tfoot th{padding:0;border:0}.setl tfoot th:nth-child(n+3):nth-child(-n+7){display:none}.setl tfoot th{text-align:right}.setl tfoot th:first-child{text-align:left}
 }
 .att-row .neg, .att .sub b.neg{color:var(--bad)}
+/* karta auta: dane w jednym zwartym panelu */
+.vfacts{grid-template-columns:repeat(4,minmax(0,1fr));gap:0;background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:4px;box-shadow:var(--shadow-sm)}
+.vfacts>div{background:none;border:0;box-shadow:none;border-radius:0;padding:12px 16px}
+.vfacts>div.wide{grid-column:span 2}
+@media (max-width:700px){.vfacts{grid-template-columns:repeat(2,minmax(0,1fr))}.vfacts>div.wide{grid-column:1/-1}}

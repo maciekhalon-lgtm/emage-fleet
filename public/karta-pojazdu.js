@@ -15,9 +15,9 @@ function viewCard(){
   const add = (col, label) => canCreate(col) ? `<button class="small" data-new="${col}" data-veh="${esc(v.id)}">${label}</button>` : '';
 
   const facts = [
-    ['Przebieg', km(v.km)], ['Rok', esc(v.year||'—')], ['Napęd', esc(v.fuel||'—')], ['Odpowiedzialni', (respOf(v).length?esc(respNames(v)):'<span class="muted">nikt</span>') + (typeof canResp==='function' && canResp() ? ` <button class="small ghost" data-resp="${esc(v.id)}">${respOf(v).length ? 'Zmień' : 'Przypisz'}</button>` : '')],
-    ['VIN', `<span class="num">${esc(v.vin||'—')}</span>`], ['Polisa', policyHtml(v)], ['Tachograf', v.hasTacho ? 'tak' : 'nie'], ['Opony', v.tires ? TIRES[v.tires] : '—'], ['Bak', (v.tankL || 90) + ' l'], 
-  ].map(([l,val]) => `<div><span class="label">${l}</span><span class="fv">${val}</span></div>`).join('');
+    ['Przebieg', km(v.km)], ['Rok', esc(v.year||'—')], ['Napęd', esc(v.fuel||'—')], ['Bak', (v.tankL || 90) + ' l'],
+    ['Odpowiedzialni', (respOf(v).length?esc(respNames(v)):'<span class="muted">nikt</span>') + (typeof canResp==='function' && canResp() ? ` <button class="small ghost" data-resp="${esc(v.id)}">${respOf(v).length ? 'Zmień' : 'Przypisz'}</button>` : '')], ['Tachograf', v.hasTacho ? 'tak' : 'nie'], ['Opony', v.tires ? TIRES[v.tires] : '—'], ['Polisa', policyHtml(v)], ['VIN', `<span class="num">${esc(v.vin||'—')}</span>`],
+  ].map(([l,val]) => `<div class="${l==='Polisa' || l==='Odpowiedzialni' || l==='VIN' ? 'wide' : ''}"><span class="label">${l}</span><span class="fv">${val}</span></div>`).join('');
 
   const dls = S.deadlines.filter(d => d.vehicleId===v.id).sort((a,b) => a.date<b.date?-1:1);
   const dlHtml = dls.map(d => { const s = dlState(d); return `<div class="mini ${canEditDoc('deadlines',d)?'click':''}" ${canEditDoc('deadlines',d)?`data-edit="deadlines" data-id="${esc(d.id)}"`:''}><span class="num">${fdate(d.date)}</span><span>${esc(d.type)}</span><span class="pill ${s.cls}">${esc(s.txt)}</span></div>`; }).join('');
@@ -86,7 +86,7 @@ function viewCard(){
     <div class="grid2"><div class="section">${P().manage ? sec('Tankowania z kart (ostatnie 30)', '', fuelHtml, 'Brak tankowań z kart paliwowych.') : ''}</div>
     <div class="section">${sec('Koszty (ostatnie 40)', add('costs','+ Koszt'), costRows, 'Brak kosztów.')}</div></div>`;
   else if (cardTab==='historia') body = sec('Historia', '', histHtml ? `<div class="tlist">${histHtml}</div>` : '', 'Brak wpisów – tu pojawią się koszty, usterki, naprawy i wyjazdy tego auta.');
-  else body = `<div class="facts">${facts}</div><div class="grid2">
+  else body = `<div class="facts vfacts">${facts}</div><div class="grid2">
       <div class="section">${sec('Grafik', add('bookings','+ Przydział'), bkHtml, 'Brak przydziałów.')}${P().manage || P().service ? whoDroveHtml(v.id) : ''}</div>
       <div class="section">${sec('Dokumenty', canUpload ? `<button class="small" data-new="docs" data-veh="${esc(v.id)}">+ Dodaj plik</button>` : '', docHtml,
           'Brak dokumentów – dodaj skan dowodu rejestracyjnego, polisy lub umowy (PDF albo zdjęcie).')}</div></div>`;
