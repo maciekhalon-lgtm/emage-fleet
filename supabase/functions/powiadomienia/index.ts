@@ -13,7 +13,7 @@
 // SUPABASE_URL i SUPABASE_SERVICE_ROLE_KEY Supabase dodaje sam.
 
 import webpush from 'npm:web-push@3.6.7';
-import { createClient } from 'npm:@supabase/supabase-js@2.49.4';
+import { createClient } from 'npm:@supabase/supabase-js@2';
 
 // ===== LOGIKA (bez zależności – testowana osobno) =====
 export type Row = Record<string, any>;
@@ -177,9 +177,15 @@ Deno.serve(async (req) => {
   let testUser: string | null = null;
   if (!isCron){
     const token = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '');
-    const {data, error: authErr} = token ? await sb.auth.getUser(token) : {data: {user: null}, error: null};
-    if (!data?.user) return json({error: 'Brak uprawnień' + (authErr ? ' (' + authErr.message + ')' : token ? '' : ' (brak tokenu)')}, 401);
-    testUser = data.user.id;
+    if (!token) return json({error: 'Brak uprawnień (brak tokenu)'}, 401);
+    // podpis tokenu sprawdzamy kluczami projektu (JWKS) – nie zależy od sesji na serwerze logowania
+    let uid = '';
+    const auth: any = sb.auth;
+    const {data: cl, error: clErr} = typeof auth.getClaims === 'function' ? await auth.getClaims(token) : {data: null, error: null};
+    if (cl?.claims?.sub && cl.claims.role === 'authenticated') uid = String(cl.claims.sub);
+    if (!uid){ const {data} = await sb.auth.getUser(token); uid = data?.user?.id || ''; }
+    if (!uid) return json({error: 'Brak uprawnień' + (clErr ? ' (' + clErr.message + ')' : '')}, 401);
+    testUser = uid;
   }
 
   const send = async (userId: string, payload: Record<string, unknown>) => {
