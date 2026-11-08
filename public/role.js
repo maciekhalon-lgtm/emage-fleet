@@ -25,6 +25,19 @@ function mine(col, doc){
   if (col==='bookings') return (!!myId && doc.createdBy===myId) || (!!myDriverId() && (doc.driverId===myDriverId() || doc.coDriverId===myDriverId()));
   return false;
 }
-const canEditDoc = (col, doc) => canWrite && (P()[col]==='rw' || (P()[col]==='own' && mine(col, doc) && !(col==='issues' && doc.status && doc.status!=='nowe') && !(col==='cleanings' && doc.status!=='pending')));
-const visibleCosts = () => S.costs;   // baza zwraca kierowcy tylko jego wpisy
+const canEditDoc = (col, doc) => canWrite && !(doc && doc.virtual) && (P()[col]==='rw' || (P()[col]==='own' && mine(col, doc) && !(col==='issues' && doc.status && doc.status!=='nowe') && !(col==='cleanings' && doc.status!=='pending')));
+/* Koszty do sum i wykresów: wpisy z aplikacji + tankowania z kart paliwowych, które nie mają swojego wpisu
+   (karty importuje kierownik floty; tankowanie połączone z wpisem kierowcy liczy się raz – z wpisu). */
+let cardFuelMemo = {k: '', v: []};
+function cardFuelCosts(){
+  const rows = S.fuelCardRows || [];
+  const k = rows.length + '|' + (rows[0] || {}).id + '|' + S.costs.length;
+  if (cardFuelMemo.k===k) return cardFuelMemo.v;
+  const v = rows.filter(r => r.kind!=='other' && r.vehicleId && !r.costId && Number(r.amount) > 0 && (!r.currency || r.currency==='PLN'))
+    .map(r => ({id: 'fc_' + r.id, virtual: true, vehicleId: r.vehicleId, date: r.txDate, category: 'Paliwo', amount: Number(r.amount), liters: Number(r.liters) || null,
+      odometer: Number(r.odometer) || null, station: r.station || '', currency: 'PLN', note: 'karta paliwowa' + (r.cardNo ? ' ' + r.cardNo : ''), full: false}));
+  cardFuelMemo = {k, v};
+  return v;
+}
+const visibleCosts = () => P().costs==='own' ? S.costs : S.costs.concat(cardFuelCosts());   // kierowca: baza zwraca tylko jego wpisy
 const pName = id => names[id] || (me && id===me.id ? me.full_name : '') || 'Użytkownik';

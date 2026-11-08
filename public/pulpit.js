@@ -145,7 +145,7 @@ function viewDashboard(){
   const dls = S.deadlines.map(dlState);
   const over = dls.filter(s => s.d <= 0).length, soon30 = dls.filter(s => s.d <= 30).length;
   const crews = S.bookings.filter(b => holds(b) && b.coDriverId).length;
-  const m = today().slice(0, 7), inM = S.costs.filter(c => (c.date || '').startsWith(m));
+  const m = today().slice(0, 7), inM = visibleCosts().filter(c => (c.date || '').startsWith(m));
   const isRepair = c => c.category==='Serwis i naprawy' || c.category==='Opony';
   const d = new Date(), dateTxt = d.toLocaleDateString('pl-PL', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
   const head = `<div class="bar dash-head"><div><h1>Pulpit</h1><span class="muted">${esc(dateTxt)}${dbState==='live' ? ' · dane na żywo' : ''}</span></div>

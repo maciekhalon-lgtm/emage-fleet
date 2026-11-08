@@ -40,7 +40,7 @@ function viewCard(){
   const canUpload = canCreate('docs');
 
   const hist = [];
-  VC.forEach(c => hist.push({d:c.date, kind:c.category, cls:'soon', txt:esc(c.note||''), amt:zl2(c.amount), extra:c.liters?String(c.liters).replace('.',',')+(c.category==='Ładowanie'?' kWh':' l'):''}));
+  VC.filter(c => !c.virtual).forEach(c => hist.push({d:c.date, kind:c.category, cls:'soon', txt:esc(c.note||''), amt:zl2(c.amount), extra:c.liters?String(c.liters).replace('.',',')+(c.category==='Ładowanie'?' kWh':' l'):''}));
   S.issues.filter(i => i.vehicleId===v.id).forEach(i => {
     hist.push({d:i.date, kind:'Usterka', cls:'bad', txt:esc(i.title)});
     if (i.resolvedAt) hist.push({d:i.resolvedAt, kind:'Naprawa', cls:'ok', txt:esc(i.title)+(i.repairNote?' · '+esc(i.repairNote):'')});
@@ -62,7 +62,7 @@ function viewCard(){
   const cardFills = (S.fuelCardRows || []).filter(r => r.vehicleId===v.id && r.kind!=='other').sort((a, b) => (b.txDate + (b.txTime || '')).localeCompare(a.txDate + (a.txTime || ''))).slice(0, 30);
   const fuelHtml = cardFills.map(r => `<div class="mini"><span class="num">${fdate(r.txDate)}${r.txTime ? `<span class="sub">${esc(r.txTime)}</span>` : ''}</span>
       <span>${fl(r.liters)} · ${fm(r.amount, r.currency)}<span class="sub">${r.odometer ? km(r.odometer) : 'bez licznika'}${r.station ? ' · ' + esc(r.station) : ''}</span></span><span class="mini-r muted small">karta</span></div>`).join('');
-  const costRows = VC.slice().sort((a, b) => a.date < b.date ? 1 : -1).slice(0, 40).map(c => `<div class="mini ${canEditDoc('costs', c) ? 'click' : ''}" ${canEditDoc('costs', c) ? `data-edit="costs" data-id="${esc(c.id)}"` : ''}>
+  const costRows = VC.filter(c => !c.virtual).sort((a, b) => a.date < b.date ? 1 : -1).slice(0, 40).map(c => `<div class="mini ${canEditDoc('costs', c) ? 'click' : ''}" ${canEditDoc('costs', c) ? `data-edit="costs" data-id="${esc(c.id)}"` : ''}>
       <span class="num">${fdate(c.date)}</span><span><b>${esc(c.category)}</b> <span class="muted small">${[c.liters ? String(c.liters).replace('.', ',') + ' l' : '', c.odometer ? km(c.odometer) : '', c.note].filter(Boolean).map(esc).join(' · ')}</span></span><span class="mini-r num"><b>${zl2(c.amount)}</b></span></div>`).join('');
   const openIss = iss.filter(i => i.status!=='naprawione').length, urgentDl = dls.filter(d => ['bad','warn'].includes(dlState(d).cls)).length;
   const tabs = [['dane','Dane', 0], ['serwis','Terminy i serwis', openIss + urgentDl], ['paliwo','Paliwo i koszty', 0], ['historia','Historia', 0]];

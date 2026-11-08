@@ -42,7 +42,7 @@ function periodRange(){
 }
 function reportRows(){
   const [a, b] = periodRange();
-  const inP = S.costs.filter(c => c.date >= a && c.date <= b);
+  const inP = visibleCosts().filter(c => c.date >= a && c.date <= b);
   return S.vehicles.filter(v => v.status!=='wycofany' || inP.some(c => c.vehicleId===v.id)).map(v => {
     const cs = inP.filter(c => c.vehicleId===v.id);
     const cost = cs.reduce((s,c) => s+Number(c.amount||0), 0);
@@ -57,7 +57,7 @@ function reportRows(){
 /* Ostrzeżenia o limitach w bieżącym miesiącu – używane też w powiadomieniach na górze strony */
 function limitAlerts(){
   const m = today().slice(0,7);
-  const inM = S.costs.filter(c => (c.date||'').startsWith(m));
+  const inM = visibleCosts().filter(c => (c.date||'').startsWith(m));
   const out = [];
   S.vehicles.forEach(v => {
     const lim = Number(v.monthlyLimit); if (!lim) return;
@@ -130,7 +130,7 @@ async function exportXlsx(){
   const sum = rows.map(r => ({'Rejestracja': r.v.plate, 'Pojazd': r.v.make+' '+r.v.model, 'Koszty brutto (zł)': +r.cost.toFixed(2), 'W tym paliwo (zł)': +r.fuel.toFixed(2),
     'Przejechane km': r.km || '', 'Koszt na km (zł)': r.perKm ? +r.perKm.toFixed(2) : '', 'Śr. zużycie': r.cons ? +r.cons.val.toFixed(1) : '', 'Jednostka zużycia': r.cons ? r.cons.unit : '',
     'Limit miesięczny (zł)': r.limit || '', ...Object.fromEntries(COST_CATS.map(k => [k+' (zł)', +r.cats[k].toFixed(2)]))}));
-  const entries = S.costs.filter(c => c.date >= a && c.date <= b).sort((x,y) => x.date<y.date?-1:1).map(c => ({
+  const entries = visibleCosts().filter(c => c.date >= a && c.date <= b).sort((x,y) => x.date<y.date?-1:1).map(c => ({
     'Data': fdate(c.date), 'Rejestracja': byId('vehicles', c.vehicleId)?.plate || '', 'Kategoria': c.category, 'Kwota brutto (zł)': Number(c.amount||0),
     'Ilość (l/kWh)': c.liters || '', 'Stan licznika (km)': c.odometer || '', 'Trasa': rLabel(c.routeId), 'Stacja': c.station || '', 'Waluta': c.currency || 'PLN', 'Kwota w walucie': c.currency && c.currency!=='PLN' ? Number(c.amountOrig||0) : '',
     'Kurs': c.fxRate ? Number(c.fxRate) : '', 'Data kursu': c.fxDate ? fdate(c.fxDate) : '', 'Tabela NBP': c.fxTable || '', 'Opis': c.note || '', 'Dodał(a)': c.createdBy ? pName(c.createdBy) : ''}));
