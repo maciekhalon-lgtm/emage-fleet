@@ -21,8 +21,8 @@ function viewDeadlines(){
       return `<div class="dl-row ${s.cls==='ok'?'':s.cls}" ${canEditDoc('deadlines',d)?'data-edit="deadlines" tabindex="0"':'style="cursor:default"'} data-id="${esc(d.id)}">
         <div class="dl-date">${fdate(d.date)}</div>
         <div style="min-width:0"><b>${esc(d.type)}</b>${kmInfo}</div>
-        <div class="hide-sm" style="min-width:0">${vPlate(d.vehicleId)} <span class="sub">${esc(vName(d.vehicleId))}</span></div>
-        <div class="hide-sm"><span class="pill ${s.cls}">${esc(s.txt)}</span></div>
+        <div class="is-veh" style="min-width:0">${vPlate(d.vehicleId)} <span class="sub">${esc(vName(d.vehicleId))}</span></div>
+        <div class="is-pills"><span class="pill ${s.cls}">${esc(s.txt)}</span></div>
         <div>${canEditDoc('deadlines',d)?`<button class="small" data-renew="${esc(d.id)}" title="Oznacz jako wykonane i ustaw kolejny termin">Wykonane</button>`:''}</div>
       </div>`; }).join('');
   }
