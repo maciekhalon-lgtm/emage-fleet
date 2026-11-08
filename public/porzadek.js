@@ -7,7 +7,7 @@ const GROUPS = {
   rezerwacje: [['przydzial','Grafik', () => true], ['trasy','Trasy', () => !!P().manage]],
   serwis:     [['usterki','Usterki', () => true], ['terminy','Terminy', () => true], ['ksiazka','Książka serwisowa', () => !!P().service], ['opony','Opony', () => tiresOn()], ['wyposazenie','Wyposażenie', () => eqOn()]],
   paliwo:     [['karty','Karty', () => !!P().manage], ['spalanie','Spalanie i liczniki', () => !!P().manage], ['oplaty','Opłaty drogowe', () => !!P().manage]],
-  koszty:     [['koszty','Koszty', () => true], ['rozliczenie','Rozliczenie aut', () => !!P().manage], ['raporty','Raporty', () => !!P().reports]],
+  koszty:     [['koszty','Koszty', () => true], ['rozliczenie','Rozliczenie aut', () => !!P().manage], ['umowy','Leasing i umowy', () => contractsOn()], ['raporty','Raporty', () => !!P().reports]],
   ludzie:     [['kierowcy','Kierowcy', () => true], ['uzytkownicy','Użytkownicy', () => !!P().manage]],
   ustawienia: [['ustawienia','Ustawienia', () => !!P().manage], ['historia','Historia zmian', () => !!P().history]],
 };
@@ -36,6 +36,7 @@ function tabCount(t){
   if (t==='spalanie' && P().manage){ const n = theftVehicles().length; return {n, bad: n > 0}; }
   if (t==='opony' && typeof tiresOn==='function' && tiresOn()){ const n = tireProblems().filter(x => x.t.location==='na_aucie').length; return {n, bad: tireProblems().some(x => x.t.location==='na_aucie' && x.w.some(([c]) => c==='bad'))}; }
   if (t==='wyposazenie' && typeof eqOn==='function' && eqOn()){ const p = eqProblems(); return {n: p.length, bad: p.some(x => x.s.cls==='bad')}; }
+  if (t==='umowy' && typeof contractsOn==='function' && contractsOn()){ const p = contractProblems(); return {n: p.length, bad: p.some(x => x.i.warn.some(([c]) => c==='bad'))}; }
   if (t==='przydzial'){ const cf = conflicts().size; return {n: cf, bad: cf > 0}; }
   return {n: 0, bad: false};
 }

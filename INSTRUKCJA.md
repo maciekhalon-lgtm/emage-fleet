@@ -153,3 +153,8 @@ Motyw jasny/ciemny: przełącznik słońce/księżyc w górnym pasku (komputer) 
 - Tabela: każde auto × gaśnica, apteczka, trójkąt, kamizelki, koło zapasowe / zestaw, podnośnik, pasy do ładunku.
 - Kliknięcie pola: jest / brak, data ważności (gaśnica, apteczka), notatka. „Sprawdzone dziś” – całe auto jednym kliknięciem.
 - Ostrzeżenia: gaśnica po terminie lub ≤ 30 dni, braki, auta nigdy nie sprawdzane lub sprawdzane ponad 90 dni temu. Karta auta pokazuje braki.
+
+## Leasing i umowy (Koszty → Leasing i umowy) – po uruchomieniu 029_umowy.sql
+- Umowa auta: leasing / najem / kredyt, finansujący, numer, okres, rata netto i brutto, limit km z przebiegiem na starcie, opłata za nadprzebieg, wykup, co jest w racie.
+- Prognoza kilometrów na koniec umowy (tempo z liczników z 90 dni) i koszt nadprzebiegu; ostrzeżenia: koniec umowy ≤ 90 / 30 dni, limit km zagrożony lub przekroczony.
+- Rata wchodzi do **Rozliczenia aut** („Ubezp. i leasing”), gdy w miesiącu nie ma ręcznie wpisanego kosztu „Leasing”. Karta auta pokazuje umowę.

@@ -1321,3 +1321,5 @@ details.panel.fold + .panel{margin-top:14px}
 .eq-c.bad .eq-b{background:var(--bad-soft);color:var(--bad);border-color:transparent}
 .eq-c.none .eq-b{color:var(--faint)}
 .eq-seg{display:flex;gap:6px}
+.sub.neg{color:var(--bad)}.sub.pos{color:var(--ok)}
+div.fc-tile{display:flex;border:1px solid var(--line)}

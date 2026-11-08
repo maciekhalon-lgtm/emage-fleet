@@ -118,6 +118,23 @@ const FORMS = {
     {k:'active',l:'Aktywna (można ją przypisywać)',t:'check'},
     {k:'note',l:'Notatka',t:'textarea',full:1},
   ]},
+  contracts: { title:['Nowa umowa auta','Edytuj umowę auta'], fields: () => [
+    {k:'vehicleId',l:'Auto',t:'select',o:vehOpts(),req:1,full:1},
+    {k:'kind',l:'Rodzaj',t:'select',o:Object.entries(CONTRACT_KINDS),req:1},
+    {k:'provider',l:'Finansujący / wynajmujący',ph:'np. mLeasing, Arval'},
+    {k:'contractNo',l:'Numer umowy'},
+    {k:'startDate',l:'Początek',t:'date'},
+    {k:'endDate',l:'Koniec',t:'date'},
+    {k:'monthlyNet',l:'Rata netto (zł)',t:'number',step:'0.01'},
+    {k:'monthlyGross',l:'Rata brutto (zł)',t:'number',step:'0.01'},
+    {k:'kmLimit',l:'Limit km w całej umowie',t:'number',ph:'np. 150000'},
+    {k:'kmStart',l:'Przebieg na początku (km)',t:'number'},
+    {k:'kmExcessRate',l:'Opłata za 1 km ponad limit (zł)',t:'number',step:'0.01',ph:'np. 0,25'},
+    {k:'buyout',l:'Wykup (zł)',t:'number',step:'0.01'},
+    {k:'insuranceIn',l:'Ubezpieczenie w racie',t:'check'},
+    {k:'serviceIn',l:'Serwis w racie',t:'check'},
+    {k:'note',l:'Notatka',full:1},
+  ]},
   tires: { title:['Nowy komplet opon','Edytuj komplet opon'], fields: () => [
     {k:'vehicleId',l:'Auto',t:'select',o:[['','— bez auta (zapas) —'], ...vehOpts().filter(([v]) => v)],full:1},
     {k:'season',l:'Sezon',t:'select',o:Object.entries(TIRES),req:1},
@@ -139,6 +156,7 @@ const FORMS = {
   ]},
 };
 const DEFAULTS = {
+  contracts: () => ({kind:'leasing'}),
   tires: () => ({season: 'zimowe', location: 'magazyn'}),
   vehicles: () => ({status:'aktywny', fuel:'Diesel', tankL:90}),
   drivers: () => ({active:true}),

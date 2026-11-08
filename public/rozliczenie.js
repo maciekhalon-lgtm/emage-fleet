@@ -23,11 +23,13 @@ function settlement(m){
     const g = SETL_GROUPS.map(([, cats]) => own.filter(c => cats.includes(c.category)).reduce((s, c) => s + Number(c.amount || 0), 0));
     const card = cards.filter(r => r.vehicleId===v.id).reduce((s, r) => s + Number(r.amount), 0);
     g[0] += card;
+    const lease = typeof contractMonthCost==='function' ? contractMonthCost(v.id, from, to, own) : 0;   // rata z umowy (migracja 029)
+    g[2] += lease;
     const ownSum = g.reduce((s, x) => s + x, 0);
     const r = typeof odoRange==='function' ? odoRange(v.id, from, to) : null;
     const kmV = r && r.km > 0 ? Math.round(r.km) : null;
     const total = ownSum + share;
-    return {v, km: kmV, g, card, ownSum, share, total, perKm: kmV ? total / kmV : null};
+    return {v, km: kmV, g, card, lease, ownSum, share, total, perKm: kmV ? total / kmV : null};
   });
   const sum = k => rows.reduce((s, r) => s + (r[k] || 0), 0);
   return {from, to, rows, fleet, fleetSum, share, n: vs.length, tot: {km: sum('km'), own: sum('ownSum'), total: sum('total'), g: SETL_GROUPS.map((_, i) => rows.reduce((s, r) => s + r.g[i], 0))}};

@@ -70,6 +70,7 @@ function render(){
   else if (tab==='oplaty') v.innerHTML = viewTolls();
   else if (tab==='opony') v.innerHTML = viewTires();
   else if (tab==='wyposazenie') v.innerHTML = viewEquipment();
+  else if (tab==='umowy') v.innerHTML = viewContracts();
   else v.innerHTML = viewCosts();
   if (st) v.insertAdjacentHTML('afterbegin', st);
   hydrateFiles(v);
