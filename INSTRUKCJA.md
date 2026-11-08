@@ -79,6 +79,13 @@ Podsumowanie według aut i kierowców; kliknięcie wpisu kierowcy pozwala go pop
 zamknąć usterki, odnotować wymianę oleju (następna za 12 000 km, przypomnienie 2 000 km wcześniej) i opon.
 
 
+## Kierowcy odpowiedzialni za busa
+
+- **Ludzie → Kierowcy → „Kto odpowiada za który bus”** – cała flota na jednej liście; **Przypisz / Zmień** przy busie.
+- Przy kierowcy (lista i karta kierowcy) – **Przypisz / Busy: …** – zaznaczasz jego busy.
+- Na karcie auta przy „Odpowiedzialni” – **Przypisz / Zmień**. Szybko: Ctrl+K → „odpowiedzialni”.
+- Odpowiedzialny widzi bus w „Moje auto”, jest podpowiadany przy przydziale i przy tankowaniach z karty bez grafiku.
+
 ## Ostrzeżenia w grafiku i na Pulpicie
 
 - Przydział z czerwoną ramką i ⚠ – w tym dniu przegląd / OC auta albo dokumenty kierowcy są nieważne (szczegóły pod kursorem).

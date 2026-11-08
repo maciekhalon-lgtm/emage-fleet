@@ -100,10 +100,10 @@ function viewDrivers(){
     return `<tr ${P().manage ? `class="click" data-drv-card="${esc(d.id)}"` : canEditDoc('drivers', d) ? `class="click" data-edit="drivers" data-id="${esc(d.id)}"` : ''} ${d.active===false ? 'style="opacity:.6"' : ''}>
       <td><b>${esc(d.name)}</b>${d.active===false ? ' <span class="pill off">nieaktywny</span>' : ''}<span class="sub">${esc([d.phone, d.categories ? 'kat. ' + d.categories : ''].filter(Boolean).join(' · '))}</span></td>
       <td>${now ? `${vPlate(now.vehicleId)}<span class="sub">${now.routeId ? esc(rLabel(now.routeId)) : 'w trasie'}</span>` : '<span class="muted">—</span>'}</td>
-      <td>${veh.length ? veh.map(v => esc(v.plate)).join(', ') : '<span class="muted">—</span>'}</td>
+      <td>${veh.length ? veh.map(v => esc(v.plate)).join(', ') : '<span class="muted">—</span>'}${typeof canResp==='function' && canResp() && d.active!==false ? ` <button class="small ghost" data-resp-drv="${esc(d.id)}">${veh.length ? 'Zmień' : 'Przypisz'}</button>` : ''}</td>
       <td>${docs || '<span class="muted small">ważne</span>'}</td></tr>`;
   }).join('');
-  return head + `<div class="panel tablewrap"><table><thead><tr><th>Kierowca</th><th>Teraz</th><th>Odpowiada za</th><th>Dokumenty</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  return head + (typeof respPanel==='function' ? respPanel() : '') + `<div class="panel tablewrap"><table><thead><tr><th>Kierowca</th><th>Teraz</th><th>Odpowiada za</th><th>Dokumenty</th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
 /* ---------- ustawienia (kierownik floty) ---------- */

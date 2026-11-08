@@ -20,6 +20,7 @@ function palActions(){
   if (canCreate('costs') && P().manage) a.push({ic:'coins', t:'Dodaj koszt', s:'paliwo, serwis, opłaty…', run: () => openForm('costs')});
   if (canCreate('serviceEntries') && P().service) a.push({ic:'clip', t:'Wpis serwisowy', s:'do książki serwisowej', run: () => openForm('serviceEntries')});
   if (canCreate('deadlines')) a.push({ic:'cal', t:'Dodaj termin', s:'przegląd, OC, serwis…', run: () => openForm('deadlines')});
+  if (typeof canResp==='function' && canResp()) a.push({ic:'users', t:'Kierowcy odpowiedzialni za busy', s:'kto odpowiada za który bus', run: () => { location.hash = 'kierowcy'; }});
   if (canCreate('vehicles')) a.push({ic:'truck', t:'Dodaj pojazd', s:'nowe auto we flocie', run: () => openForm('vehicles')});
   if (!P().mycar || P().manage || P().service) a.push({ic:'search', t:'Skróty klawiszowe', s:'Ctrl+K, g + litera…', run: () => openShortcuts()});
   if (P().manage) a.push({ic:'fuel', t:'Import z karty paliwowej', s:'Paliwo → Karty paliwowe', run: () => { location.hash = 'karty'; setTimeout(() => document.querySelector('#view [data-action="fc-import"]')?.click(), 150); }});
