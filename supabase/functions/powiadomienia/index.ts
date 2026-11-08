@@ -161,7 +161,9 @@ Deno.serve(async (req) => {
   const env = (k: string) => (Deno.env.get(k) || '').trim();
   // klucze wklejane ręcznie w sekretach: usuwamy spacje, entery, cudzysłowy i końcowe „=”
   const key = (k: string) => env(k).replace(/\s+/g, '').replace(/^["']|["']$/g, '').replace(/=+$/, '');
-  const sb = createClient(env('SUPABASE_URL'), env('SUPABASE_SERVICE_ROLE_KEY'), {auth: {persistSession: false}});
+  // klucz serwisowy: nowe projekty mają SUPABASE_SECRET_KEYS (JSON), starsze SUPABASE_SERVICE_ROLE_KEY – bierzemy, co jest
+  const secretKey = (() => { try { const o = JSON.parse(env('SUPABASE_SECRET_KEYS') || '{}'); return String(o.default || Object.values(o)[0] || ''); } catch { return ''; } })() || env('SUPABASE_SERVICE_ROLE_KEY');
+  const sb = createClient(env('SUPABASE_URL'), secretKey, {auth: {persistSession: false}});
   if (!key('VAPID_PUBLIC_KEY') || !key('VAPID_PRIVATE_KEY')) return json({error: 'Brak kluczy VAPID w sekretach funkcji'}, 500);
   // klucz publiczny: ten zapisany przez aplikację w bazie (settings 'push') jest pewny – sekret VAPID_PUBLIC_KEY tylko awaryjnie
   const {data: pushRow} = await sb.from('settings').select('value').eq('key', 'push').maybeSingle();
@@ -175,8 +177,8 @@ Deno.serve(async (req) => {
   let testUser: string | null = null;
   if (!isCron){
     const token = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '');
-    const {data} = token ? await sb.auth.getUser(token) : {data: {user: null}};
-    if (!data?.user) return json({error: 'Brak uprawnień'}, 401);
+    const {data, error: authErr} = token ? await sb.auth.getUser(token) : {data: {user: null}, error: null};
+    if (!data?.user) return json({error: 'Brak uprawnień' + (authErr ? ' (' + authErr.message + ')' : token ? '' : ' (brak tokenu)')}, 401);
     testUser = data.user.id;
   }
 
