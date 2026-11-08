@@ -158,12 +158,15 @@ const json = (o: unknown, status = 200) => new Response(JSON.stringify(o), {stat
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return json({ok: true});
-  const env = (k: string) => Deno.env.get(k) || '';
+  const env = (k: string) => (Deno.env.get(k) || '').trim();
+  // klucze wklejane ręcznie w sekretach: usuwamy spacje, entery, cudzysłowy i końcowe „=”
+  const key = (k: string) => env(k).replace(/\s+/g, '').replace(/^["']|["']$/g, '').replace(/=+$/, '');
   const sb = createClient(env('SUPABASE_URL'), env('SUPABASE_SERVICE_ROLE_KEY'), {auth: {persistSession: false}});
-  if (!env('VAPID_PUBLIC_KEY') || !env('VAPID_PRIVATE_KEY')) return json({error: 'Brak kluczy VAPID w sekretach funkcji'}, 500);
-  webpush.setVapidDetails(env('VAPID_SUBJECT') || 'mailto:flota@example.com', env('VAPID_PUBLIC_KEY'), env('VAPID_PRIVATE_KEY'));
+  if (!key('VAPID_PUBLIC_KEY') || !key('VAPID_PRIVATE_KEY')) return json({error: 'Brak kluczy VAPID w sekretach funkcji'}, 500);
+  try { webpush.setVapidDetails(env('VAPID_SUBJECT') || 'mailto:flota@example.com', key('VAPID_PUBLIC_KEY'), key('VAPID_PRIVATE_KEY')); }
+  catch (e) { return json({error: 'Zły klucz w sekretach funkcji: ' + String((e as Error).message || e) + ' (VAPID_PUBLIC_KEY ma ok. 87 znaków, VAPID_PRIVATE_KEY ok. 43)'}, 500); }
 
-  const isCron = !!env('CRON_SECRET') && req.headers.get('x-cron-secret') === env('CRON_SECRET');
+  const isCron = !!key('CRON_SECRET') && (req.headers.get('x-cron-secret') || '').trim() === key('CRON_SECRET');
   const body = await req.json().catch(() => ({}));
   let testUser: string | null = null;
   if (!isCron){
