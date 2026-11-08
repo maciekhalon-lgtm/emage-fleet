@@ -97,6 +97,7 @@ function viewReports(){
     ${budgetBox}
     ${fleetTrendSection()}
     ${utilSection()}
+    ${fleetAgeSection()}
     <div class="panel tablewrap"><table><thead><tr><th>Pojazd</th><th class="r">Koszty</th><th class="r">Paliwo</th><th class="r">Przejechane</th><th>Koszt / km</th>${repMode==='month'?'<th>Limit miesięczny</th>':''}</tr></thead><tbody>
       ${rows.filter(r => r.cost > 0 || r.km || r.limit).map(r => `<tr class="click" data-card-go="${esc(r.v.id)}"><td>${plate(r.v.plate)}<span class="sub">${esc(r.v.make+' '+r.v.model)}</span></td>
         <td class="r num">${zl(r.cost)}</td><td class="r num">${zl(r.fuel)}</td><td class="r num">${r.km ? new Intl.NumberFormat('pl-PL').format(r.km)+' km' : '<span class="muted">—</span>'}</td>
@@ -211,4 +212,52 @@ function utilSection(){
       <span class="ut-bar"><i style="width:${r.pct}%" class="${r.pct < 30 ? 'lo' : r.pct >= 80 ? 'hi' : ''}"></i></span>
       <span class="mini-r num"><b>${r.pct}%</b><span class="sub">${r.used}/${days.length} dni${r.km ? ' · ' + km(r.km) : ''}</span></span></div>`).join('')}
     <p class="muted small sec-empty">Dni robocze z przydziałem w grafiku (pon–pt). Poniżej 30% – warto przesunąć auto na inną trasę albo rozważyć, czy jest potrzebne.</p></details>`;
+}
+
+/* Stan floty i wymiana aut: wiek, przebieg, tempo km, naprawy i koszt/km z 12 miesięcy → kto do wymiany */
+function fleetAgeRows(){
+  const t = today(), y1 = addDays(t, -365), d90 = addDays(t, -90), yr = Number(t.slice(0, 4));
+  const vs = S.vehicles.filter(v => v.status!=='wycofany');
+  const costs = visibleCosts().filter(c => (c.date || '') >= y1);
+  const isRep = c => c.category==='Serwis i naprawy' || c.category==='Opony';
+  const rows = vs.map(v => {
+    const my = costs.filter(c => c.vehicleId===v.id), rep = sumOf(my.filter(isRep)), all = sumOf(my);
+    // tempo i koszt/km tylko z wiarygodnych odczytów: co najmniej 30 dni między pierwszym a ostatnim licznikiem
+    const rate = (from) => { if (typeof odoRange!=='function') return null; const o = odoRange(v.id, from, t); if (!o.km || !o.first || !o.last) return null;
+      const span = diffDays(o.first.d.slice(0, 10), o.last.d.slice(0, 10)); return span >= 30 ? {km: o.km, perM: o.km / span * 30} : null; };
+    const r90 = rate(d90), r365 = rate(y1);
+    const perM = (r90 || r365 || {}).perM || null, k365 = r365 && r365.km >= 2000 ? r365.km : null;
+    const age = v.year ? yr - Number(v.year) : null, kmNow = Number(v.km) || null;
+    const to300 = kmNow && perM && kmNow < 300000 ? Math.ceil((300000 - kmNow) / perM) : null;
+    return {v, age, kmNow, perM, rep, all, perKm: k365 ? all / k365 : null, to300};
+  });
+  const pk = rows.filter(r => r.perKm), avgPK = pk.length ? pk.reduce((s, r) => s + r.perKm, 0) / pk.length : null;
+  rows.forEach(r => { const why = [];
+    if (r.kmNow >= 300000){ why.push([2, 'ponad 300 tys. km']); } else if (r.kmNow >= 250000) why.push([1, 'ponad 250 tys. km']);
+    if (r.age >= 8) why.push([2, `${r.age} lat`]); else if (r.age >= 6) why.push([1, `${r.age} lat`]);
+    if (r.rep >= 8000) why.push([2, 'drogie naprawy']); else if (r.rep >= 4000) why.push([1, 'naprawy']);
+    if (avgPK && r.perKm > avgPK * 1.25) why.push([1, 'wysoki koszt/km']);
+    r.score = why.reduce((s, x) => s + x[0], 0); r.why = why.map(x => x[1]); });
+  return {rows: rows.sort((a, b) => b.score - a.score || (b.kmNow || 0) - (a.kmNow || 0)), avgPK};
+}
+function fleetAgeSection(){
+  if (!P().manage && !P().service) return '';
+  const {rows, avgPK} = fleetAgeRows(); if (rows.length < 2) return '';
+  const nf = n => new Intl.NumberFormat('pl-PL').format(Math.round(n));
+  const flag = rows.filter(r => r.score >= 4).length, watch = rows.filter(r => r.score >= 2 && r.score < 4).length;
+  const kms = rows.filter(r => r.kmNow).map(r => r.kmNow), ages = rows.filter(r => r.age!=null).map(r => r.age);
+  const avg = a => a.length ? a.reduce((s, x) => s + x, 0) / a.length : null;
+  const verdict = r => r.score >= 4 ? '<span class="pill bad">do rozważenia wymiany</span>' : r.score >= 2 ? '<span class="pill warn">obserwuj</span>' : '<span class="pill ok">w porządku</span>';
+  return `<details class="panel fold"><summary class="sec-head"><h3>Stan floty i wymiana aut</h3><span class="muted small">${flag ? `<b class="neg">${flag} do wymiany</b> · ` : ''}${watch ? watch + ' do obserwacji · ' : ''}średnio ${avg(kms) ? nf(avg(kms)) + ' km' : '—'}${avg(ages)!=null ? ', ' + avg(ages).toFixed(1).replace('.', ',') + ' lat' : ''}</span></summary>
+    <div class="tablewrap"><table><thead><tr><th>Auto</th><th class="r">Rocznik</th><th class="r">Przebieg</th><th class="r">Km / miesiąc</th><th class="r">Naprawy 12 mies.</th><th class="r">Koszt / km</th><th class="r">300 tys. km</th><th>Ocena</th></tr></thead><tbody>
+    ${rows.map(r => `<tr class="click" data-card-go="${esc(r.v.id)}"><td>${plate(r.v.plate)}<span class="sub">${esc([r.v.make, r.v.model].filter(Boolean).join(' '))}</span></td>
+      <td class="r num">${r.v.year ? esc(r.v.year) + `<span class="sub">${r.age} ${isPlural(r.age,'rok','lata','lat')}</span>` : '<span class="muted">—</span>'}</td>
+      <td class="r num">${r.kmNow ? nf(r.kmNow) + ' km' : '<span class="muted">—</span>'}</td>
+      <td class="r num">${r.perM ? nf(r.perM) + ' km' : '<span class="muted">—</span>'}</td>
+      <td class="r num">${r.rep ? zl(r.rep) : '<span class="muted">0 zł</span>'}</td>
+      <td class="r num">${r.perKm ? r.perKm.toFixed(2).replace('.', ',') + ' zł' : '<span class="muted">—</span>'}</td>
+      <td class="r num">${r.kmNow >= 300000 ? '<b class="neg">przekroczone</b>' : r.to300!=null ? (r.to300 <= 12 ? `<b class="neg">za ${r.to300} mies.</b>` : `za ${r.to300} mies.`) : '<span class="muted">—</span>'}</td>
+      <td>${verdict(r)}${r.why.length ? `<span class="sub">${esc(r.why.join(', '))}</span>` : ''}</td></tr>`).join('')}
+    </tbody></table></div>
+    <p class="muted small sec-empty">Ocena: przebieg (250 / 300 tys. km), wiek (6 / 8 lat), koszty napraw i opon z 12 miesięcy (4 / 8 tys. zł) oraz koszt/km wyższy o 25% od średniej floty${avgPK ? ' (' + avgPK.toFixed(2).replace('.', ',') + ' zł/km)' : ''}. Tempo km z ostatnich 90 dni. To podpowiedź – decyzja zależy też od stanu auta.</p></details>`;
 }
