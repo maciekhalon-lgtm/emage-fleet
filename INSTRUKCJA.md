@@ -89,6 +89,14 @@ zamknąć usterki, odnotować wymianę oleju (następna za 12 000 km, przypomnie
 - **Excel** – całe rozliczenie i lista kosztów ogólnych. Na karcie auta (zakładka Paliwo) – „Km i koszty miesięcznie” za 6 miesięcy.
 - Wymaga migracji `024_koszty_ogolne.sql` (bez niej rozliczenie działa, tylko bez kosztów ogólnych).
 
+## Porządki w wyglądzie (08.11)
+
+- Pulpit: jedno auto = jeden wiersz w „Wymaga uwagi” (powód + kto ma nim jechać + **Zmień auto**); na telefonie trzy kafelki w jednym rzędzie.
+- Karta auta: dane w jednym panelu; formularz pojazdu podzielony na sekcje (Auto, Kierowcy, Ubezpieczenie, Wyposażenie, Normy spalania).
+- Koszty i Raporty: bez wierszy z samymi zerami – pełne rozliczenie każdego auta w **Koszty → Rozliczenie aut**.
+- Grafik: krótka legenda kolorów pod tabelą. Usterki na telefonie pokazują auto.
+- Ustawienia → Kompletność danych jest zwinięta (rozwija się z Pulpitu przyciskiem „Uzupełnij”).
+
 ## Kierowcy odpowiedzialni za busa
 
 - **Ludzie → Kierowcy → „Kto odpowiada za który bus”** – cała flota na jednej liście; **Przypisz / Zmień** przy busie.
