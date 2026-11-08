@@ -98,11 +98,11 @@ function viewReports(){
     ${fleetTrendSection()}
     ${utilSection()}
     <div class="panel tablewrap"><table><thead><tr><th>Pojazd</th><th class="r">Koszty</th><th class="r">Paliwo</th><th class="r">Przejechane</th><th>Koszt / km</th>${repMode==='month'?'<th>Limit miesięczny</th>':''}</tr></thead><tbody>
-      ${rows.map(r => `<tr class="click" data-card-go="${esc(r.v.id)}"><td>${plate(r.v.plate)}<span class="sub">${esc(r.v.make+' '+r.v.model)}</span></td>
+      ${rows.filter(r => r.cost > 0 || r.km || r.limit).map(r => `<tr class="click" data-card-go="${esc(r.v.id)}"><td>${plate(r.v.plate)}<span class="sub">${esc(r.v.make+' '+r.v.model)}</span></td>
         <td class="r num">${zl(r.cost)}</td><td class="r num">${zl(r.fuel)}</td><td class="r num">${r.km ? new Intl.NumberFormat('pl-PL').format(r.km)+' km' : '<span class="muted">—</span>'}</td>
         <td style="min-width:170px">${r.perKm ? `<div class="pk"><div class="track"><div class="fill" style="width:${(r.perKm/maxPK*100).toFixed(0)}%"></div></div><span class="num">${r.perKm.toFixed(2).replace('.',',')} zł</span></div>` : '<span class="muted">brak odczytów licznika</span>'}</td>
         ${repMode==='month' ? `<td style="min-width:170px">${limitBar(r.cost, r.limit)}</td>` : ''}</tr>`).join('')}
-    </tbody></table></div>
+    </tbody></table>${rows.some(r => !(r.cost > 0 || r.km || r.limit)) ? `<p class="muted small sec-empty">Pominięto auta bez kosztów i przebiegu w tym okresie.${repMode==='month' && P().manage ? ' Pełne rozliczenie każdego auta (z kosztami ogólnymi floty): <a href="#rozliczenie">Rozliczenie aut</a>.' : ''}</p>` : ''}</div>
     ${routeReportSection()}
     <p class="muted" style="margin:0;font-size:13px;max-width:90ch">Przejechane kilometry liczymy ze wszystkich liczników (karty paliwowe, tankowania, przejęcie i zdanie auta) – złe liczniki są pomijane. Spalanie i porównanie kierowców – w menu Paliwo. Im częściej są wpisywane, tym dokładniejszy koszt na kilometr. Kliknij auto, aby otworzyć jego kartę.</p>
   </div>`;
@@ -197,7 +197,7 @@ function utilSection(){
   const t = today(), first = S.bookings.reduce((m, b) => !m || b.from < m ? b.from : m, ''), from = first > addDays(t, -29) ? first : addDays(t, -29);   // grafik prowadzony krócej niż 30 dni → liczymy od jego początku
   const days = []; for (let d = from; d <= t; d = addDays(d, 1)){ const w = parse(d).getDay(); if (w && w < 6) days.push(d); }
   const vs = S.vehicles.filter(v => v.status!=='wycofany');
-  if (vs.length < 2 || !days.length) return '';
+  if (vs.length < 2 || days.length < 5) return '';   // za krótki grafik – procenty nic nie mówią
   const rows = vs.map(v => {
     const bs = S.bookings.filter(b => b.vehicleId===v.id && b.to >= from && b.from <= t);
     const used = days.filter(d => bs.some(b => b.from <= d && b.to >= d)).length;
@@ -206,7 +206,7 @@ function utilSection(){
   }).sort((a, b) => a.pct - b.pct || a.km - b.km);
   const avg = Math.round(rows.reduce((s, r) => s + r.pct, 0) / rows.length);
   const low = rows.filter(r => r.pct < 30);
-  return `<details class="panel fold" ${low.length ? 'open' : ''}><summary class="sec-head"><h3>Wykorzystanie aut – 30 dni</h3><span class="muted small">średnio ${avg}% dni roboczych${low.length ? ` · <b class="neg">${low.length} ${isPlural(low.length,'auto prawie stoi','auta prawie stoją','aut prawie stoi')}</b>` : ''}</span></summary>
+  return `<details class="panel fold"><summary class="sec-head"><h3>Wykorzystanie aut – 30 dni</h3><span class="muted small">średnio ${avg}% dni roboczych${low.length ? ` · <b class="neg">${low.length} ${isPlural(low.length,'auto prawie stoi','auta prawie stoją','aut prawie stoi')}</b>` : ''}</span></summary>
     ${rows.map(r => `<div class="mini click ut-row" data-card-go="${esc(r.v.id)}"><span>${plate(r.v.plate)}</span>
       <span class="ut-bar"><i style="width:${r.pct}%" class="${r.pct < 30 ? 'lo' : r.pct >= 80 ? 'hi' : ''}"></i></span>
       <span class="mini-r num"><b>${r.pct}%</b><span class="sub">${r.used}/${days.length} dni${r.km ? ' · ' + km(r.km) : ''}</span></span></div>`).join('')}
