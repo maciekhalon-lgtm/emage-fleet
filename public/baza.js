@@ -115,7 +115,8 @@ function docRef(col, id){
     async set(data){
       const row = toDb(col, {...data, id});
       const exists = col==='settings' ? S.settings.some(x => x.id===id) : S[col] && S[col].some(x => x.id===id);
-      const q = exists ? sb.from(table).update(row).eq(key, id) : sb.from(table).insert(row);
+      // ustawienia: zawsze „wstaw albo nadpisz” – lokalna lista może być nieaktualna (np. „Wygeneruj nowe klucze”)
+      const q = col==='settings' ? sb.from(table).upsert(row, {onConflict:'key'}) : exists ? sb.from(table).update(row).eq(key, id) : sb.from(table).insert(row);
       const {error} = await q;
       if (error) throw dbErr(error);
       await refresh(col);
