@@ -482,3 +482,4 @@ kbd{display:inline-block;font:600 11px/1 "Geist Mono",ui-monospace,monospace;pad
   .is-row .is-pills{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-start}
 }
 details.panel.fold + .panel{margin-top:14px}
+.f-sec{font:700 13px/1.2 var(--f-body);letter-spacing:.04em;text-transform:uppercase;color:var(--muted);padding-top:14px;border-top:1px solid var(--line);margin-top:4px}.f-sec .muted{text-transform:none;letter-spacing:0;font-weight:500}
