@@ -136,3 +136,8 @@ Ekran ma jedną dużą kartę „co teraz”:
 - **iPhone (Safari):** Udostępnij → *Do ekranu początkowego*.
 - **Android (Chrome):** menu ⋮ → *Zainstaluj aplikację*.
 Motyw jasny/ciemny: przełącznik słońce/księżyc w górnym pasku (komputer) albo ikona w nagłówku (telefon).
+
+## Moduły, kalendarz i raport tygodniowy
+- **Ustawienia → Moduły** – załadunek, przystanki tras i podwójną obsadę można wyłączyć. Wyłączony moduł znika z ekranów, dane zostają i wracają po włączeniu.
+- **Terminy w kalendarzu telefonu** – Ustawienia (albo Serwis → Terminy → „W kalendarzu”) → link do subskrypcji w Google lub iPhone. Przeglądy, OC, serwisy i dokumenty kierowców, przypomnienie tydzień wcześniej. „Utwórz nowy link” unieważnia stary.
+- **Raport tygodniowy** – w poniedziałek rano kierownik floty dostaje powiadomienie: koszty tygodnia (z porównaniem), tankowania, nowe usterki i terminy na 14 dni. Wymaga włączonych powiadomień na telefonie.
