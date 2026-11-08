@@ -466,3 +466,12 @@ kbd{display:inline-block;font:600 11px/1 "Geist Mono",ui-monospace,monospace;pad
 .sch-legend{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:center;margin:0}.sch-legend span{display:inline-flex;align-items:center;gap:6px}.sch-legend svg{width:13px;height:13px}
 .sch-legend .lg{width:14px;height:10px;border-radius:3px;border:1.5px solid var(--line);background:var(--surface)}.sch-legend .lg.out{border-color:var(--info);background:color-mix(in srgb,var(--info) 15%,transparent)}.sch-legend .lg.back{opacity:.5}.sch-legend .lg.bad{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 15%,transparent)}.sch-legend .lg.issue{border:2px solid var(--bad)}
 .fold>summary.sec-head>h3+.count{margin-right:auto;margin-left:10px}
+/* telefon: trzy kafelki pulpitu w jednym rzędzie (krótszy ekran, lista spraw od razu widoczna) */
+@media (max-width:600px){
+  .dash .kpis.k3{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.dash .kpis.k3 .kpi:last-child{grid-column:auto}
+  .dash .kpis.k3 .kpi{padding:12px 12px;gap:6px;min-height:0;border-radius:16px}
+  .dash .kpis.k3 .kpi .k-ic,.dash .kpis.k3 .kpi .kbar,.dash .kpis.k3 .kpi .k-f{display:none}
+  .dash .kpis.k3 .kpi .k-h{font-size:12px;line-height:1.2}
+  .dash .kpis.k3 .kpi b{font-size:28px!important}.dash .kpis.k3 .kpi b small{font-size:12px}
+}
+#view a:not([class]){color:var(--ink);font-weight:600;text-underline-offset:3px}
