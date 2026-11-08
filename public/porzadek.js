@@ -7,7 +7,7 @@ const GROUPS = {
   rezerwacje: [['przydzial','Grafik', () => true], ['trasy','Trasy', () => !!P().manage]],
   serwis:     [['usterki','Usterki', () => true], ['terminy','Terminy', () => true], ['ksiazka','Książka serwisowa', () => !!P().service]],
   paliwo:     [['karty','Karty paliwowe', () => !!P().manage], ['spalanie','Spalanie i przebiegi', () => !!P().manage], ['liczniki','Liczniki', () => !!P().manage], ['porownanie','Miesiąc do miesiąca', () => !!P().manage], ['oplaty','Przejazdy i parkingi', () => !!P().manage]],
-  koszty:     [['koszty','Koszty', () => true], ['raporty','Raporty', () => !!P().reports]],
+  koszty:     [['koszty','Koszty', () => true], ['rozliczenie','Rozliczenie aut', () => !!P().manage], ['raporty','Raporty', () => !!P().reports]],
   ludzie:     [['kierowcy','Kierowcy', () => true], ['uzytkownicy','Użytkownicy', () => !!P().manage]],
   ustawienia: [['ustawienia','Ustawienia', () => !!P().manage], ['historia','Historia zmian', () => !!P().history]],
 };

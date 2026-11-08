@@ -2,7 +2,7 @@
 'use strict';
 /* ---------- routing ---------- */
 const DRIVER_VIEWS = ['moje','wybierz','moje-dane'];
-const TABS = ['moje','wybierz','moje-dane','pulpit','pojazdy','trasy','terminy','usterki','ksiazka','przydzial','koszty','karty','oplaty','spalanie','liczniki','raporty','porownanie','historia','kierowcy','uzytkownicy','ustawienia'];
+const TABS = ['moje','wybierz','moje-dane','pulpit','pojazdy','trasy','terminy','usterki','ksiazka','przydzial','koszty','karty','oplaty','spalanie','liczniki','raporty','rozliczenie','porownanie','historia','kierowcy','uzytkownicy','ustawienia'];
 const homeTab = () => P().mycar ? 'moje' : 'pulpit';
 let pendingCard = null;
 let tab = 'pulpit', q = '', costMonth = today().slice(0,7), dlFilter = 'urgent';
@@ -60,6 +60,7 @@ function render(){
   else if (tab==='terminy') v.innerHTML = viewDeadlines();
   else if (tab==='usterki') v.innerHTML = viewIssues();
   else if (tab==='raporty') v.innerHTML = viewReports();
+  else if (tab==='rozliczenie') v.innerHTML = viewSettlement();
   else if (tab==='historia') v.innerHTML = viewHistory();
   else if (tab==='przydzial') v.innerHTML = viewAssign();
   else if (tab==='karty') v.innerHTML = viewFuelCards();

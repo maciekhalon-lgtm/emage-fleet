@@ -79,6 +79,16 @@ Podsumowanie według aut i kierowców; kliknięcie wpisu kierowcy pozwala go pop
 zamknąć usterki, odnotować wymianę oleju (następna za 12 000 km, przypomnienie 2 000 km wcześniej) i opon.
 
 
+## Rozliczenie aut (Koszty → Rozliczenie aut)
+
+- Wybierasz miesiąc. Dla każdego busa: **przejechane km** (z liczników przy tankowaniu, przejęciu i zwrocie), koszty auta
+  (paliwo, serwis i opony, ubezpieczenie i leasing, pozostałe), **udział w kosztach ogólnych floty**, razem i **koszt 1 km**.
+- **Koszt ogólny floty** (przycisk u góry) – wydatki wspólne: GPS, plac, abonamenty, księgowość floty, szkolenia…
+  Dzielą się po równo na wszystkie aktywne auta (wycofane się nie liczą). „Skopiuj z poprzedniego miesiąca” przenosi stałe pozycje.
+- Paliwo = wpisy w aplikacji + tankowania z kart paliwowych, które nie są połączone z wpisem (tylko PLN) – bez liczenia dwa razy.
+- **Excel** – całe rozliczenie i lista kosztów ogólnych. Na karcie auta (zakładka Paliwo) – „Km i koszty miesięcznie” za 6 miesięcy.
+- Wymaga migracji `024_koszty_ogolne.sql` (bez niej rozliczenie działa, tylko bez kosztów ogólnych).
+
 ## Kierowcy odpowiedzialni za busa
 
 - **Ludzie → Kierowcy → „Kto odpowiada za który bus”** – cała flota na jednej liście; **Przypisz / Zmień** przy busie.

@@ -3,7 +3,7 @@
 let LOG = [];
 let histWho = '', histCol = '';
 const LOG_KEEP_DAYS = 365;
-const COL_NAMES = {vehicles:'Pojazd', drivers:'Kierowca', deadlines:'Termin', bookings:'Przydział', loadings:'Załadunek', loadingReports:'Waga załadunku', fuelCardImports:'Import karty paliwowej', costs:'Koszt', issues:'Usterka', docs:'Dokument', members:'Rola', settings:'Ustawienia', routes:'Trasa', routeStops:'Przystanek', fuelCardRows:'Tankowanie z karty', serviceEntries:'Serwis', inspections:'Inspekcja', cleanings:'Sprzątanie'};
+const COL_NAMES = {fleetCosts:'Koszt ogólny floty', vehicles:'Pojazd', drivers:'Kierowca', deadlines:'Termin', bookings:'Przydział', loadings:'Załadunek', loadingReports:'Waga załadunku', fuelCardImports:'Import karty paliwowej', costs:'Koszt', issues:'Usterka', docs:'Dokument', members:'Rola', settings:'Ustawienia', routes:'Trasa', routeStops:'Przystanek', fuelCardRows:'Tankowanie z karty', serviceEntries:'Serwis', inspections:'Inspekcja', cleanings:'Sprzątanie'};
 const ACT_NAMES = {add:'dodał(a)', edit:'zmienił(a)', delete:'usunął/usunęła', status:'zmienił(a) status', pickup:'wydał(a) auto', return:'przyjął/przyjęła zwrot', role:'zmienił(a) rolę', import:'zaimportował(a)', done:'oznaczył(a) jako wykonane'};
 
 function labelFor(col, d){
@@ -21,6 +21,7 @@ function labelFor(col, d){
     case 'serviceEntries': return `${d.description||''} · ${p}`;
     case 'inspections': return `Inspekcja · ${p} · ${fdate(d.date)}`;
     case 'cleanings': return `${(typeof CLEAN_KINDS!=='undefined' && CLEAN_KINDS[d.kind]) || 'Sprzątanie'} · ${p} · ${fdate(d.date)}`;
+    case 'fleetCosts': return `${d.category || ''} · ${zl(Number(d.amount || 0))}${d.date ? ' · ' + fdate(d.date) : ''}`;
     case 'routeStops': return `${rCode(d.routeId) || 'trasa'} · ${d.pos ? d.pos + '. ' : ''}${d.client || ''}${d.address ? ' · ' + d.address : ''}`;
     case 'fuelCardRows': return `${d.plate || p} · ${fdate(d.txDate)} · ${d.liters != null ? fl(d.liters) : ''}${d.odometer != null ? ' · licznik ' + km(d.odometer) : ''}`;
     case 'settings':  return ({odo_checked:'Liczniki – oznaczenie „sprawdzone”', fc_checked:'Podejrzane tankowania – oznaczenie „sprawdzone”', checklist:'Checklista przejęcia auta', receipts:'Kontrola paragonów', fuelcard:'Karty paliwowe – dopasowanie kolumn', push:'Powiadomienia'})[d.id] || (d.monthly ? 'Budżet floty: '+zl(d.monthly)+' / mies.' : 'Budżet floty');

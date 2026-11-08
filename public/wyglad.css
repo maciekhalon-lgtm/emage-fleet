@@ -445,3 +445,14 @@ kbd{display:inline-block;font:600 11px/1 "Geist Mono",ui-monospace,monospace;pad
 .resp-list{display:grid;gap:4px;max-height:52vh;overflow:auto}.resp-it{display:flex;gap:10px;align-items:flex-start;padding:9px 10px;border-radius:12px;border:1px solid var(--line);cursor:pointer}.resp-it:has(input:checked){border-color:var(--ink);background:var(--surface-2,rgba(0,0,0,.03))}.resp-it input{margin-top:3px;width:18px;height:18px;flex:none}.resp-it .sub{display:block;color:var(--muted);font-size:13px}.resp-it[hidden]{display:none}
 .resp-row{grid-template-columns:auto minmax(0,1fr) auto}.resp-row .pill{margin:2px 2px 2px 0}
 .fold summary .count{white-space:nowrap}
+/* rozliczenie aut – telefon: karty zamiast szerokiej tabeli */
+@media (max-width:760px){
+  .setl table, .setl tbody, .setl tfoot{display:block}.setl thead{display:none}
+  .setl tbody tr{display:grid;grid-template-columns:1fr 1fr;gap:4px 14px;padding:12px 14px;border-top:1px solid var(--line)}
+  .setl tbody td{display:flex;justify-content:space-between;gap:8px;padding:0;border:0;text-align:right}
+  .setl tbody td:first-child{grid-column:1/-1;justify-content:flex-start;align-items:center;gap:10px;margin-bottom:4px}
+  .setl tbody td[data-l]::before{content:attr(data-l);color:var(--muted);font:500 12px/1.6 Geist,system-ui,sans-serif;text-align:left}
+  .setl tbody td .sub{display:none}
+  .setl tfoot tr{display:grid;grid-template-columns:1fr 1fr;gap:4px 14px;padding:12px 14px;border-top:2px solid var(--line)}
+  .setl tfoot th{padding:0;border:0}.setl tfoot th:nth-child(n+3):nth-child(-n+7){display:none}.setl tfoot th{text-align:right}.setl tfoot th:first-child{text-align:left}
+}
