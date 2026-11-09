@@ -243,7 +243,9 @@ Deno.serve(async (req) => {
   try { webpush.setVapidDetails(subject, pubKey, key('VAPID_PRIVATE_KEY')); }
   catch (e) { return json({error: 'Zły klucz w sekretach funkcji: ' + String((e as Error).message || e) + ' (VAPID_PRIVATE_KEY ma ok. 43 znaki – skopiuj go z aplikacji po „Wygeneruj klucze”)'}, 500); }
 
-  const isCron = !!key('CRON_SECRET') && (req.headers.get('x-cron-secret') || '').trim() === key('CRON_SECRET');
+  // nagłówek z harmonogramu czyścimy tak samo jak sekret (spacje, cudzysłowy, końcowe „=”), inaczej sekret base64 nigdy się nie zgadza
+  const norm = (x: string) => x.replace(/\s+/g, '').replace(/^["']|["']$/g, '').replace(/=+$/, '');
+  const isCron = !!key('CRON_SECRET') && norm(req.headers.get('x-cron-secret') || '') === key('CRON_SECRET');
   const body = await req.json().catch(() => ({}));
   let testUser: string | null = null;
   if (!isCron){
