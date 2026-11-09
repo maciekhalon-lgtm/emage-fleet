@@ -142,6 +142,7 @@ Motyw jasny/ciemny: przełącznik słońce/księżyc w górnym pasku (komputer) 
 - **Terminy w kalendarzu telefonu** – Ustawienia (albo Serwis → Terminy → „W kalendarzu”) → link do subskrypcji w Google lub iPhone. Przeglądy, OC, serwisy i dokumenty kierowców, przypomnienie tydzień wcześniej. „Utwórz nowy link” unieważnia stary.
 - **Raport tygodniowy** – w poniedziałek rano kierownik floty dostaje powiadomienie: koszty tygodnia (z porównaniem), tankowania, nowe usterki i terminy na 14 dni. Wymaga włączonych powiadomień na telefonie.
 - **Terminy floty w jednej tabeli** – Serwis → Terminy → „Terminy floty (N)” albo na Pulpicie „Uzupełnij wszystkie”: przegląd, OC i olej dla wszystkich aut, które ich nie mają, w jednym oknie. Puste pola są pomijane, OC podpowiada się z danych polisy.
+- **Uzupełnij dane floty** – Pojazdy → „Uzupełnij dane (N)”: jedna tabela aut z brakami – rocznik, VIN, bak, ubezpieczyciel, OC, a przy włączonych modułach umowa leasingu (rodzaj, rata, koniec), ważność gaśnicy i opony na aucie. Puste pola są pomijane, VIN sprawdzany (17 znaków).
 - **Stan floty i wymiana aut** – Koszty → Raporty: wiek, przebieg, km na miesiąc, naprawy i koszt/km z 12 miesięcy, kiedy auto dojdzie do 300 tys. km i ocena „w porządku / obserwuj / do rozważenia wymiany”.
 
 ## Opony (Serwis → Opony) – po uruchomieniu 027_opony.sql
