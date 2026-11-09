@@ -107,29 +107,6 @@ async function saveLoading(before, withWeight, wd){
   finally { btn.disabled = false; }
 }
 
-let schedAll = false;
-function mySchedulePanel(){
-  const me_ = myDriverId(); if (!me_) return '';
-  const t = today();
-  const days = Array.from({length:14}, (_, i) => addDays(t, i));
-  const work = days.map(d => ({d, bs: S.bookings.filter(b => crewOf(b).includes(me_) && b.from<=d && b.to>=d)})).filter(x => x.bs.length && x.d!==t);
-  const shown = schedAll ? work : work.slice(0, 3);
-  const row = ({d, bs}) => bs.map(b => {
-    const v = byId('vehicles', b.vehicleId), partner = crewOf(b).find(x => x!==me_);
-    const loaders = b.routeId ? routeLoaders(b.routeId, d).filter(x => x.id!==me_) : [];
-    const dt = parse(d);
-    return `<div class="ms-row ${d===t ? 'today' : ''}"><span class="ms-day"><b>${d===t ? 'Dziś' : diffDays(t, d)===1 ? 'Jutro' : DOW[(dt.getDay()+6)%7]}</b><em>${dt.getDate()}.${String(dt.getMonth()+1).padStart(2,'0')}</em></span><span class="ms-main">
-      <b>${b.routeId ? esc(rLabel(b.routeId)) : 'bez trasy'}</b>
-      <span class="sub">${v ? esc(v.plate) : ''}${partner ? ' · z: ' + esc(dName(partner)) : ''}</span>
-      ${b.purpose ? `<span class="ms-note">${esc(b.purpose)}</span>` : ''}
-      ${b.routeId && typeof stopsOf==='function' && stopsOf(b.routeId).length ? `<span class="sub">${ic('route')} ${stopsOf(b.routeId).length} ${isPlural(stopsOf(b.routeId).length,'przystanek','przystanki','przystanków')}: ${esc(stopsOf(b.routeId).slice(0, 3).map(x => x.client).join(', '))}${stopsOf(b.routeId).length > 3 ? '…' : ''}</span>` : ''}
-      ${loaders.length ? `<span class="ms-load">${ic('box')}Twój towar wiezie:</span>${loaders.map(x => personRow(x)).join('')}` : ''}
-    </span></div>`; }).join('');
-  return `<div class="panel myschedule"><div class="sec-head"><h3>Mój grafik</h3>${work.length > 3 ? `<button class="small ghost" data-action="sched-all">${schedAll ? 'Mniej' : `Wszystkie (${work.length})`}</button>` : ''}</div>
-    ${shown.map(row).join('') || '<p class="muted sec-empty">W najbliższych dniach nie masz nic w grafiku.</p>'}</div>`;
-}
-document.addEventListener('click', e => { if (e.target.closest('[data-action="sched-all"]')){ schedAll = !schedAll; render(); } });
-
 /* ---------- kierownik: załadunek pod grafikiem (zmiana dzisiejsza i wczorajsza) ---------- */
 function loadingDay(d){
   const ls = S.loadings.filter(l => l.forDate===d), reps = S.loadingReports.filter(r => r.loadDate===d);

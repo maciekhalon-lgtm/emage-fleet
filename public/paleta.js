@@ -33,7 +33,7 @@ function palActions(){
 function palTabs(){
   const out = [];
   const add = (k, l, ic_) => out.push({ic: ic_, t: l, s: 'przejdź do zakładki', run: () => { location.hash = k; }});
-  if (P().mycar && myDriverId()){ add('moje', 'Moje auto', 'key'); add('moje-dane', 'Moje dane', 'user'); }
+  if (P().mycar && myDriverId()){ add('moje', 'Moje auto', 'key'); add('moje-dane', 'Moje dane', 'user'); add('moj-grafik', 'Mój grafik', 'cal'); add('moja-historia', 'Moja historia', 'hist'); }
   if (!P().mycar || P().manage || P().service){ add('pulpit', 'Pulpit', 'home'); add('pojazdy', 'Pojazdy', 'truck'); }
   const icons = {rezerwacje:'cal', serwis:'wrench', paliwo:'fuel', koszty:'coins', ludzie:'users', ustawienia:'cog'};
   Object.entries(GROUPS).forEach(([g, subs]) => subs.forEach(([k, l, ok]) => { try { if (ok()) add(k, l, icons[g] || 'chev'); } catch(_){} }));

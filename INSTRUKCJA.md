@@ -116,19 +116,19 @@ zamknąć usterki, odnotować wymianę oleju (następna za 12 000 km, przypomnie
 
 ## Ekran kierowcy
 
-Ekran ma jedną dużą kartę „co teraz”:
-1. **Dziś jedziesz / Twój bus** – auto przydzielone w grafiku (z trasą i uwagami) → **Przyjmij auto**: licznik, trasa,
-   checklista („Wszystkie punkty OK” albo „Mam uwagi”), uwagi; zdjęcia są opcjonalne. „Inne auto” – lista wolnych aut.
-2. Auto przejęte: na karcie trasa (kliknij, żeby zmienić) i licznik, a pod spodem trzy przyciski –
-   **Zatankuj** (litry, kwota, licznik; „Tankuję za granicą” – EUR/CZK z kursem NBP), **Załadunek** (trasy, których towar zabierasz,
-   waga i zdjęcie przy trasie z załadunkiem) i **Usterka** – oraz duży przycisk **Zdaj auto** (tylko licznik i uwagi).
-   Jeśli trasa ma przystanki, pod kartą auta jest lista klientów: **Nawiguj** (Mapy Google), telefon i „Cała trasa w Mapach Google”.
-   Pod przyciskiem „Zdaj auto” – **Kolizja lub szkoda**: najpierw bezpieczeństwo (112), potem rodzaj, miejsce, dane drugiej strony,
-   sprawca, policja, opis i do 8 zdjęć. **Moja lokalizacja** dopisuje GPS i link do mapy. Jeśli auto ma telefon assistance,
-   jest on w zgłoszeniu i obok jako **Assistance**. Zgłoszenie trafia do Serwis → Usterki z oznaczeniem „szkoda” (link „mapa”).
-   Gdy zbliża się termin auta (przegląd, OC, olej, rozrząd, opony, tachograf – 14 dni / 1500 km), na karcie jest ostrzeżenie.
-3. **Mój grafik** – najbliższe 3 dni pracy (przycisk „Wszystkie” – 2 tygodnie): auto, trasa, uwagi, kto wiezie Twój towar.
-4. Ikona osoby w prawym górnym rogu – **Moje dane**: ostatnie tankowania, zgłoszone usterki, dane i telefon (zmiana do akceptacji).
+Na dole stałe menu: **Start · Grafik · Historia · Ja** (czerwona liczba przy „Start” – sprawy do potwierdzenia lub wyjaśnienia).
+
+1. **Start** – na górze sprawy do zrobienia (komunikaty, potwierdzenia, prośby o wyjaśnienie tankowania, kończące się dokumenty),
+   pod nimi czarna karta auta z **etapami dnia: Przejęcie → W trasie → Zdanie**, żeby było widać, co jest następne.
+   - **Dziś jedziesz / Twój bus** → **Przyjmij auto** (licznik, trasa, checklista, uwagi). „Inne auto” – lista wolnych aut z powodem, dlaczego reszta jest niedostępna.
+   - Auto przejęte: trasa (kliknij, żeby zmienić), licznik i przejechane km, z kim jedziesz, ostrzeżenie o terminie auta (14 dni / 1500 km), **Zdaj auto**.
+   - Pod kartą duże przyciski: **Zatankuj**, **Usterka**, **Szkoda** (kolizja – zdjęcia, GPS, druga strona), **Załadunek**, **Dokumenty** auta i **Assistance** (jeśli są).
+   - **Przystanki** trasy (Nawiguj, telefon, cała trasa w Mapach Google).
+   - Karta **Auto**: usterki już zgłoszone dla tego auta (żeby nie zgłaszać drugi raz) i najbliższe terminy.
+   - **Najbliższe dni** z grafiku i liczby z bieżącego miesiąca (dni w trasie, przejechane km, tankowania).
+2. **Grafik** – 14 dni: pasek dni (czarne = jedziesz), lista dzień po dniu z trasą, autem, drugim kierowcą, przystankami, uwagami i tym, kto wiezie Twój towar; wolne dni zebrane w jeden wiersz.
+3. **Historia** – wybór miesiąca: dni w trasie, km, litry i kwota tankowań, lista przejazdów (auto, trasa, km), tankowania (kliknij, żeby poprawić) i Twoje zgłoszenia usterek ze stanem naprawy.
+4. **Ja** – dane i kategorie prawa jazdy, ważność prawa jazdy i badań (kolor: ważne / kończy się / nieważne), auta, za które odpowiadasz, telefon (zmiana do akceptacji kierownika), powiadomienia, jasny / ciemny wygląd, wylogowanie.
 5. Wylosowany do kontroli paragonów musi dodać zdjęcie paragonu. Bez zasięgu tankowanie i zdanie auta zapisują się w telefonie
    i wysyłają same po odzyskaniu sieci.
 

@@ -1,8 +1,8 @@
 /* Emage FLEET — aplikacja: nawigacja, odświeżanie widoków i obsługa kliknięć */
 'use strict';
 /* ---------- routing ---------- */
-const DRIVER_VIEWS = ['moje','wybierz','moje-dane'];
-const TABS = ['moje','wybierz','moje-dane','pulpit','pojazdy','trasy','terminy','usterki','ksiazka','przydzial','koszty','karty','oplaty','opony','wyposazenie','umowy','ocena','plan','spalanie','liczniki','raporty','rozliczenie','porownanie','historia','kierowcy','uzytkownicy','ustawienia'];
+const DRIVER_VIEWS = ['moje','wybierz','moje-dane','moj-grafik','moja-historia'];
+const TABS = ['moje','wybierz','moje-dane','moj-grafik','moja-historia','pulpit','pojazdy','trasy','terminy','usterki','ksiazka','przydzial','koszty','karty','oplaty','opony','wyposazenie','umowy','ocena','plan','spalanie','liczniki','raporty','rozliczenie','porownanie','historia','kierowcy','uzytkownicy','ustawienia'];
 const homeTab = () => P().mycar ? 'moje' : 'pulpit';
 let pendingCard = null;
 let tab = 'pulpit', q = '', costMonth = today().slice(0,7), dlFilter = 'urgent';
@@ -28,7 +28,7 @@ function render(){
     if (!DRIVER_VIEWS.includes(tab)) tab = 'moje';
     renderNotices();
     const v = $('#view');
-    v.innerHTML = tab==='wybierz' ? viewPickCar() : tab==='moje-dane' ? viewMyData() : viewMyCar();
+    v.innerHTML = tab==='wybierz' ? viewPickCar() : tab==='moje-dane' ? viewMyData() : tab==='moj-grafik' ? viewMySchedule() : tab==='moja-historia' ? viewMyHistory() : viewMyCar();
     hydrateFiles(v);
     return;
   }
@@ -53,6 +53,8 @@ function render(){
   else if (tab==='ustawienia') v.innerHTML = viewSettings();
   else if (tab==='wybierz') v.innerHTML = viewPickCar();
   else if (tab==='moje-dane') v.innerHTML = viewMyData();
+  else if (tab==='moj-grafik') v.innerHTML = viewMySchedule();
+  else if (tab==='moja-historia') v.innerHTML = viewMyHistory();
   else if (tab==='moje') v.innerHTML = viewMyCar();
   else if (tab==='pulpit') v.innerHTML = viewDashboard();
   else if (tab==='trasy') v.innerHTML = viewRoutes();
