@@ -58,12 +58,13 @@ function fcSuspicious(){
   suspMemo = {k: key, v};
   return v;
 }
-const suspTodoCount = (lvl = 'bad') => { const ch = fcCheckedIds(); return fcSuspicious().filter(x => !ch.has(x.row.id) && (lvl==='all' || x.lvl===lvl)).length; };
+const suspActiveV = x => (byId('vehicles', x.row.vehicleId) || {}).status!=='wycofany';   // auta wycofane nie liczą się do „do sprawdzenia”
+const suspTodoCount = (lvl = 'bad') => { const ch = fcCheckedIds(); return fcSuspicious().filter(x => !ch.has(x.row.id) && suspActiveV(x) && (lvl==='all' || x.lvl===lvl)).length; };
 
 function suspPanel(){
   const all = fcSuspicious(); if (!all.length) return '';
   const ch = fcCheckedIds(), lv = x => suspLevel==='all' || x.lvl==='bad';
-  const todo = all.filter(x => !ch.has(x.row.id) && lv(x)), nBad = all.filter(x => !ch.has(x.row.id) && x.lvl==='bad').length, nAll = all.filter(x => !ch.has(x.row.id)).length;
+  const todo = all.filter(x => !ch.has(x.row.id) && suspActiveV(x) && lv(x)), nBad = all.filter(x => !ch.has(x.row.id) && suspActiveV(x) && x.lvl==='bad').length, nAll = all.filter(x => !ch.has(x.row.id) && suspActiveV(x)).length;
   const list = suspShowChecked ? all.filter(lv) : todo;
   const rows = list.slice(0, 200).map(({row: r, why, lvl}) => `<div class="sp-row ${ch.has(r.id) ? 'done' : ''}">
     <span class="sp-d num"><b>${fdate(r.txDate)}</b><em>${esc(r.txTime || '')}</em></span>
