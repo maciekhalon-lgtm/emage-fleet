@@ -69,3 +69,42 @@ async function saveFillData(){
   finally { btn.disabled = false; }
 }
 document.addEventListener('click', e => { if (e.target.closest('[data-action="fill-data"]')){ e.preventDefault(); openFillData(); } });
+
+/* ---------- Edycja tabelą: wszystkie auta naraz, wartości wypełnione, zapis tylko zmienionych pól ---------- */
+const QE_COLS = [['tankL','Zbiornik (l)','number','min="20" max="400" step="1" inputmode="numeric"'],['year','Rocznik','number','min="1990" step="1" inputmode="numeric"'],
+  ['vin','VIN','text','maxlength="17" autocapitalize="characters"'],['insurer','Ubezpieczyciel','text',''],['policyUntil','OC do','date','']];
+function openQuickEdit(){
+  const vs = S.vehicles.filter(v => v.status!=='wycofany').sort((a, b) => a.plate.localeCompare(b.plate));
+  $('#dlg-title').textContent = `Edycja tabelą · ${vs.length} aut`;
+  $('#dlg-body').innerHTML = `<p class="muted small field full" style="margin:0">Popraw wartości i kliknij Zapisz – zapiszą się tylko zmienione pola. Tab przechodzi do następnego pola, Enter w dół.</p>
+    <div class="field full tablewrap sb-wrap"><table class="sb-tbl fd-tbl qe-tbl"><thead><tr><th>Auto</th>${QE_COLS.map(c => `<th>${c[1]}</th>`).join('')}</tr></thead><tbody>${vs.map(v => `<tr><td>${plate(v.plate)}<span class="sub">${esc((v.make || '') + ' ' + (v.model || ''))}</span></td>${
+      QE_COLS.map(([k, , t, a]) => `<td><input type="${t}" ${a} data-qe="${esc(v.id)}" data-k="${k}" value="${esc(v[k]==null ? '' : String(v[k]))}" aria-label="${esc(v.plate)}: ${k}"></td>`).join('')}</tr>`).join('')}</tbody></table></div><div class="warnline" id="dlg-warn" hidden></div>`;
+  $('#dialog')?.classList.add('dlg-wide');
+  editing = {col:'quick-edit', id: null, base:{}, special: saveQuickEdit};
+  $('#dlg-save').textContent = 'Zapisz zmiany'; $('#dlg-del').hidden = true; $('#scrim').hidden = false;
+  setTimeout(() => document.querySelector('[data-qe][data-k="tankL"]')?.focus(), 50);
+}
+async function saveQuickEdit(){
+  const warn = $('#dlg-warn'); warn.hidden = true;
+  const ch = {};
+  document.querySelectorAll('[data-qe]').forEach(i => { const v = byId('vehicles', i.dataset.qe), k = i.dataset.k; let x = i.value.trim();
+    const cur = v[k]==null ? '' : String(v[k]); if (x===cur) return;
+    (ch[v.id] = ch[v.id] || {})[k] = x; });
+  for (const [vid, up] of Object.entries(ch)){ const v = byId('vehicles', vid);
+    if (up.tankL && !(Number(up.tankL) >= 20 && Number(up.tankL) <= 400)){ warn.textContent = `${v.plate}: zbiornik 20–400 l.`; warn.hidden = false; return; }
+    if (up.year && !(Number(up.year) >= 1990 && Number(up.year) <= new Date().getFullYear() + 1)){ warn.textContent = `${v.plate}: rocznik wygląda na błędny.`; warn.hidden = false; return; }
+    if (up.vin){ up.vin = up.vin.toUpperCase(); if (!/^[A-HJ-NPR-Z0-9]{17}$/.test(up.vin)){ warn.textContent = `${v.plate}: VIN ma 17 znaków (bez I, O, Q).`; warn.hidden = false; return; } }
+    ['tankL','year'].forEach(k => { if (k in up) up[k] = up[k]==='' ? null : Number(up[k]); });
+    ['vin','insurer','policyUntil'].forEach(k => { if (k in up && up[k]==='') up[k] = null; });
+  }
+  const ids = Object.keys(ch); if (!ids.length){ closeForm(); toast('Nic się nie zmieniło'); return; }
+  const btn = $('#dlg-save'); btn.disabled = true; let n = 0;
+  try { for (const vid of ids){ await db.collection('vehicles').doc(vid).update(ch[vid]); n++; }
+    if (typeof suspMemo!=='undefined') suspMemo = {k: '', v: []};
+    closeForm(); toast(`Zapisano zmiany w ${n} ${isPlural(n,'aucie','autach','autach')}`); }
+  catch(err){ handleWriteErr(err); if (n) toast(`Zapisano ${n} – reszta nie przeszła`); }
+  finally { btn.disabled = false; }
+}
+document.addEventListener('click', e => { if (e.target.closest('[data-action="quick-edit"]')){ e.preventDefault(); openQuickEdit(); } });
+document.addEventListener('keydown', e => { const i = e.target.closest && e.target.closest('[data-qe]'); if (!i || e.key!=='Enter') return; e.preventDefault();
+  const all = [...document.querySelectorAll(`[data-qe][data-k="${i.dataset.k}"]`)], nx = all[all.indexOf(i) + 1]; if (nx){ nx.focus(); nx.select && nx.select(); } });
