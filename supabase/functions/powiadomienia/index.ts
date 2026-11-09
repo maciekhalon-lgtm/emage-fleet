@@ -11,7 +11,7 @@
 //  • GET ?kal=<token> – kalendarz terminów (.ics) do subskrypcji w Google / iPhone; token tworzy aplikacja (Ustawienia).
 //
 // Sekrety funkcji (Edge Functions → Secrets):
-//   VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT (np. mailto:flota@firma.pl), CRON_SECRET
+//   VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT (np. mailto:flota@firma.pl); CRON_SECRET już niepotrzebny (klucz w bazie, migracja 031)
 // SUPABASE_URL i SUPABASE_SERVICE_ROLE_KEY Supabase dodaje sam.
 
 import webpush from 'npm:web-push@3.6.7';
@@ -245,7 +245,10 @@ Deno.serve(async (req) => {
 
   // nagłówek z harmonogramu czyścimy tak samo jak sekret (spacje, cudzysłowy, końcowe „=”), inaczej sekret base64 nigdy się nie zgadza
   const norm = (x: string) => x.replace(/\s+/g, '').replace(/^["']|["']$/g, '').replace(/=+$/, '');
-  const isCron = !!key('CRON_SECRET') && norm(req.headers.get('x-cron-secret') || '') === key('CRON_SECRET');
+  // harmonogram: klucz losowany w bazie (migracja 031, private.cron_token) albo – dla zgodności – CRON_SECRET z sekretów funkcji
+  const hdr = norm(req.headers.get('x-cron-secret') || '');
+  let isCron = !!hdr && !!key('CRON_SECRET') && hdr === key('CRON_SECRET');
+  if (!isCron && hdr){ const {data: ok} = await sb.rpc('cron_token_ok', {t: hdr}); isCron = ok === true; }
   const body = await req.json().catch(() => ({}));
   let testUser: string | null = null;
   if (!isCron){

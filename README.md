@@ -9,7 +9,7 @@ System zarządzania flotą firmy Emage Group – **https://emage-fleet.maciekhal
 | `POWIADOMIENIA.md` | powiadomienia push: klucze, funkcja `powiadomienia`, harmonogram, aktualizacja funkcji |
 | `MAILE.md` | wysyłka maili przez Gmail i polskie szablony maili |
 | `public/` | aplikacja (PWA), publikowana automatycznie przez Cloudflare (Workers Builds) z gałęzi `main` pod adresem https://emage-fleet.maciekhalon.workers.dev |
-| `supabase/migrations/` | schemat bazy, reguły ról i automatyka – uruchamiane po kolei w SQL Editor: 001 … 030 |
+| `supabase/migrations/` | schemat bazy, reguły ról i automatyka – uruchamiane po kolei w SQL Editor: 001 … 031 |
 | `supabase/functions/powiadomienia/` | funkcja wysyłająca powiadomienia (Edge Function) |
 | `supabase/tests/` | testy bazy na lokalnym PostgreSQL 16: `PGHOST=… PGPORT=… PGUSER=postgres ./supabase/tests/uruchom.sh` |
 
