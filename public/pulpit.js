@@ -42,6 +42,17 @@ function attentionItems(serviceOnly){
     out.push({w: k ? 1 : 0, html: attRow('bad', b.vehicleId, `${k ? 'Jutro' : 'Dziś'} w grafiku: ${esc(crewName(b))}`, esc(iss.join(' · ')), canEditDoc('bookings', b) ? `<button class="small" data-edit="bookings" data-id="${esc(b.id)}">Zmień przydział</button>` : '')}); }));
   const tr = tireReminder();
   if (tr) out.push({w: tr.urgent ? 1 : 3, html: attRow(tr.urgent ? 'bad' : 'warn', '', `${tr.list.length} ${isPlural(tr.list.length,'auto','auta','aut')} ${tr.txt}`, tr.list.slice(0, 8).map(v => esc(v.plate)).join(', ') + (tr.list.length > 8 ? '…' : ''), canCreate('serviceEntries') ? `<button class="small" data-new="serviceEntries">Wpis serwisowy</button>` : '')});
+  // nowe moduły (027–029): zużyte / stare opony na aucie, gaśnica po terminie lub brak, koniec umowy i limit km
+  if (typeof tiresOn==='function' && tiresOn()) tireProblems().filter(x => x.t.location==='na_aucie' && x.v).forEach(({t, v, w}) => {
+    const bad = w.some(([c]) => c==='bad');
+    out.push({w: bad ? 1 : 3, html: attRow(bad ? 'bad' : 'warn', v.id, `Opony: ${esc(w.map(x => x[1]).join(', '))}`, esc(tireLabel(t)) + (t.brand ? ' · ' + esc(t.brand) : ''), `<button class="small ghost" data-go="opony">Opony</button>`)}); });
+  if (typeof eqOn==='function' && eqOn()){ const byV = {};
+    eqProblems().forEach(x => (byV[x.v.id] = byV[x.v.id] || []).push(x));
+    Object.values(byV).forEach(xs => { const bad = xs.some(x => x.s.cls==='bad'), fire = xs.find(x => x.e.item==='Gaśnica');
+      out.push({w: bad ? 1 : 3, html: attRow(bad ? 'bad' : 'warn', xs[0].v.id, fire && xs.length===1 ? `Gaśnica: ${esc(fire.s.txt)}` : `Wyposażenie: ${esc(xs.map(x => x.e.item).join(', '))}`, esc(xs.map(x => x.e.item + ' – ' + x.s.txt).join(' · ')),
+        canEq() ? `<button class="small" data-eq="${esc(xs[0].v.id)}" data-item="${esc(xs[0].e.item)}">${xs[0].e.item==='Gaśnica' ? 'Nowa data' : 'Popraw'}</button>` : '')}); }); }
+  if (!serviceOnly && typeof contractsOn==='function' && contractsOn()) contractProblems().forEach(({c, i}) => { const bad = i.warn.some(([cl]) => cl==='bad');
+    out.push({w: bad ? 1 : 3, html: attRow(bad ? 'bad' : 'warn', c.vehicleId, `${esc(CONTRACT_KINDS[c.kind] || 'Umowa')}: ${esc(i.warn.map(x => x[1]).join(', '))}`, esc([c.provider, c.contractNo].filter(Boolean).join(' · ')) + (c.endDate ? ' · do ' + fdate(c.endDate) : ''), `<button class="small ghost" data-go="umowy">Umowy</button>`)}); });
   S.deadlines.forEach(d => {
     const s = dlState(d);
     if (s.cls!=='bad' && s.cls!=='warn') return;
