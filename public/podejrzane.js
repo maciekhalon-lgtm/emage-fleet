@@ -1,7 +1,7 @@
 /* Emage FLEET — podejrzane tankowania z kart paliwowych (kierownik floty).
    Każde tankowanie paliwa z karty dostaje powody i poziom:
    PEWNE (bad) – fizycznie niemożliwe dla jednego auta:
-     1. więcej litrów niż bak auta (+5%),
+     1. więcej litrów niż bak auta (+12% – do baku 90 l wchodzi czasem 95–100 l z wlewem; 5–12% ponad bak = „na granicy”, do sprawdzenia),
      2. po poprzednim tankowaniu weszło więcej, niż mogło się zmieścić: wolne miejsce w baku (bak − poprzednie tankowanie)
         + to, co auto mogło spalić od tamtej chwili (15 l/100 km według licznika albo 13 l na każdą godzinę od poprzedniego tankowania – liczy się większa wartość, więc pomyłka w liczniku nie wywoła alarmu).
    DO SPRAWDZENIA (warn):
@@ -13,7 +13,7 @@
 const fcCheckedIds = () => new Set(((S.settings.find(x => x.id==='fc_checked') || {}).ids) || []);
 let suspMemo = {k: '', v: []};
 let suspShowChecked = false, suspLevel = 'bad';
-const realOdo = (r, v) => { const o = Number(r.odometer); return o > 1000 && o!==555555 && o!==999999 && !/^(\d)\1{3,}$/.test(String(o)); };
+const realOdo = r => { const o = Number(r.odometer); return o > 1000 && !(typeof fakeOdo==='function' && fakeOdo(o)) && !/^(\d{3})\1$/.test(String(o)) && o!==555555 && o!==999999 && !/^(\d)\1{3,}$/.test(String(o)); };
 
 function fcSuspicious(){
   const rows = (S.fuelCardRows || []).filter(r => r.kind!=='other' && r.vehicleId && Number(r.liters) > 0);
@@ -27,7 +27,8 @@ function fcSuspicious(){
     xs.sort((a, b) => (a.txDate + (a.txTime || '')).localeCompare(b.txDate + (b.txTime || '')));
     xs.forEach((r, i) => {
       const l = Number(r.liters);
-      if (l > tank * 1.05){ add(r, `Więcej niż bak: ${fl(l)} (bak ${fl(tank)})`, 'bad'); return; }
+      if (l > tank * 1.12){ add(r, `Więcej niż bak: ${fl(l)} (bak ${fl(tank)})`, 'bad'); return; }
+      if (l > tank * 1.05) add(r, `Na granicy baku: ${fl(l)} (bak ${fl(tank)})`, 'warn');
       const p = xs[i - 1]; if (!p) return;
       const t = ts(r), tp = ts(p), lp = Math.min(Number(p.liters), tank);
       const space = tank - lp;   // po poprzednim tankowaniu w baku jest co najmniej tyle, ile wtedy weszło
