@@ -57,6 +57,36 @@ function fleetConsumption(vid){
   return fcMemo.m.get(vid);
 }
 
+/* „Dlaczego tak dużo?” – rozbicie wysokiego spalania auta na przyczyny w danych (tankowania bez licznika,
+   tankowania niemożliwe dla jednego auta, pominięte liczniki, brak grafiku) i szacunek nadwyżki w litrach i złotych */
+function consWhy(v, c, fleetRate){
+  if (!c || c.rate==null || !c.km || c.src!=='karta' || !fleetRate || c.rate < Math.max(fleetRate * 1.2, fleetRate + 2)) return '';
+  const from = c.from, to = c.to;
+  const rows = S.fuelCardRows.filter(r => r.vehicleId===v.id && r.kind!=='other' && r.txDate > from && r.txDate <= to);
+  const fake = rows.filter(r => c.fake && c.fake.has(r.id)), fakeL = fake.reduce((s, r) => s + Number(r.liters || 0), 0);
+  const imp = typeof fcSuspicious==='function' ? fcSuspicious().filter(x => x.lvl==='bad' && x.row.vehicleId===v.id && x.row.txDate >= from && x.row.txDate <= to) : [];
+  const impL = imp.reduce((s, x) => s + Number(x.row.liters || 0), 0);
+  const tank = Number(v.tankL) || 90;
+  const overL = imp.reduce((s, x) => s + Math.max(0, Number(x.row.liters) - tank), 0);
+  const badOdo = rows.filter(r => c.bad && c.bad.has(r.id));
+  const bk = S.bookings.filter(b => b.vehicleId===v.id && b.from <= to && b.to >= from).length;
+  const pricey = rows.filter(r => (!r.currency || r.currency==='PLN') && Number(r.amount) > 0 && Number(r.liters) > 0);
+  const price = pricey.length ? pricey.reduce((s, r) => s + Number(r.amount), 0) / pricey.reduce((s, r) => s + Number(r.liters), 0) : 0;
+  const extra = c.km * (c.rate - fleetRate) / 100;
+  const r1 = x => x.toFixed(1).replace('.', ',');
+  const noFake = c.km ? (c.l - fakeL) / c.km * 100 : null;
+  const items = [
+    fake.length ? ['warn', `<b>${fake.length} ${isPlural(fake.length,'tankowanie','tankowania','tankowań')} bez licznika</b> (${fl(fakeL)}) – nie wiadomo, ile auto przy nich przejechało. Bez nich spalanie wyszłoby <b>${r1(noFake)} l/100 km</b>.`, fake.slice(-6).map(r => `${fdate(r.txDate).slice(0, 5)} ${esc(r.station || '')} ${fl(r.liters)}`).join(' · ')] : null,
+    imp.length ? ['bad', `<b>${imp.length} ${isPlural(imp.length,'tankowanie niemożliwe','tankowania niemożliwe','tankowań niemożliwych')} dla jednego auta</b> (${fl(impL)})${overL ? `, w tym ${fl(overL)} ponad pojemność baku` : ''} – tankowany drugi pojazd albo kanister.`, imp.slice(0, 6).map(x => `${fdate(x.row.txDate).slice(0, 5)} ${esc(x.row.station || '')} ${fl(x.row.liters)}`).join(' · ')] : null,
+    badOdo.length ? ['off', `<b>${badOdo.length} ${isPlural(badOdo.length,'pomylony licznik','pomylone liczniki','pomylonych liczników')}</b> – pominięte, ale przerywają odcinki.`, badOdo.slice(0, 6).map(r => `${fdate(r.txDate).slice(0, 5)}: ${esc(String(r.odometer))}`).join(' · ')] : null,
+    !bk ? ['off', '<b>Auto nie ma przydziałów w grafiku</b> w tym okresie – nie da się ustalić, kto tankował. Wpisuj je w grafik, a tankowania trafią do kierowców.', ''] : null,
+  ].filter(Boolean);
+  return `<div class="cw"><div class="cw-head"><b>Dlaczego tak dużo?</b><span>${r1(c.rate)} l/100 km przy średniej floty ${r1(fleetRate)} – to ok. <b>${fl(Math.round(extra))}</b>${price ? ` (≈ ${zl(Math.round(extra * price))})` : ''} więcej na ${new Intl.NumberFormat('pl-PL').format(Math.round(c.km))} km.</span></div>
+    ${items.length ? `<ul>${items.map(([cls, t, d]) => `<li><span class="dot ${cls}"></span><span>${t}${d ? `<span class="sub">${d}</span>` : ''}</span></li>`).join('')}</ul>`
+      : '<p class="muted small">W danych nie widać błędów – tankowania mają liczniki i mieszczą się w baku. Warto sprawdzić auto (wtryskiwacze, DPF, opony, obciążenie) i styl jazdy.</p>'}
+    ${imp.length || fake.length ? `<p class="muted small">Najpierw sprawdź, kto miał kartę w dniach tankowań niemożliwych. U dostawcy kart można ustawić limit litrów na transakcję i obowiązek wpisania licznika.</p>` : ''}</div>`;
+}
+
 function viewFuelMileage(){
   if (!P().manage) return '';
   const nf = n => new Intl.NumberFormat('pl-PL').format(Math.round(n));
@@ -73,12 +103,13 @@ function viewFuelMileage(){
   const sorted = res.slice().sort((a, b) => { const A = val(a, pbSort.k), B = val(b, pbSort.k);
     if (A==null && B==null) return 0; if (A==null) return 1; if (B==null) return -1;
     return (typeof A==='string' ? A.localeCompare(B) : A - B) * pbSort.dir; });
-  const okC = res.filter(x => x.rate!=null), cKm = okC.reduce((s, x) => s + x.c.km, 0), cL = okC.reduce((s, x) => s + x.c.l, 0);
   const totalKm = res.reduce((s, x) => s + (x.km || 0), 0), days = all ? null : diffDays(pbFrom, pbTo) + 1;
+  const okC = res.filter(x => x.rate!=null), cKm = okC.reduce((s, x) => s + x.c.km, 0), cL = okC.reduce((s, x) => s + x.c.l, 0);
+  const fleetRate = cKm ? cL / cKm * 100 : null;
   const th = (k, l, r) => `<th class="${r ? 'r ' : ''}sortable" data-pbs="${k}">${l}${pbSort.k===k ? (pbSort.dir < 0 ? ' ▼' : ' ▲') : ''}</th>`;
   const rows = sorted.map(({v, r, c, km: kmV, rate}) => {
     const open = pbOpen.has(v.id);
-    const det = open ? `<tr class="fc-det"><td colspan="6"><table><thead><tr><th>Data</th><th>Skąd</th><th>Kto / gdzie</th><th class="r">Licznik</th><th></th></tr></thead><tbody>${
+    const det = open ? `<tr class="fc-det"><td colspan="6">${consWhy(v, c, fleetRate)}<table><thead><tr><th>Data</th><th>Skąd</th><th>Kto / gdzie</th><th class="r">Licznik</th><th></th></tr></thead><tbody>${
       r.xs.map(x => `<tr><td class="num">${fdate(x.d)}${x.t ? ` <span class="muted small">${esc(x.t)}</span>` : ''}${x===r.anchor ? '<span class="sub">przed zakresem</span>' : ''}</td>
         <td>${esc(x.src)}</td><td>${esc(x.note || '')}</td><td class="r num">${km(x.odo)}</td><td>${r.bad.has(x.id) ? '<span class="pill off">licznik podejrzany – pominięty</span>' : ''}</td></tr>`).join('') || '<tr><td colspan="5" class="muted">Brak liczników w tym zakresie.</td></tr>'}</tbody></table></td></tr>` : '';
     const notes = [c.fake && c.fake.size ? `${c.fake.size} bez prawdziwego licznika` : '', (() => { const n = r.bad.size + (c.bad ? c.bad.size : 0); return n ? `${n} ${isPlural(n,'licznik pominięty','liczniki pominięte','liczników pominiętych')}` : ''; })(), (r.breaks || c.breaks) ? `${(r.breaks || 0) + (c.breaks || 0)} ${isPlural((r.breaks || 0) + (c.breaks || 0),'przerwa','przerwy','przerw')}` : ''].filter(Boolean);
@@ -88,7 +119,7 @@ function viewFuelMileage(){
       <td class="r num">${kmV!=null ? `<b>${nf(kmV)} km</b>` : '<span class="muted">—</span>'}${kmV && days ? `<span class="sub">${nf(kmV / days)} km / dzień</span>` : ''}</td>
       <td class="r num">${c.l ? fl(c.l) : '—'}</td>
       <td class="muted small">${c.src ? (c.src==='karta' ? 'z kart paliwowych' : 'z wpisów kierowców') : ''}${c.from ? `<span class="sub">${fdate(c.from)} – ${fdate(c.to)}</span>` : ''}</td>
-      <td>${notes.map(n => `<span class="pill off">${esc(n)}</span>`).join(' ')}</td></tr>${det}`;
+      <td>${notes.map(n => `<span class="pill off">${esc(n)}</span>`).join(' ')}${!open && consWhy(v, c, fleetRate) ? ' <span class="pill warn">Dlaczego tak dużo? – kliknij</span>' : ''}</td></tr>${det}`;
   }).join('');
   return head + `<div class="panel fc-meta"><div><span class="label">Zakres</span><b>${all ? 'całość danych' : fdate(pbFrom) + ' – ' + fdate(pbTo)}</b></div>
       <div><span class="label">Średnie spalanie floty</span><b>${cKm ? (cL / cKm * 100).toFixed(1).replace('.', ',') + ' l/100 km' : '—'}</b></div>

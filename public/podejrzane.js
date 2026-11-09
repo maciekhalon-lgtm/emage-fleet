@@ -1,40 +1,43 @@
 /* Emage FLEET — podejrzane tankowania z kart paliwowych (kierownik floty).
-   Reguły (dla każdego tankowania paliwa z karty):
-   1. więcej litrów niż bak auta (+5%),
-   2. w ciągu doby (24 h, to samo auto) więcej niż 1,2 baku,
-   3. drugie tankowanie tego samego auta w ciągu 3 godzin,
-   4. cena za litr ponad 15% wyżej niż mediana z tego miesiąca (PLN),
-   5. auto nie było tego dnia w grafiku (tylko od dnia, od którego prowadzony jest grafik).
-   „Sprawdzone” zapisuje się w ustawieniach (settings: fc_checked). */
+   Każde tankowanie paliwa z karty dostaje powody i poziom:
+   PEWNE (bad) – fizycznie niemożliwe dla jednego auta:
+     1. więcej litrów niż bak auta (+5%),
+     2. po poprzednim tankowaniu weszło więcej, niż mogło się zmieścić: wolne miejsce w baku (bak − poprzednie tankowanie)
+        + to, co auto mogło spalić od tamtej chwili (15 l/100 km według licznika albo 13 l na każdą godzinę od poprzedniego tankowania – liczy się większa wartość, więc pomyłka w liczniku nie wywoła alarmu).
+   DO SPRAWDZENIA (warn):
+     3. drugie tankowanie tego samego auta w ciągu 3 godzin,
+     4. cena za litr ponad 15% wyżej niż mediana z tego miesiąca (PLN),
+     5. auto nie było tego dnia w grafiku – tylko gdy to auto ma w tygodniu wokół tej daty inne przydziały (grafik jest dla niego prowadzony).
+   „Sprawdzone” zapisuje się w ustawieniach (settings: fc_checked). Na Pulpicie liczą się tylko PEWNE. */
 
 const fcCheckedIds = () => new Set(((S.settings.find(x => x.id==='fc_checked') || {}).ids) || []);
 let suspMemo = {k: '', v: []};
-let suspShowChecked = false;
+let suspShowChecked = false, suspLevel = 'bad';
+const realOdo = (r, v) => { const o = Number(r.odometer); return o > 1000 && o!==555555 && o!==999999 && !/^(\d)\1{3,}$/.test(String(o)); };
 
 function fcSuspicious(){
   const rows = (S.fuelCardRows || []).filter(r => r.kind!=='other' && r.vehicleId && Number(r.liters) > 0);
   const key = rows.length + '|' + S.vehicles.length + '|' + S.bookings.length + '|' + (rows[0] || {}).id;
   if (suspMemo.k===key) return suspMemo.v;
   const ts = r => { const t = /^(\d{1,2}):(\d{2})/.exec(r.txTime || ''); return t ? Date.parse(r.txDate + 'T00:00:00') + (Number(t[1]) * 60 + Number(t[2])) * 60e3 : null; };
-  const out = new Map(); const add = (r, why) => { if (!out.has(r.id)) out.set(r.id, {row: r, why: []}); out.get(r.id).why.push(why); };
+  const out = new Map(); const add = (r, why, lvl) => { if (!out.has(r.id)) out.set(r.id, {row: r, why: [], lvl: 'warn'}); const o = out.get(r.id); o.why.push(why); if (lvl==='bad') o.lvl = 'bad'; };
   const byV = {}; rows.forEach(r => (byV[r.vehicleId] = byV[r.vehicleId] || []).push(r));
   Object.entries(byV).forEach(([vid, xs]) => {
     const v = byId('vehicles', vid) || {}, tank = Number(v.tankL) || 90;
     xs.sort((a, b) => (a.txDate + (a.txTime || '')).localeCompare(b.txDate + (b.txTime || '')));
     xs.forEach((r, i) => {
       const l = Number(r.liters);
-      if (l > tank * 1.05) add(r, `Więcej niż bak: ${fl(l)} (bak ${fl(tank)})`);
-      const t = ts(r);
-      if (t != null){
-        let sum = l;
-        for (let j = i - 1; j >= 0; j--){ const tj = ts(xs[j]); if (tj == null || t - tj > 24 * 3600e3) break; sum += Number(xs[j].liters); }
-        if (sum > tank * 1.2 && l <= tank * 1.05) add(r, `W ciągu doby ${fl(sum)} (bak ${fl(tank)})`);
-        const p = xs[i - 1], tp = p ? ts(p) : null;
-        if (tp != null && t - tp < 3 * 3600e3) add(r, `Drugie tankowanie po ${Math.round((t - tp) / 60e3)} min`);
-      } else {
-        const sameDay = xs.filter(x => x.txDate===r.txDate).reduce((s, x) => s + Number(x.liters), 0);
-        if (sameDay > tank * 1.2 && xs.filter(x => x.txDate===r.txDate).pop()===r) add(r, `Jednego dnia ${fl(sameDay)} (bak ${fl(tank)})`);
-      }
+      if (l > tank * 1.05){ add(r, `Więcej niż bak: ${fl(l)} (bak ${fl(tank)})`, 'bad'); return; }
+      const p = xs[i - 1]; if (!p) return;
+      const t = ts(r), tp = ts(p), lp = Math.min(Number(p.liters), tank);
+      const space = tank - lp;   // po poprzednim tankowaniu w baku jest co najmniej tyle, ile wtedy weszło
+      const dk = realOdo(r) && realOdo(p) ? Number(r.odometer) - Number(p.odometer) : null;
+      let burn = null, how = '';
+      if (dk!=null && dk >= 0 && dk < 3000){ burn = dk * 0.15; how = `${new Intl.NumberFormat('pl-PL').format(dk)} km`; }
+      if (t!=null && tp!=null){ const h = (t - tp) / 3600e3; if (h >= 0 && h < 30){ const hb = h * 13; if (burn==null || hb > burn){ burn = hb; how = h < 1 ? `${Math.round(h * 60)} min` : `${String(Math.round(h * 10) / 10).replace('.', ',')} h`; } } else if (burn==null) burn = null; }
+      if (burn!=null && l > (space + burn) * 1.05 + 3)
+        add(r, `Nie zmieściłoby się: ${fl(lp)} zatankowane ${how} wcześniej, teraz ${fl(l)}`, 'bad');
+      else if (t!=null && tp!=null && t - tp < 3 * 3600e3) add(r, `Drugie tankowanie po ${Math.round((t - tp) / 60e3)} min`, 'warn');
     });
   });
   // cena za litr vs mediana miesiąca
@@ -42,35 +45,41 @@ function fcSuspicious(){
   const byM = {}; pln.forEach(r => (byM[r.txDate.slice(0, 7)] = byM[r.txDate.slice(0, 7)] || []).push(Number(r.amount) / Number(r.liters)));
   const med = {}; Object.entries(byM).forEach(([m, a]) => { a.sort((x, y) => x - y); med[m] = a[Math.floor(a.length / 2)]; });
   pln.forEach(r => { const pr = Number(r.amount) / Number(r.liters), m = med[r.txDate.slice(0, 7)];
-    if (m && byM[r.txDate.slice(0, 7)].length >= 10 && pr > m * 1.15) add(r, `Cena ${pr.toFixed(2).replace('.', ',')} zł/l – mediana ${m.toFixed(2).replace('.', ',')}`); });
-  // poza grafikiem
-  const first = S.bookings.reduce((m, b) => !m || b.from < m ? b.from : m, '');
-  if (first) rows.forEach(r => { if (r.txDate >= first && !S.bookings.some(b => b.vehicleId===r.vehicleId && b.from<=r.txDate && b.to>=r.txDate)) add(r, 'Auto nie było tego dnia w grafiku'); });
+    if (m && byM[r.txDate.slice(0, 7)].length >= 10 && pr > m * 1.15) add(r, `Cena ${pr.toFixed(2).replace('.', ',')} zł/l – mediana ${m.toFixed(2).replace('.', ',')}`, 'warn'); });
+  // poza grafikiem – tylko dla aut, dla których grafik w tym tygodniu jest prowadzony
+  rows.forEach(r => {
+    const bs = S.bookings.filter(b => b.vehicleId===r.vehicleId);
+    if (!bs.length || bs.some(b => b.from<=r.txDate && b.to>=r.txDate)) return;
+    const a = addDays(r.txDate, -3), z = addDays(r.txDate, 3);
+    if (bs.some(b => b.from<=z && b.to>=a)) add(r, 'Auto nie było tego dnia w grafiku', 'warn');
+  });
   const v = [...out.values()].sort((a, b) => (b.row.txDate + (b.row.txTime || '')).localeCompare(a.row.txDate + (a.row.txTime || '')));
   suspMemo = {k: key, v};
   return v;
 }
-const suspTodoCount = () => { const ch = fcCheckedIds(); return fcSuspicious().filter(x => !ch.has(x.row.id)).length; };
+const suspTodoCount = (lvl = 'bad') => { const ch = fcCheckedIds(); return fcSuspicious().filter(x => !ch.has(x.row.id) && (lvl==='all' || x.lvl===lvl)).length; };
 
 function suspPanel(){
   const all = fcSuspicious(); if (!all.length) return '';
-  const ch = fcCheckedIds(), todo = all.filter(x => !ch.has(x.row.id));
-  const list = suspShowChecked ? all : todo;
-  const rows = list.slice(0, 200).map(({row: r, why}) => `<div class="sp-row ${ch.has(r.id) ? 'done' : ''}">
+  const ch = fcCheckedIds(), lv = x => suspLevel==='all' || x.lvl==='bad';
+  const todo = all.filter(x => !ch.has(x.row.id) && lv(x)), nBad = all.filter(x => !ch.has(x.row.id) && x.lvl==='bad').length, nAll = all.filter(x => !ch.has(x.row.id)).length;
+  const list = suspShowChecked ? all.filter(lv) : todo;
+  const rows = list.slice(0, 200).map(({row: r, why, lvl}) => `<div class="sp-row ${ch.has(r.id) ? 'done' : ''}">
     <span class="sp-d num"><b>${fdate(r.txDate)}</b><em>${esc(r.txTime || '')}</em></span>
     <span class="sp-v">${vPlate(r.vehicleId)}<span class="sub">${esc(fcDriver(r, null) || 'kierowca nieustalony')}${r.station ? ' · ' + esc(r.station) : ''}</span></span>
     <span class="sp-a num">${fl(r.liters)}<span class="sub">${fm(r.amount, r.currency)}</span></span>
-    <span class="sp-w">${why.map(w => `<span class="pill warn">${esc(w)}</span>`).join('')}</span>
+    <span class="sp-w">${why.map(w => `<span class="pill ${lvl==='bad' && /bak|zmieściłoby/i.test(w) ? 'bad' : 'warn'}">${esc(w)}</span>`).join('')}</span>
     <button class="small ${ch.has(r.id) ? 'ghost' : ''}" data-sp-ok="${esc(r.id)}">${ch.has(r.id) ? 'Cofnij' : `${ic('check')}Sprawdzone`}</button></div>`).join('');
-  return `<details class="panel fold susp" ${todo.length ? 'open' : ''}><summary class="sec-head"><h3>Podejrzane tankowania</h3><span class="count ${todo.length ? 'bad' : ''}">${todo.length}</span></summary>
-    <div class="sp-tools"><span class="muted small">Ze wszystkich zestawień: więcej niż bak, dużo litrów w ciągu doby, dwa tankowania w 3 godziny, wysoka cena za litr, auto poza grafikiem.</span>
-      <span class="sp-tr">${todo.length > 5 ? `<button class="small ghost" data-sp-allok>Wszystkie jako sprawdzone</button>` : ''}<label class="check small"><input type="checkbox" data-sp-all ${suspShowChecked ? 'checked' : ''}> pokaż sprawdzone (${all.length - todo.length})</label></span></div>
-    ${rows || '<p class="muted sec-empty">Wszystko sprawdzone.</p>'}${list.length > 200 ? `<p class="muted small sec-empty">Pokazano 200 z ${list.length}.</p>` : ''}</details>`;
+  return `<details class="panel fold susp" ${nBad ? 'open' : ''}><summary class="sec-head"><h3>Podejrzane tankowania</h3><span class="count ${nBad ? 'bad' : ''}">${nBad}</span></summary>
+    <div class="sp-tools"><span class="seg small" role="group" aria-label="Poziom"><button type="button" class="${suspLevel==='bad' ? 'on' : ''}" data-sp-lvl="bad" aria-pressed="${suspLevel==='bad'}">Pewne (${nBad})</button><button type="button" class="${suspLevel==='all' ? 'on' : ''}" data-sp-lvl="all" aria-pressed="${suspLevel==='all'}">Wszystkie (${nAll})</button></span>
+      <span class="muted small">${suspLevel==='bad' ? 'Pewne = fizycznie niemożliwe dla jednego auta: więcej niż bak albo więcej, niż mogło wejść po poprzednim tankowaniu.' : 'Także do sprawdzenia: dwa tankowania w 3 godziny, wysoka cena za litr, auto poza grafikiem.'}</span>
+      <span class="sp-tr">${todo.length > 5 ? `<button class="small ghost" data-sp-allok>Te ${todo.length} jako sprawdzone</button>` : ''}<label class="check small"><input type="checkbox" data-sp-all ${suspShowChecked ? 'checked' : ''}> pokaż sprawdzone</label></span></div>
+    ${rows || `<p class="muted sec-empty">${suspLevel==='bad' ? 'Brak pewnych przypadków do sprawdzenia.' : 'Wszystko sprawdzone.'}</p>`}${list.length > 200 ? `<p class="muted small sec-empty">Pokazano 200 z ${list.length}.</p>` : ''}</details>`;
 }
 
 async function suspMark(id){
   const set = fcCheckedIds(); let on;
-  if (id==='*'){ fcSuspicious().forEach(x => set.add(x.row.id)); on = true; }
+  if (id==='*'){ fcSuspicious().filter(x => suspLevel==='all' || x.lvl==='bad').forEach(x => set.add(x.row.id)); on = true; }
   else { on = !set.has(id); on ? set.add(id) : set.delete(id); }
   try { await db.collection('settings').doc('fc_checked').set({ids: [...set]}); toast(id==='*' ? 'Wszystkie oznaczone jako sprawdzone' : on ? 'Oznaczono jako sprawdzone' : 'Cofnięto'); }
   catch(err){ handleWriteErr(err); }
@@ -78,6 +87,7 @@ async function suspMark(id){
 document.addEventListener('click', e => {
   if (e.target.closest('[data-sp-allok]')){ e.preventDefault(); suspMark('*'); return; }
   const t = e.target.closest('[data-sp-ok]'); if (!t) return; e.preventDefault(); suspMark(t.dataset.spOk); });
+document.addEventListener('click', e => { const b = e.target.closest('[data-sp-lvl]'); if (!b) return; e.preventDefault(); suspLevel = b.dataset.spLvl; render(); });
 document.addEventListener('change', e => { if (e.target.matches('[data-sp-all]')){ suspShowChecked = e.target.checked; render(); } });
 
 /* Cena paliwa z kart: średnia zł/l w ostatnich 6 miesiącach i stacje najdroższe / najtańsze (min. 5 tankowań) */

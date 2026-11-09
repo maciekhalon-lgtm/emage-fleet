@@ -173,3 +173,10 @@ Motyw jasny/ciemny: przełącznik słońce/księżyc w górnym pasku (komputer) 
 ## Raport dla zarządu i prognoza kosztów (Koszty → Raporty)
 - **Raport dla zarządu** – przycisk w Raportach: jedna strona A4 (druk albo „Zapisz jako PDF”) za wybrany miesiąc lub rok, z porównaniem do poprzedniego okresu: koszty, paliwo, kilometry, koszt/km i na auto, kategorie, najdroższe auta, terminy na 30 dni, usterki, umowy, wyposażenie, opony, budżet i uwagi o brakach w danych.
 - **Prognoza kosztów – 12 miesięcy** – raty z umów, terminy (olej także wg tempa km) z kosztem z historii lub stawki orientacyjnej, paliwo, naprawy i bieżące koszty jako średnia z 3 pełnych miesięcy; miesiące ponad budżet na czerwono.
+
+## Podejrzane tankowania i „Dlaczego tak dużo?” (Paliwo)
+
+- **Podejrzane tankowania** (Paliwo → Karty) mają dwa poziomy:
+  - **Pewne**: fizycznie niemożliwe dla jednego auta. Jest to tankowanie większe niż bak albo więcej litrów, niż mogło się zmieścić po poprzednim tankowaniu (wolne miejsce w baku + to, co auto mogło spalić od tamtej chwili: 15 l/100 km według licznika albo 13 l na godzinę – liczy się większa wartość, więc pomyłka w liczniku nie wywoła alarmu). Tylko te liczą się na Pulpicie („niemożliwe tankowania z kart”), w Pojazdach, na karcie auta i w ocenie kierowców.
+  - **Do sprawdzenia** (przełącznik „Wszystkie”): dwa tankowania w 3 godziny, cena za litr ponad 15% powyżej mediany, auto poza grafikiem (tylko gdy grafik jest dla tego auta prowadzony w tym tygodniu).
+- **Dlaczego tak dużo?** – w Paliwo → Spalanie i liczniki przy aucie, które pali wyraźnie więcej niż średnia floty, jest dopisek; po kliknięciu auta widać rozbicie: tankowania bez licznika (i spalanie bez nich), tankowania niemożliwe dla jednego auta, pomylone liczniki, brak grafiku oraz szacunek nadwyżki w litrach i złotych.
