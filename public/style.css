@@ -1323,3 +1323,8 @@ details.panel.fold + .panel{margin-top:14px}
 .eq-seg{display:flex;gap:6px}
 .sub.neg{color:var(--bad)}.sub.pos{color:var(--ok)}
 div.fc-tile{display:flex;border:1px solid var(--line)}
+/* ocena kierowców */
+.rk-cell{white-space:nowrap}.rk-cell b{font-size:17px;margin-right:6px;display:inline-block;min-width:28px}
+.rk-bar{display:inline-block;width:70px;height:6px;border-radius:9px;background:var(--line);vertical-align:middle;margin-right:8px;overflow:hidden}
+.rk-bar i{display:block;height:100%;border-radius:9px}.rk-bar i.ok{background:var(--ok)}.rk-bar i.good{background:var(--accent)}.rk-bar i.warn{background:var(--warn)}.rk-bar i.bad{background:var(--bad)}
+.rk-tbl td.small{max-width:280px;line-height:1.35}

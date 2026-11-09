@@ -158,3 +158,7 @@ Motyw jasny/ciemny: przełącznik słońce/księżyc w górnym pasku (komputer) 
 - Umowa auta: leasing / najem / kredyt, finansujący, numer, okres, rata netto i brutto, limit km z przebiegiem na starcie, opłata za nadprzebieg, wykup, co jest w racie.
 - Prognoza kilometrów na koniec umowy (tempo z liczników z 90 dni) i koszt nadprzebiegu; ostrzeżenia: koniec umowy ≤ 90 / 30 dni, limit km zagrożony lub przekroczony.
 - Rata wchodzi do **Rozliczenia aut** („Ubezp. i leasing”), gdy w miesiącu nie ma ręcznie wpisanego kosztu „Leasing”. Karta auta pokazuje umowę.
+
+## Ocena kierowców (Pracownicy → Kierowcy → Ocena kierowców)
+- Wynik 0–100 za ostatnie 30 albo 90 dni, z wyjaśnieniem: spalanie na odcinkach kierowcy vs średnia floty, niewyjaśnione podejrzane tankowania z kart, tankowania do wyjaśnienia, błędne liczniki, szkody w dniach jego jazdy, spóźnione zdania auta.
+- Ocena: bardzo dobry (85+), dobry (70+), do poprawy (50+), słaby. Kliknięcie – karta kierowcy. Eksport do Excela. Bez nowej tabeli w bazie.

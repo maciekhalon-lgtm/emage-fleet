@@ -13,6 +13,7 @@ const GROUPS = {
 };
 /* Zakładki „w środku” innej zakładki: przełącznik na górze strony zamiast osobnej pozycji w menu */
 const INNER = {
+  kierowcy: [['kierowcy','Lista kierowców', () => true], ['ocena','Ocena kierowców', () => !!P().manage]],
   spalanie: [['spalanie','Spalanie i przebiegi', () => true], ['liczniki','Liczniki do sprawdzenia', () => true]],
   raporty:  [['raporty','Raporty', () => true], ['porownanie','Porównanie miesięcy', () => !!P().manage]],
 };
