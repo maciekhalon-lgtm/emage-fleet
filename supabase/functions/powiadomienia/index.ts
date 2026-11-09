@@ -19,7 +19,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 
 // ===== LOGIKA (bez zależności – testowana osobno) =====
 export type Row = Record<string, any>;
-export type Data = {profiles: Row[]; drivers: Row[]; vehicles: Row[]; deadlines: Row[]; bookings: Row[]; issues: Row[]; costs: Row[]; settings: Row[]; cardRows?: Row[]};
+export type Data = {profiles: Row[]; drivers: Row[]; vehicles: Row[]; deadlines: Row[]; bookings: Row[]; issues: Row[]; costs: Row[]; settings: Row[]; cardRows?: Row[]; contracts?: Row[]; equipment?: Row[]; tires?: Row[]};
 
 const DAY = 864e5;
 export const addDays = (iso: string, n: number) => new Date(Date.parse(iso + 'T12:00:00Z') + n * DAY).toISOString().slice(0, 10);
@@ -161,6 +161,14 @@ export function weekly(d: Data, today: string, costs: Row[]){
     `• Nowe usterki: ${newIss}`,
     `• Terminy w ciągu 14 dni (lub po terminie): ${soon}`,
   ];
+  // moduły z migracji 027–029 (gdy tabel nie ma – listy są puste i linie się nie pokazują)
+  const active = (vid: string) => { const v = d.vehicles.find(x => x.id === vid); return v && v.status !== 'wycofany'; };
+  const fire = (d.equipment || []).filter(e => active(e.vehicle_id) && (!e.ok || (e.valid_until && diffDays(today, e.valid_until) <= 30))).length;
+  if (fire) lines.push(`• Wyposażenie do poprawy (braki, gaśnice ≤ 30 dni): ${fire}`);
+  const worn = (d.tires || []).filter(t => t.location === 'na_aucie' && active(t.vehicle_id) && t.tread_mm != null && Number(t.tread_mm) < (t.season === 'letnie' ? 3 : 4)).length;
+  if (worn) lines.push(`• Auta na zużytych oponach: ${worn}`);
+  const ending = (d.contracts || []).filter(c => active(c.vehicle_id) && c.end_date && diffDays(today, c.end_date) >= 0 && diffDays(today, c.end_date) <= 90).length;
+  if (ending) lines.push(`• Umowy leasingu / najmu kończące się w 90 dni: ${ending}`);
   return {title: `Emage FLEET – tydzień ${dm(w0)}–${dm(addDays(today, -1))}`, body: lines.join('\n')};
 }
 
@@ -180,6 +188,10 @@ export function ics(d: Data, stamp: string){
   d.drivers.filter(x => x.active !== false).forEach(x => [['license_expiry', 'prawo jazdy'], ['medical_expiry', 'badania lekarskie'], ['psych_expiry', 'badania psychologiczne']]
     .forEach(([k, l]) => x[k] && add(`dr-${x.id}-${k}`, x[k], `${x.full_name}: ${l}`, `ważne do ${x[k].split('-').reverse().join('.')}`)));
   // linie dłuższe niż 75 bajtów zawijamy (wymóg formatu), licząc bajty UTF-8 – polskie litery mają 2
+  (d.contracts || []).forEach(c => { const v = d.vehicles.find(x => x.id === c.vehicle_id); if (!v || v.status === 'wycofany' || !c.end_date) return;
+    add('ct-' + c.id, c.end_date, `${v.plate}: koniec umowy (${c.kind})`, [c.provider, c.contract_no].filter(Boolean).join(' · ')); });
+  (d.equipment || []).forEach(e => { const v = d.vehicles.find(x => x.id === e.vehicle_id); if (!v || v.status === 'wycofany' || !e.valid_until) return;
+    add('eq-' + e.id, e.valid_until, `${v.plate}: ${e.item} – ważność`, e.note || ''); });
   const fold = (line: string) => { const enc = new TextEncoder(), out: string[] = []; let cur = '', n = 0;
     for (const ch of line){ const b = enc.encode(ch).length; if (n + b > 73){ out.push(cur); cur = ' '; n = 1; } cur += ch; n += b; }
     out.push(cur); return out.join('\r\n'); };
@@ -216,8 +228,9 @@ Deno.serve(async (req) => {
     const {data: cal} = await sb.from('settings').select('value').eq('key', 'calendar').maybeSingle();
     const tok = String(cal?.value?.token || '');
     if (!tok || tok.length < 20 || kal !== tok) return new Response('Nieprawidłowy link kalendarza', {status: 403});
-    const all = async (t: string) => { const {data} = await sb.from(t).select('*').limit(20000); return data || []; };
-    const dd = {profiles: [], vehicles: await all('vehicles'), drivers: await all('drivers'), deadlines: await all('deadlines'), bookings: [], issues: [], costs: [], settings: []} as Data;
+    const all = async (t: string) => { const {data} = await sb.from(t).select('*').limit(20000); return data || []; };   // brak tabeli → pusta lista
+    const dd = {profiles: [], vehicles: await all('vehicles'), drivers: await all('drivers'), deadlines: await all('deadlines'), bookings: [], issues: [], costs: [], settings: [],
+      contracts: await all('vehicle_contracts'), equipment: await all('equipment')} as Data;
     const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z');
     return new Response(ics(dd, stamp), {headers: {'Content-Type': 'text/calendar; charset=utf-8', 'Content-Disposition': 'inline; filename="emage-fleet.ics"', 'Cache-Control': 'max-age=1800'}});
   }
@@ -295,6 +308,7 @@ Deno.serve(async (req) => {
   // poniedziałek: „Tydzień floty” dla kierowników floty
   if (new Date(today + 'T12:00:00Z').getUTCDay() === 1){
     const c14 = await load('costs', b => b.gte('date', addDays(today, -14)));
+    d.contracts = await load('vehicle_contracts'); d.equipment = await load('equipment'); d.tires = await load('tires');
     const w = weekly(d, today, c14);
     for (const p of d.profiles.filter(x => x.status === 'active' && x.role === 'floty'))
       report.push({user: p.id, weekly: true, ...(await send(p.id, {...w, url: './#raporty', tag: 'tydzien-' + today}))});
