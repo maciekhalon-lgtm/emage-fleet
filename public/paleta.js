@@ -21,6 +21,10 @@ function palActions(){
   if (canCreate('serviceEntries') && P().service) a.push({ic:'clip', t:'Wpis serwisowy', s:'do książki serwisowej', run: () => openForm('serviceEntries')});
   if (canCreate('deadlines')) a.push({ic:'cal', t:'Dodaj termin', s:'przegląd, OC, serwis…', run: () => openForm('deadlines')});
   if (typeof canResp==='function' && canResp()) a.push({ic:'users', t:'Kierowcy odpowiedzialni za busy', s:'kto odpowiada za który bus', run: () => { location.hash = 'kierowcy'; }});
+  if (typeof planOn==='function' && planOn() && canPlan()) a.push({ic:'wrench', t:'Umów wizytę w warsztacie', s:'plan serwisu', run: () => openForm('visits')});
+  if (typeof tiresOn==='function' && tiresOn() && canTires()) a.push({ic:'truck', t:'Dodaj komplet opon', s:'opony – magazyn i na aucie', run: () => openForm('tires')});
+  if (typeof eqOn==='function' && eqOn() && canEq()) a.push({ic:'check', t:'Sprawdź wyposażenie aut', s:'gaśnica, apteczka, trójkąt…', run: () => { location.hash = 'wyposazenie'; }});
+  if (typeof contractsOn==='function' && contractsOn() && canContracts()) a.push({ic:'coins', t:'Dodaj umowę auta', s:'leasing, najem, kredyt', run: () => openForm('contracts')});
   if (canCreate('vehicles')) a.push({ic:'truck', t:'Dodaj pojazd', s:'nowe auto we flocie', run: () => openForm('vehicles')});
   if (!P().mycar || P().manage || P().service) a.push({ic:'search', t:'Skróty klawiszowe', s:'Ctrl+K, g + litera…', run: () => openShortcuts()});
   if (P().manage) a.push({ic:'fuel', t:'Import z karty paliwowej', s:'Paliwo → Karty', run: () => { location.hash = 'karty'; setTimeout(() => document.querySelector('#view [data-action="fc-import"]')?.click(), 150); }});

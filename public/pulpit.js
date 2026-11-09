@@ -53,6 +53,10 @@ function attentionItems(serviceOnly){
         canEq() ? `<button class="small" data-eq="${esc(xs[0].v.id)}" data-item="${esc(xs[0].e.item)}">${xs[0].e.item==='Gaśnica' ? 'Nowa data' : 'Popraw'}</button>` : '')}); }); }
   if (!serviceOnly && typeof contractsOn==='function' && contractsOn()) contractProblems().forEach(({c, i}) => { const bad = i.warn.some(([cl]) => cl==='bad');
     out.push({w: bad ? 1 : 3, html: attRow(bad ? 'bad' : 'warn', c.vehicleId, `${esc(CONTRACT_KINDS[c.kind] || 'Umowa')}: ${esc(i.warn.map(x => x[1]).join(', '))}`, esc([c.provider, c.contractNo].filter(Boolean).join(' · ')) + (c.endDate ? ' · do ' + fdate(c.endDate) : ''), `<button class="small ghost" data-go="umowy">Umowy</button>`)}); });
+  if (typeof planOn==='function' && planOn()) S.visits.filter(x => x.status==='zaplanowana' && (x.date < today() || (x.date <= addDays(today(), 3) && visitClash(x).length))).forEach(x => {
+    const cl = visitClash(x), late = x.date < today();
+    out.push({w: late ? 2 : 1, html: attRow(late ? 'warn' : 'bad', x.vehicleId, late ? `Wizyta w warsztacie minęła: ${esc(x.reason)}` : `Wizyta w warsztacie ${x.date===today() ? 'dziś' : fdate(x.date).slice(0, 5)}, a auto w grafiku`, late ? `${fdate(x.date)} – oznacz „w warsztacie”, zakończ albo przełóż` : `${esc(x.reason)} · w grafiku: ${esc(cl.map(crewName).join(', '))}`,
+      (!late && cl[0] && canEditDoc('bookings', cl[0]) ? `<button class="small" data-edit="bookings" data-id="${esc(cl[0].id)}">Zmień auto</button>` : '') + `<button class="small ghost" data-go="plan">Plan serwisu</button>`)}); });
   S.deadlines.forEach(d => {
     const s = dlState(d);
     if (s.cls!=='bad' && s.cls!=='warn') return;
