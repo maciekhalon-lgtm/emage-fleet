@@ -168,3 +168,7 @@ Motyw jasny/ciemny: przełącznik słońce/księżyc w górnym pasku (komputer) 
 - **Do umówienia**: przeglądy, olej, rozrząd itp. ≤ 30 dni lub po terminie i otwarte usterki bez umówionej wizyty – przycisk „Umów”.
 - Ostrzeżenie, gdy auto jest w dniu wizyty w grafiku (z przyciskiem „Zmień auto w grafiku”).
 - „Auto w warsztacie” ustawia auto na serwis; „Zakończona” przywraca je do jazdy i otwiera wpis do książki serwisowej z warsztatem i opisem.
+
+## Raport dla zarządu i prognoza kosztów (Koszty → Raporty)
+- **Raport dla zarządu** – przycisk w Raportach: jedna strona A4 (druk albo „Zapisz jako PDF”) za wybrany miesiąc lub rok, z porównaniem do poprzedniego okresu: koszty, paliwo, kilometry, koszt/km i na auto, kategorie, najdroższe auta, terminy na 30 dni, usterki, umowy, wyposażenie, opony, budżet i uwagi o brakach w danych.
+- **Prognoza kosztów – 12 miesięcy** – raty z umów, terminy (olej także wg tempa km) z kosztem z historii lub stawki orientacyjnej, paliwo, naprawy i bieżące koszty jako średnia z 3 pełnych miesięcy; miesiące ponad budżet na czerwono.

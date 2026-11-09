@@ -84,7 +84,7 @@ function viewReports(){
   const head = `<div class="bar"><h2>Raporty</h2><div class="tools">
     <div class="seg" role="group" aria-label="Okres"><button class="small ${repMode==='month'?'on':''}" data-rep="month">Miesiąc</button><button class="small ${repMode==='year'?'on':''}" data-rep="year">Rok</button></div>
     ${repMode==='month' ? `<input id="rep-month" type="month" value="${repMonth}" style="width:auto" aria-label="Miesiąc">` : `<select id="rep-year" style="width:auto" aria-label="Rok">${[0,1,2,3].map(i => String(Number(today().slice(0,4))-i)).map(y => `<option ${y===repYear?'selected':''}>${y}</option>`).join('')}</select>`}
-    <button class="primary" data-action="export-xlsx">Pobierz raport (Excel)</button></div></div>`;
+    ${P().manage ? `<button data-action="board-report" title="Jedna strona do wydruku lub PDF">${ic('clip')}Raport dla zarządu</button>` : ''}<button class="primary" data-action="export-xlsx">Pobierz raport (Excel)</button></div></div>`;
   if (!S.vehicles.length) return head + `<div class="panel empty"><p>Dodaj pojazdy i koszty, aby zobaczyć raporty.</p></div>`;
   const budgetBox = repMode==='month' && fb ? `<div class="panel budget"><div><span class="label">Budżet floty / miesiąc</span><b>${zl(fb)}</b></div><div style="flex:1;min-width:220px">${limitBar(tot.cost, fb)}</div></div>` : '';
   return head + `<div class="section">
@@ -98,6 +98,7 @@ function viewReports(){
     ${fleetTrendSection()}
     ${utilSection()}
     ${fleetAgeSection()}
+    ${typeof forecastSection==='function' ? forecastSection() : ''}
     <div class="panel tablewrap"><table><thead><tr><th>Pojazd</th><th class="r">Koszty</th><th class="r">Paliwo</th><th class="r">Przejechane</th><th>Koszt / km</th>${repMode==='month'?'<th>Limit miesięczny</th>':''}</tr></thead><tbody>
       ${rows.filter(r => r.cost > 0 || r.km || r.limit).map(r => `<tr class="click" data-card-go="${esc(r.v.id)}"><td>${plate(r.v.plate)}<span class="sub">${esc(r.v.make+' '+r.v.model)}</span></td>
         <td class="r num">${zl(r.cost)}</td><td class="r num">${zl(r.fuel)}</td><td class="r num">${r.km ? new Intl.NumberFormat('pl-PL').format(r.km)+' km' : '<span class="muted">—</span>'}</td>
