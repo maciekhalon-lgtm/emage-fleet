@@ -5,7 +5,7 @@ const sb = supabase.createClient(CONFIG.supabaseUrl, CONFIG.supabaseKey, {
 });
 
 /* nazwa w aplikacji → tabela w bazie */
-const TABLES = {vehicles:'vehicles', drivers:'drivers', deadlines:'deadlines', bookings:'bookings', costs:'costs', issues:'issues', docs:'documents', settings:'settings', routeStops:'route_stops', fleetCosts:'fleet_costs', tires:'tires', contracts:'vehicle_contracts', equipment:'equipment', requests:'data_change_requests', crewChanges:'crew_changes', routes:'routes', serviceEntries:'service_entries', blockOverrides:'block_overrides', loadings:'loadings', loadingReports:'loading_reports', fuelCardImports:'fuel_card_imports', fuelCardRows:'fuel_card_rows', members:'profiles'};
+const TABLES = {vehicles:'vehicles', drivers:'drivers', deadlines:'deadlines', bookings:'bookings', costs:'costs', issues:'issues', docs:'documents', settings:'settings', routeStops:'route_stops', fleetCosts:'fleet_costs', tires:'tires', contracts:'vehicle_contracts', equipment:'equipment', workshops:'workshops', visits:'service_visits', requests:'data_change_requests', crewChanges:'crew_changes', routes:'routes', serviceEntries:'service_entries', blockOverrides:'block_overrides', loadings:'loadings', loadingReports:'loading_reports', fuelCardImports:'fuel_card_imports', fuelCardRows:'fuel_card_rows', members:'profiles'};
 const COL_OF = Object.fromEntries(Object.entries(TABLES).map(([a, b]) => [b, a]));
 
 /* pole w aplikacji → kolumna w bazie */
@@ -20,6 +20,8 @@ const FIELDS = {
   loadings:  {routeId:'route_id', driverId:'driver_id', loadDate:'load_date', forDate:'for_date'},
   routeStops: {routeId:'route_id', timeFrom:'time_from'},
   fleetCosts: {},
+  workshops: {},
+  visits: {vehicleId:'vehicle_id', workshopId:'workshop_id', deadlineId:'deadline_id', issueId:'issue_id'},
   contracts: {vehicleId:'vehicle_id', contractNo:'contract_no', startDate:'start_date', endDate:'end_date', monthlyNet:'monthly_net', monthlyGross:'monthly_gross', kmLimit:'km_limit', kmStart:'km_start', kmExcessRate:'km_excess_rate', insuranceIn:'insurance_in', serviceIn:'service_in'},
   equipment: {vehicleId:'vehicle_id', validUntil:'valid_until', checkedAt:'checked_at'},
   tires: {vehicleId:'vehicle_id', treadMm:'tread_mm', mountedAt:'mounted_at', mountedKm:'mounted_km'},
@@ -45,6 +47,8 @@ const WRITABLE = {
   loadings:  ['id','route_id','driver_id'],
   routeStops: ['id','route_id','pos','client','address','time_from','phone','note'],
   fleetCosts: ['id','date','category','amount','note'],
+  workshops: ['id','name','phone','address','kind','note'],
+  visits: ['id','vehicle_id','workshop_id','date','time','reason','deadline_id','issue_id','status','note'],
   contracts: ['id','vehicle_id','kind','provider','contract_no','start_date','end_date','monthly_net','monthly_gross','km_limit','km_start','km_excess_rate','buyout','insurance_in','service_in','note'],
   equipment: ['id','vehicle_id','item','ok','valid_until','checked_at','note'],
   tires: ['id','vehicle_id','season','size','brand','dot','tread_mm','location','storage','mounted_at','mounted_km','note'],
@@ -156,7 +160,7 @@ S.fuelAll = [];
 async function refresh(col){
   const table = TABLES[col]; if (!table) return;
   if ((col==='members' || col==='crewChanges' || col==='fuelCardImports' || col==='fuelCardRows' || col==='fleetCosts') && !P().manage) return;
-  if ((col==='tires' || col==='contracts' || col==='equipment') && !P().manage && !P().service){ got[col] = true; return; }
+  if ((col==='tires' || col==='contracts' || col==='equipment' || col==='workshops' || col==='visits') && !P().manage && !P().service){ got[col] = true; return; }
   if (col==='serviceEntries' && !P().service) return;
   // Supabase oddaje najwyżej 1000 wierszy na zapytanie – pobieramy partiami aż do końca
   const key = col==='settings' ? 'key' : 'id', PAGE = 1000, data = [];
@@ -210,9 +214,9 @@ function queueRefresh(col){
 }
 
 let channel = null, stopsChannel = null, stopsReady = false, fcChannel = null, fleetCostsReady = false;
-/* Tabele z nowszych migracji (027 opony, 028 wyposażenie, 029 umowy): dopóki SQL nie jest uruchomiony, moduł jest ukryty,
+/* Tabele z nowszych migracji (027 opony, 028 wyposażenie, 029 umowy, 030 warsztaty): dopóki SQL nie jest uruchomiony, moduł jest ukryty,
    a reszta aplikacji działa normalnie. OPT[col] = true, gdy tabela istnieje i dane się wczytały. */
-const OPT = {tires: false, contracts: false, equipment: false}, optChannels = {};
+const OPT = {tires: false, contracts: false, equipment: false, workshops: false, visits: false}, optChannels = {};
 const optOn = col => !!OPT[col];
 async function loadAll(){
   db = dbApi;

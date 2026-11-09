@@ -162,3 +162,9 @@ Motyw jasny/ciemny: przełącznik słońce/księżyc w górnym pasku (komputer) 
 ## Ocena kierowców (Pracownicy → Kierowcy → Ocena kierowców)
 - Wynik 0–100 za ostatnie 30 albo 90 dni, z wyjaśnieniem: spalanie na odcinkach kierowcy vs średnia floty, niewyjaśnione podejrzane tankowania z kart, tankowania do wyjaśnienia, błędne liczniki, szkody w dniach jego jazdy, spóźnione zdania auta.
 - Ocena: bardzo dobry (85+), dobry (70+), do poprawy (50+), słaby. Kliknięcie – karta kierowcy. Eksport do Excela. Bez nowej tabeli w bazie.
+
+## Plan serwisu i warsztaty (Serwis → Plan serwisu) – po uruchomieniu 030_warsztaty.sql
+- Wizyty aut w warsztatach na 2 / 4 / 8 tygodni, pogrupowane tygodniami; lista warsztatów z telefonem (klik = dzwoń).
+- **Do umówienia**: przeglądy, olej, rozrząd itp. ≤ 30 dni lub po terminie i otwarte usterki bez umówionej wizyty – przycisk „Umów”.
+- Ostrzeżenie, gdy auto jest w dniu wizyty w grafiku (z przyciskiem „Zmień auto w grafiku”).
+- „Auto w warsztacie” ustawia auto na serwis; „Zakończona” przywraca je do jazdy i otwiera wpis do książki serwisowej z warsztatem i opisem.

@@ -118,6 +118,22 @@ const FORMS = {
     {k:'active',l:'Aktywna (można ją przypisywać)',t:'check'},
     {k:'note',l:'Notatka',t:'textarea',full:1},
   ]},
+  workshops: { title:['Nowy warsztat','Edytuj warsztat'], fields: () => [
+    {k:'name',l:'Nazwa',req:1,full:1,ph:'np. Auto-Serwis Kowalczyk'},
+    {k:'phone',l:'Telefon',t:'tel'},
+    {k:'kind',l:'Rodzaj',ph:'np. mechanika, opony, ASO, blacharnia'},
+    {k:'address',l:'Adres',full:1},
+    {k:'note',l:'Notatka',full:1},
+  ]},
+  visits: { title:['Umów wizytę w warsztacie','Edytuj wizytę'], fields: () => [
+    {k:'vehicleId',l:'Auto',t:'select',o:vehOpts(),req:1,full:1},
+    {k:'date',l:'Dzień',t:'date',req:1},
+    {k:'time',l:'Godzina',t:'time'},
+    {k:'workshopId',l:'Warsztat',t:'select',o:[['','— wybierz —'], ...S.workshops.slice().sort((a, b) => a.name.localeCompare(b.name, 'pl')).map(w => [w.id, w.name])],full:1},
+    {k:'reason',l:'Powód',req:1,full:1,ph:'np. przegląd techniczny, olej, hamulce'},
+    {k:'status',l:'Stan',t:'select',o:Object.entries(VISIT_ST)},
+    {k:'note',l:'Notatka',full:1},
+  ]},
   contracts: { title:['Nowa umowa auta','Edytuj umowę auta'], fields: () => [
     {k:'vehicleId',l:'Auto',t:'select',o:vehOpts(),req:1,full:1},
     {k:'kind',l:'Rodzaj',t:'select',o:Object.entries(CONTRACT_KINDS),req:1},
@@ -156,6 +172,8 @@ const FORMS = {
   ]},
 };
 const DEFAULTS = {
+  workshops: () => ({}),
+  visits: () => ({date: addDays(today(), 1), time: '08:00', status: 'zaplanowana'}),
   contracts: () => ({kind:'leasing'}),
   tires: () => ({season: 'zimowe', location: 'magazyn'}),
   vehicles: () => ({status:'aktywny', fuel:'Diesel', tankL:90}),

@@ -1,7 +1,7 @@
 /* Emage FLEET — service worker: pozwala zainstalować aplikację na telefonie.
    Najpierw sieć (zawsze najnowsza wersja), kopia tylko awaryjnie bez internetu.
    Zapytania do bazy (Supabase) nigdy nie są zapisywane w pamięci. */
-const CACHE = 'emage-fleet-v144';
+const CACHE = 'emage-fleet-v145';
 self.addEventListener('install', e => self.skipWaiting());
 self.addEventListener('activate', e => e.waitUntil(
   caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())
