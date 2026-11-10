@@ -14,6 +14,8 @@ function tireWarn(t){
   if (mm!=null && mm < 1.6) out.push(['bad', `bieżnik ${String(mm).replace('.', ',')} mm – poniżej prawa`]);
   else if (mm!=null && mm < lim) out.push(['warn', `bieżnik ${String(mm).replace('.', ',')} mm`]);
   const a = tireAge(t); if (a!=null && a >= 8) out.push(['bad', `${a} lat`]); else if (a!=null && a >= 6) out.push(['warn', `${a} lat`]);
+  const v = t.vehicleId && byId('vehicles', t.vehicleId);
+  if (v && v.tireSize && t.size && normTireSize(t.size).replace(/\s/g, '')!==normTireSize(v.tireSize).replace(/\s/g, '')) out.push(['warn', `inny rozmiar niż auto (${v.tireSize})`]);
   return out;
 }
 const tireLabel = t => `${TIRES[t.season] || t.season}${t.size ? ' · ' + t.size : ''}`;
@@ -40,7 +42,7 @@ function viewTires(){
   const list = tireFilter==='noset' ? noSet : tireFilter==='noother' ? noOther : tireFilter==='warn' ? vs.filter(v => tiresOf(v.id).some(t => tireWarn(t).length)) : tireFilter==='season' && season ? season.list : vs;
   const row = v => { const m = mountedOf(v.id), st = tiresOf(v.id).filter(t => t.location==='magazyn');
     const swap = m && st.length ? st.find(t => t.season!==m.season) || st[0] : (!m && st.length ? st[0] : null);
-    return `<tr><td>${plate(v.plate)}<span class="sub">${v.km ? km(v.km) : ''}</span></td>
+    return `<tr><td>${plate(v.plate)}<span class="sub">${[v.tireSize ? `<b>${esc(v.tireSize)}</b>` : (tireSizeOn() ? '<span class="muted">rozmiar?</span>' : ''), v.km ? km(v.km) : ''].filter(Boolean).join(' · ')}</span></td>
       <td data-l="Na aucie">${m ? tireChip(m) : v.tires ? `<span class="muted">${esc(TIRES[v.tires])} – komplet nieopisany</span>` : '<span class="muted">—</span>'}</td>
       <td data-l="W magazynie">${st.map(tireChip).join('') || '<span class="muted">—</span>'}</td>
       <td class="r">${canTires() ? `${swap ? `<button class="small" data-tire-swap="${esc(v.id)}" data-to="${esc(swap.id)}">Załóż ${esc((TIRES[swap.season] || '').toLowerCase())}</button> ` : ''}<button class="small ghost" data-tire-new="${esc(v.id)}">${ic('plus')}Komplet</button>` : ''}</td></tr>`; };
@@ -90,6 +92,6 @@ function tiresFact(v){
 }
 document.addEventListener('click', e => {
   const f = e.target.closest('[data-tf]'); if (f){ tireFilter = f.dataset.tf===tireFilter ? 'all' : f.dataset.tf; render(); return; }
-  const n = e.target.closest('[data-tire-new]'); if (n){ e.preventDefault(); openForm('tires', null, n.dataset.tireNew ? {vehicleId: n.dataset.tireNew, location: mountedOf(n.dataset.tireNew) ? 'magazyn' : 'na_aucie'} : undefined); return; }
+  const n = e.target.closest('[data-tire-new]'); if (n){ e.preventDefault(); openForm('tires', null, n.dataset.tireNew ? {vehicleId: n.dataset.tireNew, location: mountedOf(n.dataset.tireNew) ? 'magazyn' : 'na_aucie', size: (byId('vehicles', n.dataset.tireNew) || {}).tireSize || ''} : undefined); return; }
   const s = e.target.closest('[data-tire-swap]'); if (s){ e.preventDefault(); openTireSwap(s.dataset.tireSwap, s.dataset.to); }
 });

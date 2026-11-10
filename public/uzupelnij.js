@@ -71,14 +71,15 @@ async function saveFillData(){
 document.addEventListener('click', e => { if (e.target.closest('[data-action="fill-data"]')){ e.preventDefault(); openFillData(); } });
 
 /* ---------- Edycja tabelą: wszystkie auta naraz, wartości wypełnione, zapis tylko zmienionych pól ---------- */
-const QE_COLS = [['tankL','Zbiornik (l)','number','min="20" max="400" step="1" inputmode="numeric"'],['year','Rocznik','number','min="1990" step="1" inputmode="numeric"'],
+const QE_COLS_ALL = [['tankL','Zbiornik (l)','number','min="20" max="400" step="1" inputmode="numeric"'],['tireSize','Rozmiar opon','text','maxlength="40" placeholder="225/75 R16C"'],['year','Rocznik','number','min="1990" step="1" inputmode="numeric"'],
   ['vin','VIN','text','maxlength="17" autocapitalize="characters"'],['insurer','Ubezpieczyciel','text',''],['policyUntil','OC do','date','']];
+const qeCols = () => QE_COLS_ALL.filter(c => c[0]!=='tireSize' || tireSizeOn());
 function openQuickEdit(){
   const vs = S.vehicles.filter(v => v.status!=='wycofany').sort((a, b) => a.plate.localeCompare(b.plate));
   $('#dlg-title').textContent = `Edycja tabelą · ${vs.length} aut`;
   $('#dlg-body').innerHTML = `<p class="muted small field full" style="margin:0">Popraw wartości i kliknij Zapisz – zapiszą się tylko zmienione pola. Tab przechodzi do następnego pola, Enter w dół.</p>
-    <div class="field full tablewrap sb-wrap"><table class="sb-tbl fd-tbl qe-tbl"><thead><tr><th>Auto</th>${QE_COLS.map(c => `<th>${c[1]}</th>`).join('')}</tr></thead><tbody>${vs.map(v => `<tr><td>${plate(v.plate)}<span class="sub">${esc((v.make || '') + ' ' + (v.model || ''))}</span></td>${
-      QE_COLS.map(([k, , t, a]) => `<td><input type="${t}" ${a} data-qe="${esc(v.id)}" data-k="${k}" value="${esc(v[k]==null ? '' : String(v[k]))}" aria-label="${esc(v.plate)}: ${k}"></td>`).join('')}</tr>`).join('')}</tbody></table></div><div class="warnline" id="dlg-warn" hidden></div>`;
+    <div class="field full tablewrap sb-wrap"><table class="sb-tbl fd-tbl qe-tbl"><thead><tr><th>Auto</th>${qeCols().map(c => `<th>${c[1]}</th>`).join('')}</tr></thead><tbody>${vs.map(v => `<tr><td>${plate(v.plate)}<span class="sub">${esc((v.make || '') + ' ' + (v.model || ''))}</span></td>${
+      qeCols().map(([k, , t, a]) => `<td><input type="${t}" ${a} data-qe="${esc(v.id)}" data-k="${k}" value="${esc(v[k]==null ? '' : String(v[k]))}" aria-label="${esc(v.plate)}: ${k}"></td>`).join('')}</tr>`).join('')}</tbody></table></div><div class="warnline" id="dlg-warn" hidden></div>`;
   $('#dialog')?.classList.add('dlg-wide');
   editing = {col:'quick-edit', id: null, base:{}, special: saveQuickEdit};
   $('#dlg-save').textContent = 'Zapisz zmiany'; $('#dlg-del').hidden = true; $('#scrim').hidden = false;
@@ -95,7 +96,8 @@ async function saveQuickEdit(){
     if (up.year && !(Number(up.year) >= 1990 && Number(up.year) <= new Date().getFullYear() + 1)){ warn.textContent = `${v.plate}: rocznik wygląda na błędny.`; warn.hidden = false; return; }
     if (up.vin){ up.vin = up.vin.toUpperCase(); if (!/^[A-HJ-NPR-Z0-9]{17}$/.test(up.vin)){ warn.textContent = `${v.plate}: VIN ma 17 znaków (bez I, O, Q).`; warn.hidden = false; return; } }
     ['tankL','year'].forEach(k => { if (k in up) up[k] = up[k]==='' ? null : Number(up[k]); });
-    ['vin','insurer','policyUntil'].forEach(k => { if (k in up && up[k]==='') up[k] = null; });
+    if (up.tireSize) up.tireSize = normTireSize(up.tireSize);
+    ['vin','insurer','policyUntil','tireSize'].forEach(k => { if (k in up && up[k]==='') up[k] = null; });
   }
   const ids = Object.keys(ch); if (!ids.length){ closeForm(); toast('Nic się nie zmieniło'); return; }
   const btn = $('#dlg-save'); btn.disabled = true; let n = 0;

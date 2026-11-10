@@ -1497,4 +1497,4 @@ button.d-set{cursor:pointer}button.d-set:hover{background:var(--sunk)}
 .cw p{margin:10px 0 0}
 .dot.off{background:var(--faint)}
 
-.qe-tbl input{min-width:0;width:100%}.qe-tbl td:nth-child(2) input,.qe-tbl td:nth-child(3) input{width:84px}.qe-tbl td:nth-child(4) input{width:200px;text-transform:uppercase}.qe-tbl td:nth-child(5) input{width:140px}
+.qe-tbl input{min-width:0;width:100%}.qe-tbl input[data-k="tankL"],.qe-tbl input[data-k="year"]{width:84px}.qe-tbl input[data-k="tireSize"]{width:140px;text-transform:uppercase}.qe-tbl input[data-k="vin"]{width:200px;text-transform:uppercase}.qe-tbl input[data-k="insurer"]{width:140px}

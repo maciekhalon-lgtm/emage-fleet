@@ -27,6 +27,7 @@ const FORMS = {
     {k:'assistancePhone',l:'Telefon assistance',t:'tel',ph:'np. +48 22 566 55 55'},
     {k:'secEq',t:'html',html:'<div class="f-sec">Wyposażenie i limity</div>'},
     {k:'tankL',l:'Pojemność baku (l)',t:'number',ph:'np. 90'},
+    ...(tireSizeOn() ? [{k:'tireSize',l:'Rozmiar opon',ph:'np. 225/75 R16C'}] : []),
     {k:'tires',l:'Założone opony',t:'select',o:[['','— nie wiadomo —'],...Object.entries(TIRES)]},
     {k:'monthlyLimit',l:'Limit kosztów / mies. (zł)',t:'number',ph:'np. 2500'},
     ...(P().manage ? [{k:'hasTacho',l:'Auto ma tachograf',t:'check'}] : []),
@@ -399,6 +400,7 @@ $('#dialog').addEventListener('submit', async e => {
   if (col==='bookings' && data.to < data.from){ toast('Data końca jest przed początkiem'); return; }
   if (col==='bookings' && data.coDriverId && data.coDriverId===data.driverId){ toast('Drugi kierowca musi być inną osobą'); return; }
   if (col==='vehicles'){
+    if (data.tireSize) data.tireSize = normTireSize(data.tireSize);
     if ((data.consGood && !data.consOk) || (!data.consGood && data.consOk)){ const w = $('#dlg-warn'); w.textContent = 'Podaj oba progi spalania albo żaden.'; w.hidden = false; return; }
     if (data.consGood && data.consOk && data.consGood >= data.consOk){ const w = $('#dlg-warn'); w.textContent = 'Próg „bardzo dobre” musi być niższy niż próg „dobre”.'; w.hidden = false; return; }
   }
@@ -451,6 +453,10 @@ $('#dialog').addEventListener('submit', async e => {
       if (data.location==='na_aucie' && !data.vehicleId){ const w = $('#dlg-warn'); if (w){ w.textContent = 'Komplet „na aucie” musi mieć wybrane auto.'; w.hidden = false; } return; }
       // na auto zakładamy nowy komplet → poprzedni z tego auta schodzi do magazynu
       if (data.location==='na_aucie') for (const o of S.tires.filter(x => x.vehicleId===data.vehicleId && x.location==='na_aucie' && x.id!==id)) await db.collection('tires').doc(o.id).update({location:'magazyn'});
+      if (data.size) data.size = normTireSize(data.size);
+      // auto bez wpisanego rozmiaru dostaje rozmiar z kompletu
+      const tv = data.vehicleId && byId('vehicles', data.vehicleId);
+      if (tv && data.size && !tv.tireSize && tireSizeOn() && P().vehicles==='rw') await db.collection('vehicles').doc(tv.id).update({tireSize: data.size}).catch(() => {});
     }
     const repeatUntil = data.repeatUntil; delete data.repeatUntil;
     const ref = id ? db.collection(col).doc(id) : db.collection(col).doc();

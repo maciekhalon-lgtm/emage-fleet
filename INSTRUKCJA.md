@@ -181,3 +181,11 @@ Motyw jasny/ciemny: przełącznik słońce/księżyc w górnym pasku (komputer) 
   - **Pewne**: fizycznie niemożliwe dla jednego auta. Jest to tankowanie o ponad 12% większe niż bak (95–100 l do baku 90 l bywa normalne – to „na granicy”, do sprawdzenia) albo więcej litrów, niż mogło się zmieścić po poprzednim tankowaniu (wolne miejsce w baku + to, co auto mogło spalić od tamtej chwili: 15 l/100 km według licznika albo 13 l na godzinę – liczy się większa wartość, więc pomyłka w liczniku nie wywoła alarmu). Tylko te liczą się na Pulpicie („niemożliwe tankowania z kart”), w Pojazdach, na karcie auta i w ocenie kierowców.
   - **Do sprawdzenia** (przełącznik „Wszystkie”): dwa tankowania w 3 godziny, cena za litr ponad 15% powyżej mediany, auto poza grafikiem (tylko gdy grafik jest dla tego auta prowadzony w tym tygodniu).
 - **Dlaczego tak dużo?** – w Paliwo → Spalanie i liczniki przy aucie, które pali wyraźnie więcej niż średnia floty, jest dopisek; po kliknięciu auta widać rozbicie: tankowania bez licznika (i spalanie bez nich), tankowania niemożliwe dla jednego auta, pomylone liczniki, brak grafiku oraz szacunek nadwyżki w litrach i złotych.
+
+## Rozmiar opon auta
+
+- Każde auto ma pole **Rozmiar opon** (np. 225/75 R16C). Wpiszesz je w Pojazdy → „Edytuj tabelą” (wszystkie auta naraz), w formularzu auta albo przy dodawaniu kompletu opon. Zapis jest ujednolicany: „225/75r16c” zapisze się jako „225/75 R16C”.
+- Rozmiar widać na karcie auta i w zakładce Opony pod numerem rejestracyjnym („rozmiar?”, gdy brak).
+- Nowy komplet opon dla auta dostaje rozmiar auta jako podpowiedź. Jeśli auto nie ma jeszcze rozmiaru, przejmie go z pierwszego dodanego kompletu.
+- Komplet o innym rozmiarze niż auto dostaje ostrzeżenie „inny rozmiar niż auto”.
+- Wymaga migracji `032_rozmiar_opon.sql` – do tego czasu pole jest ukryte, a reszta działa bez zmian.

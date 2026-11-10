@@ -11,7 +11,7 @@ const COL_OF = Object.fromEntries(Object.entries(TABLES).map(([a, b]) => [b, a])
 /* pole w aplikacji → kolumna w bazie */
 const FIELDS = {
   common:    {createdBy:'created_by', createdAt:'created_at', updatedBy:'updated_by', updatedAt:'updated_at'},
-  vehicles:  {driverId:'driver_id', responsible:'responsible', monthlyLimit:'monthly_limit', consGood:'cons_good', consOk:'cons_ok', policyNo:'policy_no', insurer:'insurer', policyUntil:'policy_until', assistancePhone:'assistance_phone', hasTacho:'has_tacho', tankL:'tank_l'},
+  vehicles:  {driverId:'driver_id', responsible:'responsible', monthlyLimit:'monthly_limit', consGood:'cons_good', consOk:'cons_ok', policyNo:'policy_no', insurer:'insurer', policyUntil:'policy_until', assistancePhone:'assistance_phone', hasTacho:'has_tacho', tankL:'tank_l', tireSize:'tire_size'},
   blockOverrides: {vehicleId:'vehicle_id'},
   drivers:   {name:'full_name', licenseExpiry:'license_expiry', medicalExpiry:'medical_expiry', psychExpiry:'psych_expiry'},
   crewChanges: {vehicleId:'vehicle_id', bookingId:'booking_id', newBookingId:'new_booking_id', fromDriverId:'from_driver_id', fromCoDriverId:'from_co_driver_id', toDriverId:'to_driver_id'},
@@ -37,7 +37,7 @@ const FIELDS = {
 };
 /* kolumny, które aplikacja może zapisywać (reszta ustawia baza) */
 const WRITABLE = {
-  vehicles:  ['id','plate','make','model','year','vin','fuel','km','driver_id','status','monthly_limit','notes','cons_good','cons_ok','policy_no','insurer','policy_until','assistance_phone','has_tacho','tank_l','tires','responsible'],
+  vehicles:  ['id','plate','make','model','year','vin','fuel','km','driver_id','status','monthly_limit','notes','cons_good','cons_ok','policy_no','insurer','policy_until','assistance_phone','has_tacho','tank_l','tires','responsible','tire_size'],
   drivers:   ['id','full_name','phone','categories','license_expiry','medical_expiry','psych_expiry','active'],
   crewChanges: [],
   routes:    ['id','code','name','tacho','loading','active','note'],
@@ -61,6 +61,10 @@ const WRITABLE = {
   requests:  ['id','driver_id','field','old_value','new_value','status'],
   members:   ['status','role','driver_id','approved_at','approved_by','full_name'],
 };
+/* Rozmiar opon auta (migracja 032). Kolumna jest, gdy wczytane auta ją mają. */
+const tireSizeOn = () => S.vehicles.length > 0 && 'tireSize' in S.vehicles[0];
+/* „225/75r16c” → „225/75 R16C” */
+const normTireSize = s => { s = String(s || '').trim().toUpperCase().replace(/\s+/g, ' '); const m = /^(\d{3})\s*\/\s*(\d{2})\s*(Z?R)\s*(\d{2}(?:[.,]5)?)\s*(C?)(.*)$/.exec(s); return m ? `${m[1]}/${m[2]} ${m[3]}${m[4].replace(',', '.')}${m[5]}${m[6] ? ' ' + m[6].trim() : ''}` : s; };
 const fieldMap = col => ({...FIELDS.common, ...(FIELDS[col] || {})});
 
 function toApp(col, r){
@@ -91,6 +95,7 @@ function toDb(col, o){
     out[m[k] || k] = v==='' ? null : v;
   }
   for (const k of Object.keys(out)) if (!WRITABLE[col].includes(k)) delete out[k];
+  if (col==='vehicles' && !tireSizeOn()) delete out.tire_size;   // przed migracją 032 kolumny nie ma
   return out;
 }
 

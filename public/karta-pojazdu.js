@@ -15,7 +15,7 @@ function viewCard(){
   const add = (col, label) => canCreate(col) ? `<button class="small" data-new="${col}" data-veh="${esc(v.id)}">${label}</button>` : '';
 
   const facts = [
-    ['Przebieg', km(v.km)], ['Rok', esc(v.year||'—')], ['Napęd', esc(v.fuel||'—')], ['Bak', (v.tankL || 90) + ' l'],
+    ['Przebieg', km(v.km)], ['Rok', esc(v.year||'—')], ['Napęd', esc(v.fuel||'—')], ['Bak', (v.tankL || 90) + ' l'], ...(tireSizeOn() ? [['Rozmiar opon', v.tireSize ? `<b>${esc(v.tireSize)}</b>` : '<span class="muted">nie wpisano</span>']] : []),
     ['Odpowiedzialni', (respOf(v).length?esc(respNames(v)):'<span class="muted">nikt</span>') + (typeof canResp==='function' && canResp() ? ` <button class="small ghost" data-resp="${esc(v.id)}">${respOf(v).length ? 'Zmień' : 'Przypisz'}</button>` : '')], ['Tachograf', v.hasTacho ? 'tak' : 'nie'], ['Opony', (typeof tiresFact==='function' && tiresFact(v)) || (v.tires ? TIRES[v.tires] : '—')], ...(typeof contractsOn==='function' && contractFact(v) ? [['Umowa', contractFact(v)]] : []), ...(typeof eqOn==='function' && eqOn() ? [['Wyposażenie', equipmentFact(v)]] : []), ['Polisa', policyHtml(v)], ['VIN', `<span class="num">${esc(v.vin||'—')}</span>`],
   ].map(([l,val]) => `<div class="${l==='Polisa' || l==='Umowa' || l==='Wyposażenie' || l==='Odpowiedzialni' || l==='VIN' || (l==='Opony' && typeof tiresOn==='function' && tiresOn() && tiresOf(v.id).length) ? 'wide' : ''}"><span class="label">${l}</span><span class="fv">${val}</span></div>`).join('');
 
