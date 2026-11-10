@@ -15,7 +15,7 @@ function viewCard(){
   const add = (col, label) => canCreate(col) ? `<button class="small" data-new="${col}" data-veh="${esc(v.id)}">${label}</button>` : '';
 
   const facts = [
-    ['Przebieg', km(v.km)], ['Rok', esc(v.year||'—')], ['Napęd', esc(v.fuel||'—')], ['Bak', (v.tankL || 90) + ' l'], ...(tireSizeOn() ? [['Rozmiar opon', v.tireSize ? `<b>${esc(v.tireSize)}</b>` : '<span class="muted">nie wpisano</span>']] : []),
+    ['Przebieg', km(v.km)], ['Rok', esc(v.year||'—')], ['Napęd', esc(v.fuel||'—')], ['Bak', (v.tankL || 90) + ' l'], ...(typeof warrantyFact==='function' && warrantyFact(v) ? [['Gwarancja', warrantyFact(v)]] : []), ...(tireSizeOn() ? [['Rozmiar opon', v.tireSize ? `<b>${esc(v.tireSize)}</b>` : '<span class="muted">nie wpisano</span>']] : []),
     ['Odpowiedzialni', (respOf(v).length?esc(respNames(v)):'<span class="muted">nikt</span>') + (typeof canResp==='function' && canResp() ? ` <button class="small ghost" data-resp="${esc(v.id)}">${respOf(v).length ? 'Zmień' : 'Przypisz'}</button>` : '')], ['Tachograf', v.hasTacho ? 'tak' : 'nie'], ['Opony', (typeof tiresFact==='function' && tiresFact(v)) || (v.tires ? TIRES[v.tires] : '—')], ...(typeof contractsOn==='function' && contractFact(v) ? [['Umowa', contractFact(v)]] : []), ...(typeof eqOn==='function' && eqOn() ? [['Wyposażenie', equipmentFact(v)]] : []), ['Polisa', policyHtml(v)], ['VIN', `<span class="num">${esc(v.vin||'—')}</span>`],
   ].map(([l,val]) => `<div class="${l==='Polisa' || l==='Umowa' || l==='Wyposażenie' || l==='Odpowiedzialni' || l==='VIN' || (l==='Opony' && typeof tiresOn==='function' && tiresOn() && tiresOf(v.id).length) ? 'wide' : ''}"><span class="label">${l}</span><span class="fv">${val}</span></div>`).join('');
 
@@ -71,7 +71,7 @@ function viewCard(){
   const stdMiss = canCreate('deadlines') ? STD_DL.filter(t => !S.deadlines.some(d => d.vehicleId===v.id && d.type===t)) : [];
   const woBtn = P().service || P().manage ? `<div class="wo-bar"><button class="small" data-workorder="${esc(v.id)}">${ic('clip')}Zlecenie dla warsztatu (druk)</button></div>` : '';
   if (cardTab==='serwis') body = woBtn + (stdMiss.length ? `<div class="notice"><span>Brakuje podstawowych terminów: <b>${stdMiss.join(', ')}</b> – bez nich system nie przypomni o nich ani nie zablokuje auta po terminie.</span><button class="small" data-std-dl="${esc(v.id)}">Uzupełnij</button></div>` : '') + `<div class="grid2"><div class="section">
-      ${sec('Terminy', add('deadlines','+ Termin'), dlHtml, 'Brak zapisanych terminów.')}
+      ${typeof warrantyPanel==='function' ? warrantyPanel(v) : ''}${sec('Terminy', add('deadlines','+ Termin'), dlHtml, 'Brak zapisanych terminów.')}
       ${sec('Usterki', add('issues','+ Zgłoś'), iss.length ? `<div class="dl">${iss.map(i => issueRow(i, false)).join('')}</div>` : '', 'Brak zgłoszonych usterek.')}</div>
     <div class="section">${P().service ? sec('Książka serwisowa', add('serviceEntries','+ Wpis serwisowy'), svcHtml, 'Brak wpisów – zapisuj tu naprawy i wymiany: co zrobiono, przy jakim przebiegu, gdzie i za ile.') : ''}</div></div>`;
   else if (cardTab==='paliwo') body = (fc && fc.rate!=null && !fc.unsure && fc.rate > THEFT_RATE ? `<div class="notice err"><span><b>Podejrzane spalanie: ${fc.rate.toFixed(1).replace('.', ',')} l/100 km</b> – powyżej ${THEFT_RATE} l/100 km dla busa to możliwa kradzież paliwa (albo tankowanie kartą innego auta). Sprawdź odcinki z najwyższym spalaniem poniżej.</span></div>` : '') + `<div class="facts">

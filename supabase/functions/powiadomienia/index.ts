@@ -56,6 +56,7 @@ export function itemsFor(p: Row, d: Data, today: string): {pri: number; text: st
     // busy, za które kierowca odpowiada: terminy, przebieg, niesprawność
     d.vehicles.filter(v => v.status !== 'wycofany' && (v.responsible || []).includes(p.driver_id)).forEach(v => {
       d.deadlines.filter(t => t.vehicle_id === v.id).forEach(t => {
+        if (t.type === 'Koniec gwarancji' && (diffDays(today, t.date) < 0 || (t.km_due && v.km && t.km_due - v.km <= 0))) return;   // zakończona gwarancja to nie alarm
         const dd = diffDays(today, t.date);
         if (dd < 0) out.push({pri: 0, text: `Twój bus ${v.plate}: ${t.type} po terminie (${dm(t.date)})`});
         else if (dd <= 7) out.push({pri: 1, text: `Twój bus ${v.plate}: ${t.type} ${dm(t.date)}`});
@@ -84,6 +85,7 @@ export function itemsFor(p: Row, d: Data, today: string): {pri: number; text: st
     if (tl.length) out.push({pri: md >= '10-15' || (md >= '04-20' && md <= '05-31') ? 1 : 2, text: `${tl.length} ${tl.length === 1 ? 'auto' : 'aut(a)'} do wymiany opon na ${md >= '10-01' ? 'zimowe' : 'letnie'}: ${tl.slice(0, 5).map(v => v.plate).join(', ')}`});
     d.deadlines.forEach(t => {
       const v = veh(t.vehicle_id); if (!v || v.status === 'wycofany') return;
+      if (t.type === 'Koniec gwarancji' && (diffDays(today, t.date) < 0 || (t.km_due && v.km && t.km_due - v.km <= 0))) return;   // zakończona gwarancja to nie alarm
       const dd = diffDays(today, t.date);
       if (dd < 0) out.push({pri: 0, text: `${v.plate}: ${t.type} po terminie (${dm(t.date)})`});
       else if (dd === 0) out.push({pri: 0, text: `${v.plate}: ${t.type} dziś`});

@@ -380,7 +380,7 @@ document.addEventListener('click', e => {
 
 /* Dokumenty auta dla kierowcy (np. przy kontroli drogowej): dowód, polisa, inne skany dodane przez kierownika */
 /* Kierowca widzi, gdy zbliża się termin, który dotyczy jazdy (przegląd, OC, olej, opony…): ≤ 14 dni albo ≤ 1500 km */
-const DRV_DL = ['Przegląd techniczny','Ubezpieczenie OC','Serwis olejowy','Wymiana rozrządu','Wymiana opon','Legalizacja tachografu'];
+const DRV_DL = ['Przegląd techniczny','Ubezpieczenie OC','Serwis olejowy','Przegląd gwarancyjny','Wymiana rozrządu','Wymiana opon','Legalizacja tachografu'];
 function myDueNote(v){
   if (!v || !v.id) return '';
   const t = today();

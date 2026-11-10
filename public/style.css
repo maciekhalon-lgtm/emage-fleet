@@ -1498,3 +1498,13 @@ button.d-set{cursor:pointer}button.d-set:hover{background:var(--sunk)}
 .dot.off{background:var(--faint)}
 
 .qe-tbl input{min-width:0;width:100%}.qe-tbl input[data-k="tankL"],.qe-tbl input[data-k="year"]{width:84px}.qe-tbl input[data-k="tireSize"]{width:140px;text-transform:uppercase}.qe-tbl input[data-k="vin"]{width:200px;text-transform:uppercase}.qe-tbl input[data-k="insurer"]{width:140px}
+
+/* gwarancja na karcie auta */
+.wr{display:flex;flex-direction:column}
+.wr-row{display:flex;align-items:center;gap:12px;padding:11px 22px;border-top:1px solid var(--line)}
+.wr-row:first-child{border-top:0}
+.wr-row>span:nth-child(2){flex:1;min-width:0;display:flex;flex-direction:column}
+.wr-row .sub{font-size:12.5px;color:var(--muted)}
+.wr-hist{display:flex;flex-direction:column;gap:3px;padding:10px 22px 16px;border-top:1px solid var(--line)}
+.wr-h{font-size:13px}
+.wr-btns{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}

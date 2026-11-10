@@ -23,16 +23,18 @@ function viewDeadlines(){
         <div style="min-width:0"><b>${esc(d.type)}</b>${kmInfo}</div>
         <div class="is-veh" style="min-width:0">${vPlate(d.vehicleId)} <span class="sub">${esc(vName(d.vehicleId))}</span></div>
         <div class="is-pills"><span class="pill ${s.cls}">${esc(s.txt)}</span></div>
-        <div>${canEditDoc('deadlines',d)?`<button class="small" data-renew="${esc(d.id)}" title="Oznacz jako wykonane i ustaw kolejny termin">Wykonane</button>`:''}</div>
+        <div>${canEditDoc('deadlines',d) && d.type!=='Koniec gwarancji'?`<button class="small" data-renew="${esc(d.id)}" title="Oznacz jako wykonane i ustaw kolejny termin">Wykonane</button>`:''}</div>
       </div>`; }).join('');
   }
   const more = hidden && dlFilter!=='all' ? `<p class="muted small" style="margin:0">${hidden} ${isPlural(hidden,'dalszy termin ukryty','dalsze terminy ukryte','dalszych terminów ukrytych')} – <a href="#" data-dlf="all">pokaż wszystkie</a>.</p>` : '';
   return head + `<div class="panel dl">${html || `<div class="empty"><p>${dlFilter==='urgent' ? 'Nic pilnego – wszystkie terminy są dalej niż 60 dni.' : 'Brak terminów w tym filtrze.'}</p></div>`}</div>` + more;
 }
 /* domyślne cykle: [miesiące, km] */
-const DL_INTERVALS = {'Przegląd techniczny':[12,null],'Ubezpieczenie OC':[12,null],'Ubezpieczenie AC':[12,null],'Serwis olejowy':[12,15000],'Wymiana rozrządu':[60,80000],'Wymiana opon':[6,null],'Przegląd gwarancyjny':[12,30000],'Legalizacja tachografu':[24,null],'Leasing – koniec umowy':[null,null],'Inne':[null,null]};
+const DL_INTERVALS = {'Przegląd techniczny':[12,null],'Ubezpieczenie OC':[12,null],'Ubezpieczenie AC':[12,null],'Serwis olejowy':[12,15000],'Wymiana rozrządu':[60,80000],'Wymiana opon':[6,null],'Przegląd gwarancyjny':[12,30000],'Koniec gwarancji':[null,null],'Legalizacja tachografu':[24,null],'Leasing – koniec umowy':[null,null],'Inne':[null,null]};
 function renew(id){
   const d = byId('deadlines', id); if (!d) return;
+  if (typeof openWarrantyDone==='function' && d.type==='Przegląd gwarancyjny' && canCreate('serviceEntries')) return openWarrantyDone(d.vehicleId);
+  if (typeof openWarranty==='function' && d.type==='Koniec gwarancji') return openWarranty(d.vehicleId);
   const def = DL_INTERVALS[d.type] || [12,null];
   const months = Number(d.intervalMonths) || def[0] || 12;
   const kmStep = Number(d.intervalKm) || (d.kmDue ? def[1] : null);
@@ -77,6 +79,6 @@ function deadlinePlan(){
         <span class="pl-d num">${fdate(e.when).slice(0, 5)}<em>${DOW[(parse(e.when).getDay() + 6) % 7]}</em></span>
         ${vPlate(d.vehicleId)}
         <span class="pl-t"><b>${esc(d.type)}</b><span class="sub">${e.byKm ? `wg przebiegu: ${km(d.kmDue)} (jeździ ok. ${Math.round(e.rate)} km/dzień)` : d.kmDue ? `albo przy ${km(d.kmDue)}` : 'termin kalendarzowy'}</span></span>
-        ${canEditDoc('deadlines', d) ? `<button class="small" data-renew="${esc(d.id)}">Wykonane</button>` : ''}</div>`).join('')}</div>`; }).join('');
+        ${canEditDoc('deadlines', d) && d.type!=='Koniec gwarancji' ? `<button class="small" data-renew="${esc(d.id)}">Wykonane</button>` : ''}</div>`).join('')}</div>`; }).join('');
   return `<p class="muted small" style="margin:0">Terminy „na kilometry” są przeliczone na datę według tego, ile auto jeździło w ostatnich 60 dniach – widać, kiedy naprawdę trzeba zjechać do serwisu.</p><div class="panel pl">${html}</div>`;
 }

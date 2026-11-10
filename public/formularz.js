@@ -339,6 +339,7 @@ function openForm(col, id, preset){
   if (col==='deadlines') $('#f-deadlines-type')?.addEventListener('change', e => {
     const d = DL_INTERVALS[e.target.value]; if (!d) return;
     $('#f-deadlines-intervalMonths').value = d[0] ?? ''; $('#f-deadlines-intervalKm').value = d[1] ?? '';
+    const rk = $('#f-deadlines-remindKm'); if (rk && !rk.value && e.target.value==='Przegląd gwarancyjny') rk.value = 5000;
   });
 }
 function bookingCheck(){

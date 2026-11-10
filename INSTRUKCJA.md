@@ -189,3 +189,16 @@ Motyw jasny/ciemny: przełącznik słońce/księżyc w górnym pasku (komputer) 
 - Nowy komplet opon dla auta dostaje rozmiar auta jako podpowiedź. Jeśli auto nie ma jeszcze rozmiaru, przejmie go z pierwszego dodanego kompletu.
 - Komplet o innym rozmiarze niż auto dostaje ostrzeżenie „inny rozmiar niż auto”.
 - Wymaga migracji `032_rozmiar_opon.sql` – do tego czasu pole jest ukryte, a reszta działa bez zmian.
+
+## Gwarancja auta
+
+Karta auta → **Terminy i serwis** → panel **Gwarancja** (kierownik floty i serwisu):
+- **Ustaw gwarancję** (lub „+ Gwarancja”):
+  - **Gwarancja do** (data) i opcjonalnie **lub do przebiegu**;
+  - przegląd gwarancyjny **co ile miesięcy / co ile km**, **przypomnij … km przed** (domyślnie 5000 km);
+  - **ostatni przegląd** (data i przebieg), z którego system sam policzy następny, albo od razu **następny przegląd** (data / przebieg).
+  - Ostatni przegląd zapisuje się też w książce serwisowej.
+- **Przegląd wykonany** – otwiera wpis serwisowy z dzisiejszą datą i przebiegiem auta (popraw, jeśli trzeba). Po zapisie następny przegląd ustawia się sam: data + cykl miesięcy, przebieg z wpisu + cykl km. Na karcie widać listę wykonanych przeglądów z przebiegiem.
+- Ten sam przycisk działa w Terminach („Wykonane” przy przeglądzie gwarancyjnym).
+- Przypomnienia działają jak przy innych terminach: Pulpit, Terminy, powiadomienia i kalendarz. Przegląd gwarancyjny jest „pilny”, gdy do przebiegu zostaje mniej niż ustawione km.
+- Po końcu gwarancji termin „Koniec gwarancji” niczego nie alarmuje (pokazuje „Gwarancja zakończona”). Jeśli przegląd wypada po końcu gwarancji, panel to podpowie – można go usunąć w „Ustaw gwarancję”.

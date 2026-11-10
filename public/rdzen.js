@@ -36,19 +36,23 @@ const isPlural = (n, one, few, many) => n===1?one:(n%10>=2&&n%10<=4&&(n%100<10||
 function toast(msg){ const t=$('#toast'); t.textContent=msg; t.hidden=false; clearTimeout(toast.t); toast.t=setTimeout(()=>t.hidden=true,2400); }
 
 /* ---------- domain ---------- */
-const DL_TYPES = ['Przegląd techniczny','Ubezpieczenie OC','Ubezpieczenie AC','Serwis olejowy','Wymiana rozrządu','Wymiana opon','Przegląd gwarancyjny','Legalizacja tachografu','Leasing – koniec umowy','Inne'];
+const DL_TYPES = ['Przegląd techniczny','Ubezpieczenie OC','Ubezpieczenie AC','Serwis olejowy','Wymiana rozrządu','Wymiana opon','Przegląd gwarancyjny','Koniec gwarancji','Legalizacja tachografu','Leasing – koniec umowy','Inne'];
 const COST_CATS = ['Paliwo','Ładowanie','Serwis i naprawy','Ubezpieczenie','Opony','Myjnia','Opłaty i parkingi','Leasing','Inne'];
 const FUELS = ['Diesel','Benzyna','Hybryda','Elektryczny','LPG'];
 
 function dlState(dl){
   const dd = diffDays(today(), dl.date);
+  if (dl.type==='Koniec gwarancji'){   // po końcu gwarancji nic nie alarmuje
+    const vv = byId('vehicles', dl.vehicleId), lk = dl.kmDue && vv && vv.km ? Number(dl.kmDue) - Number(vv.km) : null;
+    if (dd < 0 || (lk!=null && lk <= 0)) return {cls:'off', txt:'Gwarancja zakończona', d: 9999};
+  }
   const veh = dl.kmDue ? byId('vehicles', dl.vehicleId) : null;
   const left = veh && veh.km ? Number(dl.kmDue) - Number(veh.km) : null;
   const warnAt = Number(dl.remindKm) || 1000, soonAt = Math.max(3000, warnAt + 1000);   // przypomnienie N km przed
   const kmEq = left===null ? Infinity : left<=0 ? 0 : left<=warnAt ? 7 : left<=soonAt ? 20 : Infinity;
   if (kmEq < dd || (kmEq===0 && dd>0)){
     const cls = left<=0 ? 'bad' : left<=warnAt ? 'warn' : 'soon';
-    return {cls, txt: left<=0 ? 'Przebieg przekroczony o '+new Intl.NumberFormat('pl-PL').format(-left)+' km' : 'Zostało '+new Intl.NumberFormat('pl-PL').format(left)+' km', d:kmEq, byKm:true};
+    return {cls, txt: left<0 ? 'Przebieg przekroczony o '+new Intl.NumberFormat('pl-PL').format(-left)+' km' : left===0 ? 'Przebieg osiągnięty' : 'Zostało '+new Intl.NumberFormat('pl-PL').format(left)+' km', d:kmEq, byKm:true};
   }
   const d = dd;
   if (d < 0) return {cls:'bad', txt:'Po terminie '+(-d)+' '+isPlural(-d,'dzień','dni','dni'), d};
