@@ -202,3 +202,8 @@ Karta auta → **Terminy i serwis** → panel **Gwarancja** (kierownik floty i s
 - Ten sam przycisk działa w Terminach („Wykonane” przy przeglądzie gwarancyjnym).
 - Przypomnienia działają jak przy innych terminach: Pulpit, Terminy, powiadomienia i kalendarz. Przegląd gwarancyjny jest „pilny”, gdy do przebiegu zostaje mniej niż ustawione km.
 - Po końcu gwarancji termin „Koniec gwarancji” niczego nie alarmuje (pokazuje „Gwarancja zakończona”). Jeśli przegląd wypada po końcu gwarancji, panel to podpowie – można go usunąć w „Ustaw gwarancję”.
+
+## Średnie spalania (Paliwo → Spalanie i liczniki → „Średnie miesięczne”)
+
+- **Busy miesiąc po miesiącu** – każdy bus i jego średnie l/100 km w kolejnych miesiącach (3, 6 albo 12 miesięcy wstecz), kolumna **Średnia** za cały okres i wiersz **Flota** na dole. Kolor względem średniej floty w danym miesiącu (zielony lepiej, żółty +15%, czerwony +30%, szary niepewne). Najedź na liczbę – km i litry; kliknij auto – karta auta. Sortowanie po kliknięciu „Auto” / „Średnia”.
+- **Średnie spalanie kierowców** – z tankowań wpisanych przez kierowcę w aplikacji: wpisane litry / km od poprzedniego tankowania tego auta (stan licznika), przy założeniu tankowania do pełna. Kolumny: policzone / wszystkie tankowania, litry, km, średnia l/100 km i porównanie ze średnią wszystkich kierowców. Tankowania bez licznika, z cofniętym licznikiem, z odcinkiem poniżej 20 / powyżej 2500 km albo większe niż bak nie są liczone. Kliknij kierowcę – jego karta.

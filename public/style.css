@@ -1508,3 +1508,10 @@ button.d-set{cursor:pointer}button.d-set:hover{background:var(--sunk)}
 .wr-hist{display:flex;flex-direction:column;gap:3px;padding:10px 22px 16px;border-top:1px solid var(--line)}
 .wr-h{font-size:13px}
 .wr-btns{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+
+/* średnie spalania */
+.avg-tbl td,.avg-tbl th{white-space:nowrap}
+.avg-tbl .avg-col{border-left:2px solid var(--line-2)}
+.avg-tbl tfoot td{border-top:2px solid var(--line-2);background:var(--sunk)}
+.avg-good{color:var(--ok);font-weight:700}.avg-warn{color:var(--warn);font-weight:700}.avg-bad{color:var(--bad);font-weight:800}.avg-u{color:var(--faint);font-style:italic}
+th.sortable{cursor:pointer;user-select:none}

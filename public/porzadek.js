@@ -14,7 +14,7 @@ const GROUPS = {
 /* Zakładki „w środku” innej zakładki: przełącznik na górze strony zamiast osobnej pozycji w menu */
 const INNER = {
   kierowcy: [['kierowcy','Lista kierowców', () => true], ['ocena','Ocena kierowców', () => !!P().manage]],
-  spalanie: [['spalanie','Spalanie i przebiegi', () => true], ['liczniki','Liczniki do sprawdzenia', () => true]],
+  spalanie: [['spalanie','Spalanie i przebiegi', () => true], ['srednie','Średnie miesięczne', () => !!P().manage], ['liczniki','Liczniki do sprawdzenia', () => true]],
   raporty:  [['raporty','Raporty', () => true], ['porownanie','Porównanie miesięcy', () => !!P().manage]],
 };
 const innerParent = t => Object.keys(INNER).find(p => INNER[p].some(([k]) => k===t && k!==p)) || '';
