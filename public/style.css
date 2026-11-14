@@ -1677,3 +1677,4 @@ tr.on td{background:var(--accent-soft)}
   .bar .tools>.seg::-webkit-scrollbar{display:none}
   .bar .tools>.seg button{white-space:nowrap;flex:none}
 }
+.new-acc span{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap}.new-acc svg.i{width:18px;height:18px}

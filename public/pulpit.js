@@ -93,7 +93,7 @@ function attentionItems(serviceOnly){
       const od = openDisputes().length, pr = pendingRequests().length, pu = pendingUsers().length;
       if (od) out.push({w:1, html: attRow('info', '', `${od} ${isPlural(od,'sporny wpis','sporne wpisy','spornych wpisów')} w podwójnej obsadzie`, 'czeka na Twoją decyzję', `<button class="small" data-go="uzytkownicy">Rozstrzygnij</button>`)});
       if (pr) out.push({w:3, html: attRow('info', '', `${pr} ${isPlural(pr,'zmiana danych','zmiany danych','zmian danych')} do akceptacji`, 'np. nowy numer telefonu kierowcy', `<button class="small" data-go="uzytkownicy">Sprawdź</button>`)});
-      if (pu) out.push({w:3, html: attRow('info', '', `${pu} ${isPlural(pu,'nowe konto','nowe konta','nowych kont')} do zatwierdzenia`, 'nadaj rolę w Użytkownikach', `<button class="small" data-go="uzytkownicy">Zatwierdź</button>`)});
+      if (pu) out.push({w:0.5, html: attRow('warn', '', `${pu} ${isPlural(pu,'nowe konto','nowe konta','nowych kont')} do zatwierdzenia`, 'nadaj rolę w Użytkownikach', `<button class="small" data-go="uzytkownicy">Zatwierdź</button>`)});
     }
     if (P().manage) flaggedCosts().slice(0, 6).forEach(c => out.push({w: c.flagState==='explain' ? 3 : 1, html: flagRow(c, true)}));
     if (flaggedCosts().length > 6) out.push({w:3, html: attRow('warn', '', `i ${flaggedCosts().length - 6} innych tankowań do wyjaśnienia`, 'pełna lista w zakładce Koszty', `<button class="small" data-go="koszty">Pokaż</button>`)});

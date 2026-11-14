@@ -108,7 +108,11 @@ function renderTop(role){
 }
 
 function renderNotices(){
-  $('#notices').innerHTML = dbState==='slow' ? `<div class="notice err"><span>Nie udało się połączyć z bazą danych. Sprawdź internet – strona spróbuje ponownie sama.</span></div>` : '';
+  let h = dbState==='slow' ? `<div class="notice err"><span>Nie udało się połączyć z bazą danych. Sprawdź internet – strona spróbuje ponownie sama.</span></div>` : '';
+  // nowe konto czeka na zatwierdzenie – widać na każdej stronie, aż kierownik je zatwierdzi albo odrzuci
+  const pu = P().manage && typeof pendingUsers==='function' && tab!=='uzytkownicy' ? pendingUsers() : [];
+  if (pu.length) h += `<div class="notice warn new-acc"><span>${ic('user')}<b>${pu.length===1 ? 'Nowe konto czeka na zatwierdzenie' : pu.length + ' nowe konta czekają na zatwierdzenie'}:</b> ${pu.slice(0, 3).map(p => esc(p.full_name || p.email)).join(', ')}${pu.length > 3 ? '…' : ''}</span><a class="btn small primary" href="#uzytkownicy">Zatwierdź</a></div>`;
+  $('#notices').innerHTML = h;
 }
 
 function emptyBlock(title, text, btn, extra='', col=''){
