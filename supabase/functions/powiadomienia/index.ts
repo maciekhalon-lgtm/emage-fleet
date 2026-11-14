@@ -290,7 +290,8 @@ Deno.serve(async (req) => {
     return json({event: true, users: out.length, report: out});
   }
 
-  if (testUser){
+  const emailTest = !!(testUser && body && body.emailTest);
+  if (testUser && !emailTest){
     const r = await send(testUser, {title: 'Emage FLEET', body: 'Powiadomienia działają na tym urządzeniu.', url: './', tag: 'test'});
     return json({test: true, ...r});
   }
@@ -305,6 +306,35 @@ Deno.serve(async (req) => {
     settings: await load('settings'),
     cardRows: await load('fuel_card_rows', b => b.gte('tx_date', addDays(today, -35))),
   };
+  // raport e-mail (Resend): adresy w ustawieniach 'report_email', klucz RESEND_API_KEY w sekretach funkcji
+  const mailWeekly = async () => {
+    const cfg = (d.settings.find(x => x.key === 'report_email') || {}).value || {};
+    const to = String(cfg.to || '').split(/[,;\s]+/).map((x: string) => x.trim()).filter((x: string) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(x));
+    if (!to.length) return {email: 'brak adresu w ustawieniach'};
+    if (!key('RESEND_API_KEY')) return {email: 'brak sekretu RESEND_API_KEY w funkcji'};
+    const c14 = await load('costs', b => b.gte('date', addDays(today, -14)));
+    d.contracts = await load('vehicle_contracts'); d.equipment = await load('equipment'); d.tires = await load('tires');
+    const w = weekly(d, today, c14);
+    const boss = d.profiles.find(x => x.status === 'active' && x.role === 'floty');
+    const items = boss ? itemsFor(boss, d, today).sort((a, b) => a.pri - b.pri).slice(0, 25) : [];
+    const esc = (x: string) => x.replace(/[&<>]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;'}[c] as string));
+    const app = String(cfg.app || 'https://emage-fleet.maciekhalon.workers.dev');
+    const html = `<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.5;color:#16130e;max-width:640px">
+      <h2 style="margin:0 0 12px">${esc(w.title)}</h2>
+      <p style="margin:0 0 14px">${w.body.split('\n').map(esc).join('<br>')}</p>
+      ${items.length ? `<h3 style="margin:18px 0 8px">Do zrobienia</h3><ul style="padding-left:18px;margin:0">${items.map(i => `<li style="margin:3px 0">${esc(i.text)}</li>`).join('')}</ul>` : ''}
+      <p style="margin:20px 0 0"><a href="${app}" style="color:#16130e;font-weight:bold">Otwórz Emage FLEET</a></p></div>`;
+    const r = await fetch('https://api.resend.com/emails', {method: 'POST', headers: {'Authorization': 'Bearer ' + key('RESEND_API_KEY'), 'Content-Type': 'application/json'},
+      body: JSON.stringify({from: String(cfg.from || 'Emage FLEET <onboarding@resend.dev>'), to, subject: w.title, html,
+        text: w.title + '\n\n' + w.body + (items.length ? '\n\nDo zrobienia:\n' + items.map(i => '• ' + i.text).join('\n') : '') + '\n\n' + app})});
+    const t = await r.text();
+    return {email: r.ok ? 'wysłano' : 'błąd ' + r.status + ': ' + t.slice(0, 300), to: to.length};
+  };
+  if (emailTest){
+    const me = d.profiles.find(x => x.id === testUser);
+    if (!me || me.role !== 'floty' || me.status !== 'active') return json({error: 'Raport e-mail może wysłać tylko kierownik floty'}, 403);
+    return json({emailTest: true, ...(await mailWeekly())});
+  }
   const report: Record<string, unknown>[] = [];
   for (const p of d.profiles.filter(x => x.status === 'active')){
     const items = itemsFor(p, d, today);
@@ -319,6 +349,7 @@ Deno.serve(async (req) => {
     const w = weekly(d, today, c14);
     for (const p of d.profiles.filter(x => x.status === 'active' && x.role === 'floty'))
       report.push({user: p.id, weekly: true, ...(await send(p.id, {...w, url: './#raporty', tag: 'tydzien-' + today}))});
+    report.push({weeklyEmail: true, ...(await mailWeekly())});
   }
   return json({today, users: report.length, report});
 });

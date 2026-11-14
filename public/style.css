@@ -1497,7 +1497,7 @@ button.d-set{cursor:pointer}button.d-set:hover{background:var(--sunk)}
 .cw p{margin:10px 0 0}
 .dot.off{background:var(--faint)}
 
-.qe-tbl input{min-width:0;width:100%}.qe-tbl input[data-k="tankL"],.qe-tbl input[data-k="year"]{width:84px}.qe-tbl input[data-k="tireSize"]{width:140px;text-transform:uppercase}.qe-tbl input[data-k="vin"]{width:200px;text-transform:uppercase}.qe-tbl input[data-k="insurer"]{width:140px}
+.qe-tbl input{min-width:0;width:100%}.qe-tbl input[data-k="tankL"],.qe-tbl input[data-k="year"]{width:84px}.qe-tbl input[type="date"]{width:150px}.qe-tbl input[data-k^="dlkm"]{width:120px}.qe-tbl input[data-k="tireSize"]{width:140px;text-transform:uppercase}.qe-tbl input[data-k="vin"]{width:200px;text-transform:uppercase}.qe-tbl input[data-k="insurer"]{width:140px}
 
 /* gwarancja na karcie auta */
 .wr{display:flex;flex-direction:column}
@@ -1571,3 +1571,20 @@ th.sortable{cursor:pointer;user-select:none}
   .veh-tbl .vt-st:empty{display:none}
 }
 @media (max-width:820px){.fc-tiles>*{text-align:left}}
+
+/* rentowność */
+.pf-tbl td{padding:9px 16px}
+.pf-tbl tr.pf-sum td{font-weight:700;border-top:1px solid var(--line-2)}
+.pf-tbl tr.pf-total td{font-family:var(--f-head);font-size:18px;font-weight:800;border-top:2px solid var(--ink)}
+.pf-tbl tr.muted td{color:var(--faint)}
+.pf-tbl .sub{display:block;font-size:12px;color:var(--muted);font-weight:400}
+.pf-what{display:flex;flex-direction:column;gap:12px;padding:4px 22px 20px}
+.pf-what input[type=range]{width:100%;accent-color:var(--accent);padding:0;background:none;border:0}
+.pf-what-r{display:flex;flex-direction:column;gap:4px}
+.pf-fx{display:grid;grid-template-columns:minmax(0,1fr) 150px auto;gap:8px;margin-bottom:8px}
+tr.on td{background:var(--accent-soft)}
+.kpi .sub{display:block;font-size:12px;color:var(--muted);margin-top:4px}
+.kpi.pf-ok b{color:var(--ok)}.kpi.pf-bad b{color:var(--bad)}.kpi.pf-warn b{color:var(--warn)}
+.kpi b{font-size:clamp(22px,3.2vw,34px)}
+
+.re-box{display:flex;flex-direction:column;gap:12px;padding:0 22px 20px}.re-btns{display:flex;gap:8px;flex-wrap:wrap}

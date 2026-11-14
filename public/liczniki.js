@@ -2,10 +2,13 @@
    Liczniki: z kart paliwowych, z tankowań i z przejęć / zdań aut. Zły licznik:
    – zmyślony: poniżej 1000 km albo z samych jednakowych cyfr (1, 444, 555555),
    – nie pasuje do sąsiednich (literówka, brak cyfry, cofnięty, nierealny skok > 1500 km na dobę).
-   „Sprawdzone” zapisuje się w ustawieniach (settings: odo_checked). */
+   „Sprawdzone” zapisuje się w ustawieniach (settings: odo_checked).
+   Zmyślone nie liczą się do „Do sprawdzenia” – mają własny filtr; do sprawdzenia zostają literówki i cofnięte liczniki. */
 'use strict';
 const THEFT_RATE = 13;   // l/100 km – powyżej: podejrzane spalanie, możliwa kradzież paliwa
-let odoFilter = 'todo', odoVeh = '';
+let odoFilter = 'todo', odoVeh = '', odoMonth = '';
+/* Zmyślone liczniki (1, 444, 555555…) nie wymagają sprawdzania – poprawić się ich nie da; liczą się osobno */
+const odoIsFake = x => x.kind==='zmyślony';
 const odoChecked = () => new Set(((S.settings.find(x => x.id==='odo_checked') || {}).ids) || []);
 
 /* Wszystkie złe liczniki floty: [{key, d, t, vid, src, who, odo, kind, lo, hi}] */
@@ -41,22 +44,25 @@ function badOdometers(){
   odoMemo = {key, list: out};
   return out;
 }
-const odoTodoCount = () => { if (!P().manage) return 0; const ch = odoChecked(); return badOdometers().filter(x => !ch.has(x.key)).length; };
+const odoTodoCount = () => { if (!P().manage) return 0; const ch = odoChecked(); return badOdometers().filter(x => !ch.has(x.key) && !odoIsFake(x)).length; };
 
 function viewOdometers(){
   if (!P().manage) return '';
   const ch = odoChecked(), all = badOdometers();
   const nf = n => new Intl.NumberFormat('pl-PL').format(n);
-  const byF = {todo: all.filter(x => !ch.has(x.key)), done: all.filter(x => ch.has(x.key)), all};
-  const list = byF[odoFilter].filter(x => !odoVeh || x.vid===odoVeh);
+  const byF = {todo: all.filter(x => !ch.has(x.key) && !odoIsFake(x)), fake: all.filter(x => !ch.has(x.key) && odoIsFake(x)), done: all.filter(x => ch.has(x.key)), all};
+  const inScope = x => (!odoVeh || x.vid===odoVeh) && (!odoMonth || String(x.d).slice(0, 7)===odoMonth);
+  const list = byF[odoFilter].filter(inScope);
+  const months = [...new Set(all.map(x => String(x.d).slice(0, 7)))].sort().reverse();
   const vs = [...new Set(all.map(x => x.vid))].map(id => byId('vehicles', id)).filter(Boolean).sort((a, b) => String(a.plate).localeCompare(b.plate));
   const head = `<div class="bar"><h2>Liczniki do sprawdzenia</h2><div class="tools"><select id="odo-veh" style="width:auto" aria-label="Auto"><option value="">Wszystkie auta</option>${vs.map(v => `<option value="${esc(v.id)}" ${v.id===odoVeh ? 'selected' : ''}>${esc(v.plate)} (${all.filter(x => x.vid===v.id && !ch.has(x.key)).length})</option>`).join('')}</select>
-    ${byF.todo.length ? `<button class="small" data-odo-all>Oznacz widoczne jako sprawdzone</button>` : ''}</div></div>
-    <div class="pb-quick">${[['todo','Do sprawdzenia'], ['done','Sprawdzone'], ['all','Wszystkie']].map(([k, l]) => `<button class="small ${odoFilter===k ? 'primary' : ''}" data-odof="${k}">${l} <span class="count ${k==='todo' && byF.todo.length ? 'bad' : ''}">${byF[k].length}</span></button>`).join('')}</div>`;
+<select id="odo-month" style="width:auto" aria-label="Miesiąc"><option value="">Wszystkie miesiące</option>${months.map(m => `<option value="${m}" ${m===odoMonth ? 'selected' : ''}>${esc(monthName(m))}</option>`).join('')}</select>
+    ${odoFilter!=='done' && list.length ? `<button class="small" data-odo-all>Oznacz widoczne (${list.length}) jako sprawdzone</button>` : ''}</div></div>
+    <div class="pb-quick">${[['todo','Do sprawdzenia'], ['fake','Zmyślone (1, 555555…)'], ['done','Sprawdzone'], ['all','Wszystkie']].map(([k, l]) => `<button class="small ${odoFilter===k ? 'primary' : ''}" data-odof="${k}">${l} <span class="count ${k==='todo' && byF.todo.length ? 'bad' : ''}">${byF[k].length}</span></button>`).join('')}</div>`;
   const kinds = {}; byF.todo.forEach(x => { kinds[x.kind] = (kinds[x.kind] || 0) + 1; });
   const perVeh = {}; byF.todo.forEach(x => { perVeh[x.vid] = (perVeh[x.vid] || 0) + 1; });
   const worst = Object.entries(perVeh).sort((a, b) => b[1] - a[1]).slice(0, 3);
-  const meta = `<div class="panel fc-meta"><div><span class="label">Do sprawdzenia</span><b>${byF.todo.length}</b></div>
+  const meta = `<div class="panel fc-meta"><div><span class="label">Do sprawdzenia</span><b>${byF.todo.length}</b></div><div><span class="label">Zmyślone – pominięte</span><b>${byF.fake.length}</b></div>
     ${Object.entries(kinds).map(([k, n]) => `<div><span class="label">${esc(k)}</span><b>${n}</b></div>`).join('')}
     ${worst.length ? `<div><span class="label">Najwięcej</span><b>${worst.map(([v, n]) => esc((byId('vehicles', v) || {}).plate || '') + ' (' + n + ')').join(', ')}</b></div>` : ''}</div>`;
   const rows = list.slice(0, 400).map(x => `<tr><td class="num"><b>${fdate(x.d)}</b>${x.t ? `<span class="sub">${esc(x.t)}</span>` : ''}</td><td>${vPlate(x.vid)}</td>
@@ -75,14 +81,16 @@ async function odoMark(keys, on){
   try { await db.collection('settings').doc('odo_checked').set({ids: [...set]}); toast(on ? `Oznaczono jako sprawdzone: ${keys.length}` : 'Cofnięto'); }
   catch(err){ handleWriteErr(err); }
 }
-document.addEventListener('change', e => { if (e.target.id==='odo-veh'){ odoVeh = e.target.value; render(); } });
+document.addEventListener('change', e => { if (e.target.id==='odo-veh'){ odoVeh = e.target.value; render(); } if (e.target.id==='odo-month'){ odoMonth = e.target.value; render(); } });
 document.addEventListener('click', e => {
   const t = e.target.closest('[data-odof],[data-odo-ok],[data-odo-un],[data-odo-all],[data-odo-fix]'); if (!t || t.closest('#dialog')) return;
   if (t.dataset.odoFix) return openOdoFix(t.dataset.odoFix);
   if (t.dataset.odof){ odoFilter = t.dataset.odof; render(); return; }
   if (t.dataset.odoOk) return odoMark([t.dataset.odoOk], true);
   if (t.dataset.odoUn) return odoMark([t.dataset.odoUn], false);
-  if (t.dataset.odoAll!==undefined){ const ch = odoChecked(); const keys = badOdometers().filter(x => !ch.has(x.key) && (!odoVeh || x.vid===odoVeh)).map(x => x.key); if (keys.length) odoMark(keys, true); }
+  if (t.dataset.odoAll!==undefined){ const ch = odoChecked();
+    const keys = badOdometers().filter(x => !ch.has(x.key) && (odoFilter==='fake' ? odoIsFake(x) : odoFilter==='todo' ? !odoIsFake(x) : true) && (!odoVeh || x.vid===odoVeh) && (!odoMonth || String(x.d).slice(0, 7)===odoMonth)).map(x => x.key);
+    if (keys.length) odoMark(keys, true); }
 });
 
 /* ---------- walidacja licznika wpisywanego przez kierowcę ---------- */

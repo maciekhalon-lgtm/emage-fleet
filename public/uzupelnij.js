@@ -72,14 +72,23 @@ document.addEventListener('click', e => { if (e.target.closest('[data-action="fi
 
 /* ---------- Edycja tabelą: wszystkie auta naraz, wartości wypełnione, zapis tylko zmienionych pól ---------- */
 const QE_COLS_ALL = [['tankL','Zbiornik (l)','number','min="20" max="400" step="1" inputmode="numeric"'],['tireSize','Rozmiar opon','text','maxlength="40" placeholder="225/75 R16C"'],['year','Rocznik','number','min="1990" step="1" inputmode="numeric"'],
-  ['vin','VIN','text','maxlength="17" autocapitalize="characters"'],['insurer','Ubezpieczyciel','text',''],['policyUntil','OC do','date','']];
+  ['vin','VIN','text','maxlength="17" autocapitalize="characters"'],['insurer','Ubezpieczyciel','text',''],['policyUntil','OC do','date',''],
+  ['dl:Przegląd techniczny','Przegląd techniczny','date',''],['dl:Koniec gwarancji','Gwarancja do','date',''],['dlkm:Przegląd gwarancyjny','Przegląd gwar. przy km','number','min="0" step="1000" inputmode="numeric"']];
 const qeCols = () => QE_COLS_ALL.filter(c => c[0]!=='tireSize' || tireSizeOn());
+/* Termin danego rodzaju dla auta (najbliższy) – kolumny „dl:…” zapisują się w terminach, nie w danych auta */
+const qeDl = (vid, type) => S.deadlines.filter(d => d.vehicleId===vid && d.type===type).sort((a, b) => a.date < b.date ? -1 : 1)[0] || null;
+function qeVal(v, k){
+  if (k.startsWith('dl:')){ const d = qeDl(v.id, k.slice(3)); return d ? d.date : ''; }
+  if (k.startsWith('dlkm:')){ const d = qeDl(v.id, k.slice(5)); return d && d.kmDue!=null ? String(d.kmDue) : ''; }
+  if (k==='policyUntil'){ const d = qeDl(v.id, 'Ubezpieczenie OC'); return v.policyUntil || (d ? d.date : ''); }
+  return v[k]==null ? '' : String(v[k]);
+}
 function openQuickEdit(){
   const vs = S.vehicles.filter(v => v.status!=='wycofany').sort((a, b) => a.plate.localeCompare(b.plate));
   $('#dlg-title').textContent = `Edycja tabelą · ${vs.length} aut`;
-  $('#dlg-body').innerHTML = `<p class="muted small field full" style="margin:0">Popraw wartości i kliknij Zapisz – zapiszą się tylko zmienione pola. Tab przechodzi do następnego pola, Enter w dół.</p>
-    <div class="field full tablewrap sb-wrap"><table class="sb-tbl fd-tbl qe-tbl"><thead><tr><th>Auto</th>${qeCols().map(c => `<th>${c[1]}</th>`).join('')}</tr></thead><tbody>${vs.map(v => `<tr><td>${plate(v.plate)}<span class="sub">${esc((v.make || '') + ' ' + (v.model || ''))}</span></td>${
-      qeCols().map(([k, l, t, a]) => `<td data-l="${l}"><input type="${t}" ${a} data-qe="${esc(v.id)}" data-k="${k}" value="${esc(v[k]==null ? '' : String(v[k]))}" aria-label="${esc(v.plate)}: ${k}"></td>`).join('')}</tr>`).join('')}</tbody></table></div><div class="warnline" id="dlg-warn" hidden></div>`;
+  $('#dlg-body').innerHTML = `<p class="muted small field full" style="margin:0">Popraw wartości i kliknij Zapisz – zapiszą się tylko zmienione pola. Przegląd techniczny, OC i gwarancja trafiają też do Terminów (przypomnienia). Tab przechodzi do następnego pola, Enter w dół.</p>
+    <div class="field full tablewrap sb-wrap"><table class="sb-tbl fd-tbl qe-tbl"><thead><tr><th>Auto</th>${qeCols().map(c => `<th>${c[1]}</th>`).join('')}</tr></thead><tbody>${vs.map(v => `<tr><td>${plate(v.plate)}<span class="sub">${esc((v.make || '') + ' ' + (v.model || ''))}${v.km ? ' · ' + km(v.km) : ''}</span></td>${
+      qeCols().map(([k, l, t, a]) => `<td data-l="${l}"><input type="${t}" ${a} data-qe="${esc(v.id)}" data-k="${esc(k)}" value="${esc(qeVal(v, k))}" aria-label="${esc(v.plate)}: ${esc(l)}"></td>`).join('')}</tr>`).join('')}</tbody></table></div><div class="warnline" id="dlg-warn" hidden></div>`;
   $('#dialog')?.classList.add('dlg-wide');
   editing = {col:'quick-edit', id: null, base:{}, special: saveQuickEdit};
   $('#dlg-save').textContent = 'Zapisz zmiany'; $('#dlg-del').hidden = true; $('#scrim').hidden = false;
@@ -87,24 +96,40 @@ function openQuickEdit(){
 }
 async function saveQuickEdit(){
   const warn = $('#dlg-warn'); warn.hidden = true;
-  const ch = {};
-  document.querySelectorAll('[data-qe]').forEach(i => { const v = byId('vehicles', i.dataset.qe), k = i.dataset.k; let x = i.value.trim();
-    const cur = v[k]==null ? '' : String(v[k]); if (x===cur) return;
-    (ch[v.id] = ch[v.id] || {})[k] = x; });
+  const fail = t => { warn.textContent = t; warn.hidden = false; };
+  const ch = {}, dl = [];   // dl: {vid, type, date?, kmDue?}
+  document.querySelectorAll('[data-qe]').forEach(i => { const v = byId('vehicles', i.dataset.qe), k = i.dataset.k, x = i.value.trim();
+    if (x===qeVal(v, k)) return;
+    if (k.startsWith('dl:')){ if (x) dl.push({vid: v.id, type: k.slice(3), date: x}); return; }
+    if (k.startsWith('dlkm:')){ if (x) dl.push({vid: v.id, type: k.slice(5), kmDue: Number(x)}); return; }
+    (ch[v.id] = ch[v.id] || {})[k] = x;
+    if (k==='policyUntil' && x) dl.push({vid: v.id, type: 'Ubezpieczenie OC', date: x});
+  });
   for (const [vid, up] of Object.entries(ch)){ const v = byId('vehicles', vid);
-    if (up.tankL && !(Number(up.tankL) >= 20 && Number(up.tankL) <= 400)){ warn.textContent = `${v.plate}: zbiornik 20–400 l.`; warn.hidden = false; return; }
-    if (up.year && !(Number(up.year) >= 1990 && Number(up.year) <= new Date().getFullYear() + 1)){ warn.textContent = `${v.plate}: rocznik wygląda na błędny.`; warn.hidden = false; return; }
-    if (up.vin){ up.vin = up.vin.toUpperCase(); if (!/^[A-HJ-NPR-Z0-9]{17}$/.test(up.vin)){ warn.textContent = `${v.plate}: VIN ma 17 znaków (bez I, O, Q).`; warn.hidden = false; return; } }
+    if (up.tankL && !(Number(up.tankL) >= 20 && Number(up.tankL) <= 400)) return fail(`${v.plate}: zbiornik 20–400 l.`);
+    if (up.year && !(Number(up.year) >= 1990 && Number(up.year) <= new Date().getFullYear() + 1)) return fail(`${v.plate}: rocznik wygląda na błędny.`);
+    if (up.vin){ up.vin = up.vin.toUpperCase(); if (!/^[A-HJ-NPR-Z0-9]{17}$/.test(up.vin)) return fail(`${v.plate}: VIN ma 17 znaków (bez I, O, Q).`); }
     ['tankL','year'].forEach(k => { if (k in up) up[k] = up[k]==='' ? null : Number(up[k]); });
     if (up.tireSize) up.tireSize = normTireSize(up.tireSize);
     ['vin','insurer','policyUntil','tireSize'].forEach(k => { if (k in up && up[k]==='') up[k] = null; });
   }
-  const ids = Object.keys(ch); if (!ids.length){ closeForm(); toast('Nic się nie zmieniło'); return; }
-  const btn = $('#dlg-save'); btn.disabled = true; let n = 0;
-  try { for (const vid of ids){ await db.collection('vehicles').doc(vid).update(ch[vid]); n++; }
+  for (const d of dl){ const v = byId('vehicles', d.vid);
+    if (d.kmDue!=null && !(d.kmDue > 0)) return fail(`${v.plate}: przebieg przeglądu gwarancyjnego wygląda na błędny.`);
+    if (d.kmDue!=null && v.km && d.kmDue < Number(v.km) - 50000) return fail(`${v.plate}: przegląd gwarancyjny przy ${km(d.kmDue)} – to dużo mniej niż obecny przebieg (${km(v.km)}).`); }
+  const ids = Object.keys(ch); if (!ids.length && !dl.length){ closeForm(); toast('Nic się nie zmieniło'); return; }
+  const btn = $('#dlg-save'); btn.disabled = true; let n = 0, nd = 0;
+  try {
+    for (const vid of ids){ await db.collection('vehicles').doc(vid).update(ch[vid]); n++; }
+    for (const d of dl){
+      const ex = qeDl(d.vid, d.type), iv = DL_INTERVALS[d.type] || [null, null];
+      if (ex){ const up = {}; if (d.date) up.date = d.date; if (d.kmDue!=null) up.kmDue = d.kmDue; await db.collection('deadlines').doc(ex.id).update(up); }
+      else await db.collection('deadlines').doc().set({vehicleId: d.vid, type: d.type, date: d.date || addMonths(today(), iv[0] || 12), kmDue: d.kmDue ?? null,
+        intervalMonths: iv[0], intervalKm: iv[1], remindKm: d.type==='Przegląd gwarancyjny' ? 5000 : null, note: null});
+      nd++;
+    }
     if (typeof suspMemo!=='undefined') suspMemo = {k: '', v: []};
-    closeForm(); toast(`Zapisano zmiany w ${n} ${isPlural(n,'aucie','autach','autach')}`); }
-  catch(err){ handleWriteErr(err); if (n) toast(`Zapisano ${n} – reszta nie przeszła`); }
+    closeForm(); toast(`Zapisano: ${[n ? `${n} ${isPlural(n,'auto','auta','aut')}` : '', nd ? `${nd} ${isPlural(nd,'termin','terminy','terminów')}` : ''].filter(Boolean).join(', ')}`); }
+  catch(err){ handleWriteErr(err); if (n || nd) toast(`Część zapisana (${n + nd}) – reszta nie przeszła`); }
   finally { btn.disabled = false; }
 }
 document.addEventListener('click', e => { if (e.target.closest('[data-action="quick-edit"]')){ e.preventDefault(); openQuickEdit(); } });

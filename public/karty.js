@@ -332,6 +332,13 @@ function fcRenderMap(keepScroll){
     const files = P_.files.length > 1 ? `<div class="tablewrap imp-table"><table><thead><tr><th>Plik</th><th>Okres</th><th class="r">Tankowania</th><th class="r">Inne</th></tr></thead><tbody>${per.map(x => { const d = x.ours.map(r => r.txDate).sort();
         return `<tr><td>${esc(x.f.name)}</td><td class="num">${d.length ? fdate(d[0]) + ' – ' + fdate(d[d.length - 1]) : '—'}</td><td class="r num">${x.ours.filter(r => r.kind==='fuel').length}</td><td class="r num">${x.ours.filter(r => r.kind!=='fuel').length}</td></tr>`; }).join('')}</tbody></table></div>` : '';
     sum = `<div class="imp-sum">${P_.files.length > 1 ? `<span class="pill info">${P_.files.length} ${isPlural(P_.files.length,'plik','pliki','plików')} = ${P_.files.length} ${isPlural(P_.files.length,'rozliczenie','rozliczenia','rozliczeń')}</span>` : ''}<span class="pill ok">${nF} tankowań naszych aut</span>${nO ? `<span class="pill info">${nO} przejazdów, parkingów i innych</span>` : ''}<span class="pill off">${foreign.size} innych tablic – pominięte</span>${ds.length ? `<span class="pill info">${fdate(ds[0])} – ${fdate(ds[ds.length - 1])}</span>` : ''}</div>
+      ${(() => { const fr = per.flatMap(x => x.all.filter(r => !r.vehicle)); if (!fr.length) return '';
+        const g = {}; fr.forEach(r => { const key = r.plate || '(bez numeru)'; const o = g[key] = g[key] || {n: 0, l: 0, a: 0}; o.n++; o.l += Number(r.liters || 0); o.a += Number(r.amount || 0); });
+        const tot = fr.reduce((s, r) => s + Number(r.amount || 0), 0);
+        return `<details class="fc-foreign"><summary><span class="pill off">Pominięte – nie z floty: ${fr.length} ${isPlural(fr.length,'transakcja','transakcje','transakcji')} · ${zl(Math.round(tot))}</span></summary>
+          <p class="muted small">Karty i numery spoza floty (np. prywatne, bez numeru auta) nie trafiają do kosztów transportu ani do spalania.</p>
+          <div class="tablewrap"><table><thead><tr><th>Karta / numer</th><th class="r">Transakcje</th><th class="r">Litry</th><th class="r">Kwota</th></tr></thead><tbody>${Object.entries(g).sort((a, b) => b[1].a - a[1].a).map(([p, o]) => `<tr><td>${esc(p)}</td><td class="r num">${o.n}</td><td class="r num">${fl(Math.round(o.l))}</td><td class="r num">${zl(Math.round(o.a))}</td></tr>`).join('')}</tbody></table></div></details>`; })()}
+      ${(() => { const ret = [...new Set(per.flatMap(x => x.ours.filter(r => r.vehicle.status==='wycofany').map(r => r.vehicle.plate)))]; return ret.length ? `<span class="warnline">Tankowania aut wycofanych z floty: ${esc(ret.join(', '))} – sprawdź, czy to na pewno koszt transportu.</span>` : ''; })()}
       ${P_.failed.length ? `<span class="warnline">Nie udało się odczytać: ${esc(P_.failed.join(', '))}</span>` : ''}
       ${prods.length > 1 ? `<div class="fc-prods"><span class="label">Zaznaczone = paliwo (porównanie z kierowcami). Pozostałe trafią do „Przejazdy i parkingi” i do kosztów auta</span>${prods.map(p => `<label class="check"><input type="checkbox" data-fcprod value="${esc(p)}" ${P_.prodOff.has(p) ? '' : 'checked'}> ${esc(p)}</label>`).join('')}</div>` : ''}
       ${files || `<div class="tablewrap imp-table"><table><thead><tr><th>Data</th><th>Auto</th><th class="r">Litry</th><th class="r">Kwota</th><th class="r">Licznik</th></tr></thead><tbody>
@@ -435,3 +442,11 @@ document.addEventListener('click', e => {
 });
 
 
+
+/* Przypomnienie o imporcie: dla każdego dostawcy – ostatni koniec okresu; jeśli minęło > 20 dni, czekamy na kolejne zestawienie */
+function fcImportDue(){
+  if (!P().manage) return [];
+  const last = {};
+  (S.fuelCardImports || []).forEach(i => { const p = (i.provider || 'karty').trim(); if (i.periodTo && (!last[p] || i.periodTo > last[p])) last[p] = i.periodTo; });
+  return Object.entries(last).filter(([, d]) => diffDays(d, today()) > 20).map(([provider, d]) => ({provider, last: d, from: addDays(d, 1)}));
+}

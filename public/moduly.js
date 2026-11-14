@@ -58,3 +58,36 @@ document.addEventListener('click', async e => {
   if (e.target.closest('[data-action="cal-renew"]')){ e.preventDefault(); openCalendar(true); return; }
   if (e.target.closest('[data-action="cal-copy"]')){ e.preventDefault(); try { await navigator.clipboard.writeText($('#cal-url').value); toast('Skopiowano link'); } catch(_){ $('#cal-url').select(); toast('Zaznaczono – skopiuj Ctrl+C'); } }
 });
+
+/* ---------- Raport e-mail w poniedziałek (funkcja „powiadomienia” + Resend) ---------- */
+const reportEmail = () => (S.settings.find(x => x.id==='report_email') || {});
+function reportEmailPanel(){
+  if (!P().manage) return '';
+  const r = reportEmail();
+  return `<div class="panel"><div class="sec-head"><h3>Raport e-mail w poniedziałek</h3>${r.to ? '<span class="pill ok">włączony</span>' : '<span class="pill off">wyłączony</span>'}</div>
+    <div class="re-box">
+      <p class="muted" style="margin:0">W poniedziałek rano na podany adres przychodzi podsumowanie tygodnia: koszty, tankowania, usterki, terminy na 14 dni, wyposażenie i opony oraz lista spraw do zrobienia.</p>
+      <label class="field"><span class="label">Adresy e-mail (po przecinku)</span><input id="re-to" type="text" inputmode="email" autocomplete="email" value="${esc(r.to || '')}" placeholder="np. flota@firma.pl"></label>
+      <span class="re-btns"><button class="small" data-action="re-save">Zapisz</button>${r.to ? `<button class="small ghost" data-action="re-test">Wyślij próbny teraz</button>` : ''}</span>
+      <p class="muted small" style="margin:0">Wysyłka idzie przez serwis Resend (darmowy do 3000 e-maili miesięcznie). Jednorazowo: załóż konto na resend.com, utwórz klucz API i wklej go w Supabase → Edge Functions → Secrets jako <b>RESEND_API_KEY</b>. Bez własnej domeny Resend wysyła tylko na adres, na który założysz konto.</p>
+    </div></div>`;
+}
+document.addEventListener('click', async e => {
+  const b = e.target.closest('[data-action="re-save"],[data-action="re-test"]'); if (!b) return;
+  e.preventDefault(); e.stopPropagation();
+  if (b.dataset.action==='re-save'){
+    const to = ($('#re-to').value || '').split(/[,;\s]+/).map(x => x.trim()).filter(Boolean);
+    const bad = to.filter(x => !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(x));
+    if (bad.length){ toast('Niepoprawny adres: ' + bad.join(', ')); return; }
+    try { const {id: _i, ...rest} = reportEmail(); await db.collection('settings').doc('report_email').set({...rest, to: to.join(', ')}); toast(to.length ? 'Zapisano – raport przyjdzie w poniedziałek' : 'Raport e-mail wyłączony'); }
+    catch(err){ handleWriteErr(err); }
+    return;
+  }
+  b.disabled = true; const old = b.textContent; b.textContent = 'Wysyłam…';
+  try {
+    const {data, error} = await sb.functions.invoke('powiadomienia', {body: {emailTest: true}});
+    if (error) throw error;
+    toast(data && data.email ? 'Raport e-mail: ' + data.email : 'Brak odpowiedzi funkcji');
+  } catch(err){ toast('Nie udało się: ' + (err.message || err)); }
+  finally { b.disabled = false; b.textContent = old; }
+}, true);

@@ -207,3 +207,33 @@ Karta auta → **Terminy i serwis** → panel **Gwarancja** (kierownik floty i s
 
 - **Busy miesiąc po miesiącu** – każdy bus i jego średnie l/100 km w kolejnych miesiącach (3, 6 albo 12 miesięcy wstecz), kolumna **Średnia** za cały okres i wiersz **Flota** na dole. Kolor względem średniej floty w danym miesiącu (zielony lepiej, żółty +15%, czerwony +30%, szary niepewne). Najedź na liczbę – km i litry; kliknij auto – karta auta. Sortowanie po kliknięciu „Auto” / „Średnia”.
 - **Średnie spalanie kierowców** – z tankowań wpisanych przez kierowcę w aplikacji: wpisane litry / km od poprzedniego tankowania tego auta (stan licznika), przy założeniu tankowania do pełna. Kolumny: policzone / wszystkie tankowania, litry, km, średnia l/100 km i porównanie ze średnią wszystkich kierowców. Tankowania bez licznika, z cofniętym licznikiem, z odcinkiem poniżej 20 / powyżej 2500 km albo większe niż bak nie są liczone. Kliknij kierowcę – jego karta.
+
+## Rentowność transportu (Koszty → Rentowność)
+
+- Wybierasz miesiąc i widzisz: **przychód**, **koszty**, **zysk** (i zysk na km) oraz ile brakuje do **celu** (domyślnie 40 000 zł).
+- **Przychód** = km × (stawka bazowa + współczynnik × hurtowa cena ON w Orlenie) + dopłaty (drugi kierowca i inne). Zamiast tego możesz wpisać kwotę z faktur – ma pierwszeństwo.
+- **Km** = km do faktury wpisane w „Dane miesiąca”, a gdy brak – km z liczników floty (jak w Rozliczeniu aut).
+- **Koszty** = koszty aut z aplikacji i kart (paliwo, serwis i opony, ubezpieczenie i leasing, pozostałe, koszty ogólne floty) + **koszty stałe** (ZUS, wynagrodzenia, kierowcy na fakturę, certyfikat, dyspozytor, księgowość – „Stawka i koszty stałe”) + koszty jednorazowe miesiąca.
+- **Co jeśli zmienię stawkę?** – suwak od −0,10 do +0,20 zł/km: o ile zmieni się przychód (miesięcznie i rocznie) i zysk.
+- **Busy – zysk na km**: przychód z km busa, jego koszty i udział kosztów stałych (proporcjonalnie do km), od najsłabszego. Kliknij auto – karta auta.
+- **Ostatnie miesiące** – km, przychód, koszty, zysk; kliknij miesiąc, żeby go otworzyć.
+- Co miesiąc wpisz w „Dane miesiąca” hurtową cenę ON (bez wpisu używana jest ostatnia wpisana). Kwoty można pisać z przecinkiem i spacjami (np. 12 500,50).
+
+## Karty paliwowe – co nie wchodzi do kosztów
+
+- Import bierze tylko transakcje aut z floty. Karty i numery spoza floty (np. prywatne, karty z imieniem, bez numeru auta) są pomijane – w podglądzie importu widać je w „Pominięte – nie z floty” z liczbą transakcji, litrami i kwotą. Tankowania aut wycofanych są oznaczone ostrzeżeniem.
+- **Przypomnienie o imporcie**: gdy ostatnie zestawienie dostawcy kończy się ponad 20 dni temu, Pulpit pokazuje „Brak zestawienia kart … od …”.
+
+## Liczniki do sprawdzenia – porządki
+
+- **Zmyślone** liczniki (1, 444, 555555…) mają osobny filtr i nie liczą się do „Do sprawdzenia” – poprawić się ich nie da. Do sprawdzenia zostają literówki i cofnięte liczniki.
+- Filtry **auto** i **miesiąc**, a przycisk „Oznacz widoczne (N) jako sprawdzone” oznacza wszystko, co aktualnie widać.
+
+## Edytuj tabelą – terminy
+
+- W Pojazdy → „Edytuj tabelą” są też kolumny **Przegląd techniczny**, **Gwarancja do** i **Przegląd gwar. przy km**; **OC do** zapisuje się w danych auta i w terminie „Ubezpieczenie OC”. Terminy trafiają do Terminów z przypomnieniami (nowe dostają domyślny cykl). Puste pole niczego nie usuwa.
+
+## Raport e-mail w poniedziałek (Ustawienia)
+
+- Wpisz adresy e-mail (po przecinku) i zapisz. W poniedziałek rano przychodzi podsumowanie tygodnia i lista spraw do zrobienia. „Wyślij próbny teraz” wysyła raport od razu.
+- Jednorazowo: konto na resend.com → klucz API → Supabase → Edge Functions → Secrets → `RESEND_API_KEY`. Bez własnej domeny Resend wysyła tylko na adres, na który założono konto (domenę można dodać w Resend, a nadawcę ustawić w ustawieniu `report_email.from`).

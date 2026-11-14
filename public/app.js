@@ -2,7 +2,7 @@
 'use strict';
 /* ---------- routing ---------- */
 const DRIVER_VIEWS = ['moje','wybierz','moje-dane','moj-grafik','moja-historia'];
-const TABS = ['moje','wybierz','moje-dane','moj-grafik','moja-historia','pulpit','pojazdy','trasy','terminy','usterki','ksiazka','przydzial','koszty','karty','oplaty','opony','wyposazenie','umowy','ocena','plan','spalanie','liczniki','raporty','rozliczenie','porownanie','srednie','historia','kierowcy','uzytkownicy','ustawienia'];
+const TABS = ['moje','wybierz','moje-dane','moj-grafik','moja-historia','pulpit','pojazdy','trasy','terminy','usterki','ksiazka','przydzial','koszty','karty','oplaty','opony','wyposazenie','umowy','ocena','plan','spalanie','liczniki','raporty','rozliczenie','porownanie','srednie','rentownosc','historia','kierowcy','uzytkownicy','ustawienia'];
 const homeTab = () => P().mycar ? 'moje' : 'pulpit';
 let pendingCard = null;
 let tab = 'pulpit', q = '', costMonth = today().slice(0,7), dlFilter = 'urgent';
@@ -70,6 +70,7 @@ function render(){
   else if (tab==='porownanie') v.innerHTML = viewCompare();
   else if (tab==='liczniki') v.innerHTML = viewOdometers();
   else if (tab==='srednie') v.innerHTML = viewAverages();
+  else if (tab==='rentownosc') v.innerHTML = viewProfit();
   else if (tab==='oplaty') v.innerHTML = viewTolls();
   else if (tab==='opony') v.innerHTML = viewTires();
   else if (tab==='wyposazenie') v.innerHTML = viewEquipment();
