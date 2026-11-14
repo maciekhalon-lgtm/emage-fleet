@@ -78,7 +78,7 @@ Od tej chwili zatwierdzasz wszystkich pozostałych w panelu **Użytkownicy** na 
 
 
 Kod aplikacji jest w folderze `public/`. Cloudflare (Workers Builds) publikuje go automatycznie
-po każdej zmianie w GitHubie (ok. 1–2 minut). Adres strony: **https://emage-fleet.maciekhalon.workers.dev**
+po każdej zmianie w GitHubie (ok. 1–2 minut). Adres strony: **https://emage-fleet.com**
 
 ## E. Uruchomienie aplikacji
 
@@ -88,8 +88,8 @@ Każdy plik wklejasz w całości i klikasz **Run**.
 
 ### 2. Adres strony w ustawieniach logowania
 Supabase → **Authentication → URL Configuration**:
-- **Site URL:** `https://emage-fleet.maciekhalon.workers.dev`
-- **Redirect URLs:** `https://emage-fleet.maciekhalon.workers.dev/**`
+- **Site URL:** `https://emage-fleet.com`
+- **Redirect URLs:** `https://emage-fleet.com/**` (oraz stary `https://emage-fleet.maciekhalon.workers.dev/**`)
 
 Bez tego linki z maili (potwierdzenie konta, reset hasła) prowadziłyby w złe miejsce.
 

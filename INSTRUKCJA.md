@@ -1,7 +1,7 @@
 # Emage FLEET – instrukcja obsługi
 
 System zarządzania flotą Emage Group: auta, kierowcy, dzień pracy, tankowania, serwis, kontrole i raporty.
-Adres: **https://emage-fleet.maciekhalon.workers.dev** – działa w przeglądarce na komputerze i jako aplikacja na telefonie (dodaj stronę do ekranu głównego).
+Adres: **https://emage-fleet.com** – działa w przeglądarce na komputerze i jako aplikacja na telefonie (dodaj stronę do ekranu głównego).
 
 ## Role
 
