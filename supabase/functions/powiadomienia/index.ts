@@ -521,7 +521,7 @@ Deno.serve(async (req) => {
     const boss = d.profiles.find(x => x.status === 'active' && x.role === 'floty');
     const items = boss ? itemsFor(boss, d, today).sort((a, b) => a.pri - b.pri).slice(0, 25) : [];
     const esc = (x: string) => x.replace(/[&<>]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;'}[c] as string));
-    const app = String(cfg.app || 'https://emage-fleet.maciekhalon.workers.dev');
+    const app = String(cfg.app || 'https://emage-fleet.com');
     const html = `<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.5;color:#16130e;max-width:640px">
       <h2 style="margin:0 0 12px">${esc(w.title)}</h2>
       <p style="margin:0 0 14px">${w.body.split('\n').map(esc).join('<br>')}</p>
