@@ -41,7 +41,7 @@ function render(){
     const g = groupOf(tab), first = g && GROUPS[g].find(([, , ok]) => ok());
     tab = first ? first[0] : 'pulpit';
   }
-  const navTab = DRIVER_VIEWS.includes(tab) ? 'moje' : tab, navGroup = groupOf(tab);
+  const navTab = DRIVER_VIEWS.includes(tab) ? 'moje' : (innerParent(tab) || tab), navGroup = groupOf(tab);
   document.querySelectorAll('#tabs a, #bottombar a').forEach(a => { if (a.dataset.tab===navTab || (a.dataset.group && a.dataset.group===navGroup)) a.setAttribute('aria-current','page'); else a.removeAttribute('aria-current'); });
   renderNotices();
   updateCounts();
@@ -185,3 +185,4 @@ function centerTabs(){
     n.scrollLeft += (ar.left - nr.left) - (nr.width - ar.width) / 2; });
 }
 document.addEventListener('click', e => { if (e.target.closest('[data-action="acts-toggle"]')){ e.preventDefault(); e.stopPropagation(); actsOpen = !actsOpen; render(); } }, true);
+document.addEventListener('click', e => { if (!actsOpen || e.target.closest('[data-action="acts-toggle"]')) return; const inside = e.target.closest('.acts-sec'); actsOpen = false; if (!inside) render(); else document.querySelector('.bar.acts-open')?.classList.remove('acts-open'); });

@@ -1520,8 +1520,12 @@ th.sortable{cursor:pointer;user-select:none}
    Telefon: większe pola dotyku, bez powiększania przy wpisywaniu,
    tabele przewijane z przypiętą pierwszą kolumną, zwijane opcje.
    ====================================================================== */
-.acts-toggle{display:none}
-.acts-sec{display:contents}
+.acts-toggle{display:inline-flex}
+.acts-sec{display:none}
+.tools:has(.acts-sec){position:relative}
+.bar.acts-open .acts-sec{display:flex;flex-direction:column;align-items:stretch;gap:6px;position:absolute;top:calc(100% + 8px);right:0;z-index:30;min-width:240px;padding:8px;background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow-lg, 0 12px 32px rgba(22,19,14,.18))}
+.bar.acts-open .acts-sec>*{justify-content:flex-start}
+.bar.acts-open .acts-toggle{background:var(--ink);color:var(--bg)}
 @media (max-width:820px){
   /* iOS nie powiększa strony przy polu z czcionką 16 px */
   input,select,textarea{font-size:16px}
@@ -1546,7 +1550,7 @@ th.sortable{cursor:pointer;user-select:none}
   /* Pojazdy: rzadziej używane przyciski pod „Więcej opcji” */
   .acts-toggle{display:inline-flex}
   .acts-sec{display:none}
-  .bar.acts-open .acts-sec{display:flex;flex-wrap:wrap;gap:8px;width:100%}
+  .bar.acts-open .acts-sec{position:static;flex-direction:row;flex-wrap:wrap;gap:8px;width:100%;min-width:0;padding:0;background:none;border:0;box-shadow:none}
   .bar.acts-open .acts-toggle{background:var(--ink);color:var(--bg)}
   /* kafle podsumowań po dwa w rzędzie */
   .fc-tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
@@ -1620,3 +1624,17 @@ tr.on td{background:var(--accent-soft)}
 .ut-chip .sub{font-size:.78em;color:var(--muted)}
 .sp-gps{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap}
 @media (max-width:820px){.ut-strip i{width:3px}.ut-days{height:90px;gap:1px}}
+.att-data{border-top:1px solid var(--line);margin-top:6px}
+.att-data>summary{display:flex;align-items:center;gap:8px;padding:12px 16px;cursor:pointer;font-weight:600;color:var(--muted);list-style:none}
+.att-data>summary::-webkit-details-marker{display:none}
+.att-data>summary::after{content:'';margin-left:auto;width:8px;height:8px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(45deg);transition:transform .15s}
+.att-data[open]>summary::after{transform:rotate(-135deg)}
+/* karta auta – dane w grupach */
+.vf-groups{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-bottom:16px}
+.vf-group h4{margin:0 0 8px 4px;font-size:.82rem;font-weight:700;color:var(--muted)}
+.vf-group .vfacts{grid-template-columns:repeat(2,minmax(0,1fr))}
+@media (max-width:900px){.vf-groups{grid-template-columns:1fr}}
+.att-data>summary .count{margin-left:0}
+.pf-hist td,.pf-hist th{white-space:nowrap}
+.set-tabs{flex-wrap:nowrap;overflow-x:auto;max-width:100%;scrollbar-width:none;margin-bottom:16px}
+.set-tabs button{flex:none;white-space:nowrap}

@@ -238,7 +238,7 @@ Karta auta → **Terminy i serwis** → panel **Gwarancja** (kierownik floty i s
 - Wpisz adresy e-mail (po przecinku) i zapisz. W poniedziałek rano przychodzi podsumowanie tygodnia i lista spraw do zrobienia. „Wyślij próbny teraz” wysyła raport od razu.
 - Jednorazowo: konto na resend.com → klucz API → Supabase → Edge Functions → Secrets → `RESEND_API_KEY`. Bez własnej domeny Resend wysyła tylko na adres, na który założono konto (domenę można dodać w Resend, a nadawcę ustawić w ustawieniu `report_email.from`).
 
-## Rentowność tras (Koszty → Rentowność tras)
+## Rentowność tras (Koszty → Rentowność → Trasy)
 
 - **Stawki i koszty tras** (wpisujesz raz): rozliczenie **za kurs / za km / ryczałt miesięczny**, stawka, km jednego kursu (tam i z powrotem), koszty kursu (opłaty drogowe, parkingi, winiety), **dodatkowe km na kurs** (np. kierowca zabiera auto do domu) i opcjonalnie koszt kierowcy na kurs. „Zapisz trasy”.
 - **Dane miesiąca**: liczba kursów (puste = z grafiku, dzień z trasą = kurs), dodatkowe km w miesiącu, koszty dodatkowe (np. prom, mandat) i przychód z faktury (puste = ze stawki). „Zapisz miesiąc”.
@@ -258,7 +258,14 @@ Karta auta → **Terminy i serwis** → panel **Gwarancja** (kierownik floty i s
 - Do 30 km albo ta sama miejscowość = w porządku. 30–50 km albo brak pozycji = bez oceny (nie alarmujemy).
 - W panelu „Podejrzane tankowania” widać, ile tankowań porównano; „Sprawdź z GPS” uruchamia sprawdzenie od razu (do 600 tankowań naraz, ostatnie 120 dni).
 
-## Wykorzystanie aut (Grafik → Wykorzystanie aut)
+## Wykorzystanie aut (Pojazdy → Wykorzystanie aut)
 - Z dziennych przebiegów GPS: km w okresie (14 / 30 / 90 dni), dni jazdy (ponad 20 km), procent wykorzystania, średnio km na dzień jazdy i ile dni z rzędu auto stoi.
 - „Stoją bez ruchu” – auta, które od 3+ dni nie jeździły; klik otwiera kartę auta.
 - „Km floty z GPS” – dzień po dniu i miesiąc po miesiącu. **Tylko informacyjnie** – te km nie wchodzą do Rentowności ani Rentowności tras.
+
+## Układ strony (porządki, listopad 2026)
+- **Pojazdy**: na górze przełącznik „Lista aut / Wykorzystanie aut”. Rzadziej używane przyciski (Eksport, Edytuj tabelą, Uzupełnij dane, Import z Excela) są pod „Więcej”.
+- **Karta auta → Dane**: informacje w grupach: Przebieg i użycie (z GPS: km z 30 dni i postój), Auto, Opony i wyposażenie, Ubezpieczenie i umowy. W „Paliwo i koszty” przy tankowaniach z kart widać wynik GPS: „przy stacji” albo „X km od stacji”.
+- **Koszty**: Koszty, Rozliczenie aut, Rentowność (w środku: Cała firma / Trasy), Raporty (w środku: Porównanie miesięcy), Leasing i umowy.
+- **Pulpit → Wymaga uwagi**: na górze sprawy do zrobienia (pilne policzone w nagłówku), „Pokaż wszystkie” rozwija resztę. Sprawy porządkowe (kompletność danych, auta bez terminów, liczniki do sprawdzenia) są zwinięte w „Porządki w danych”. Dochodzi wiersz o autach stojących 3+ dni (GPS).
+- **Ustawienia**: sekcje Firma i budżet, Powiadomienia (push, raport e-mail, kalendarz), Lokalizatory GPS, Moduły i kontrole, Kopia danych – widać jedną naraz.

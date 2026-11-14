@@ -32,7 +32,7 @@ function attentionItems(serviceOnly){
     bkBtn(b) + (!bl.override && P().manage ? `<button class="small" data-override="${esc(v.id)}">Zezwól dziś</button>` : '')
     + S.deadlines.filter(d => d.vehicleId===v.id && BLOCK_TYPES.includes(d.type) && d.date < today() && canEditDoc('deadlines', d)).map(d => `<button class="small" data-renew="${esc(d.id)}">${d.type==='Ubezpieczenie OC' ? 'OC odnowione' : 'Przegląd zrobiony'}</button>`).join(''))}); });
   if (P().manage && got.vehicles && got.drivers && typeof dqChecks==='function'){ const q = dqChecks();
-    if (q.total && q.pct < 70) out.push({w: 2.5, html: attRow('warn', '', `Dane floty uzupełnione w ${q.pct}%`, 'brakuje m.in.: ' + esc(q.checks.slice(0, 3).map(c => c[1]==='VIN' ? c[1] : c[1][0].toLowerCase() + c[1].slice(1)).join(', ')) + ' – bez nich część alarmów nie działa', `<a class="btn small" href="#ustawienia" data-dq-open>Uzupełnij</a>`)}); }
+    if (q.total && q.pct < 70) out.push({w: 2.5, k: 'data', html: attRow('warn', '', `Dane floty uzupełnione w ${q.pct}%`, 'brakuje m.in.: ' + esc(q.checks.slice(0, 3).map(c => c[1]==='VIN' ? c[1] : c[1][0].toLowerCase() + c[1].slice(1)).join(', ')) + ' – bez nich część alarmów nie działa', `<a class="btn small" href="#ustawienia" data-dq-open>Uzupełnij</a>`)}); }
   // auto w serwisie (bez usterki „stop”, ta ma własny wiersz niżej), a w grafiku na najbliższe 3 dni
   S.vehicles.filter(v => v.status==='serwis' && !stopIssue(v.id) && !blockedIds.has(v.id)).forEach(v => { const b = soonB(v.id); if (!b) return;
     out.push({w: b.from <= addDays(today(), 1) ? 0 : 1, html: attRow('bad', v.id, `Auto w serwisie, a w grafiku ${whenB(b)}: ${esc(crewName(b))}`, 'zmień auto w przydziale albo zakończ serwis', bkBtn(b))}); });
@@ -75,11 +75,13 @@ function attentionItems(serviceOnly){
   if (!serviceOnly && P().manage){
     theftVehicles().forEach(({v, c}) => out.push({w: 1, html: attRow('bad', v.id, `Podejrzane spalanie: ${c.rate.toFixed(1).replace('.', ',')} l/100 km`, `powyżej ${THEFT_RATE} l/100 km – możliwa kradzież paliwa · ${new Intl.NumberFormat('pl-PL').format(Math.round(c.km))} km`, `<button class="small" data-card-go="${esc(v.id)}" data-ctab-go="paliwo">Sprawdź</button>`)}));
     const noStd = S.deadlines.length || S.vehicles.length ? S.vehicles.filter(v => v.status!=='wycofany' && STD_DL.some(t => !S.deadlines.some(d => d.vehicleId===v.id && d.type===t))) : [];
-    if (noStd.length && got.deadlines) out.push({w: 3, html: attRow('warn', noStd.length===1 ? noStd[0].id : '', `${noStd.length} ${isPlural(noStd.length,'auto bez','auta bez','aut bez')} podstawowych terminów`, noStd.length===1 ? 'przegląd, OC albo serwis olejowy – uzupełnij w karcie auta' : esc(noStd.slice(0, 6).map(v => v.plate).join(', ')) + (noStd.length > 6 ? '…' : '') + ' – przegląd, OC albo olej', noStd.length===1 ? `<button class="small" data-std-dl="${esc(noStd[0].id)}">Uzupełnij</button>` : `<button class="small" data-action="std-bulk">Uzupełnij wszystkie</button>`)});
+    if (noStd.length && got.deadlines) out.push({w: 3, k: 'data', html: attRow('warn', noStd.length===1 ? noStd[0].id : '', `${noStd.length} ${isPlural(noStd.length,'auto bez','auta bez','aut bez')} podstawowych terminów`, noStd.length===1 ? 'przegląd, OC albo serwis olejowy – uzupełnij w karcie auta' : esc(noStd.slice(0, 6).map(v => v.plate).join(', ')) + (noStd.length > 6 ? '…' : '') + ' – przegląd, OC albo olej', noStd.length===1 ? `<button class="small" data-std-dl="${esc(noStd[0].id)}">Uzupełnij</button>` : `<button class="small" data-action="std-bulk">Uzupełnij wszystkie</button>`)});
     // przypomnienie o imporcie kart: dostawca, którego ostatnie zestawienie kończy się ponad 20 dni temu
     (typeof fcImportDue==='function' ? fcImportDue() : []).forEach(x => out.push({w: 2, html: attRow('warn', '', `Brak zestawienia kart ${esc(x.provider)} od ${fdate(x.from)}`, `ostatnie zaimportowane kończy się ${fdate(x.last)} – bez importu nie liczą się spalanie, średnie i alarmy tankowań`, `<button class="small" data-go="karty">Importuj</button>`)}));
-    const spN = typeof suspTodoCount==='function' ? suspTodoCount() : 0; if (spN) out.push({w: 1, html: attRow('bad', '', `${spN} ${isPlural(spN,'niemożliwe tankowanie','niemożliwe tankowania','niemożliwych tankowań')} z kart`, 'więcej niż bak albo więcej, niż mogło wejść po poprzednim tankowaniu – sprawdź, kto miał kartę', `<button class="small" data-go="karty">Pokaż</button>`)});
-    const odoN = odoTodoCount(); if (odoN) out.push({w: 2, html: attRow('warn', '', `${odoN} ${isPlural(odoN,'licznik','liczniki','liczników')} z czapy do sprawdzenia`, 'zmyślone albo niepasujące liczniki z kart i tankowań', `<button class="small" data-go="liczniki">Pokaż</button>`)});
+    const spN = typeof suspTodoCount==='function' ? suspTodoCount() : 0; if (spN) out.push({w: 1, html: attRow('bad', '', `${spN} ${isPlural(spN,'niemożliwe tankowanie','niemożliwe tankowania','niemożliwych tankowań')} z kart`, 'więcej niż bak, więcej, niż mogło wejść, albo bus był wtedy daleko od stacji (GPS) – sprawdź, kto miał kartę', `<button class="small" data-go="karty">Pokaż</button>`)});
+    if (typeof utStats==='function' && (S.gpsOdometer || []).length){ const stand = utStats(30).rows.filter(r => r.streak >= 3).sort((a, b) => b.streak - a.streak);
+      if (stand.length) out.push({w: 3, html: attRow('info', stand.length===1 ? stand[0].v.id : '', `${stand.length} ${isPlural(stand.length,'auto stoi','auta stoją','aut stoi')} od 3+ dni`, esc(stand.slice(0, 6).map(r => r.v.plate + ' – ' + r.streak + ' dni').join(', ')) + ' (GPS)', `<button class="small ghost" data-go="wykorzystanie">Wykorzystanie</button>`)}); }
+    const odoN = odoTodoCount(); if (odoN) out.push({w: 2, k: 'data', html: attRow('warn', '', `${odoN} ${isPlural(odoN,'licznik','liczniki','liczników')} do sprawdzenia`, 'zmyślone albo niepasujące z GPS liczniki z kart i tankowań', `<button class="small" data-go="liczniki">Pokaż</button>`)});
   }
   if (!serviceOnly){
     S.bookings.forEach(b => {
@@ -101,13 +103,17 @@ function attentionItems(serviceOnly){
       la.vehicles.forEach(x => out.push({w: x.over ? 2 : 3, html: attRow(x.over ? 'bad' : 'warn', x.v.id, x.over ? 'Limit kosztów przekroczony' : 'Blisko limitu kosztów', `${zl(x.sum)} z ${zl(x.lim)} w tym miesiącu`, `<button class="small ghost" data-go="raporty">Raporty</button>`)}));
     }
   }
-  return out.sort((a, b) => a.w - b.w).map(x => x.html);
+  return out.sort((a, b) => a.w - b.w);
 }
+let attAll = false;
+document.addEventListener('click', e => { if (e.target.closest('[data-att-all]')){ e.preventDefault(); attAll = !attAll; render(); } });
 function attentionCard(serviceOnly){
-  const items = attentionItems(serviceOnly);
-  const body = items.length ? `<div class="att">${items.slice(0, 12).join('')}</div>${items.length > 12 ? `<p class="muted small more">i ${items.length - 12} więcej – zobacz w zakładkach Terminy i Usterki.</p>` : ''}`
-    : `<div class="all-ok">${ic('check')}<div><b>Wszystko pod kontrolą</b><span class="muted">Nic nie wymaga dziś Twojej reakcji.</span></div></div>`;
-  return card('Wymaga uwagi', items.length ? items.length+' '+isPlural(items.length,'sprawa','sprawy','spraw') : 'dziś', body, 'att-card');
+  const all = attentionItems(serviceOnly), main = all.filter(x => x.k!=='data').map(x => x.html), data = all.filter(x => x.k==='data').map(x => x.html);
+  const urgent = all.filter(x => x.k!=='data' && x.w < 2).length;
+  const body = (main.length ? `<div class="att">${main.slice(0, attAll ? 999 : 10).join('')}</div>${main.length > 10 ? `<p class="muted small more"><button type="button" class="link" data-att-all>${attAll ? 'Pokaż mniej' : `Pokaż wszystkie (${main.length})`}</button></p>` : ''}`
+    : `<div class="all-ok">${ic('check')}<div><b>Wszystko pod kontrolą</b><span class="muted">Nic nie wymaga dziś Twojej reakcji.</span></div></div>`)
+    + (data.length ? `<details class="att-data"><summary><span>Porządki w danych</span><span class="count">${data.length}</span></summary><div class="att">${data.join('')}</div></details>` : '');
+  return card('Wymaga uwagi', main.length ? `${main.length} ${isPlural(main.length,'sprawa','sprawy','spraw')}${urgent ? ` · <b class="neg">${urgent} pilne</b>` : ''}` : 'dziś', body, 'att-card');
 }
 
 function fleetNowCard(){
@@ -183,7 +189,7 @@ function viewDashboard(){
       <div class="dgrid"><div class="dcol">${attentionCard(true)}${issuesCard()}</div><div class="dcol">${serviceCarsCard()}${deadlinesCard()}</div></div></div>`;
   }
   const mc = sumOf(inM), fb = Number(budget().monthly) || 0;
-  const att = attentionItems(false).length;
+  const att = attentionItems(false).filter(x => x.k!=='data').length;
   const kp = [
     kpi({label:'W trasie', icon:'truck', cls:'info', value: inUse, small: '/' + active.length, bar:[[pct(inUse, n), 'info']], foot: `${free} wolnych · ${svc + stop} w serwisie`, go:'przydzial'}),
     kpi({label:'Wymaga uwagi', icon:'alert', cls: att ? 'bad' : 'ok', value: att, bar:[], foot: att ? 'blokady, terminy, usterki, tankowania' : 'wszystko w porządku', go:'pulpit'}),

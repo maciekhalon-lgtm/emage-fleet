@@ -4,15 +4,17 @@
 
 /* ---------- grupy menu i zakładki ---------- */
 const GROUPS = {
-  rezerwacje: [['przydzial','Grafik', () => true], ['trasy','Trasy', () => !!P().manage], ['wykorzystanie','Wykorzystanie aut', () => !!P().manage]],
+  rezerwacje: [['przydzial','Grafik', () => true], ['trasy','Trasy', () => !!P().manage]],
   serwis:     [['usterki','Usterki', () => true], ['terminy','Terminy', () => true], ['ksiazka','Książka serwisowa', () => !!P().service], ['plan','Plan serwisu', () => planOn()], ['opony','Opony', () => tiresOn()], ['wyposazenie','Wyposażenie', () => eqOn()]],
   paliwo:     [['karty','Karty', () => !!P().manage], ['spalanie','Spalanie i liczniki', () => !!P().manage], ['oplaty','Opłaty drogowe', () => !!P().manage]],
-  koszty:     [['koszty','Koszty', () => true], ['rozliczenie','Rozliczenie aut', () => !!P().manage], ['rentownosc','Rentowność', () => !!P().manage], ['trasy-zysk','Rentowność tras', () => !!P().manage], ['umowy','Leasing i umowy', () => contractsOn()], ['raporty','Raporty', () => !!P().reports]],
+  koszty:     [['koszty','Koszty', () => true], ['rozliczenie','Rozliczenie aut', () => !!P().manage], ['rentownosc','Rentowność', () => !!P().manage], ['raporty','Raporty', () => !!P().reports], ['umowy','Leasing i umowy', () => contractsOn()]],
   ludzie:     [['kierowcy','Kierowcy', () => true], ['uzytkownicy','Użytkownicy', () => !!P().manage]],
   ustawienia: [['ustawienia','Ustawienia', () => !!P().manage], ['historia','Historia zmian', () => !!P().history]],
 };
 /* Zakładki „w środku” innej zakładki: przełącznik na górze strony zamiast osobnej pozycji w menu */
 const INNER = {
+  pojazdy:  [['pojazdy','Lista aut', () => true], ['wykorzystanie','Wykorzystanie aut', () => !!P().manage]],
+  rentownosc: [['rentownosc','Cała firma', () => true], ['trasy-zysk','Trasy', () => true]],
   kierowcy: [['kierowcy','Lista kierowców', () => true], ['ocena','Ocena kierowców', () => !!P().manage]],
   spalanie: [['spalanie','Spalanie i przebiegi', () => true], ['srednie','Średnie miesięczne', () => !!P().manage], ['liczniki','Liczniki do sprawdzenia', () => true]],
   raporty:  [['raporty','Raporty', () => true], ['porownanie','Porównanie miesięcy', () => !!P().manage]],
@@ -22,7 +24,7 @@ const groupOf = t => { t = innerParent(t) || t; return Object.keys(GROUPS).find(
 const tabAllowed = t => { const par = innerParent(t); if (par){ const e = INNER[par].find(([k]) => k===t); if (!e[2]()) return false; t = par; }
   const g = groupOf(t); if (!g) return true; const e = GROUPS[g].find(([k]) => k===t); return !!(e && e[2]()); };
 function innerTabs(){
-  const par = INNER[tab] ? tab : innerParent(tab); if (!par) return '';
+  const par = INNER[tab] ? tab : innerParent(tab); if (!par || (par==='pojazdy' && cardId)) return '';
   const list = INNER[par].filter(([, , ok]) => ok()); if (list.length < 2) return '';
   return `<div class="seg inner-tabs" role="group" aria-label="Widok">${list.map(([k, l]) => { const c = k==='liczniki' && P().manage ? odoTodoCount() : 0;
     return `<a href="#${k}" class="${k===tab ? 'on' : ''}" ${k===tab ? 'aria-current="true"' : ''}>${l}${c ? ` <span class="count bad">${c}</span>` : ''}</a>`; }).join('')}</div>`;
@@ -44,7 +46,7 @@ function tabCount(t){
 }
 function groupCount(g){ const c = GROUPS[g].filter(([, , ok]) => ok()).map(([k]) => tabCount(k)); return {n: c.reduce((s, x) => s + x.n, 0), bad: c.some(x => x.bad)}; }
 function subTabs(){
-  const g = groupOf(tab); if (!g) return '';
+  const g = groupOf(tab); if (!g) return innerTabs();
   const list = GROUPS[g].filter(([, , ok]) => ok());
   if (list.length < 2) return innerTabs();
   return `<nav class="subtabs" aria-label="Zakładki">${list.map(([k, l]) => { const c = tabCount(k);
@@ -131,26 +133,29 @@ function budgetPanel(){
     <div class="budget-edit"><input id="budget-in" type="number" min="0" inputmode="numeric" placeholder="np. 15000" value="${fb || ''}" aria-label="Budżet miesięczny w zł"><button class="small" data-action="save-budget">Zapisz</button></div></div>
     <span class="muted small" style="flex:1;min-width:220px">Wykorzystanie widać w Raportach i na Pulpicie. Limity pojedynczych aut ustawisz w danych pojazdu.</span></div></div>`;
 }
+/* Ustawienia w sekcjach – widać jedną naraz (wybór pamiętany w tej przeglądarce) */
+let setSec = (() => { try { return localStorage.getItem('ef-set-sec') || 'firma'; } catch(_){ return 'firma'; } })();
+const SET_SECS = [
+  ['firma', 'Firma i budżet', () => dataQualityPanel() + budgetPanel()],
+  ['powiadomienia', 'Powiadomienia', () => pushSetupPanel() + (typeof reportEmailPanel==='function' ? reportEmailPanel() : '') + calendarPanel()],
+  ['gps', 'Lokalizatory GPS', () => typeof geotabPanel==='function' ? geotabPanel() : ''],
+  ['moduly', 'Moduły i kontrole', () => modulesPanel() + checksSettingsPanel() + checklistPanel()],
+  ['kopia', 'Kopia danych', () => (P().manage ? `<div class="panel"><div class="sec-head"><h3>Kopia danych</h3><button class="small" data-action="backup">${ic('clip')}Pobierz kopię (JSON)</button></div><p class="muted sec-empty">Wszystkie dane floty w jednym pliku: auta, kierowcy, grafik, koszty, terminy, usterki, książka serwisowa, karty paliwowe, trasy i przystanki. Zrób kopię raz w miesiącu i trzymaj ją na dysku firmy. Zdjęcia i skany zostają w Supabase.</p></div>` : '')],
+];
 function viewSettings(){
   if (!P().manage) return '';
+  const cur = SET_SECS.find(x => x[0]===setSec) || SET_SECS[0];
   return `<div class="section settings"><div class="bar"><h2>Ustawienia</h2></div>
-    ${dataQualityPanel()}
-    ${budgetPanel()}
-    ${pushSetupPanel()}
-    ${modulesPanel()}
-    ${calendarPanel()}
-    ${typeof reportEmailPanel==='function' ? reportEmailPanel() : ''}
-    ${typeof geotabPanel==='function' ? geotabPanel() : ''}
-    ${P().manage ? `<div class="panel"><div class="sec-head"><h3>Kopia danych</h3><button class="small" data-action="backup">${ic('clip')}Pobierz kopię (JSON)</button></div><p class="muted sec-empty">Wszystkie dane floty w jednym pliku: auta, kierowcy, grafik, koszty, terminy, usterki, książka serwisowa, karty paliwowe, trasy i przystanki. Zrób kopię raz w miesiącu i trzymaj ją na dysku firmy. Zdjęcia i skany zostają w Supabase.</p></div>` : ''}
-    ${checksSettingsPanel()}
-    ${checklistPanel()}
+    <div class="seg inner-tabs set-tabs" role="group" aria-label="Sekcja ustawień">${SET_SECS.map(([k, l]) => `<button type="button" class="${k===cur[0] ? 'on' : ''}" aria-pressed="${k===cur[0]}" data-set-sec="${k}">${l}</button>`).join('')}</div>
+    ${cur[2]()}
   </div>`;
 }
+document.addEventListener('click', e => { const b = e.target.closest('[data-set-sec]'); if (!b) return; e.preventDefault(); setSec = b.dataset.setSec; try { localStorage.setItem('ef-set-sec', setSec); } catch(_){} render(); });
 
 /* Kompletność danych: czego brakuje, żeby działały alarmy (bak → podejrzane tankowania, opony → przypomnienie o sezonie,
    polisa → druk szkody, telefon i dokumenty kierowcy → ostrzeżenia w grafiku). Kliknięcie otwiera formularz. */
 let dqOpen = false;   // rozwinięty tylko po kliknięciu „Uzupełnij” na Pulpicie
-document.addEventListener('click', e => { if (e.target.closest('[data-dq-open]')) dqOpen = true; }, true);
+document.addEventListener('click', e => { if (e.target.closest('[data-dq-open]')){ dqOpen = true; setSec = 'firma'; } }, true);
 function dqChecks(){
   const vs = S.vehicles.filter(v => v.status!=='wycofany'), ds = S.drivers.filter(d => d.active!==false);
   const checks = [

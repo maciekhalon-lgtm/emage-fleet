@@ -14,10 +14,24 @@ function viewCard(){
   const cons = consumption(v.id);
   const add = (col, label) => canCreate(col) ? `<button class="small" data-new="${col}" data-veh="${esc(v.id)}">${label}</button>` : '';
 
-  const facts = [
-    ['Przebieg', km(v.km)], ['Rok', esc(v.year||'—')], ['Napęd', esc(v.fuel||'—')], ['Bak', (v.tankL || 90) + ' l'], ...((S.gpsOdometer || []).some(g => g.vehicleId===v.id) ? (() => { const g = S.gpsOdometer.filter(x => x.vehicleId===v.id).sort((a, b) => a.day < b.day ? 1 : -1)[0]; return [['Przebieg GPS', `<b>${km(Math.round(Number(g.km)))}</b> <span class="muted small">${fdate(g.day)}</span>`]]; })() : []), ...(typeof warrantyFact==='function' && warrantyFact(v) ? [['Gwarancja', warrantyFact(v)]] : []), ...(tireSizeOn() ? [['Rozmiar opon', v.tireSize ? `<b>${esc(v.tireSize)}</b>` : '<span class="muted">nie wpisano</span>']] : []),
-    ['Odpowiedzialni', (respOf(v).length?esc(respNames(v)):'<span class="muted">nikt</span>') + (typeof canResp==='function' && canResp() ? ` <button class="small ghost" data-resp="${esc(v.id)}">${respOf(v).length ? 'Zmień' : 'Przypisz'}</button>` : '')], ['Tachograf', v.hasTacho ? 'tak' : 'nie'], ['Opony', (typeof tiresFact==='function' && tiresFact(v)) || (v.tires ? TIRES[v.tires] : '—')], ...(typeof contractsOn==='function' && contractFact(v) ? [['Umowa', contractFact(v)]] : []), ...(typeof eqOn==='function' && eqOn() ? [['Wyposażenie', equipmentFact(v)]] : []), ['Polisa', policyHtml(v)], ['VIN', `<span class="num">${esc(v.vin||'—')}</span>`],
-  ].map(([l,val]) => `<div class="${l==='Polisa' || l==='Umowa' || l==='Wyposażenie' || l==='Odpowiedzialni' || l==='VIN' || (l==='Opony' && typeof tiresOn==='function' && tiresOn() && tiresOf(v.id).length) ? 'wide' : ''}"><span class="label">${l}</span><span class="fv">${val}</span></div>`).join('');
+  // dane auta w grupach: użycie, auto, opony i wyposażenie, ubezpieczenie i umowy
+  const gpsLast = (S.gpsOdometer || []).filter(x => x.vehicleId===v.id).sort((a, b) => a.day < b.day ? 1 : -1)[0];
+  const use30 = gpsLast && typeof utStats==='function' ? utStats(30).rows.find(r => r.v.id===v.id) : null;
+  const F = (l, val, wide) => ({l, val, wide});
+  const groups = [
+    ['Przebieg i użycie', [F('Przebieg', km(v.km)),
+      ...(gpsLast ? [F('Przebieg GPS', `<b>${km(Math.round(Number(gpsLast.km)))}</b> <span class="muted small">${fdate(gpsLast.day)}</span>`)] : []),
+      ...(use30 ? [F('Ostatnie 30 dni', `<b>${new Intl.NumberFormat('pl-PL').format(Math.round(use30.km))} km</b> <span class="muted small">${use30.drive} ${isPlural(use30.drive,'dzień','dni','dni')} jazdy</span>`),
+        F('Postój', use30.streak >= 3 ? `<span class="pill ${use30.streak >= 7 ? 'bad' : 'warn'}">stoi ${use30.streak} dni</span>` : '<span class="muted">jeździ</span>')] : []),
+      F('Odpowiedzialni', (respOf(v).length?esc(respNames(v)):'<span class="muted">nikt</span>') + (typeof canResp==='function' && canResp() ? ` <button class="small ghost" data-resp="${esc(v.id)}">${respOf(v).length ? 'Zmień' : 'Przypisz'}</button>` : ''), true)]],
+    ['Auto', [F('Rok', esc(v.year||'—')), F('Napęd', esc(v.fuel||'—')), F('Bak', (v.tankL || 90) + ' l'), F('Tachograf', v.hasTacho ? 'tak' : 'nie'),
+      F('VIN', `<span class="num">${esc(v.vin||'—')}</span>`, true), ...(typeof warrantyFact==='function' && warrantyFact(v) ? [F('Gwarancja', warrantyFact(v), true)] : [])]],
+    ['Opony i wyposażenie', [F('Opony', (typeof tiresFact==='function' && tiresFact(v)) || (v.tires ? TIRES[v.tires] : '—'), typeof tiresOn==='function' && tiresOn() && tiresOf(v.id).length),
+      ...(tireSizeOn() ? [F('Rozmiar opon', v.tireSize ? `<b>${esc(v.tireSize)}</b>` : '<span class="muted">nie wpisano</span>')] : []),
+      ...(typeof eqOn==='function' && eqOn() ? [F('Wyposażenie', equipmentFact(v), true)] : [])]],
+    ['Ubezpieczenie i umowy', [F('Polisa', policyHtml(v), true), ...(typeof contractsOn==='function' && contractFact(v) ? [F('Umowa', contractFact(v), true)] : [])]],
+  ];
+  const facts = groups.map(([h, fs]) => `<section class="vf-group"><h4>${h}</h4><div class="facts vfacts">${fs.map(f => `<div class="${f.wide ? 'wide' : ''}"><span class="label">${f.l}</span><span class="fv">${f.val}</span></div>`).join('')}</div></section>`).join('');
 
   const dls = S.deadlines.filter(d => d.vehicleId===v.id).sort((a,b) => a.date<b.date?-1:1);
   const dlHtml = dls.map(d => { const s = dlState(d); return `<div class="mini ${canEditDoc('deadlines',d)?'click':''}" ${canEditDoc('deadlines',d)?`data-edit="deadlines" data-id="${esc(d.id)}"`:''}><span class="num">${fdate(d.date)}</span><span>${esc(d.type)}</span><span class="pill ${s.cls}">${esc(s.txt)}</span></div>`; }).join('');
@@ -61,7 +75,7 @@ function viewCard(){
   const fc = fleetConsumptionFull(v.id);
   const cardFills = (S.fuelCardRows || []).filter(r => r.vehicleId===v.id && r.kind!=='other').sort((a, b) => (b.txDate + (b.txTime || '')).localeCompare(a.txDate + (a.txTime || ''))).slice(0, 30);
   const fuelHtml = cardFills.map(r => `<div class="mini"><span class="num">${fdate(r.txDate)}${r.txTime ? `<span class="sub">${esc(r.txTime)}</span>` : ''}</span>
-      <span>${fl(r.liters)} · ${fm(r.amount, r.currency)}<span class="sub">${r.odometer ? km(r.odometer) : 'bez licznika'}${r.station ? ' · ' + esc(r.station) : ''}</span></span><span class="mini-r muted small">karta</span></div>`).join('');
+      <span>${fl(r.liters)} · ${fm(r.amount, r.currency)}<span class="sub">${r.odometer ? km(r.odometer) : 'bez licznika'}${r.station ? ' · ' + esc(r.station) : ''}</span></span><span class="mini-r muted small">${r.gpsOk===false ? `<span class="pill bad" title="bus był ${esc(r.gpsPlace || '')}">GPS: ${r.gpsDistKm!=null ? Math.round(r.gpsDistKm) + ' km od stacji' : 'daleko'}</span>` : r.gpsOk===true ? '<span class="pill ok">GPS: przy stacji</span>' : 'karta'}</span></div>`).join('');
   const costRows = VC.filter(c => !c.virtual).sort((a, b) => a.date < b.date ? 1 : -1).slice(0, 40).map(c => `<div class="mini ${canEditDoc('costs', c) ? 'click' : ''}" ${canEditDoc('costs', c) ? `data-edit="costs" data-id="${esc(c.id)}"` : ''}>
       <span class="num">${fdate(c.date)}</span><span><b>${esc(c.category)}</b> <span class="muted small">${[c.liters ? String(c.liters).replace('.', ',') + ' l' : '', c.odometer ? km(c.odometer) : '', c.note].filter(Boolean).map(esc).join(' · ')}</span></span><span class="mini-r num"><b>${zl2(c.amount)}</b></span></div>`).join('');
   const openIss = iss.filter(i => i.status!=='naprawione').length, urgentDl = dls.filter(d => ['bad','warn'].includes(dlState(d).cls)).length;
@@ -86,7 +100,7 @@ function viewCard(){
     <div class="grid2"><div class="section">${P().manage ? sec('Tankowania z kart (ostatnie 30)', '', fuelHtml, 'Brak tankowań z kart paliwowych.') : ''}</div>
     <div class="section">${sec('Koszty (ostatnie 40)', add('costs','+ Koszt'), costRows, 'Brak kosztów.')}</div></div>`;
   else if (cardTab==='historia') body = sec('Historia', '', histHtml ? `<div class="tlist">${histHtml}</div>` : '', 'Brak wpisów – tu pojawią się koszty, usterki, naprawy i wyjazdy tego auta.');
-  else body = `<div class="facts vfacts">${facts}</div><div class="grid2">
+  else body = `<div class="vf-groups">${facts}</div><div class="grid2">
       <div class="section">${sec('Grafik', add('bookings','+ Przydział'), bkHtml, 'Brak przydziałów.')}${P().manage || P().service ? whoDroveHtml(v.id) : ''}</div>
       <div class="section">${sec('Dokumenty', canUpload ? `<button class="small" data-new="docs" data-veh="${esc(v.id)}">+ Dodaj plik</button>` : '', docHtml,
           'Brak dokumentów – dodaj skan dowodu rejestracyjnego, polisy lub umowy (PDF albo zdjęcie).')}</div></div>`;

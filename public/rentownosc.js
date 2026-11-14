@@ -74,7 +74,7 @@ function viewProfit(){
     <p class="muted small sec-empty">Przychód busa = jego km × stawka. Koszty stałe (ZUS, wynagrodzenia…) rozdzielone proporcjonalnie do km. Bus bez km w miesiącu ma tylko koszty – sprawdź liczniki albo import kart.</p></div>`;
   // ostatnie miesiące
   const ms = monthsBack(6).map(m => pfMonthCalc(m)).filter(x => x.km || x.cost);
-  const hist = `<div class="panel"><div class="sec-head"><h3>Ostatnie miesiące</h3></div><div class="tablewrap"><table><thead><tr><th>Miesiąc</th><th class="r">Km</th><th class="r">Przychód</th><th class="r">Koszty</th><th class="r">Zysk</th><th class="r">Zysk / km</th></tr></thead><tbody>
+  const hist = `<div class="panel"><div class="sec-head"><h3>Ostatnie miesiące</h3></div><div class="tablewrap"><table class="pf-hist"><thead><tr><th>Miesiąc</th><th class="r">Km</th><th class="r">Przychód</th><th class="r">Koszty</th><th class="r">Zysk</th><th class="r">Zysk / km</th></tr></thead><tbody>
     ${ms.map(x => `<tr class="click ${x.m===pfMonth ? 'on' : ''}" data-pf-pick="${x.m}"><td>${esc(monthName(x.m))}</td><td class="r num">${nfk(x.km)}</td><td class="r num">${zl0(x.rev)}</td><td class="r num">${zl0(x.cost)}</td><td class="r num"><b class="${x.profit!=null && x.profit < 0 ? 'neg' : ''}">${zl0(x.profit)}</b></td><td class="r num">${x.perKm!=null ? zlk(x.perKm) : '—'}</td></tr>`).join('')}</tbody></table></div></div>`;
   return head + kpis + `<div class="grid2">${bill}<div>${what}${hist}</div></div>` + bus;
 }
