@@ -248,6 +248,6 @@ Karta auta → **Terminy i serwis** → panel **Gwarancja** (kierownik floty i s
 ## Lokalizatory GPS – Geotab (Ustawienia)
 
 - Co rano funkcja pobiera z Geotab stan licznika każdego busa (tabela `gps_odometer`, migracja 033) i zapisuje najwyższy odczyt dnia; aktualny przebieg auta podnosi się sam.
-- Km z GPS są używane w Rozliczeniu aut, rentowności i spalaniu (gdy lokalizator obejmuje cały okres: km z GPS, litry z kart). Na karcie auta: „Przebieg GPS”.
-- **Liczniki do sprawdzenia**: licznik wpisany na stacji lub przy przejęciu, który różni się od GPS z tego dnia o ponad 300 km, ma rodzaj „niezgodny z GPS”.
+- Km z GPS są używane w Rozliczeniu aut, rentowności i spalaniu (gdy lokalizator obejmuje okres: km z GPS, litry z kart – okres jest przycinany do ostatniego zaimportowanego zestawienia kart). Na karcie auta: „Przebieg GPS”.
+- **Liczniki do sprawdzenia**: licznik wpisany na stacji lub przy przejęciu, który nie mieści się między stanem z GPS na koniec poprzedniego dnia a stanem na koniec tego dnia (±100 km), ma rodzaj „niezgodny z GPS”.
 - Podłączenie (jednorazowo): w MyGeotab użytkownik tylko do odczytu → w Supabase → Edge Functions → Secrets: `GEOTAB_DATABASE`, `GEOTAB_USER`, `GEOTAB_PASSWORD` (hasło wpisuje tylko właściciel) → Ustawienia → „Synchronizuj teraz” (pierwszy raz miesiąc wstecz). Urządzenia przypisują się po numerze rejestracyjnym, nazwie albo VIN; niedopasowane można przypisać ręcznie w tabeli urządzeń.

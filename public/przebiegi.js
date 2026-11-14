@@ -55,8 +55,19 @@ function gpsRange(vid, from, to){
 }
 /* Spalanie auta w zakresie: gdy jest lokalizator GPS – litry z kart (a bez kart z wpisów kierowców) / km z GPS;
    inaczej karta (z ostatnim tankowaniem sprzed zakresu, jeśli ≤ 7 dni), a gdy brak – wpisy kierowców */
+/* Ostatni dzień, dla którego mamy tankowania (import kart) – dalej km z GPS nie mają litrów do pary */
+let fuelEndMemo = {k: '', d: ''};
+function fuelDataEnd(){
+  const k = (S.fuelCardRows || []).length + '|' + S.costs.length; if (fuelEndMemo.k===k) return fuelEndMemo.d;
+  let d = ''; (S.fuelCardImports || []).forEach(i => { if (i.periodTo && i.periodTo > d) d = i.periodTo; });
+  if (!d) (S.fuelCardRows || []).forEach(r => { if (r.txDate > d) d = r.txDate; });
+  if (!d) appFuel().forEach(c => { if (c.date > d) d = c.date; });
+  fuelEndMemo = {k, d}; return d;
+}
 function consRange(vid, from, to){
-  const base = consRangeOdo(vid, from, to), g = gpsRange(vid, from, to);
+  const base = consRangeOdo(vid, from, to), end = fuelDataEnd(), to2 = end && end < to ? end : to;
+  if (to2 < from) return base;
+  const g = gpsRange(vid, from, to2);
   if (!g || g.km < 300) return base;
   const cards = S.fuelCardRows.filter(r => r.vehicleId===vid && r.kind!=='other' && r.txDate > g.from && r.txDate <= g.to);
   const fills = cards.length ? cards.map(r => Number(r.liters) || 0) : appFuel().filter(c => c.vehicleId===vid && c.date > g.from && c.date <= g.to).map(c => Number(c.liters) || 0);

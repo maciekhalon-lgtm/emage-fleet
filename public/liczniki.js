@@ -3,7 +3,7 @@
    – zmyślony: poniżej 1000 km albo z samych jednakowych cyfr (1, 444, 555555),
    – nie pasuje do sąsiednich (literówka, brak cyfry, cofnięty, nierealny skok > 1500 km na dobę).
    „Sprawdzone” zapisuje się w ustawieniach (settings: odo_checked).
-   Gdy auto ma lokalizator GPS: licznik różny od GPS z tego dnia o ponad 300 km = „niezgodny z GPS”.
+   Gdy auto ma lokalizator GPS: licznik spoza przedziału [GPS koniec dnia poprzedniego, GPS koniec tego dnia] ± 100 km = „niezgodny z GPS”.
    Zmyślone nie liczą się do „Do sprawdzenia” – mają własny filtr; do sprawdzenia zostają literówki i cofnięte liczniki. */
 'use strict';
 const THEFT_RATE = 13;   // l/100 km – powyżej: podejrzane spalanie, możliwa kradzież paliwa
@@ -34,11 +34,11 @@ function badOdometers(){
     const seg = odoSegments(real, (a, b) => b.odo - a.odo >= 0 && b.odo - a.odo <= 1500 * (Math.max(0, diffDays(a.d, b.d)) + 1));
     const alive = seg.alive.map(i => real[i]), badSet = new Set(seg.bad.map(i => real[i]));
     const near = x => { let lo = null, hi = null; for (const y of alive){ if (y.d < x.d || (y.d===x.d && y.odo <= x.odo && y!==x)) lo = y; else if (y.d > x.d && !hi){ hi = y; break; } } return {lo, hi}; };
-    const gps = new Map((S.gpsOdometer || []).filter(g => g.vehicleId===v.id).map(g => [g.day, Number(g.km)]));
+    const gps = new Map((S.gpsOdometer || []).filter(g => g.vehicleId===v.id && Number(g.km) >= 50).map(g => [g.day, Number(g.km)]));
     all.forEach(x => {
-      const fake = fakeOdo(x.odo), g = gps.get(String(x.d).slice(0, 10)) ?? gps.get(addDays(String(x.d).slice(0, 10), -1));
-      // licznik wpisany przy tankowaniu / przejęciu odbiega od lokalizatora o ponad 300 km
-      if (!fake && g!=null && Math.abs(x.odo - g) > 300){ out.push({...x, vid: v.id, kind: 'niezgodny z GPS', lo: g, hi: g}); return; }
+      // licznik z dnia D musi się mieścić między GPS z końca dnia D-1 a GPS z końca dnia D (± 100 km tolerancji)
+      const fake = fakeOdo(x.odo), dd = String(x.d).slice(0, 10), gLo = gps.get(addDays(dd, -1)), gHi = gps.get(dd);
+      if (!fake && gLo!=null && gHi!=null && gHi >= gLo && (x.odo < gLo - 100 || x.odo > gHi + 100)){ out.push({...x, vid: v.id, kind: 'niezgodny z GPS', lo: Math.round(gLo), hi: Math.round(gHi)}); return; }
       if (!fake && !badSet.has(x)) return;
       const {lo, hi} = near(x);
       const kind = fake ? 'zmyślony' : lo && x.odo < lo.odo ? 'cofnięty / za mały' : hi && x.odo > hi.odo ? 'za duży (literówka?)' : 'nierealny skok';
