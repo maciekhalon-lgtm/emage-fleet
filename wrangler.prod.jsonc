@@ -1,0 +1,7 @@
+// Emage FLEET – wersja DOCELOWA (Worker „emage-fleet-prod”, gałąź „main”, adres https://emage-fleet.com).
+// Polecenie wdrożenia w Cloudflare: npx wrangler deploy -c wrangler.prod.jsonc
+{
+  "name": "emage-fleet-prod",
+  "compatibility_date": "2026-11-13",
+  "assets": { "directory": "./public" }
+}

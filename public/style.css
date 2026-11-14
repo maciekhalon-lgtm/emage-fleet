@@ -1678,3 +1678,8 @@ tr.on td{background:var(--accent-soft)}
   .bar .tools>.seg button{white-space:nowrap;flex:none}
 }
 .new-acc span{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap}.new-acc svg.i{width:18px;height:18px}
+/* wersja testowa: wyraźny pasek, żeby nie pomylić z prawdziwą stroną */
+#env-bar{position:fixed;left:0;right:0;top:0;z-index:100;padding:3px 10px;background:repeating-linear-gradient(45deg,#e8590c 0 12px,#d9480f 12px 24px);color:#fff;font:700 11px/1.4 var(--f-body);text-align:center;letter-spacing:.02em;pointer-events:none}
+html[data-env="test"] body{padding-top:20px}
+@media (min-width:1001px){html[data-env="test"] .side{top:26px}}
+@media (max-width:600px){#env-bar span{display:none}}

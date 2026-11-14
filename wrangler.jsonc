@@ -1,0 +1,7 @@
+// Emage FLEET – wersja TESTOWA (Worker „emage-fleet”, gałąź „test”, adres emage-fleet.maciekhalon.workers.dev).
+// Strona to same pliki statyczne z katalogu public/. Baza wybierana w public/config.js po adresie strony.
+{
+  "name": "emage-fleet",
+  "compatibility_date": "2026-11-13",
+  "assets": { "directory": "./public" }
+}
