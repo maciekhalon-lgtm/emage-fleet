@@ -40,10 +40,42 @@ function renew(id){
   const kmStep = Number(d.intervalKm) || (d.kmDue ? def[1] : null);
   const v = byId('vehicles', d.vehicleId);
   openForm('deadlines', id);
-  if (editing) editing.renew = true;
-  setTimeout(()=>{ const el=$('#f-deadlines-date'); if(el){ el.value = addMonths(today(), months); el.focus(); }
-    const k=$('#f-deadlines-kmDue'); if (k && kmStep && v && v.km) k.value = Number(v.km) + kmStep;
-    $('#dlg-title').textContent = 'Wykonane – ustaw kolejny termin'; },30);
+  if (editing) editing.renew = {type: d.type, vehicleId: d.vehicleId, months, kmStep};
+  setTimeout(()=>{
+    $('#dlg-title').textContent = 'Wykonane – ustaw kolejny termin';
+    // kiedy i przy jakim przebiegu faktycznie wykonano – od tego liczy się kolejny termin
+    const first = $('#f-deadlines-date') && $('#f-deadlines-date').closest('.row, .field, label, div');
+    const anchor = $('#f-deadlines-type') ? $('#f-deadlines-type').closest('.row') || $('#f-deadlines-type').closest('div') : first;
+    const svcOk = canCreate('serviceEntries') && !!P().service && !/Ubezpieczenie|Leasing|gwarancji/.test(d.type), svcOn = ['Wymiana rozrządu','Serwis olejowy','Wymiana opon','Przegląd techniczny','Inne'].includes(d.type);
+    const box = document.createElement('div'); box.className = 'renew-done';
+    box.innerHTML = `<p class="renew-h">Wykonano</p><div class="row"><label>Data wykonania *<input type="date" id="rn-date" value="${today()}" max="${today()}"></label>
+      <label>Przy przebiegu (km)${kmStep ? ' *' : ''}<input type="text" inputmode="numeric" id="rn-km" value="${v && v.km ? Math.round(Number(v.km)) : ''}" placeholder="np. 454210"></label></div>
+      ${svcOk ? `<label class="check small"><input type="checkbox" id="rn-svc" ${svcOn ? 'checked' : ''}> Zapisz w książce serwisowej (${esc(d.type)}${d.type==='Wymiana rozrządu' || d.type==='Serwis olejowy' ? ', z przebiegiem' : ''})</label>` : ''}
+      <p class="muted small renew-calc" id="rn-calc"></p>`;
+    const body = $('#dlg-body'); const tgt = anchor && anchor.parentElement===body ? anchor.nextSibling : body.firstChild;
+    body.insertBefore(box, tgt);
+    const calc = () => {
+      const dd = $('#rn-date').value || today(), kmv = Number(String($('#rn-km').value).replace(/\s/g, ''));
+      const de = $('#f-deadlines-date'); if (de) de.value = addMonths(dd, months);
+      const k = $('#f-deadlines-kmDue'); if (k && kmStep && kmv > 0) k.value = kmv + kmStep;
+      const cur = v && Number(v.km) || 0;
+      $('#rn-calc').textContent = `Kolejny termin: ${fdate(addMonths(dd, months))}${kmStep && kmv > 0 ? ` albo przy ${new Intl.NumberFormat('pl-PL').format(kmv + kmStep)} km` : ''}${kmStep && kmv > 0 && cur && cur >= kmv + kmStep ? ' – już przekroczony, auto ma ' + new Intl.NumberFormat('pl-PL').format(cur) + ' km' : ''}.`;
+    };
+    box.addEventListener('input', calc); calc();
+    $('#rn-km').focus();
+  },30);
+}
+/* zapis „Wykonane”: notatka z datą i przebiegiem, opcjonalnie wpis w książce serwisowej (ten sam wyzwalacz w bazie liczy kolejny termin) */
+function renewNote(note, dd, kmv){
+  const clean = String(note || '').replace(/(Z rejestru rozrządów: )?ostatni[ao]? (wymiana|wykonan[ea])[^·\n]*(·\s*)?/ig, '').replace(/Ostatnio wykonane:[^·\n]*(·\s*)?/g, '').trim();
+  return ['Ostatnio wykonane: ' + fdate(dd) + (kmv ? ' przy ' + new Intl.NumberFormat('pl-PL').format(kmv) + ' km' : ''), clean].filter(Boolean).join(' · ').slice(0, 500);
+}
+async function renewAfterSave(rn, deadlineId){
+  if (!rn.svc) return '';
+  await db.collection('serviceEntries').doc().set({vehicleId: rn.vehicleId, date: rn.date, km: rn.km || null, description: rn.type,
+    timingChange: rn.type==='Wymiana rozrządu', oilChange: rn.type==='Serwis olejowy', deadlineId, issueIds: []});
+  await Promise.all(['serviceEntries', 'deadlines', 'vehicles', 'costs'].map(refresh));
+  return ' i dodano wpis w książce serwisowej';
 }
 
 

@@ -460,6 +460,14 @@ $('#dialog').addEventListener('submit', async e => {
       if (tv && data.size && !tv.tireSize && tireSizeOn() && P().vehicles==='rw') await db.collection('vehicles').doc(tv.id).update({tireSize: data.size}).catch(() => {});
     }
     const repeatUntil = data.repeatUntil; delete data.repeatUntil;
+    let rn = null;
+    if (col==='deadlines' && editing.renew && $('#rn-date')){
+      const kmv = Number(String($('#rn-km').value).replace(/\s/g, '')) || null, dd = $('#rn-date').value || today();
+      if (dd > today()) throw Object.assign(new Error('Data wykonania nie może być w przyszłości.'), {code: 'check'});
+      if (editing.renew.kmStep && !kmv) throw Object.assign(new Error('Wpisz, przy jakim przebiegu wykonano – od niego liczymy kolejny termin.'), {code: 'check'});
+      rn = {...editing.renew, date: dd, km: kmv, svc: !!($('#rn-svc') && $('#rn-svc').checked)};
+      data.note = renewNote(data.note, dd, kmv);
+    }
     const ref = id ? db.collection(col).doc(id) : db.collection(col).doc();
     await ref.set(data);
     let okMsg = '';
@@ -479,6 +487,7 @@ $('#dialog').addEventListener('submit', async e => {
       if (same.length) okMsg = `Zapisano – poziomy spalania ustawione także dla ${same.length} ${isPlural(same.length,'auta','aut','aut')} ${data.make} ${data.model}`;
     }
     if (col==='serviceEntries'){ await Promise.all(['costs','issues','deadlines','vehicles'].map(refresh)); okMsg = 'Zapisano wpis serwisowy'; }
+    if (rn){ okMsg = 'Zapisano kolejny termin' + await renewAfterSave(rn, ref.id); }
     if (col==='costs' && data.confirmStatus==='pending') okMsg = 'Zapisano – tankowanie czeka na potwierdzenie drugiego kierowcy';
     if (col==='costs' && data.odometer){
       const v = byId('vehicles', data.vehicleId);

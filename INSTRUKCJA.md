@@ -269,3 +269,8 @@ Karta auta → **Terminy i serwis** → panel **Gwarancja** (kierownik floty i s
 - **Koszty**: Koszty, Rozliczenie aut, Rentowność (w środku: Cała firma / Trasy), Raporty (w środku: Porównanie miesięcy), Leasing i umowy.
 - **Pulpit → Wymaga uwagi**: na górze sprawy do zrobienia (pilne policzone w nagłówku), „Pokaż wszystkie” rozwija resztę. Sprawy porządkowe (kompletność danych, auta bez terminów, liczniki do sprawdzenia) są zwinięte w „Porządki w danych”. Dochodzi wiersz o autach stojących 3+ dni (GPS).
 - **Ustawienia**: sekcje Firma i budżet, Powiadomienia (push, raport e-mail, kalendarz), Lokalizatory GPS, Moduły i kontrole, Kopia danych – widać jedną naraz.
+
+## „Wykonane” przy terminie – data i przebieg wykonania
+- Po kliknięciu „Wykonane” wpisujesz, **kiedy** i **przy jakim przebiegu** faktycznie to zrobiono (np. rozrząd wymieniony przy 454 210 km). Kolejny termin liczy się od tych wartości: data + cykl w miesiącach, przebieg + cykl w km. Pod polami widać wynik i ostrzeżenie, jeśli auto już go przekroczyło.
+- W notatce terminu zapisuje się „Ostatnio wykonane: data przy X km”.
+- Zaznaczone „Zapisz w książce serwisowej” dodaje wpis (przy rozrządzie i oleju z przebiegiem), więc historia auta jest kompletna.
