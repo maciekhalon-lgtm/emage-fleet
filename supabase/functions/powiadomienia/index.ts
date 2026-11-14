@@ -255,25 +255,40 @@ async function geotabSync(sb: any, key: (k: string) => string, days: number){
     if (j.error) throw new Error((j.error.errors && j.error.errors[0] && j.error.errors[0].name ? j.error.errors[0].name + ': ' : '') + (j.error.message || 'błąd Geotab'));
     return j.result;
   };
+  let step = '';
   try {
+    step = 'logowanie';
     const auth = await rpc(host0, 'Authenticate', {database: db, userName: user, password: pass});
     const host = !auth.path || auth.path === 'ThisServer' ? host0 : String(auth.path).replace(/^https?:\/\//, '').replace(/\/.*$/, '');
     const cred = auth.credentials;
-    const devices: Row[] = await rpc(host, 'Get', {typeName: 'Device', credentials: cred, resultsLimit: 5000});
+    step = 'lista urządzeń';
+    const devices: Row[] = await rpc(host, 'Get', {typeName: 'Device', credentials: cred, resultsLimit: 5000}).catch(e => { throw new Error(step + ': ' + e.message); });
     const {data: vehicles} = await sb.from('vehicles').select('id, plate, vin, status');
     const {data: mrow} = await sb.from('settings').select('value').eq('key', 'geotab_map').maybeSingle();
     const {map, unmatched} = matchDevices(devices, vehicles || [], (mrow && mrow.value && mrow.value.map) || {});
     const to = new Date(), rows: Row[] = [];
-    // po 10 dni naraz, oba liczniki (skorygowany pierwszy – ten pokazuje MyGeotab)
-    for (let back = days; back > 0; back -= 10){
-      const fromDate = new Date(to.getTime() - back * DAY).toISOString(), toDate = new Date(to.getTime() - Math.max(0, back - 10) * DAY).toISOString();
-      for (const diag of ['DiagnosticOdometerAdjustmentId', 'DiagnosticOdometerId']){
-        const got: Row[] = await rpc(host, 'Get', {typeName: 'StatusData', credentials: cred, resultsLimit: 50000, search: {diagnosticSearch: {id: diag}, fromDate, toDate}});
-        // licznik surowy tylko dla urządzeń bez skorygowanego
+    const DIAGS = ['DiagnosticOdometerAdjustmentId', 'DiagnosticOdometerId'];
+    // liczniki: zapytania po urządzeniu (tylko przypisane do aut), w paczkach przez ExecuteMultiCall, po 30 dni
+    const devIds = [...map.keys()], errs: string[] = [];
+    for (let back = days; back > 0; back -= 30){
+      const fromDate = new Date(to.getTime() - back * DAY).toISOString(), toDate = new Date(to.getTime() - Math.max(0, back - 30) * DAY).toISOString();
+      for (const diag of DIAGS){
+        step = `liczniki (${diag === DIAGS[0] ? 'skorygowany' : 'z silnika'})`;
         const have = new Set(rows.map(r => r.device && r.device.id));
-        got.forEach(r => { if (diag === 'DiagnosticOdometerAdjustmentId' || !have.has(r.device && r.device.id)) rows.push(r); });
+        const ids = diag === DIAGS[0] ? devIds : devIds.filter(id => !have.has(id));
+        for (let i = 0; i < ids.length; i += 20){
+          const calls = ids.slice(i, i + 20).map(id => ({method: 'Get', params: {typeName: 'StatusData', resultsLimit: 50000, search: {deviceSearch: {id}, diagnosticSearch: {id: diag}, fromDate, toDate}}}));
+          try {
+            const res: Row[][] = await rpc(host, 'ExecuteMultiCall', {calls, credentials: cred});
+            res.forEach(list => (list || []).forEach(r => rows.push(r)));
+          } catch (e) {
+            // paczka nie przeszła – pojedynczo, żeby jedno urządzenie nie blokowało reszty
+            for (const c of calls){ try { const got: Row[] = await rpc(host, 'Get', {...c.params, credentials: cred}); got.forEach(r => rows.push(r)); } catch (e2) { errs.push(step + ' ' + (c.params.search as Row).deviceSearch.id + ': ' + (e2 as Error).message.slice(0, 80)); } }
+          }
+        }
       }
     }
+    step = 'zapis';
     const daily = dailyMax(rows, map);
     for (let i = 0; i < daily.length; i += 500){
       const {error} = await sb.from('gps_odometer').upsert(daily.slice(i, i + 500).map(x => ({...x, updated_at: new Date().toISOString()})), {onConflict: 'vehicle_id,day'});
@@ -284,10 +299,10 @@ async function geotabSync(sb: any, key: (k: string) => string, days: number){
     let upd = 0;
     for (const [vid, km] of last){ const v = (vehicles || []).find((x: Row) => x.id === vid); const {data: cur} = await sb.from('vehicles').select('km').eq('id', vid).maybeSingle();
       if (v && (!cur || !cur.km || Number(cur.km) < km)){ await sb.from('vehicles').update({km: Math.round(km)}).eq('id', vid); upd++; } }
-    return await status({ok: true, devices: devices.length, matched: map.size, unmatched, readings: rows.length, days: daily.length, kmUpdated: upd,
+    return await status({ok: true, devices: devices.length, matched: map.size, unmatched, readings: rows.length, days: daily.length, kmUpdated: upd, warnings: errs.slice(0, 8),
       deviceList: devices.map(d => ({id: d.id, name: d.name || '', plate: d.licensePlate || '', vehicle: map.get(d.id) ? map.get(d.id)!.plate : null}))});
   } catch (e) {
-    return await status({ok: false, error: String((e as Error).message || e).slice(0, 300)});
+    return await status({ok: false, error: (step ? step + ': ' : '') + String((e as Error).message || e).slice(0, 300)});
   }
 }
 
