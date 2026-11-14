@@ -221,10 +221,10 @@ export const odoKm = (v: number) => v > 3e6 ? v / 1000 : v;
 /* Dopasowanie urządzenia do auta: ręczna mapa → numer rejestracyjny → nazwa urządzenia → VIN */
 export function matchDevices(devices: Row[], vehicles: Row[], manual: Record<string, string>){
   const byPlate = new Map(vehicles.filter(v => v.status !== 'wycofany').map(v => [normPlate(v.plate), v]));
-  const byVin = new Map(vehicles.filter(v => v.vin).map(v => [String(v.vin).toUpperCase(), v]));
+  const byVin = new Map(vehicles.filter(v => v.vin && v.status !== 'wycofany').map(v => [String(v.vin).toUpperCase(), v]));
   const map = new Map<string, Row>(), unmatched: string[] = [];
   for (const d of devices){
-    let v: Row | undefined = manual[d.id] ? vehicles.find(x => x.id === manual[d.id]) : undefined;
+    let v: Row | undefined = manual[d.id] ? vehicles.find(x => x.id === manual[d.id] && x.status !== 'wycofany') : undefined;
     if (!v) v = byPlate.get(normPlate(d.licensePlate)) || byPlate.get(normPlate(d.name));
     if (!v){ const n = normPlate(d.name); v = vehicles.find(x => x.status !== 'wycofany' && n && n.includes(normPlate(x.plate))); }
     if (!v && d.vehicleIdentificationNumber) v = byVin.get(String(d.vehicleIdentificationNumber).toUpperCase());
@@ -287,7 +287,7 @@ async function geotabSync(sb: any, key: (k: string) => string, days: number){
         res.forEach((list, j) => {
           const r = (list || []).find(x => x && x.data != null); if (!r) return;
           const [id, d] = part[j].split('|'), v = map.get(id); const km = Math.round(odoKm(Number(r.data)) * 10) / 10;
-          if (!v || !(km > 0)) return;
+          if (!v || !(km >= 50)) return;   // odczyt bliski 0 = urządzenie bez licznika auta
           readings++; need.delete(part[j]);
           const o = daily.find(x => x.vehicle_id === v.id && x.day === d);
           if (!o) daily.push({vehicle_id: v.id, day: d, km, device: id}); else if (km > o.km) o.km = km;
