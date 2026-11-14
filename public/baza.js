@@ -5,7 +5,7 @@ const sb = supabase.createClient(CONFIG.supabaseUrl, CONFIG.supabaseKey, {
 });
 
 /* nazwa w aplikacji → tabela w bazie */
-const TABLES = {gpsOdometer:'gps_odometer', odoGps:'odo_gps', vehicles:'vehicles', drivers:'drivers', deadlines:'deadlines', bookings:'bookings', costs:'costs', issues:'issues', docs:'documents', settings:'settings', routeStops:'route_stops', fleetCosts:'fleet_costs', tires:'tires', contracts:'vehicle_contracts', equipment:'equipment', workshops:'workshops', visits:'service_visits', requests:'data_change_requests', crewChanges:'crew_changes', routes:'routes', serviceEntries:'service_entries', blockOverrides:'block_overrides', loadings:'loadings', loadingReports:'loading_reports', fuelCardImports:'fuel_card_imports', fuelCardRows:'fuel_card_rows', members:'profiles'};
+const TABLES = {gpsOdometer:'gps_odometer', odoGps:'odo_gps', workOrders:'work_orders', woItems:'work_order_items', vehicles:'vehicles', drivers:'drivers', deadlines:'deadlines', bookings:'bookings', costs:'costs', issues:'issues', docs:'documents', settings:'settings', routeStops:'route_stops', fleetCosts:'fleet_costs', tires:'tires', contracts:'vehicle_contracts', equipment:'equipment', workshops:'workshops', visits:'service_visits', requests:'data_change_requests', crewChanges:'crew_changes', routes:'routes', serviceEntries:'service_entries', blockOverrides:'block_overrides', loadings:'loadings', loadingReports:'loading_reports', fuelCardImports:'fuel_card_imports', fuelCardRows:'fuel_card_rows', members:'profiles'};
 const COL_OF = Object.fromEntries(Object.entries(TABLES).map(([a, b]) => [b, a]));
 
 /* pole w aplikacji → kolumna w bazie */
@@ -23,6 +23,8 @@ const FIELDS = {
   workshops: {},
   visits: {vehicleId:'vehicle_id', workshopId:'workshop_id', deadlineId:'deadline_id', issueId:'issue_id'},
   gpsOdometer: {vehicleId:'vehicle_id', updatedAt:'updated_at'},
+  workOrders: {workshopId:'workshop_id', closedAt:'closed_at'},
+  woItems: {orderId:'order_id', vehicleId:'vehicle_id', issueId:'issue_id', deadlineId:'deadline_id', serviceEntryId:'service_entry_id'},
   odoGps: {refId:'ref_id', vehicleId:'vehicle_id', gpsKm:'gps_km', checkedAt:'checked_at'},
   contracts: {vehicleId:'vehicle_id', contractNo:'contract_no', startDate:'start_date', endDate:'end_date', monthlyNet:'monthly_net', monthlyGross:'monthly_gross', kmLimit:'km_limit', kmStart:'km_start', kmExcessRate:'km_excess_rate', insuranceIn:'insurance_in', serviceIn:'service_in'},
   equipment: {vehicleId:'vehicle_id', validUntil:'valid_until', checkedAt:'checked_at'},
@@ -32,7 +34,7 @@ const FIELDS = {
   fuelCardRows: {importId:'import_id', vehicleId:'vehicle_id', txDate:'tx_date', txTime:'tx_time', cardNo:'card_no', costId:'cost_id', gpsPlace:'gps_place', gpsDistKm:'gps_dist_km', gpsOk:'gps_ok', gpsCheckedAt:'gps_checked_at'},
   bookings:  {vehicleId:'vehicle_id', driverId:'driver_id', routeId:'route_id', from:'date_from', to:'date_to', coDriverId:'co_driver_id', pickupConfirmedAt:'pickup_confirmed_at', returnConfirmedAt:'return_confirmed_at', disputeStage:'dispute_stage', disputeNote:'dispute_note', disputeAt:'dispute_at', disputeResolvedAt:'dispute_resolved_at', pickupTs:'pickup_ts', returnTs:'return_ts'},
   costs:     {vehicleId:'vehicle_id', driverId:'driver_id', routeId:'route_id', amountOrig:'amount_orig', fxRate:'fx_rate', fxDate:'fx_date', fxTable:'fx_table', fxManual:'fx_manual', flagState:'flag_state', flagQuestion:'flag_question', flagReply:'flag_reply', flagBy:'flag_by', flagAt:'flag_at', full:'full_tank', coDriverId:'co_driver_id', confirmStatus:'confirm_status', confirmedAt:'confirmed_at', disputeNote:'dispute_note'},
-  issues:    {vehicleId:'vehicle_id', repairNote:'repair_note', resolvedAt:'resolved_at'},
+  issues:    {vehicleId:'vehicle_id', repairNote:'repair_note', resolvedAt:'resolved_at', serviceType:'service_type'},
   docs:      {vehicleId:'vehicle_id', validUntil:'valid_until', assetId:'storage_path', fileName:'file_name', contentType:'content_type', size:'size_bytes'},
   members:   {driverId:'driver_id'},
   requests:  {driverId:'driver_id', oldValue:'old_value', newValue:'new_value', decidedAt:'decided_at', decidedBy:'decided_by'},
@@ -57,7 +59,9 @@ const WRITABLE = {
   loadingReports: ['id','driver_id','weight_kg','photo'],
   bookings:  ['id','vehicle_id','driver_id','date_from','date_to','purpose','route_id','pickup_at','pickup_km','pickup_fuel','pickup_note','pickup_photos','pickup_by','pickup_checklist','return_at','return_km','return_fuel','return_note','return_photos','return_by','co_driver_id'],
   costs:     ['id','date','vehicle_id','driver_id','category','amount','liters','odometer','full_tank','note','photos','co_driver_id','confirm_status','currency','amount_orig','fx_rate','fx_manual','station','flag_state','flag_question'],
-  issues:    ['id','vehicle_id','title','description','severity','status','date','km','repair_note','resolved_at','photos'],
+  issues:    ['id','vehicle_id','title','description','severity','status','date','km','repair_note','resolved_at','photos','service_type'],
+  workOrders: ['id','workshop_id','workshop','date','note','status','closed_at'],
+  woItems:   ['id','order_id','vehicle_id','issue_id','deadline_id','kind','title','status','service_entry_id'],
   docs:      ['id','vehicle_id','kind','name','valid_until','storage_path','file_name','content_type','size_bytes'],
   settings:  ['key','value'],
   requests:  ['id','driver_id','field','old_value','new_value','status'],
@@ -167,7 +171,7 @@ S.fuelAll = [];
 async function refresh(col){
   const table = TABLES[col]; if (!table) return;
   if ((col==='members' || col==='crewChanges' || col==='fuelCardImports' || col==='fuelCardRows' || col==='fleetCosts') && !P().manage) return;
-  if ((col==='tires' || col==='contracts' || col==='equipment' || col==='workshops' || col==='visits' || col==='gpsOdometer' || col==='odoGps') && !P().manage && !P().service){ got[col] = true; return; }
+  if ((col==='tires' || col==='contracts' || col==='equipment' || col==='workshops' || col==='visits' || col==='gpsOdometer' || col==='odoGps' || col==='workOrders' || col==='woItems') && !P().manage && !P().service){ got[col] = true; return; }
   if (col==='serviceEntries' && !P().service) return;
   // Supabase oddaje najwyżej 1000 wierszy na zapytanie – pobieramy partiami aż do końca
   const key = col==='settings' ? 'key' : 'id', PAGE = 1000, data = [];
@@ -223,7 +227,7 @@ function queueRefresh(col){
 let channel = null, stopsChannel = null, stopsReady = false, fcChannel = null, fleetCostsReady = false;
 /* Tabele z nowszych migracji (027 opony, 028 wyposażenie, 029 umowy, 030 warsztaty): dopóki SQL nie jest uruchomiony, moduł jest ukryty,
    a reszta aplikacji działa normalnie. OPT[col] = true, gdy tabela istnieje i dane się wczytały. */
-const OPT = {tires: false, contracts: false, equipment: false, workshops: false, visits: false, gpsOdometer: false, odoGps: false}, optChannels = {};
+const OPT = {tires: false, contracts: false, equipment: false, workshops: false, visits: false, gpsOdometer: false, odoGps: false, workOrders: false, woItems: false}, optChannels = {};
 const optOn = col => !!OPT[col];
 async function loadAll(){
   db = dbApi;

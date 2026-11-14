@@ -1704,3 +1704,24 @@ html[data-env="test"] body{padding-top:20px}
   .oc-tbl tr.oc-bad td:first-child{box-shadow:none}.oc-tbl tr.oc-bad{box-shadow:inset 3px 0 0 var(--bad)}
   .oc-mode{display:flex;width:100%}.oc-mode button{flex:1}
 }
+/* serwis: zgłoszenia → zlecenia → zakończenie */
+.wo-steps{margin:-4px 0 14px;max-width:100ch}
+.wo-veh .sec-head{gap:10px;align-items:center}.wo-veh .sec-head .small.ghost{margin-left:auto}
+.wo-item{display:grid;grid-template-columns:auto 1fr auto auto;gap:12px;align-items:start;padding:12px 18px;border-top:1px solid var(--line);cursor:pointer}
+.wo-item input{margin-top:3px;width:18px;height:18px}
+.wo-item.bad{box-shadow:inset 3px 0 0 var(--bad)}.wo-item.warn{box-shadow:inset 3px 0 0 var(--warn)}
+.wo-t{min-width:0}.wo-t .sub{display:block}.wo-p{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.wo-bar-fix{position:sticky;bottom:12px;z-index:30;display:flex;gap:10px;align-items:center;justify-content:flex-end;margin:14px 0 0;padding:10px 14px;border-radius:16px;background:var(--surface);border:1px solid var(--line-2);box-shadow:var(--shadow-sm,0 6px 20px rgba(0,0,0,.12))}
+.wo-bar-fix>span{margin-right:auto}
+.wo-sum{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));padding:4px 18px 12px}
+.wo-sum ul{margin:6px 0 0;padding-left:18px}.wo-sum li.niezrobione{color:var(--muted);text-decoration:line-through}
+.wo-act{display:flex;gap:8px;flex-wrap:wrap;padding:0 18px 16px}
+.wf-veh{border:1px solid var(--line);border-radius:14px;padding:10px 14px 14px;margin:0}
+.wf-veh legend{padding:0 6px;display:flex;gap:8px;align-items:center}
+.wf-items{display:grid;gap:6px;margin:4px 0 10px}
+.wf-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.wf-grid label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:4px}.wf-wide{grid-column:1/-1}
+@media print{ html.print-doc .pa-page{break-before:page;page-break-before:always} }
+@media (max-width:700px){
+  .wo-item{grid-template-columns:auto 1fr;padding:12px 14px}.wo-p,.wo-a{grid-column:2;justify-content:flex-start}
+  .wo-bar-fix{bottom:84px;flex-wrap:wrap}.wf-grid{grid-template-columns:1fr}
+}

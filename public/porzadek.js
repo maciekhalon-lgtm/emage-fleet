@@ -5,7 +5,7 @@
 /* ---------- grupy menu i zakładki ---------- */
 const GROUPS = {
   rezerwacje: [['przydzial','Grafik', () => !serviceOnly()], ['trasy','Trasy', () => !!P().manage]],
-  serwis:     [['usterki','Usterki', () => true], ['terminy','Terminy', () => true], ['ksiazka','Książka serwisowa', () => !!P().service], ['plan','Plan serwisu', () => planOn()], ['opony','Opony', () => tiresOn()], ['wyposazenie','Wyposażenie', () => eqOn()]],
+  serwis:     [['usterki','Zgłoszenia', () => true], ['zlecenia','Zlecenia', () => typeof woOn==='function' && woOn()], ['ksiazka','Historia napraw', () => !!P().service], ['terminy','Terminy', () => !(typeof woOn==='function' && woOn())], ['plan','Plan serwisu', () => planOn() && !(typeof woOn==='function' && woOn())], ['opony','Opony', () => tiresOn()], ['wyposazenie','Wyposażenie', () => eqOn()]],
   paliwo:     [['karty','Karty', () => !!P().manage], ['spalanie','Spalanie i liczniki', () => !!P().manage], ['oplaty','Opłaty drogowe', () => !!P().manage]],
   koszty:     [['koszty','Koszty', () => true], ['rozliczenie','Rozliczenie aut', () => !!P().manage], ['rentownosc','Rentowność', () => !!P().manage], ['raporty','Raporty', () => !!P().reports], ['umowy','Leasing i umowy', () => contractsOn()]],
   ludzie:     [['kierowcy','Kierowcy', () => !serviceOnly()], ['uzytkownicy','Użytkownicy', () => !!P().manage]],
@@ -41,6 +41,7 @@ function tabCount(t){
   if (t==='wyposazenie' && typeof eqOn==='function' && eqOn()){ const p = eqProblems(); return {n: p.length, bad: p.some(x => x.s.cls==='bad')}; }
   if (t==='umowy' && typeof contractsOn==='function' && contractsOn()){ const p = contractProblems(); return {n: p.length, bad: p.some(x => x.i.warn.some(([c]) => c==='bad'))}; }
   if (t==='plan' && typeof planOn==='function') return planCount();
+  if (t==='zlecenia' && typeof woCount==='function'){ const n = woCount(); return {n, bad: false}; }
   if (t==='przydzial'){ const cf = conflicts().size; return {n: cf, bad: cf > 0}; }
   return {n: 0, bad: false};
 }

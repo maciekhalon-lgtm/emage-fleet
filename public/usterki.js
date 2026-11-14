@@ -19,7 +19,8 @@ function issueRow(i, showVeh = true){
   const sev = ISSUE_SEV[i.severity] || ISSUE_SEV.drobna;
   const st = ISSUE_ST[i.status] || ISSUE_ST.nowe;
   const edit = canEditDoc('issues', i);
-  const quick = P().issues==='rw' && canWrite
+  const flow = typeof woOn==='function' && woOn();   // serwis w krokach: zgłoszenie → zlecenie → zakończenie (serwis.js)
+  const quick = P().issues==='rw' && canWrite && !flow
     ? (i.status==='nowe' ? `<button class="small" data-issue-st="naprawa" data-id="${esc(i.id)}">Do naprawy</button>` : '')
       + (i.status!=='naprawione' ? `<button class="small" data-issue-st="naprawione" data-id="${esc(i.id)}">Naprawione</button>` : '')
       + (typeof isAccident==='function' && isAccident(i) ? `<button class="small ghost" data-print-acc="${esc(i.id)}" title="Druk / PDF dla ubezpieczyciela">${ic('clip')}Drukuj</button>` : '')
@@ -36,6 +37,8 @@ function issueRow(i, showVeh = true){
 }
 
 function viewIssues(){
+  if (typeof woOn==='function' && woOn()) return viewRequests();
+  if (P().mycar) return viewMyIssues();
   const chips = [['open','Otwarte'],['stop','Auto niesprawne'],...(typeof isAccident==='function' && S.issues.some(isAccident) ? [['acc','Szkody']] : []),['done','Naprawione'],['all','Wszystkie']];
   const head = `<div class="bar"><h2>Usterki</h2><div class="tools">${chips.map(([k,l])=>`<button class="small ${issueFilter===k?'primary':''}" data-isf="${k}">${l}</button>`).join('')}${canCreate('issues')?'<button class="primary" data-new="issues">+ Zgłoś usterkę</button>':''}</div></div>`;
   if (!S.issues.length) return head + loadingOr('issues', emptyBlock('Brak zgłoszonych usterek',
@@ -56,6 +59,12 @@ function viewIssues(){
   return head + stats + `<div class="panel dl">${list.map(i => issueRow(i)).join('') || '<div class="empty"><p>Brak usterek w tym filtrze.</p></div>'}</div>`;
 }
 
+/* kierowca: tylko jego zgłoszenia */
+function viewMyIssues(){
+  const mine = S.issues.filter(i => me && i.createdBy===me.id).sort((a, b) => (a.status==='naprawione') - (b.status==='naprawione') || (a.date < b.date ? 1 : -1));
+  return `<div class="bar"><h2>Moje zgłoszenia</h2><div class="tools">${canCreate('issues') ? '<button class="primary" data-new="issues">+ Zgłoś usterkę</button>' : ''}</div></div>
+    <div class="panel dl">${mine.map(i => issueRow(i)).join('') || '<div class="empty"><p>Nie masz zgłoszonych usterek. Gdy coś jest nie tak z autem – zgłoś to tutaj.</p></div>'}</div>`;
+}
 async function setIssueStatus(id, status){
   if (!db) return;
   const body = {status, updatedAt:new Date().toISOString()};

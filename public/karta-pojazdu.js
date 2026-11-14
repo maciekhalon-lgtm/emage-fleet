@@ -83,7 +83,7 @@ function viewCard(){
   const tabNav = `<nav class="subtabs card-tabs" aria-label="Karta pojazdu">${tabs.map(([k, l, n]) => `<a href="#" data-ctab="${k}" ${cardTab===k ? 'aria-current="page"' : ''}>${l}${n ? ` <span class="count bad">${n}</span>` : ''}</a>`).join('')}</nav>`;
   let body = '';
   const stdMiss = canCreate('deadlines') ? STD_DL.filter(t => !S.deadlines.some(d => d.vehicleId===v.id && d.type===t)) : [];
-  const woBtn = P().service || P().manage ? `<div class="wo-bar"><button class="small" data-workorder="${esc(v.id)}">${ic('clip')}Zlecenie dla warsztatu (druk)</button></div>` : '';
+  const woBtn = (P().service || P().manage) && typeof woOn==='function' && woOn() ? `<div class="wo-bar"><button class="small" data-wo-veh="${esc(v.id)}">${ic('clip')}Zlecenie dla warsztatu</button><button class="small ghost" data-svc-info="${esc(v.id)}">${ic('plus')}Informacja serwisowa</button></div>` : P().service || P().manage ? `<div class="wo-bar"><button class="small" data-workorder="${esc(v.id)}">${ic('clip')}Zlecenie dla warsztatu (druk)</button></div>` : '';
   if (cardTab==='serwis') body = woBtn + (stdMiss.length ? `<div class="notice"><span>Brakuje podstawowych terminów: <b>${stdMiss.join(', ')}</b> – bez nich system nie przypomni o nich ani nie zablokuje auta po terminie.</span><button class="small" data-std-dl="${esc(v.id)}">Uzupełnij</button></div>` : '') + `<div class="grid2"><div class="section">
       ${typeof warrantyPanel==='function' ? warrantyPanel(v) : ''}${sec('Terminy', add('deadlines','+ Termin'), dlHtml, 'Brak zapisanych terminów.')}
       ${sec('Usterki', add('issues','+ Zgłoś'), iss.length ? `<div class="dl">${iss.map(i => issueRow(i, false)).join('')}</div>` : '', 'Brak zgłoszonych usterek.')}</div>
