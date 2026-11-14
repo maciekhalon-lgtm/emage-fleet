@@ -528,7 +528,7 @@ Deno.serve(async (req) => {
       ${items.length ? `<h3 style="margin:18px 0 8px">Do zrobienia</h3><ul style="padding-left:18px;margin:0">${items.map(i => `<li style="margin:3px 0">${esc(i.text)}</li>`).join('')}</ul>` : ''}
       <p style="margin:20px 0 0"><a href="${app}" style="color:#16130e;font-weight:bold">Otwórz Emage FLEET</a></p></div>`;
     const r = await fetch('https://api.resend.com/emails', {method: 'POST', headers: {'Authorization': 'Bearer ' + key('RESEND_API_KEY'), 'Content-Type': 'application/json'},
-      body: JSON.stringify({from: String(cfg.from || 'Emage FLEET <onboarding@resend.dev>'), to, subject: w.title, html,
+      body: JSON.stringify({from: String(cfg.from || ((Deno.env.get('SUPABASE_URL') || '').includes('nsvtnpvpbhnbrmygsbxy') ? 'Emage FLEET <onboarding@resend.dev>' : 'Emage FLEET <flota@emage-fleet.com>')), to, subject: w.title, html,
         text: w.title + '\n\n' + w.body + (items.length ? '\n\nDo zrobienia:\n' + items.map(i => '• ' + i.text).join('\n') : '') + '\n\n' + app})});
     const t = await r.text();
     return {email: r.ok ? 'wysłano' : 'błąd ' + r.status + ': ' + t.slice(0, 300), to: to.length};
