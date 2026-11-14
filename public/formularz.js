@@ -48,11 +48,13 @@ const FORMS = {
   ]},
   deadlines: { title:['Nowy termin','Edytuj termin'], fields: () => [
     {k:'vehicleId',l:'Pojazd',t:'select',o:vehOpts(),req:1,full:1},
-    {k:'type',l:'Rodzaj',t:'select',o:DL_TYPES.map(t=>[t,t]),req:1},
-    {k:'date',l:'Termin',t:'date',req:1},
-    {k:'kmDue',l:'Lub przy przebiegu (km)',t:'number'},
-    {k:'intervalMonths',l:'Powtarzaj co (miesięcy)',t:'number',ph:'np. 12'},
+    {k:'type',l:'Rodzaj',t:'select',o:DL_TYPES.map(t=>[t,t]),req:1,full:1},
+    {k:'lastDoneKm',l:'Ostatnio wykonano przy (km)',t:'number',ph:'np. 454210'},
+    {k:'lastDoneDate',l:'Ostatnio wykonano – data',t:'date'},
     {k:'intervalKm',l:'Powtarzaj co (km)',t:'number',ph:'np. 15000'},
+    {k:'intervalMonths',l:'Powtarzaj co (miesięcy)',t:'number',ph:'np. 12'},
+    {k:'kmDue',l:'Następny przy przebiegu (km)',t:'number'},
+    {k:'date',l:'Następny termin',t:'date',req:1},
     {k:'remindKm',l:'Przypomnij … km przed',t:'number',ph:'domyślnie 1000'},
     {k:'note',l:'Notatka',ph:'np. polisa nr, warsztat',full:1},
   ]},
@@ -336,10 +338,12 @@ function openForm(col, id, preset){
   });
   if (col==='costs'){ $('#dialog').addEventListener('input', costFxUi); costFxUi(); }
   if (col==='serviceEntries'){ $('#dialog').addEventListener('input', svcUi); svcUi(); }
+  if (col==='deadlines'){ $('#dialog').addEventListener('input', dlDoneUi); dlDoneUi(); }
   if (col==='deadlines') $('#f-deadlines-type')?.addEventListener('change', e => {
     const d = DL_INTERVALS[e.target.value]; if (!d) return;
     $('#f-deadlines-intervalMonths').value = d[0] ?? ''; $('#f-deadlines-intervalKm').value = d[1] ?? '';
     const rk = $('#f-deadlines-remindKm'); if (rk && !rk.value && e.target.value==='Przegląd gwarancyjny') rk.value = 5000;
+    dlDoneUi({target: {id: 'interval'}});
   });
 }
 function bookingCheck(){
@@ -375,7 +379,7 @@ function bookingCheck(){
   if (!msg && r && r.tacho && veh && !veh.hasTacho) msg = `Uwaga: trasa ${r.code} wymaga tachografu, a ${veh.plate} nie ma tachografu. Możesz zapisać – to tylko informacja.`;
   w.textContent=msg; w.hidden=!msg;
 }
-function closeForm(){ $('#scrim').hidden = true; $('#dialog').classList.remove('dlg-wide'); editing = null; $('#dlg-save').textContent = 'Zapisz'; $('#dialog').removeEventListener('input', bookingCheck); $('#dialog').removeEventListener('input', costFxUi); $('#dialog').removeEventListener('input', svcUi); }
+function closeForm(){ $('#scrim').hidden = true; $('#dialog').classList.remove('dlg-wide'); editing = null; $('#dlg-save').textContent = 'Zapisz'; $('#dialog').removeEventListener('input', bookingCheck); $('#dialog').removeEventListener('input', costFxUi); $('#dialog').removeEventListener('input', svcUi); $('#dialog').removeEventListener('input', dlDoneUi); }
 
 $('#dialog').addEventListener('submit', async e => {
   e.preventDefault();
@@ -461,12 +465,14 @@ $('#dialog').addEventListener('submit', async e => {
     }
     const repeatUntil = data.repeatUntil; delete data.repeatUntil;
     let rn = null;
-    if (col==='deadlines' && editing.renew && $('#rn-date')){
-      const kmv = Number(String($('#rn-km').value).replace(/\s/g, '')) || null, dd = $('#rn-date').value || today();
-      if (dd > today()) throw Object.assign(new Error('Data wykonania nie może być w przyszłości.'), {code: 'check'});
-      if (editing.renew.kmStep && !kmv) throw Object.assign(new Error('Wpisz, przy jakim przebiegu wykonano – od niego liczymy kolejny termin.'), {code: 'check'});
-      rn = {...editing.renew, date: dd, km: kmv, svc: !!($('#rn-svc') && $('#rn-svc').checked)};
-      data.note = renewNote(data.note, dd, kmv);
+    if (col==='deadlines'){
+      if (data.lastDoneDate && data.lastDoneDate > today()) throw Object.assign(new Error('Data ostatniego wykonania nie może być w przyszłości.'), {code: 'check'});
+      const v = byId('vehicles', data.vehicleId);
+      if (data.lastDoneKm && v && Number(v.km) && Number(data.lastDoneKm) > Number(v.km) + 1000) throw Object.assign(new Error(`Przebieg wykonania (${km(data.lastDoneKm)}) jest większy niż obecny przebieg auta (${km(v.km)}).`), {code: 'check'});
+      if (editing.renew){
+        if (editing.renew.kmStep && !data.lastDoneKm) throw Object.assign(new Error('Wpisz, przy jakim przebiegu wykonano – od niego liczymy kolejny termin.'), {code: 'check'});
+        rn = {...editing.renew, date: data.lastDoneDate || today(), km: data.lastDoneKm || null, svc: !!($('#rn-svc') && $('#rn-svc').checked)};
+      }
     }
     const ref = id ? db.collection(col).doc(id) : db.collection(col).doc();
     await ref.set(data);

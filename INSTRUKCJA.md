@@ -270,7 +270,8 @@ Karta auta → **Terminy i serwis** → panel **Gwarancja** (kierownik floty i s
 - **Pulpit → Wymaga uwagi**: na górze sprawy do zrobienia (pilne policzone w nagłówku), „Pokaż wszystkie” rozwija resztę. Sprawy porządkowe (kompletność danych, auta bez terminów, liczniki do sprawdzenia) są zwinięte w „Porządki w danych”. Dochodzi wiersz o autach stojących 3+ dni (GPS).
 - **Ustawienia**: sekcje Firma i budżet, Powiadomienia (push, raport e-mail, kalendarz), Lokalizatory GPS, Moduły i kontrole, Kopia danych – widać jedną naraz.
 
-## „Wykonane” przy terminie – data i przebieg wykonania
-- Po kliknięciu „Wykonane” wpisujesz, **kiedy** i **przy jakim przebiegu** faktycznie to zrobiono (np. rozrząd wymieniony przy 454 210 km). Kolejny termin liczy się od tych wartości: data + cykl w miesiącach, przebieg + cykl w km. Pod polami widać wynik i ostrzeżenie, jeśli auto już go przekroczyło.
-- W notatce terminu zapisuje się „Ostatnio wykonane: data przy X km”.
-- Zaznaczone „Zapisz w książce serwisowej” dodaje wpis (przy rozrządzie i oleju z przebiegiem), więc historia auta jest kompletna.
+## Ostatnio wykonano – przebieg i data (Serwis → Terminy) – po uruchomieniu 035_ostatnio_wykonane.sql
+- W każdym terminie są pola „… przy (km)” i „… – data” (dla rozrządu: „Rozrząd wymieniony przy (km)”). Wpisujesz sam faktyczny przebieg i datę wymiany.
+- Następny termin liczy się sam: przebieg + „Powtarzaj co (km)” i data + „Powtarzaj co (miesięcy)”. Oba wyniki można poprawić ręcznie. Pod spodem widać, ile zostało albo o ile przebieg jest przekroczony.
+- „Wykonane” otwiera ten sam formularz z dzisiejszą datą i obecnym przebiegiem – popraw je na faktyczne. Zaznaczone „Zapisz też w książce serwisowej” dodaje wpis.
+- Wpis w książce serwisowej z wymianą rozrządu / oleju sam uzupełnia „ostatnio wykonano” w terminie. Na liście terminów i w karcie auta widać „Ostatnio: … przy X km”.

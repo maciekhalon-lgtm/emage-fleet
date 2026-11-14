@@ -34,7 +34,7 @@ function viewCard(){
   const facts = groups.map(([h, fs]) => `<section class="vf-group"><h4>${h}</h4><div class="facts vfacts">${fs.map(f => `<div class="${f.wide ? 'wide' : ''}"><span class="label">${f.l}</span><span class="fv">${f.val}</span></div>`).join('')}</div></section>`).join('');
 
   const dls = S.deadlines.filter(d => d.vehicleId===v.id).sort((a,b) => a.date<b.date?-1:1);
-  const dlHtml = dls.map(d => { const s = dlState(d); return `<div class="mini ${canEditDoc('deadlines',d)?'click':''}" ${canEditDoc('deadlines',d)?`data-edit="deadlines" data-id="${esc(d.id)}"`:''}><span class="num">${fdate(d.date)}</span><span>${esc(d.type)}</span><span class="pill ${s.cls}">${esc(s.txt)}</span></div>`; }).join('');
+  const dlHtml = dls.map(d => { const s = dlState(d); return `<div class="mini ${canEditDoc('deadlines',d)?'click':''}" ${canEditDoc('deadlines',d)?`data-edit="deadlines" data-id="${esc(d.id)}"`:''}><span class="num">${fdate(d.date)}</span><span>${esc(d.type)}${d.lastDoneKm ? `<span class="sub">ostatnio przy ${km(d.lastDoneKm)}</span>` : ''}</span><span class="pill ${s.cls}">${esc(s.txt)}</span></div>`; }).join('');
 
   const iss = S.issues.filter(i => i.vehicleId===v.id).sort((a,b) => (a.status==='naprawione') - (b.status==='naprawione') || (a.date<b.date?1:-1)).slice(0,6);
 

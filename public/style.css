@@ -1638,11 +1638,5 @@ tr.on td{background:var(--accent-soft)}
 .pf-hist td,.pf-hist th{white-space:nowrap}
 .set-tabs{flex-wrap:nowrap;overflow-x:auto;max-width:100%;scrollbar-width:none;margin-bottom:16px}
 .set-tabs button{flex:none;white-space:nowrap}
-/* „Wykonane” – kiedy i przy jakim przebiegu */
-.renew-done{grid-column:1/-1;border:1px solid var(--line);background:var(--sunk);border-radius:16px;padding:12px 14px;margin:0 0 14px;display:grid;gap:10px}
-.renew-done .renew-h{margin:0;font-weight:700}
-.renew-done .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.renew-done label{display:grid;gap:6px}
-.renew-done label.check{display:flex;gap:8px;align-items:center}
-.renew-calc{margin:0}
-@media (max-width:520px){.renew-done .row{grid-template-columns:1fr}}
+.dl-done-info{display:block;margin:-4px 0 4px}.dl-done-info b.neg{color:var(--bad)}
+

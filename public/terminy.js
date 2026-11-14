@@ -17,7 +17,7 @@ function viewDeadlines(){
     html += `<div class="dl-group label">${name} · ${items.length}</div>` + items.map(({d,s}) => {
       const v = byId('vehicles', d.vehicleId);
       const cyc = [d.intervalMonths?'co '+d.intervalMonths+' mies.':'', d.intervalKm?'co '+km(d.intervalKm):''].filter(Boolean).join(' lub ');
-      const kmInfo = (d.kmDue ? `<span class="sub num">lub przy ${km(d.kmDue)}${v&&v.km?` (teraz ${km(v.km)})`:''}</span>` : '') + (cyc ? `<span class="sub">Cykl: ${cyc}</span>` : '') + (d.note && !d.kmDue ? `<span class="sub">${esc(d.note)}</span>` : '');
+      const kmInfo = (d.kmDue ? `<span class="sub num">lub przy ${km(d.kmDue)}${v&&v.km?` (teraz ${km(v.km)})`:''}</span>` : '') + (d.lastDoneKm || d.lastDoneDate ? `<span class="sub">Ostatnio: ${d.lastDoneDate ? fdate(d.lastDoneDate) : ''}${d.lastDoneKm ? (d.lastDoneDate ? ' przy ' : 'przy ') + km(d.lastDoneKm) : ''}</span>` : '') + (cyc ? `<span class="sub">Cykl: ${cyc}</span>` : '') + (d.note && !d.kmDue ? `<span class="sub">${esc(d.note)}</span>` : '');
       return `<div class="dl-row ${s.cls==='ok'?'':s.cls}" ${canEditDoc('deadlines',d)?'data-edit="deadlines" tabindex="0"':'style="cursor:default"'} data-id="${esc(d.id)}">
         <div class="dl-date">${fdate(d.date)}</div>
         <div style="min-width:0"><b>${esc(d.type)}</b>${kmInfo}</div>
@@ -42,36 +42,43 @@ function renew(id){
   openForm('deadlines', id);
   if (editing) editing.renew = {type: d.type, vehicleId: d.vehicleId, months, kmStep};
   setTimeout(()=>{
-    $('#dlg-title').textContent = 'Wykonane – ustaw kolejny termin';
-    // kiedy i przy jakim przebiegu faktycznie wykonano – od tego liczy się kolejny termin
-    const first = $('#f-deadlines-date') && $('#f-deadlines-date').closest('.row, .field, label, div');
-    const anchor = $('#f-deadlines-type') ? $('#f-deadlines-type').closest('.row') || $('#f-deadlines-type').closest('div') : first;
+    $('#dlg-title').textContent = 'Wykonane – wpisz kiedy i przy jakim przebiegu';
+    const dd = $('#f-deadlines-lastDoneDate'), dk = $('#f-deadlines-lastDoneKm');
+    if (dd) dd.value = today();
+    if (dk) dk.value = v && v.km ? Math.round(Number(v.km)) : '';
+    const im = $('#f-deadlines-intervalMonths'), ik = $('#f-deadlines-intervalKm');
+    if (im && !im.value) im.value = months; if (ik && !ik.value && kmStep) ik.value = kmStep;
     const svcOk = canCreate('serviceEntries') && !!P().service && !/Ubezpieczenie|Leasing|gwarancji/.test(d.type), svcOn = ['Wymiana rozrządu','Serwis olejowy','Wymiana opon','Przegląd techniczny','Inne'].includes(d.type);
-    const box = document.createElement('div'); box.className = 'renew-done';
-    box.innerHTML = `<p class="renew-h">Wykonano</p><div class="row"><label>Data wykonania *<input type="date" id="rn-date" value="${today()}" max="${today()}"></label>
-      <label>Przy przebiegu (km)${kmStep ? ' *' : ''}<input type="text" inputmode="numeric" id="rn-km" value="${v && v.km ? Math.round(Number(v.km)) : ''}" placeholder="np. 454210"></label></div>
-      ${svcOk ? `<label class="check small"><input type="checkbox" id="rn-svc" ${svcOn ? 'checked' : ''}> Zapisz w książce serwisowej (${esc(d.type)}${d.type==='Wymiana rozrządu' || d.type==='Serwis olejowy' ? ', z przebiegiem' : ''})</label>` : ''}
-      <p class="muted small renew-calc" id="rn-calc"></p>`;
-    const body = $('#dlg-body'); const tgt = anchor && anchor.parentElement===body ? anchor.nextSibling : body.firstChild;
-    body.insertBefore(box, tgt);
-    const calc = () => {
-      const dd = $('#rn-date').value || today(), kmv = Number(String($('#rn-km').value).replace(/\s/g, ''));
-      const de = $('#f-deadlines-date'); if (de) de.value = addMonths(dd, months);
-      const k = $('#f-deadlines-kmDue'); if (k && kmStep && kmv > 0) k.value = kmv + kmStep;
-      const cur = v && Number(v.km) || 0;
-      $('#rn-calc').textContent = `Kolejny termin: ${fdate(addMonths(dd, months))}${kmStep && kmv > 0 ? ` albo przy ${new Intl.NumberFormat('pl-PL').format(kmv + kmStep)} km` : ''}${kmStep && kmv > 0 && cur && cur >= kmv + kmStep ? ' – już przekroczony, auto ma ' + new Intl.NumberFormat('pl-PL').format(cur) + ' km' : ''}.`;
-    };
-    box.addEventListener('input', calc); calc();
-    $('#rn-km').focus();
+    if (svcOk){ const w = document.createElement('div'); w.className = 'field full';
+      w.innerHTML = `<label class="check small"><input type="checkbox" id="rn-svc" ${svcOn ? 'checked' : ''}> Zapisz też w książce serwisowej (${esc(d.type)})</label>`;
+      $('#wrap-deadlines-intervalKm')?.before(w); }
+    dlDoneUi();
+    if (dk){ dk.focus(); dk.select(); }
   },30);
 }
-/* zapis „Wykonane”: notatka z datą i przebiegiem, opcjonalnie wpis w książce serwisowej (ten sam wyzwalacz w bazie liczy kolejny termin) */
-function renewNote(note, dd, kmv){
-  const clean = String(note || '').replace(/(Z rejestru rozrządów: )?ostatni[ao]? (wymiana|wykonan[ea])[^·\n]*(·\s*)?/ig, '').replace(/Ostatnio wykonane:[^·\n]*(·\s*)?/g, '').trim();
-  return ['Ostatnio wykonane: ' + fdate(dd) + (kmv ? ' przy ' + new Intl.NumberFormat('pl-PL').format(kmv) + ' km' : ''), clean].filter(Boolean).join(' · ').slice(0, 500);
+/* Formularz terminu: „ostatnio wykonano” (km, data) + cykl → następny termin liczy się sam (można go poprawić ręcznie) */
+function dlDoneUi(e){
+  if (!editing || editing.col!=='deadlines') return;
+  const g = n => $('#f-deadlines-' + n), num = n => Number(String((g(n) || {}).value || '').replace(/\s/g, '')) || 0;
+  const type = (g('type') || {}).value || '';
+  const lk = $('#wrap-deadlines-lastDoneKm label'), ld = $('#wrap-deadlines-lastDoneDate label');
+  const verb = type==='Wymiana rozrządu' ? 'Rozrząd wymieniony' : type==='Serwis olejowy' ? 'Olej wymieniony' : type==='Wymiana opon' ? 'Opony zmienione' : 'Ostatnio wykonano';
+  if (lk) lk.textContent = verb + ' przy (km)'; if (ld) ld.textContent = verb + ' – data';
+  const src = e && e.target && e.target.id;
+  const doneKm = num('lastDoneKm'), stepKm = num('intervalKm'), doneDate = (g('lastDoneDate') || {}).value, stepM = num('intervalMonths');
+  const fromDone = !src || /lastDone|interval/.test(src);
+  if (fromDone && doneKm && stepKm && g('kmDue')) g('kmDue').value = doneKm + stepKm;
+  if (fromDone && doneDate && stepM && g('date')) g('date').value = addMonths(doneDate, stepM);
+  const v = byId('vehicles', (g('vehicleId') || {}).value) || {}, cur = Number(v.km) || 0, due = num('kmDue');
+  let info = $('#dl-done-info');
+  if (!info){ info = document.createElement('p'); info.id = 'dl-done-info'; info.className = 'muted small field full dl-done-info'; $('#wrap-deadlines-date')?.after(info); }
+  const nf = n => new Intl.NumberFormat('pl-PL').format(n);
+  info.innerHTML = due && cur ? (cur >= due ? `<b class="neg">Przebieg przekroczony o ${nf(cur - due)} km</b> – auto ma ${nf(cur)} km, następny był przy ${nf(due)} km.` : `Zostało ${nf(due - cur)} km (auto ma ${nf(cur)} km).`)
+    : (doneKm || doneDate ? 'Następny termin liczy się od ostatniego wykonania + cykl.' : 'Wpisz, kiedy i przy jakim przebiegu ostatnio wykonano – następny termin policzy się sam.');
 }
 async function renewAfterSave(rn, deadlineId){
   if (!rn.svc) return '';
+  if ((rn.type==='Wymiana rozrządu' || rn.type==='Serwis olejowy') && !rn.km) return '';
   await db.collection('serviceEntries').doc().set({vehicleId: rn.vehicleId, date: rn.date, km: rn.km || null, description: rn.type,
     timingChange: rn.type==='Wymiana rozrządu', oilChange: rn.type==='Serwis olejowy', deadlineId, issueIds: []});
   await Promise.all(['serviceEntries', 'deadlines', 'vehicles', 'costs'].map(refresh));
