@@ -5,7 +5,7 @@ const sb = supabase.createClient(CONFIG.supabaseUrl, CONFIG.supabaseKey, {
 });
 
 /* nazwa w aplikacji → tabela w bazie */
-const TABLES = {vehicles:'vehicles', drivers:'drivers', deadlines:'deadlines', bookings:'bookings', costs:'costs', issues:'issues', docs:'documents', settings:'settings', routeStops:'route_stops', fleetCosts:'fleet_costs', tires:'tires', contracts:'vehicle_contracts', equipment:'equipment', workshops:'workshops', visits:'service_visits', requests:'data_change_requests', crewChanges:'crew_changes', routes:'routes', serviceEntries:'service_entries', blockOverrides:'block_overrides', loadings:'loadings', loadingReports:'loading_reports', fuelCardImports:'fuel_card_imports', fuelCardRows:'fuel_card_rows', members:'profiles'};
+const TABLES = {gpsOdometer:'gps_odometer', vehicles:'vehicles', drivers:'drivers', deadlines:'deadlines', bookings:'bookings', costs:'costs', issues:'issues', docs:'documents', settings:'settings', routeStops:'route_stops', fleetCosts:'fleet_costs', tires:'tires', contracts:'vehicle_contracts', equipment:'equipment', workshops:'workshops', visits:'service_visits', requests:'data_change_requests', crewChanges:'crew_changes', routes:'routes', serviceEntries:'service_entries', blockOverrides:'block_overrides', loadings:'loadings', loadingReports:'loading_reports', fuelCardImports:'fuel_card_imports', fuelCardRows:'fuel_card_rows', members:'profiles'};
 const COL_OF = Object.fromEntries(Object.entries(TABLES).map(([a, b]) => [b, a]));
 
 /* pole w aplikacji → kolumna w bazie */
@@ -22,6 +22,7 @@ const FIELDS = {
   fleetCosts: {},
   workshops: {},
   visits: {vehicleId:'vehicle_id', workshopId:'workshop_id', deadlineId:'deadline_id', issueId:'issue_id'},
+  gpsOdometer: {vehicleId:'vehicle_id', updatedAt:'updated_at'},
   contracts: {vehicleId:'vehicle_id', contractNo:'contract_no', startDate:'start_date', endDate:'end_date', monthlyNet:'monthly_net', monthlyGross:'monthly_gross', kmLimit:'km_limit', kmStart:'km_start', kmExcessRate:'km_excess_rate', insuranceIn:'insurance_in', serviceIn:'service_in'},
   equipment: {vehicleId:'vehicle_id', validUntil:'valid_until', checkedAt:'checked_at'},
   tires: {vehicleId:'vehicle_id', treadMm:'tread_mm', mountedAt:'mounted_at', mountedKm:'mounted_km'},
@@ -165,7 +166,7 @@ S.fuelAll = [];
 async function refresh(col){
   const table = TABLES[col]; if (!table) return;
   if ((col==='members' || col==='crewChanges' || col==='fuelCardImports' || col==='fuelCardRows' || col==='fleetCosts') && !P().manage) return;
-  if ((col==='tires' || col==='contracts' || col==='equipment' || col==='workshops' || col==='visits') && !P().manage && !P().service){ got[col] = true; return; }
+  if ((col==='tires' || col==='contracts' || col==='equipment' || col==='workshops' || col==='visits' || col==='gpsOdometer') && !P().manage && !P().service){ got[col] = true; return; }
   if (col==='serviceEntries' && !P().service) return;
   // Supabase oddaje najwyżej 1000 wierszy na zapytanie – pobieramy partiami aż do końca
   const key = col==='settings' ? 'key' : 'id', PAGE = 1000, data = [];
@@ -221,7 +222,7 @@ function queueRefresh(col){
 let channel = null, stopsChannel = null, stopsReady = false, fcChannel = null, fleetCostsReady = false;
 /* Tabele z nowszych migracji (027 opony, 028 wyposażenie, 029 umowy, 030 warsztaty): dopóki SQL nie jest uruchomiony, moduł jest ukryty,
    a reszta aplikacji działa normalnie. OPT[col] = true, gdy tabela istnieje i dane się wczytały. */
-const OPT = {tires: false, contracts: false, equipment: false, workshops: false, visits: false}, optChannels = {};
+const OPT = {tires: false, contracts: false, equipment: false, workshops: false, visits: false, gpsOdometer: false}, optChannels = {};
 const optOn = col => !!OPT[col];
 async function loadAll(){
   db = dbApi;

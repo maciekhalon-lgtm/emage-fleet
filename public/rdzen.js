@@ -1,7 +1,7 @@
 /* Emage FLEET — rdzeń: stan danych, pomocnicze funkcje dat i formatowania, logika domenowa */
 'use strict';
-const COLS = ['vehicles','drivers','deadlines','bookings','costs','issues','docs','settings','requests','crewChanges','routes','serviceEntries','blockOverrides','loadings','loadingReports','fuelCardImports','fuelCardRows','routeStops','fleetCosts','tires','contracts','equipment','workshops','visits'];
-const S = {routeStops:[],fleetCosts:[],tires:[],contracts:[],equipment:[],workshops:[],visits:[],vehicles:[],drivers:[],deadlines:[],bookings:[],costs:[],issues:[],docs:[],settings:[],requests:[],crewChanges:[],routes:[],serviceEntries:[],blockOverrides:[],loadings:[],loadingReports:[],fuelCardImports:[],fuelCardRows:[]};
+const COLS = ['vehicles','drivers','deadlines','bookings','costs','issues','docs','settings','requests','crewChanges','routes','serviceEntries','blockOverrides','loadings','loadingReports','fuelCardImports','fuelCardRows','routeStops','fleetCosts','tires','contracts','equipment','workshops','visits','gpsOdometer'];
+const S = {gpsOdometer:[],routeStops:[],fleetCosts:[],tires:[],contracts:[],equipment:[],workshops:[],visits:[],vehicles:[],drivers:[],deadlines:[],bookings:[],costs:[],issues:[],docs:[],settings:[],requests:[],crewChanges:[],routes:[],serviceEntries:[],blockOverrides:[],loadings:[],loadingReports:[],fuelCardImports:[],fuelCardRows:[]};
 const got = {};
 let db = null, canWrite = true, dbState = 'loading';
 let myId = null;

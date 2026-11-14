@@ -237,3 +237,17 @@ Karta auta → **Terminy i serwis** → panel **Gwarancja** (kierownik floty i s
 
 - Wpisz adresy e-mail (po przecinku) i zapisz. W poniedziałek rano przychodzi podsumowanie tygodnia i lista spraw do zrobienia. „Wyślij próbny teraz” wysyła raport od razu.
 - Jednorazowo: konto na resend.com → klucz API → Supabase → Edge Functions → Secrets → `RESEND_API_KEY`. Bez własnej domeny Resend wysyła tylko na adres, na który założono konto (domenę można dodać w Resend, a nadawcę ustawić w ustawieniu `report_email.from`).
+
+## Rentowność tras (Koszty → Rentowność tras)
+
+- **Stawki i koszty tras** (wpisujesz raz): rozliczenie **za kurs / za km / ryczałt miesięczny**, stawka, km jednego kursu (tam i z powrotem), koszty kursu (opłaty drogowe, parkingi, winiety), **dodatkowe km na kurs** (np. kierowca zabiera auto do domu) i opcjonalnie koszt kierowcy na kurs. „Zapisz trasy”.
+- **Dane miesiąca**: liczba kursów (puste = z grafiku, dzień z trasą = kurs), dodatkowe km w miesiącu, koszty dodatkowe (np. prom, mandat) i przychód z faktury (puste = ze stawki). „Zapisz miesiąc”.
+- **Wynik tras**: kursy, km, dodatkowe km, przychód, koszt auta, koszty trasy, kierowca, zysk, zysk na kurs i marża – od najsłabszej trasy.
+- Koszt auta = (km tras + dodatkowe km) × koszt 1 km auta: paliwo (średnie spalanie floty × średnia cena litra z kart) + pozostałe koszty aut na km z Rozliczenia aut (średnia z 3 ostatnich pełnych miesięcy). Dodatkowe km to km bez przychodu – na górze widać, ile kosztują w miesiącu.
+
+## Lokalizatory GPS – Geotab (Ustawienia)
+
+- Co rano funkcja pobiera z Geotab stan licznika każdego busa (tabela `gps_odometer`, migracja 033) i zapisuje najwyższy odczyt dnia; aktualny przebieg auta podnosi się sam.
+- Km z GPS są używane w Rozliczeniu aut, rentowności i spalaniu (gdy lokalizator obejmuje cały okres: km z GPS, litry z kart). Na karcie auta: „Przebieg GPS”.
+- **Liczniki do sprawdzenia**: licznik wpisany na stacji lub przy przejęciu, który różni się od GPS z tego dnia o ponad 300 km, ma rodzaj „niezgodny z GPS”.
+- Podłączenie (jednorazowo): w MyGeotab użytkownik tylko do odczytu → w Supabase → Edge Functions → Secrets: `GEOTAB_DATABASE`, `GEOTAB_USER`, `GEOTAB_PASSWORD` (hasło wpisuje tylko właściciel) → Ustawienia → „Synchronizuj teraz” (pierwszy raz 3 miesiące wstecz). Urządzenia przypisują się po numerze rejestracyjnym, nazwie albo VIN; niedopasowane można przypisać ręcznie w tabeli urządzeń.

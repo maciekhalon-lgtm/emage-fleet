@@ -91,3 +91,45 @@ document.addEventListener('click', async e => {
   } catch(err){ toast('Nie udało się: ' + (err.message || err)); }
   finally { b.disabled = false; b.textContent = old; }
 }, true);
+
+/* ---------- Lokalizatory Geotab: status synchronizacji, ręczne przypisanie urządzeń ---------- */
+const geotabSt = () => (S.settings.find(x => x.id==='geotab') || {});
+const geotabMap = () => ((S.settings.find(x => x.id==='geotab_map') || {}).map) || {};
+function geotabPanel(){
+  if (!P().manage) return '';
+  const st = geotabSt(), map = geotabMap(), gpsOn = optOn('gpsOdometer');
+  const vs = S.vehicles.filter(v => v.status!=='wycofany').sort((a, b) => a.plate.localeCompare(b.plate));
+  const last = gpsOn && S.gpsOdometer.length ? S.gpsOdometer.reduce((m, g) => g.day > m ? g.day : m, '') : '';
+  const badge = !gpsOn ? '<span class="pill off">wymaga migracji 033</span>' : st.ok ? '<span class="pill ok">działa</span>' : st.error ? '<span class="pill bad">błąd</span>' : '<span class="pill off">nie podłączono</span>';
+  const devs = Array.isArray(st.deviceList) ? st.deviceList : [];
+  return `<div class="panel"><div class="sec-head"><h3>Lokalizatory GPS (Geotab)</h3>${badge}</div><div class="re-box">
+    ${st.ok ? `<p style="margin:0">Ostatnia synchronizacja: <b>${esc(new Date(st.at).toLocaleString('pl-PL'))}</b> · urządzeń ${st.devices}, przypisanych do aut ${st.matched}${last ? ` · przebiegi do ${fdate(last)}` : ''}.</p>` : ''}
+    ${st.error ? `<p class="warnline" style="margin:0">Geotab: ${esc(st.error)}</p>` : ''}
+    <p class="muted" style="margin:0">Co rano aplikacja pobiera z Geotab stan licznika każdego busa. Z tego liczy przejechane km (Rozliczenie aut, rentowność, spalanie) i wyłapuje liczniki wpisane na stacji niezgodnie z GPS.</p>
+    ${gpsOn ? `<span class="re-btns"><button class="small" data-action="geo-sync">Synchronizuj teraz</button></span>` : ''}
+    ${devs.length ? `<div class="tablewrap"><table><thead><tr><th>Urządzenie</th><th>Auto</th></tr></thead><tbody>${devs.map(d => `<tr><td>${esc(d.name || d.plate || d.id)}${d.plate && d.plate!==d.name ? `<span class="sub muted">${esc(d.plate)}</span>` : ''}</td>
+      <td><select data-geo-dev="${esc(d.id)}" aria-label="Auto dla ${esc(d.name || d.id)}"><option value="">${d.vehicle && !map[d.id] ? `auto: ${esc(d.vehicle)}` : '— nie przypisano —'}</option>${vs.map(v => `<option value="${esc(v.id)}" ${map[d.id]===v.id ? 'selected' : ''}>${esc(v.plate)}</option>`).join('')}</select></td></tr>`).join('')}</tbody></table></div>
+      <p class="muted small" style="margin:0">Urządzenia przypisują się same po numerze rejestracyjnym, nazwie albo VIN. Jeśli któreś się nie dopasowało, wybierz auto ręcznie – zmiana działa od następnej synchronizacji.</p>` : ''}
+    <details><summary class="small"><b>Jak podłączyć</b> (jednorazowo)</summary><ol class="small muted" style="margin:8px 0 0;padding-left:18px">
+      <li>W MyGeotab: Administracja → Użytkownicy → dodaj użytkownika tylko do odczytu (np. „emage-fleet”, rola z podglądem pojazdów i danych silnika).</li>
+      <li>W Supabase → Edge Functions → Secrets dodaj: <b>GEOTAB_DATABASE</b> (nazwa bazy z adresu MyGeotab), <b>GEOTAB_USER</b> (login), <b>GEOTAB_PASSWORD</b> (hasło). Hasło wpisujesz tylko Ty.</li>
+      <li>Kliknij „Synchronizuj teraz” – za pierwszym razem pobierze ostatnie 3 miesiące.</li></ol></details>
+  </div></div>`;
+}
+document.addEventListener('click', async e => {
+  const b = e.target.closest('[data-action="geo-sync"]'); if (!b) return;
+  e.preventDefault(); e.stopPropagation();
+  b.disabled = true; const old = b.textContent; b.textContent = 'Pobieram z Geotab…';
+  try {
+    const {data, error} = await sb.functions.invoke('powiadomienia', {body: {geotabSync: true}});
+    if (error) throw error;
+    if (data && data.ok){ toast(`Geotab: ${data.matched} z ${data.devices} urządzeń, ${data.days} dni przebiegów`); await Promise.all(['settings', 'gpsOdometer', 'vehicles'].map(c => refresh(c))); render(); }
+    else toast('Geotab: ' + ((data && (data.error || data.geotab)) || 'brak odpowiedzi'));
+  } catch(err){ toast('Nie udało się: ' + (err.message || err)); }
+  finally { b.disabled = false; b.textContent = old; }
+}, true);
+document.addEventListener('change', async e => {
+  const s = e.target.closest && e.target.closest('[data-geo-dev]'); if (!s) return;
+  const map = {...geotabMap()}; if (s.value) map[s.dataset.geoDev] = s.value; else delete map[s.dataset.geoDev];
+  try { await db.collection('settings').doc('geotab_map').set({map}); toast('Zapisano – zadziała przy następnej synchronizacji'); } catch(err){ handleWriteErr(err); }
+});

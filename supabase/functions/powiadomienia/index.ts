@@ -213,6 +213,84 @@ export function digest(items: {pri: number; text: string}[], title?: string){
 }
 // ===== KONIEC LOGIKI =====
 
+
+/* ---------- Geotab (lokalizatory GPS): dzienne stany licznika → tabela gps_odometer (migracja 033) ---------- */
+export const normPlate = (x: string) => String(x || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+/* Licznik z Geotab: StatusData w metrach; gdy wartość wygląda na km (auta < 3 mln km), zostawiamy */
+export const odoKm = (v: number) => v > 3e6 ? v / 1000 : v;
+/* Dopasowanie urządzenia do auta: ręczna mapa → numer rejestracyjny → nazwa urządzenia → VIN */
+export function matchDevices(devices: Row[], vehicles: Row[], manual: Record<string, string>){
+  const byPlate = new Map(vehicles.filter(v => v.status !== 'wycofany').map(v => [normPlate(v.plate), v]));
+  const byVin = new Map(vehicles.filter(v => v.vin).map(v => [String(v.vin).toUpperCase(), v]));
+  const map = new Map<string, Row>(), unmatched: string[] = [];
+  for (const d of devices){
+    let v: Row | undefined = manual[d.id] ? vehicles.find(x => x.id === manual[d.id]) : undefined;
+    if (!v) v = byPlate.get(normPlate(d.licensePlate)) || byPlate.get(normPlate(d.name));
+    if (!v){ const n = normPlate(d.name); v = vehicles.find(x => x.status !== 'wycofany' && n && n.includes(normPlate(x.plate))); }
+    if (!v && d.vehicleIdentificationNumber) v = byVin.get(String(d.vehicleIdentificationNumber).toUpperCase());
+    if (v) map.set(d.id, v); else unmatched.push(String(d.name || d.licensePlate || d.serialNumber || d.id));
+  }
+  return {map, unmatched};
+}
+/* Najwyższy licznik na auto i dzień (strefa Europe/Warsaw) */
+export function dailyMax(readings: Row[], map: Map<string, Row>){
+  const day = (iso: string) => new Intl.DateTimeFormat('sv-SE', {timeZone: 'Europe/Warsaw'}).format(new Date(iso));
+  const out = new Map<string, {vehicle_id: string; day: string; km: number; device: string}>();
+  for (const r of readings){
+    const v = map.get(r.device && r.device.id); if (!v || r.data == null || !r.dateTime) continue;
+    const km = Math.round(odoKm(Number(r.data)) * 10) / 10; if (!(km > 0)) continue;
+    const k = v.id + '|' + day(r.dateTime), o = out.get(k);
+    if (!o || km > o.km) out.set(k, {vehicle_id: v.id, day: day(r.dateTime), km, device: r.device.id});
+  }
+  return [...out.values()];
+}
+async function geotabSync(sb: any, key: (k: string) => string, days: number){
+  const db = key('GEOTAB_DATABASE'), user = (Deno.env.get('GEOTAB_USER') || '').trim(), pass = (Deno.env.get('GEOTAB_PASSWORD') || '').trim();
+  const status = async (o: Record<string, unknown>) => { await sb.from('settings').upsert({key: 'geotab', value: {...o, at: new Date().toISOString()}}, {onConflict: 'key'}); return o; };
+  if (!db || !user || !pass) return {geotab: 'brak sekretów GEOTAB_DATABASE / GEOTAB_USER / GEOTAB_PASSWORD'};
+  const host0 = (Deno.env.get('GEOTAB_SERVER') || 'my.geotab.com').trim().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+  const rpc = async (host: string, method: string, params: Record<string, unknown>) => {
+    const r = await fetch(`https://${host}/apiv1`, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({method, params})});
+    const j = await r.json().catch(() => ({}));
+    if (j.error) throw new Error((j.error.errors && j.error.errors[0] && j.error.errors[0].name ? j.error.errors[0].name + ': ' : '') + (j.error.message || 'błąd Geotab'));
+    return j.result;
+  };
+  try {
+    const auth = await rpc(host0, 'Authenticate', {database: db, userName: user, password: pass});
+    const host = !auth.path || auth.path === 'ThisServer' ? host0 : String(auth.path).replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+    const cred = auth.credentials;
+    const devices: Row[] = await rpc(host, 'Get', {typeName: 'Device', credentials: cred, resultsLimit: 5000});
+    const {data: vehicles} = await sb.from('vehicles').select('id, plate, vin, status');
+    const {data: mrow} = await sb.from('settings').select('value').eq('key', 'geotab_map').maybeSingle();
+    const {map, unmatched} = matchDevices(devices, vehicles || [], (mrow && mrow.value && mrow.value.map) || {});
+    const to = new Date(), rows: Row[] = [];
+    // po 10 dni naraz, oba liczniki (skorygowany pierwszy – ten pokazuje MyGeotab)
+    for (let back = days; back > 0; back -= 10){
+      const fromDate = new Date(to.getTime() - back * DAY).toISOString(), toDate = new Date(to.getTime() - Math.max(0, back - 10) * DAY).toISOString();
+      for (const diag of ['DiagnosticOdometerAdjustmentId', 'DiagnosticOdometerId']){
+        const got: Row[] = await rpc(host, 'Get', {typeName: 'StatusData', credentials: cred, resultsLimit: 50000, search: {diagnosticSearch: {id: diag}, fromDate, toDate}});
+        // licznik surowy tylko dla urządzeń bez skorygowanego
+        const have = new Set(rows.map(r => r.device && r.device.id));
+        got.forEach(r => { if (diag === 'DiagnosticOdometerAdjustmentId' || !have.has(r.device && r.device.id)) rows.push(r); });
+      }
+    }
+    const daily = dailyMax(rows, map);
+    for (let i = 0; i < daily.length; i += 500){
+      const {error} = await sb.from('gps_odometer').upsert(daily.slice(i, i + 500).map(x => ({...x, updated_at: new Date().toISOString()})), {onConflict: 'vehicle_id,day'});
+      if (error) throw new Error('zapis: ' + error.message);
+    }
+    // aktualny przebieg auta: ostatni licznik z GPS, jeśli większy niż zapisany
+    const last = new Map<string, number>(); daily.forEach(x => { if (!last.has(x.vehicle_id) || x.km > (last.get(x.vehicle_id) as number)) last.set(x.vehicle_id, x.km); });
+    let upd = 0;
+    for (const [vid, km] of last){ const v = (vehicles || []).find((x: Row) => x.id === vid); const {data: cur} = await sb.from('vehicles').select('km').eq('id', vid).maybeSingle();
+      if (v && (!cur || !cur.km || Number(cur.km) < km)){ await sb.from('vehicles').update({km: Math.round(km)}).eq('id', vid); upd++; } }
+    return await status({ok: true, devices: devices.length, matched: map.size, unmatched, readings: rows.length, days: daily.length, kmUpdated: upd,
+      deviceList: devices.map(d => ({id: d.id, name: d.name || '', plate: d.licensePlate || '', vehicle: map.get(d.id) ? map.get(d.id)!.plate : null}))});
+  } catch (e) {
+    return await status({ok: false, error: String((e as Error).message || e).slice(0, 300)});
+  }
+}
+
 const json = (o: unknown, status = 200) => new Response(JSON.stringify(o), {status, headers: {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type'}});
 
 Deno.serve(async (req) => {
@@ -290,6 +368,13 @@ Deno.serve(async (req) => {
     return json({event: true, users: out.length, report: out});
   }
 
+  const gpsReq = !!(testUser && body && body.geotabSync);
+  if (gpsReq){
+    const {data: me} = await sb.from('profiles').select('role, status').eq('id', testUser).maybeSingle();
+    if (!me || me.role !== 'floty' || me.status !== 'active') return json({error: 'Synchronizację GPS uruchamia kierownik floty'}, 403);
+    const {count} = await sb.from('gps_odometer').select('id', {count: 'exact', head: true});
+    return json(await geotabSync(sb, key, Math.min(Number(body.days) || (count ? 7 : 92), 120)));
+  }
   const emailTest = !!(testUser && body && body.emailTest);
   if (testUser && !emailTest){
     const r = await send(testUser, {title: 'Emage FLEET', body: 'Powiadomienia działają na tym urządzeniu.', url: './', tag: 'test'});
@@ -336,6 +421,7 @@ Deno.serve(async (req) => {
     return json({emailTest: true, ...(await mailWeekly())});
   }
   const report: Record<string, unknown>[] = [];
+  if (key('GEOTAB_DATABASE')) report.push({geotab: await geotabSync(sb, key, 3)});
   for (const p of d.profiles.filter(x => x.status === 'active')){
     const items = itemsFor(p, d, today);
     if (!items.length) continue;

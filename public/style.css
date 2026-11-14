@@ -1588,3 +1588,17 @@ tr.on td{background:var(--accent-soft)}
 .kpi b{font-size:clamp(22px,3.2vw,34px)}
 
 .re-box{display:flex;flex-direction:column;gap:12px;padding:0 22px 20px}.re-btns{display:flex;gap:8px;flex-wrap:wrap}
+
+/* rentowność tras – edytowalne tabele */
+.rt-tbl input.rt-in,.rt-tbl select.rt-in{min-width:96px;padding:7px 9px}
+.rt-tbl td{vertical-align:middle}
+.fc-meta .sub{display:block;margin-top:2px}
+@media (max-width:820px){
+  .rt-tbl,.rt-tbl tbody,.rt-tbl tr,.rt-tbl td{display:block;width:100%}
+  .rt-tbl thead{display:none}
+  .rt-tbl tr{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 10px;padding:12px 14px;border-bottom:1px solid var(--line)}
+  .rt-tbl td{border:0!important;padding:0!important;position:static!important;box-shadow:none!important;background:none!important}
+  .rt-tbl td:first-child{grid-column:1/-1}
+  .rt-tbl td[data-l]::before{content:attr(data-l);display:block;font-size:12px;color:var(--muted);margin-bottom:3px}
+  .rt-tbl input.rt-in,.rt-tbl select.rt-in{width:100%;min-width:0}
+}

@@ -7,7 +7,7 @@ const GROUPS = {
   rezerwacje: [['przydzial','Grafik', () => true], ['trasy','Trasy', () => !!P().manage]],
   serwis:     [['usterki','Usterki', () => true], ['terminy','Terminy', () => true], ['ksiazka','Książka serwisowa', () => !!P().service], ['plan','Plan serwisu', () => planOn()], ['opony','Opony', () => tiresOn()], ['wyposazenie','Wyposażenie', () => eqOn()]],
   paliwo:     [['karty','Karty', () => !!P().manage], ['spalanie','Spalanie i liczniki', () => !!P().manage], ['oplaty','Opłaty drogowe', () => !!P().manage]],
-  koszty:     [['koszty','Koszty', () => true], ['rozliczenie','Rozliczenie aut', () => !!P().manage], ['rentownosc','Rentowność', () => !!P().manage], ['umowy','Leasing i umowy', () => contractsOn()], ['raporty','Raporty', () => !!P().reports]],
+  koszty:     [['koszty','Koszty', () => true], ['rozliczenie','Rozliczenie aut', () => !!P().manage], ['rentownosc','Rentowność', () => !!P().manage], ['trasy-zysk','Rentowność tras', () => !!P().manage], ['umowy','Leasing i umowy', () => contractsOn()], ['raporty','Raporty', () => !!P().reports]],
   ludzie:     [['kierowcy','Kierowcy', () => true], ['uzytkownicy','Użytkownicy', () => !!P().manage]],
   ustawienia: [['ustawienia','Ustawienia', () => !!P().manage], ['historia','Historia zmian', () => !!P().history]],
 };
@@ -140,6 +140,7 @@ function viewSettings(){
     ${modulesPanel()}
     ${calendarPanel()}
     ${typeof reportEmailPanel==='function' ? reportEmailPanel() : ''}
+    ${typeof geotabPanel==='function' ? geotabPanel() : ''}
     ${P().manage ? `<div class="panel"><div class="sec-head"><h3>Kopia danych</h3><button class="small" data-action="backup">${ic('clip')}Pobierz kopię (JSON)</button></div><p class="muted sec-empty">Wszystkie dane floty w jednym pliku: auta, kierowcy, grafik, koszty, terminy, usterki, książka serwisowa, karty paliwowe, trasy i przystanki. Zrób kopię raz w miesiącu i trzymaj ją na dysku firmy. Zdjęcia i skany zostają w Supabase.</p></div>` : ''}
     ${checksSettingsPanel()}
     ${checklistPanel()}

@@ -19,6 +19,7 @@ function odoReadings(vid){
     if (b.pickup && !fakeOdo(b.pickup.km)) out.push({id:'p' + b.id, d: b.pickup.at, t: '', odo: Number(b.pickup.km), src:'przejęcie', note: crewName(b)});
     if (b.returned && !fakeOdo(b.returned.km)) out.push({id:'z' + b.id, d: b.returned.at, t: '', odo: Number(b.returned.km), src:'zdanie', note: crewName(b)});
   });
+  (S.gpsOdometer || []).forEach(g => { if (g.vehicleId===vid && Number(g.km) > 0) out.push({id:'g' + g.id, d: g.day, t: '23:59', odo: Number(g.km), src:'GPS', note: 'lokalizator'}); });
   // ten sam dzień: kolejność po liczniku (przejęcie rano, tankowania, zdanie wieczorem)
   return out.filter(x => x.d).sort((a, b) => a.d.localeCompare(b.d) || a.odo - b.odo || a.t.localeCompare(b.t));
 }
@@ -38,8 +39,32 @@ function odoRange(vid, from, to){
   return {km: kmS, xs, bad, first: ok[0] || null, last: ok[ok.length - 1] || null, anchor: anc, breaks: seg.breaks};
 }
 
-/* Spalanie auta w zakresie: karta (z ostatnim tankowaniem sprzed zakresu, jeśli ≤ 7 dni), a gdy brak – wpisy kierowców */
+/* Przebieg z lokalizatora GPS w zakresie: od ostatniego odczytu sprzed zakresu (≤ 3 dni) do ostatniego w zakresie.
+   null, gdy brak pokrycia (lokalizator nie raportował na początku albo na końcu okresu). */
+function gpsRange(vid, from, to){
+  const xs = (S.gpsOdometer || []).filter(g => g.vehicleId===vid && Number(g.km) > 0).sort((a, b) => a.day.localeCompare(b.day));
+  if (xs.length < 2) return null;
+  const before = xs.filter(g => g.day < from), inR = xs.filter(g => g.day >= from && g.day <= to);
+  const a = before.length && diffDays(before[before.length - 1].day, from) <= 3 ? before[before.length - 1] : (inR[0] && diffDays(from, inR[0].day) <= 3 ? inR[0] : null);
+  const b = inR[inR.length - 1];
+  if (!a || !b || a===b) return null;
+  const endGap = diffDays(b.day, to < today() ? to : today());
+  if (endGap > 3) return null;
+  const km_ = Number(b.km) - Number(a.km);
+  return km_ >= 0 ? {km: km_, from: a.day, to: b.day} : null;
+}
+/* Spalanie auta w zakresie: gdy jest lokalizator GPS – litry z kart (a bez kart z wpisów kierowców) / km z GPS;
+   inaczej karta (z ostatnim tankowaniem sprzed zakresu, jeśli ≤ 7 dni), a gdy brak – wpisy kierowców */
 function consRange(vid, from, to){
+  const base = consRangeOdo(vid, from, to), g = gpsRange(vid, from, to);
+  if (!g || g.km < 300) return base;
+  const cards = S.fuelCardRows.filter(r => r.vehicleId===vid && r.kind!=='other' && r.txDate > g.from && r.txDate <= g.to);
+  const fills = cards.length ? cards.map(r => Number(r.liters) || 0) : appFuel().filter(c => c.vehicleId===vid && c.date > g.from && c.date <= g.to).map(c => Number(c.liters) || 0);
+  const l = fills.reduce((s, x) => s + x, 0); if (!l) return base;
+  const rate = l / g.km * 100;
+  return {...base, km: g.km, l, rate, from: g.from, to: g.to, n: fills.length, src: 'gps', unsure: rate < 4 || rate > 25, gps: true};
+}
+function consRangeOdo(vid, from, to){
   const pick = (list, d) => { const before = list.filter(x => d(x) < from).sort((a, b) => d(a).localeCompare(d(b))), inR = list.filter(x => d(x) >= from && d(x) <= to);
     const anc = before.length && diffDays(d(before[before.length - 1]), from) <= 7 ? [before[before.length - 1]] : []; return anc.concat(inR); };
   const card = fcCons(pick(S.fuelCardRows.filter(r => r.vehicleId===vid && r.kind!=='other'), r => r.txDate).map(r => ({id: r.id, odo: Number(r.odometer), l: r.liters, d: r.txDate + ' ' + (r.txTime || '')})));
@@ -60,10 +85,10 @@ function fleetConsumption(vid){
 /* „Dlaczego tak dużo?” – rozbicie wysokiego spalania auta na przyczyny w danych (tankowania bez licznika,
    tankowania niemożliwe dla jednego auta, pominięte liczniki, brak grafiku) i szacunek nadwyżki w litrach i złotych */
 function consWhy(v, c, fleetRate){
-  if (!c || c.rate==null || !c.km || c.src!=='karta' || !fleetRate || c.rate < Math.max(fleetRate * 1.2, fleetRate + 2)) return '';
+  if (!c || c.rate==null || !c.km || (c.src!=='karta' && c.src!=='gps') || !fleetRate || c.rate < Math.max(fleetRate * 1.2, fleetRate + 2)) return '';
   const from = c.from, to = c.to;
   const rows = S.fuelCardRows.filter(r => r.vehicleId===v.id && r.kind!=='other' && r.txDate > from && r.txDate <= to);
-  const fake = rows.filter(r => c.fake && c.fake.has(r.id)), fakeL = fake.reduce((s, r) => s + Number(r.liters || 0), 0);
+  const fake = c.src==='gps' ? [] : rows.filter(r => c.fake && c.fake.has(r.id)), fakeL = fake.reduce((s, r) => s + Number(r.liters || 0), 0);
   const imp = typeof fcSuspicious==='function' ? fcSuspicious().filter(x => x.lvl==='bad' && x.row.vehicleId===v.id && x.row.txDate >= from && x.row.txDate <= to) : [];
   const impL = imp.reduce((s, x) => s + Number(x.row.liters || 0), 0);
   const tank = Number(v.tankL) || 90;
@@ -79,6 +104,7 @@ function consWhy(v, c, fleetRate){
     fake.length ? ['warn', `<b>${fake.length} ${isPlural(fake.length,'tankowanie','tankowania','tankowań')} bez licznika</b> (${fl(fakeL)}) – nie wiadomo, ile auto przy nich przejechało. Bez nich spalanie wyszłoby <b>${r1(noFake)} l/100 km</b>.`, fake.slice().sort((a, b) => (a.txDate + (a.txTime || '')).localeCompare(b.txDate + (b.txTime || ''))).slice(-6).map(r => `${fdate(r.txDate).slice(0, 5)} ${esc(r.station || '')} ${fl(r.liters)}`).join(' · ')] : null,
     imp.length ? ['bad', `<b>${imp.length} ${isPlural(imp.length,'tankowanie niemożliwe','tankowania niemożliwe','tankowań niemożliwych')} dla jednego auta</b> (${fl(impL)})${overL ? `, w tym ${fl(overL)} ponad pojemność baku` : ''} – tankowany drugi pojazd albo kanister.`, imp.slice().sort((a, b) => a.row.txDate.localeCompare(b.row.txDate)).slice(-6).map(x => `${fdate(x.row.txDate).slice(0, 5)} ${esc(x.row.station || '')} ${fl(x.row.liters)}`).join(' · ')] : null,
     badOdo.length ? ['off', `<b>${badOdo.length} ${isPlural(badOdo.length,'pomylony licznik','pomylone liczniki','pomylonych liczników')}</b> – pominięte, ale przerywają odcinki.`, badOdo.slice(0, 6).map(r => `${fdate(r.txDate).slice(0, 5)}: ${esc(String(r.odometer))}`).join(' · ')] : null,
+    c.src==='gps' ? ['ok', '<b>Km z lokalizatora GPS</b> – wynik nie zależy od liczników wpisywanych na stacji, więc nadwyżka to litry, których nie przejechano tym autem.', ''] : null,
     !bk ? ['off', '<b>Auto nie ma przydziałów w grafiku</b> w tym okresie – nie da się ustalić, kto tankował. Wpisuj je w grafik, a tankowania trafią do kierowców.', ''] : null,
   ].filter(Boolean);
   return `<div class="cw"><div class="cw-head"><b>Dlaczego tak dużo?</b><span>${r1(c.rate)} l/100 km przy średniej floty ${r1(fleetRate)} – to ok. <b>${fl(Math.round(extra))}</b>${price ? ` (≈ ${zl(Math.round(extra * price))})` : ''} więcej na ${new Intl.NumberFormat('pl-PL').format(Math.round(c.km))} km.</span></div>
@@ -118,7 +144,7 @@ function viewFuelMileage(){
         <span class="sub">${c.rate!=null ? (c.unsure ? '<span class="pill off">niepewne – sprawdź liczniki</span>' : c.rate > THEFT_RATE ? '<span class="pill bad">podejrzane – możliwa kradzież</span>' : levelPill(levelFor(v.id, c.rate)) || '') : ''}</span></td>
       <td class="r num">${kmV!=null ? `<b>${nf(kmV)} km</b>` : '<span class="muted">—</span>'}${kmV && days ? `<span class="sub">${nf(kmV / days)} km / dzień</span>` : ''}</td>
       <td class="r num">${c.l ? fl(c.l) : '—'}</td>
-      <td class="muted small">${c.src ? (c.src==='karta' ? 'z kart paliwowych' : 'z wpisów kierowców') : ''}${c.from ? `<span class="sub">${fdate(c.from)} – ${fdate(c.to)}</span>` : ''}</td>
+      <td class="muted small">${c.src ? (c.src==='gps' ? 'km z GPS, litry z kart' : c.src==='karta' ? 'z kart paliwowych' : 'z wpisów kierowców') : ''}${c.from ? `<span class="sub">${fdate(c.from)} – ${fdate(c.to)}</span>` : ''}</td>
       <td>${notes.map(n => `<span class="pill off">${esc(n)}</span>`).join(' ')}${!open && consWhy(v, c, fleetRate) ? ' <span class="pill warn">Dlaczego tak dużo? – kliknij</span>' : ''}</td></tr>${det}`;
   }).join('');
   return head + `<div class="panel fc-meta"><div><span class="label">Zakres</span><b>${all ? 'całość danych' : fdate(pbFrom) + ' – ' + fdate(pbTo)}</b></div>
