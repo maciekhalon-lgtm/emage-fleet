@@ -3,5 +3,7 @@
 {
   "name": "emage-fleet",
   "compatibility_date": "2026-11-13",
-  "assets": { "directory": "./public" }
+  "assets": { "directory": "./public" },
+  // podgląd innych gałęzi (np. main) pod adresem <gałąź>-emage-fleet.maciekhalon.workers.dev
+  "previews": {}
 }
