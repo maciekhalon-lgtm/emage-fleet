@@ -175,26 +175,19 @@ function printWorkOrders(id){
   let el = $('#print-area'); if (!el){ el = document.createElement('div'); el.id = 'print-area'; document.body.appendChild(el); }
   const head = sub => `<div class="pa-h"><div><b>Emage Group</b><span>Zlecenie dla warsztatu ${esc(o.no || '')}</span></div><div class="pa-r">${fdate(o.date)}${sub ? `<br>${sub}` : ''}</div></div>`;
   const cars = Object.keys(byV);
-  el.innerHTML = `<div class="pa">${head('')}
-      <h1>Zlecenie ${esc(o.no || '')}</h1>
-      <table class="pa-t"><tr><th>Warsztat</th><td><b>${esc(o.workshop || (w ? w.name : ''))}</b>${w ? `<br>${esc([w.address, w.phone].filter(Boolean).join(' · '))}` : ''}</td></tr>
-        <tr><th>Data oddania</th><td>${fdate(o.date)}</td></tr><tr><th>Auta</th><td>${cars.map(vid => esc((byId('vehicles', vid) || {}).plate || '')).join(', ')}</td></tr>
-        ${o.note ? `<tr><th>Uwagi</th><td>${esc(o.note).replace(/\n/g, '<br>')}</td></tr>` : ''}</table>
-      <p class="pa-s">Każde auto ma poniżej osobną kartkę z zakresem prac. Prosimy o wpisanie przebiegu przy oddaniu, wykonanych prac i kosztów.</p></div>
-    ${cars.map((vid, n) => { const v = byId('vehicles', vid) || {}, sk = svcKm(vid);
-      return `<div class="pa pa-page">${head(`auto ${n + 1} z ${cars.length}`)}
-        <h1>${esc(v.plate || '')} · ${esc([v.make, v.model].filter(Boolean).join(' '))}</h1>
-        <table class="pa-t"><tr><th>VIN</th><td>${esc(v.vin || '')}</td></tr><tr><th>Rok / paliwo</th><td>${esc([v.year, v.fuel].filter(Boolean).join(' · '))}</td></tr>
-          <tr><th>Przebieg przy oddaniu</th><td>${sk.km ? km(sk.km) : ''} &nbsp; (sprawdź: ______________ km)</td></tr>
-          ${v.tireSize ? `<tr><th>Rozmiar opon</th><td>${esc(v.tireSize)}</td></tr>` : ''}
-          <tr><th>Warsztat</th><td>${esc(o.workshop || (w ? w.name : ''))} · oddanie ${fdate(o.date)}</td></tr>
-          ${o.note ? `<tr><th>Uwagi do zlecenia</th><td>${esc(o.note).replace(/\n/g, '<br>')}</td></tr>` : ''}</table>
-        <h2>Do zrobienia</h2>
-        <table class="pa-t wo-t"><tr><th style="width:24px"></th><th>Zakres</th><th style="width:30%">Uwagi warsztatu</th></tr>
+  // jeden dokument: nagłówek zlecenia + auta po kolei; nowa kartka tylko, gdy auto nie mieści się na bieżącej
+  el.innerHTML = `<div class="pa wo-print">${head('')}
+      <table class="pa-t"><tr><th>Warsztat</th><td><b>${esc(o.workshop || (w ? w.name : ''))}</b>${w && (w.address || w.phone) ? ` · ${esc([w.address, w.phone].filter(Boolean).join(' · '))}` : ''}</td></tr>
+        <tr><th>Data oddania</th><td>${fdate(o.date)}</td></tr>
+        ${o.note ? `<tr><th>Uwagi do zlecenia</th><td>${esc(o.note).replace(/\n/g, '<br>')}</td></tr>` : ''}</table>
+    ${cars.map(vid => { const v = byId('vehicles', vid) || {}, sk = svcKm(vid);
+      return `<div class="wo-car"><h1>${esc(v.plate || '')} · ${esc([v.make, v.model].filter(Boolean).join(' '))}</h1>
+        <table class="pa-t wo-v"><tr><th>VIN</th><td>${esc(v.vin || '')}</td><th>Rok / paliwo</th><td>${esc([v.year, v.fuel].filter(Boolean).join(' · '))}</td></tr>
+          <tr><th>Przebieg</th><td>${sk.km ? km(sk.km) : ''} (sprawdź: __________ km)</td><th>Opony</th><td>${esc(v.tireSize || '')}</td></tr></table>
+        <table class="pa-t wo-t"><tr><th style="width:24px"></th><th>Do zrobienia</th><th style="width:32%">Uwagi warsztatu, części, koszt</th></tr>
           ${byV[vid].map(x => `<tr><td>${box}</td><td><b>${esc(x.title)}</b>${woItemInfo(x).map(t => `<br><span class="pa-s">${esc(t).replace(/\n/g, '<br>')}</span>`).join('')}</td><td></td></tr>`).join('')}
-          ${[1, 2].map(() => `<tr><td>${box}</td><td>&nbsp;</td><td></td></tr>`).join('')}</table>
-        <h2>Koszt i części</h2><div class="pa-desc" style="min-height:80px"></div>
-        <div class="pa-sign"><div>Zlecający (Emage)</div><div>Warsztat – przyjęcie</div><div>Odbiór auta</div></div></div>`; }).join('')}`;
+          <tr><td>${box}</td><td>&nbsp;</td><td></td></tr></table></div>`; }).join('')}
+      <div class="pa-sign wo-car"><div>Zlecający (Emage)</div><div>Warsztat – przyjęcie</div><div>Odbiór ${cars.length > 1 ? 'aut' : 'auta'}</div></div></div>`;
   document.documentElement.classList.add('print-doc');
   setTimeout(() => { window.print(); document.documentElement.classList.remove('print-doc'); }, 60);
 }

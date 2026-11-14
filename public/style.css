@@ -1727,3 +1727,6 @@ html[data-env="test"] body{padding-top:20px}
 }
 .wo-sum li .sub,.wf-items .sub{display:block;font-size:12.5px;color:var(--muted)}
 .wo-sum li{margin-bottom:6px}.wf-items .check{align-items:flex-start}
+.wo-print h1{font-size:17px;margin:14px 0 6px}.wo-print .pa-t{margin-bottom:6px}
+@media print{ html.print-doc .wo-car{break-inside:avoid;page-break-inside:avoid} }
+.wo-v{table-layout:fixed;width:100%}.wo-v th{width:14%}.wo-v td{width:36%}
