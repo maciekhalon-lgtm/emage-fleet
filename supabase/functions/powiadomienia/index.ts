@@ -267,7 +267,20 @@ export function judge(dist: number | null, place: string, station: string){
   if (dist != null) return dist <= 30 || sameTown ? true : (dist > 50 ? false : null);
   return sameTown ? true : null;
 }
+/* Położenie stacji: geokodowanie nazwy, chyba że busy (co najmniej 2 różne) zgodnie tankowały gdzie indziej –
+   wtedy środek ich pozycji. Jeden bus nie może „przesunąć” stacji, więc nie ukryje to kradzieży na jednej karcie. */
+export function stationPoint(g: {lat: number; lng: number} | null, pts: [number, number, string, string?][]){
+  if (pts.length < 3) return g;
+  const P = pts.map(p => ({lat: p[0], lng: p[1], v: p[2]}));
+  let best = P[0], bestSum = Infinity;
+  for (const a of P){ const sum = P.reduce((s, b) => s + haversineKm(a, b), 0); if (sum < bestSum){ bestSum = sum; best = a; } }
+  const near = P.filter(b => haversineKm(best, b) <= 15);
+  if (near.length / P.length < 0.6 || new Set(near.map(b => b.v)).size < 2) return g;
+  if (g && haversineKm(g, best) <= 20) return g;
+  return {lat: best.lat, lng: best.lng};
+}
 async function fuelGpsCheck(sb: any, rpc: (h: string, m: string, p: Record<string, unknown>) => Promise<any>, host: string, cred: unknown, devOf: Map<string, string>, limit: number){
+  await sb.from('fuel_card_rows').update({gps_checked_at: null}).eq('gps_ok', false).gte('tx_date', new Date(Date.now() - 120 * DAY).toISOString().slice(0, 10));
   const {data: rows} = await sb.from('fuel_card_rows').select('id, vehicle_id, tx_date, tx_time, station, kind').is('gps_checked_at', null).neq('kind', 'other').not('vehicle_id', 'is', null)
     .gte('tx_date', new Date(Date.now() - 120 * DAY).toISOString().slice(0, 10)).order('tx_date', {ascending: false}).limit(limit);
   const todo = (rows || []).filter((r: Row) => devOf.has(r.vehicle_id) && r.tx_time);
@@ -294,18 +307,25 @@ async function fuelGpsCheck(sb: any, rpc: (h: string, m: string, p: Record<strin
   // 3) położenie stacji (geokodowanie nazwy, pamiętane w ustawieniach 'station_geo')
   const {data: gRow} = await sb.from('settings').select('value').eq('key', 'station_geo').maybeSingle();
   const geo: Record<string, {lat: number; lng: number} | null> = (gRow && gRow.value && gRow.value.map) || {};
+  // gdzie faktycznie stały busy przy tankowaniu na danej stacji (do 40 ostatnich) – poprawia geokodowanie
+  // nazw, które w Polsce się powtarzają (np. Łagów pod Zgorzelcem i Łagów w lubuskim)
+  const seen: Record<string, [number, number, string, string][]> = (gRow && gRow.value && gRow.value.seen) || {};
+  todo.forEach((r: Row) => { const p = pos.get(r.id), st = String(r.station || '').trim(); if (!p || !st) return;
+    const id = String(r.id).slice(0, 8);
+    seen[st] = [...(seen[st] || []).filter(x => x[3] !== id), [Math.round(p.lat * 1e4) / 1e4, Math.round(p.lng * 1e4) / 1e4, r.vehicle_id, id] as [number, number, string, string]].slice(-40); });
   const names = [...new Set(todo.map((r: Row) => String(r.station || '').trim()).filter(n => n && !(n in geo)))];
   for (let i = 0; i < names.length; i += 50){
     const part = names.slice(i, i + 50);
     const co: Row[] = await rpc(host, 'GetCoordinates', {addresses: part.map(n => n + ', Polska'), credentials: cred}).catch(() => []);
     part.forEach((n, j) => { const c = co && co[j]; geo[n] = c && c.x != null && c.y != null ? {lat: c.y, lng: c.x} : null; });
   }
-  if (names.length) await sb.from('settings').upsert({key: 'station_geo', value: {map: geo}}, {onConflict: 'key'});
+  await sb.from('settings').upsert({key: 'station_geo', value: {map: geo, seen}}, {onConflict: 'key'});
+  const point = (st: string) => stationPoint(geo[st] || null, seen[st] || []);
   // 4) zapis wyniku
   let bad = 0;
   const now = new Date().toISOString();
   for (const r of todo){
-    const p = pos.get(r.id), st = String(r.station || '').trim(), g = st ? geo[st] : null;
+    const p = pos.get(r.id), st = String(r.station || '').trim(), g = st ? point(st) : null;
     const dist = p && g ? Math.round(haversineKm(p, g) * 10) / 10 : null;
     const ok = p ? judge(dist, place.get(r.id) || '', st) : null;
     if (ok === false) bad++;
