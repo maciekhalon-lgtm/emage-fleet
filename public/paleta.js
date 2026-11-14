@@ -46,7 +46,7 @@ function palSearch(qs){
   const m = (...xs) => !n || xs.some(x => palNorm(x).includes(n));
   if (n){
     S.vehicles.filter(v => m(v.plate, v.make, v.model, v.vin)).slice(0, 6).forEach(v => res.push({ic:'truck', t: v.plate, s: `${v.make || ''} ${v.model || ''} · ${vehicleState(v).txt}`, run: () => { pendingCard = v.id; if (location.hash==='#pojazdy') route(); else location.hash = 'pojazdy'; }}));
-    if (P().manage || P().service) S.drivers.filter(d => m(d.name, d.phone)).slice(0, 5).forEach(d => res.push({ic:'user', t: d.name, s: d.phone || 'kierowca', run: () => { if (P().manage && typeof openDriverCard==='function'){ location.hash = 'kierowcy'; setTimeout(() => openDriverCard(d.id), 80); } else location.hash = 'kierowcy'; }}));
+    if (P().manage) S.drivers.filter(d => m(d.name, d.phone)).slice(0, 5).forEach(d => res.push({ic:'user', t: d.name, s: d.phone || 'kierowca', run: () => { if (P().manage && typeof openDriverCard==='function'){ location.hash = 'kierowcy'; setTimeout(() => openDriverCard(d.id), 80); } else location.hash = 'kierowcy'; }}));
     S.routes.filter(r => m(r.code, r.name)).slice(0, 4).forEach(r => res.push({ic:'route', t: `${r.code} · ${r.name}`, s: 'trasa', run: () => { location.hash = P().manage ? 'trasy' : 'przydzial'; }}));
     (S.routeStops || []).filter(s => m(s.client, s.address)).slice(0, 4).forEach(s => res.push({ic:'box', t: s.client, s: `przystanek trasy ${rCode(s.routeId)}${s.address ? ' · ' + s.address : ''}`, run: () => { location.hash = P().manage ? 'trasy' : 'moje'; }}));
   }

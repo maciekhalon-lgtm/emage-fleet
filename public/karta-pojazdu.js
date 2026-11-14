@@ -101,7 +101,7 @@ function viewCard(){
     <div class="section">${sec('Koszty (ostatnie 40)', add('costs','+ Koszt'), costRows, 'Brak kosztów.')}</div></div>`;
   else if (cardTab==='historia') body = sec('Historia', '', histHtml ? `<div class="tlist">${histHtml}</div>` : '', 'Brak wpisów – tu pojawią się koszty, usterki, naprawy i wyjazdy tego auta.');
   else body = `<div class="vf-groups">${facts}</div><div class="grid2">
-      <div class="section">${sec('Grafik', add('bookings','+ Przydział'), bkHtml, 'Brak przydziałów.')}${P().manage || P().service ? whoDroveHtml(v.id) : ''}</div>
+      <div class="section">${serviceOnly() ? '' : sec('Grafik', add('bookings','+ Przydział'), bkHtml, 'Brak przydziałów.')}${P().manage || P().service ? whoDroveHtml(v.id) : ''}</div>
       <div class="section">${sec('Dokumenty', canUpload ? `<button class="small" data-new="docs" data-veh="${esc(v.id)}">+ Dodaj plik</button>` : '', docHtml,
           'Brak dokumentów – dodaj skan dowodu rejestracyjnego, polisy lub umowy (PDF albo zdjęcie).')}</div></div>`;
   return `<div class="section">

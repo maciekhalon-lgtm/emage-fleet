@@ -2,7 +2,7 @@
 'use strict';
 const ROLES = {
   floty:    {name:'Kierownik floty',   desc:'Pełne uprawnienia, zatwierdza konta i nadaje role', perm:{vehicles:'rw',deadlines:'rw',bookings:'rw',drivers:'rw',costs:'rw',issues:'rw',docs:'rw',routes:'rw',serviceEntries:'rw',blockOverrides:'rw',tires:'rw',contracts:'rw',equipment:'rw',workshops:'rw',visits:'rw',service:true,reports:'rw',history:'r',manage:true}},
-  serwisu:  {name:'Kierownik serwisu', desc:'Pojazdy, terminy, usterki, dokumenty i koszty; podgląd grafiku', perm:{vehicles:'rw',deadlines:'rw',bookings:'r',drivers:'r',costs:'rw',issues:'rw',docs:'rw',serviceEntries:'rw',tires:'rw',contracts:'r',equipment:'rw',workshops:'rw',visits:'rw',service:true,reports:'r'}},
+  serwisu:  {name:'Kierownik serwisu', desc:'Pojazdy, terminy, usterki zgłoszone przez kierowców (obsługa, bez zgłaszania), książka serwisowa, dokumenty i koszty', perm:{vehicles:'rw',deadlines:'rw',drivers:'r',costs:'rw',issues:'rw',noIssueCreate:true,docs:'rw',serviceEntries:'rw',tires:'rw',contracts:'r',equipment:'rw',workshops:'rw',visits:'rw',service:true,reports:'r'}},
   kierowca: {name:'Kierowca',          desc:'Moje auto, grafik, załadunek, tankowania i zgłoszenia usterek', perm:{vehicles:'r',deadlines:'r',bookings:'own',drivers:'r',costs:'own',issues:'own',docs:'r',mycar:true}},
 };
 const DRIVER_CATS = ['Paliwo','Ładowanie','Myjnia','Opłaty i parkingi'];
@@ -17,7 +17,9 @@ const P = () => (ROLES[roleOf()]||{}).perm || {};
 const myDriverId = () => (me && me.driver_id) || '';
 /* Kierownik floty powiązany z wpisem kierowcy też prowadzi auta (zakładka „Moje auto”) */
 const canDrive = () => !!P().mycar || (!!P().manage && !!myDriverId());
-const canCreate = col => canWrite && ['rw','own'].includes(P()[col]);
+const canCreate = col => canWrite && ['rw','own'].includes(P()[col]) && !(col==='issues' && P().noIssueCreate);
+/* Kierownik serwisu (bez uprawnień kierownika floty): bez Grafiku i Pracowników */
+const serviceOnly = () => !!P().service && !P().manage;
 function mine(col, doc){
   if (!doc) return false;
   if (col==='costs' || col==='issues') return !!myId && doc.createdBy===myId;

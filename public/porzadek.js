@@ -4,11 +4,11 @@
 
 /* ---------- grupy menu i zakładki ---------- */
 const GROUPS = {
-  rezerwacje: [['przydzial','Grafik', () => true], ['trasy','Trasy', () => !!P().manage]],
+  rezerwacje: [['przydzial','Grafik', () => !serviceOnly()], ['trasy','Trasy', () => !!P().manage]],
   serwis:     [['usterki','Usterki', () => true], ['terminy','Terminy', () => true], ['ksiazka','Książka serwisowa', () => !!P().service], ['plan','Plan serwisu', () => planOn()], ['opony','Opony', () => tiresOn()], ['wyposazenie','Wyposażenie', () => eqOn()]],
   paliwo:     [['karty','Karty', () => !!P().manage], ['spalanie','Spalanie i liczniki', () => !!P().manage], ['oplaty','Opłaty drogowe', () => !!P().manage]],
   koszty:     [['koszty','Koszty', () => true], ['rozliczenie','Rozliczenie aut', () => !!P().manage], ['rentownosc','Rentowność', () => !!P().manage], ['raporty','Raporty', () => !!P().reports], ['umowy','Leasing i umowy', () => contractsOn()]],
-  ludzie:     [['kierowcy','Kierowcy', () => true], ['uzytkownicy','Użytkownicy', () => !!P().manage]],
+  ludzie:     [['kierowcy','Kierowcy', () => !serviceOnly()], ['uzytkownicy','Użytkownicy', () => !!P().manage]],
   ustawienia: [['ustawienia','Ustawienia', () => !!P().manage], ['historia','Historia zmian', () => !!P().history]],
 };
 /* Zakładki „w środku” innej zakładki: przełącznik na górze strony zamiast osobnej pozycji w menu */
