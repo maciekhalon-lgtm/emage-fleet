@@ -11,7 +11,7 @@ function showAuth(mode, msg = '', isErr = false){
   const forms = {
     login: {title:'Zaloguj się', btn:'Zaloguj się', body: f('a-email','E-mail','email','email') + f('a-pass','Hasło','password','current-password'),
       links: `<button type="button" class="link" data-auth="register">Załóż konto</button><button type="button" class="link" data-auth="reset">Nie pamiętasz hasła?</button>`},
-    register: {title:'Załóż konto', btn:'Załóż konto', body: `<div class="auth-row">${f('a-first','Imię *','text','given-name')}${f('a-last','Nazwisko *','text','family-name')}</div>` + f('a-email','E-mail służbowy *','email','email') + f('a-pass','Hasło * (min. 10 znaków)','password','new-password') + f('a-pass2','Powtórz hasło *','password','new-password')
+    register: {title:'Załóż konto', btn:'Załóż konto', body: `<div class="auth-row">${f('a-first','Imię *','text','given-name')}${f('a-last','Nazwisko *','text','family-name')}</div>` + f('a-email','E-mail *','email','email') + f('a-pass','Hasło * (min. 10 znaków)','password','new-password') + f('a-pass2','Powtórz hasło *','password','new-password')
       + `<p class="muted small">Po potwierdzeniu adresu e-mail konto musi zatwierdzić kierownik floty – wtedy nada Ci rolę.</p>`,
       links: `<button type="button" class="link" data-auth="login">Mam już konto – zaloguj się</button>`},
     reset: {title:'Reset hasła', btn:'Wyślij link', body: f('a-email','E-mail','email','email') + `<p class="muted small">Wyślemy link do ustawienia nowego hasła.</p>`,
