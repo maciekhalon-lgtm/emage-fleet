@@ -13,3 +13,5 @@ select current_setting('t.ok')::boolean as ok_unikalny;
 select (select relrowsecurity from pg_class where oid = 'public.gps_odometer'::regclass)
    and not exists (select 1 from pg_policies where tablename = 'gps_odometer' and cmd <> 'SELECT') as ok_bez_zapisu;
 delete from public.gps_odometer;
+\echo '4 kolumny sprawdzenia tankowania z GPS'
+select count(*) = 4 as ok_kolumny_gps from information_schema.columns where table_schema='public' and table_name='fuel_card_rows' and column_name in ('gps_place','gps_dist_km','gps_ok','gps_checked_at');

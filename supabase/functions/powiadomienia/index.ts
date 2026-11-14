@@ -244,7 +244,77 @@ export function dailyMax(readings: Row[], map: Map<string, Row>){
   }
   return [...out.values()];
 }
-async function geotabSync(sb: any, key: (k: string) => string, days: number){
+
+/* ---------- Tankowanie a pozycja busa (migracja 034) ---------- */
+export const haversineKm = (a: {lat: number; lng: number}, b: {lat: number; lng: number}) => {
+  const R = 6371, r = (x: number) => x * Math.PI / 180, dLat = r(b.lat - a.lat), dLng = r(b.lng - a.lng);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(r(a.lat)) * Math.cos(r(b.lat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+};
+/* czas lokalny (Polska) z karty → UTC ISO */
+export function warsawToUtc(date: string, time: string){
+  const t = /^(\d{1,2}):(\d{2})/.exec(time || '') ; const hh = t ? Number(t[1]) : 12, mm = t ? Number(t[2]) : 0;
+  const guess = Date.UTC(+date.slice(0, 4), +date.slice(5, 7) - 1, +date.slice(8, 10), hh, mm);
+  const parts = new Intl.DateTimeFormat('en-GB', {timeZone: 'Europe/Warsaw', hour: '2-digit', minute: '2-digit', hourCycle: 'h23'}).format(new Date(guess)).split(':').map(Number);
+  const off = ((parts[0] * 60 + parts[1]) - (hh * 60 + mm) + 1440) % 1440;   // przesunięcie strefy w minutach (60 lub 120)
+  return new Date(guess - (off > 720 ? off - 1440 : off) * 60000).toISOString();
+}
+export const normTown = (x: string) => String(x || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/ł/g, 'l').replace(/[^a-z0-9]+/g, ' ').trim();
+/* Ocena: bus daleko od stacji = false; blisko albo ta sama miejscowość = true; brak danych = null */
+export function judge(dist: number | null, place: string, station: string){
+  const p = normTown(place), st = normTown(station);
+  const sameTown = !!p && !!st && (st.includes(p) || p.includes(st.split(' ')[0]));
+  if (dist != null) return dist <= 30 || sameTown ? true : (dist > 50 ? false : null);
+  return sameTown ? true : null;
+}
+async function fuelGpsCheck(sb: any, rpc: (h: string, m: string, p: Record<string, unknown>) => Promise<any>, host: string, cred: unknown, devOf: Map<string, string>, limit: number){
+  const {data: rows} = await sb.from('fuel_card_rows').select('id, vehicle_id, tx_date, tx_time, station, kind').is('gps_checked_at', null).neq('kind', 'other').not('vehicle_id', 'is', null)
+    .gte('tx_date', new Date(Date.now() - 120 * DAY).toISOString().slice(0, 10)).order('tx_date', {ascending: false}).limit(limit);
+  const todo = (rows || []).filter((r: Row) => devOf.has(r.vehicle_id) && r.tx_time);
+  if (!todo.length) return {fuelChecked: 0};
+  // 1) pozycja busa: najbliższy zapis GPS w oknie ±20 min
+  const pos = new Map<string, {lat: number; lng: number; dt: string} | null>();
+  for (let i = 0; i < todo.length; i += 100){
+    const part = todo.slice(i, i + 100);
+    const calls = part.map((r: Row) => { const t = Date.parse(warsawToUtc(r.tx_date, r.tx_time));
+      return {method: 'Get', params: {typeName: 'LogRecord', resultsLimit: 200, search: {deviceSearch: {id: devOf.get(r.vehicle_id)}, fromDate: new Date(t - 20 * 60000).toISOString(), toDate: new Date(t + 20 * 60000).toISOString()}}}; });
+    const res: Row[][] = await rpc(host, 'ExecuteMultiCall', {calls, credentials: cred});
+    part.forEach((r: Row, j: number) => { const t = Date.parse(warsawToUtc(r.tx_date, r.tx_time));
+      const best = (res[j] || []).filter(x => x && x.latitude && x.longitude).sort((a, b) => Math.abs(Date.parse(a.dateTime) - t) - Math.abs(Date.parse(b.dateTime) - t))[0];
+      pos.set(r.id, best ? {lat: best.latitude, lng: best.longitude, dt: best.dateTime} : null); });
+  }
+  // 2) miejscowość busa (odwrotne geokodowanie)
+  const withPos = todo.filter((r: Row) => pos.get(r.id));
+  const place = new Map<string, string>();
+  for (let i = 0; i < withPos.length; i += 100){
+    const part = withPos.slice(i, i + 100);
+    const addr: Row[] = await rpc(host, 'GetAddresses', {coordinates: part.map((r: Row) => ({x: pos.get(r.id)!.lng, y: pos.get(r.id)!.lat})), movingAddresses: true, credentials: cred}).catch(() => []);
+    part.forEach((r: Row, j: number) => { const a = addr && addr[j]; place.set(r.id, a ? String(a.city || a.formattedAddress || '').slice(0, 80) : ''); });
+  }
+  // 3) położenie stacji (geokodowanie nazwy, pamiętane w ustawieniach 'station_geo')
+  const {data: gRow} = await sb.from('settings').select('value').eq('key', 'station_geo').maybeSingle();
+  const geo: Record<string, {lat: number; lng: number} | null> = (gRow && gRow.value && gRow.value.map) || {};
+  const names = [...new Set(todo.map((r: Row) => String(r.station || '').trim()).filter(n => n && !(n in geo)))];
+  for (let i = 0; i < names.length; i += 50){
+    const part = names.slice(i, i + 50);
+    const co: Row[] = await rpc(host, 'GetCoordinates', {addresses: part.map(n => n + ', Polska'), credentials: cred}).catch(() => []);
+    part.forEach((n, j) => { const c = co && co[j]; geo[n] = c && c.x != null && c.y != null ? {lat: c.y, lng: c.x} : null; });
+  }
+  if (names.length) await sb.from('settings').upsert({key: 'station_geo', value: {map: geo}}, {onConflict: 'key'});
+  // 4) zapis wyniku
+  let bad = 0;
+  const now = new Date().toISOString();
+  for (const r of todo){
+    const p = pos.get(r.id), st = String(r.station || '').trim(), g = st ? geo[st] : null;
+    const dist = p && g ? Math.round(haversineKm(p, g) * 10) / 10 : null;
+    const ok = p ? judge(dist, place.get(r.id) || '', st) : null;
+    if (ok === false) bad++;
+    await sb.from('fuel_card_rows').update({gps_place: p ? (place.get(r.id) || null) : null, gps_dist_km: dist, gps_ok: ok, gps_checked_at: now}).eq('id', r.id);
+  }
+  return {fuelChecked: todo.length, fuelFar: bad, noPosition: todo.length - withPos.length};
+}
+
+async function geotabSync(sb: any, key: (k: string) => string, days: number, fuelLimit = 300){
   const db = key('GEOTAB_DATABASE'), user = (Deno.env.get('GEOTAB_USER') || '').trim(), pass = (Deno.env.get('GEOTAB_PASSWORD') || '').trim();
   const status = async (o: Record<string, unknown>) => { await sb.from('settings').upsert({key: 'geotab', value: {...o, at: new Date().toISOString()}}, {onConflict: 'key'}); return o; };
   if (!db || !user || !pass) return {geotab: 'brak sekretów GEOTAB_DATABASE / GEOTAB_USER / GEOTAB_PASSWORD'};
@@ -308,7 +378,11 @@ async function geotabSync(sb: any, key: (k: string) => string, days: number){
     let upd = 0;
     for (const [vid, km] of last){ const v = (vehicles || []).find((x: Row) => x.id === vid); const {data: cur} = await sb.from('vehicles').select('km').eq('id', vid).maybeSingle();
       if (v && (!cur || !cur.km || Number(cur.km) < km)){ await sb.from('vehicles').update({km: Math.round(km)}).eq('id', vid); upd++; } }
-    return await status({ok: true, devices: devices.length, matched: map.size, unmatched, readings, days: daily.length, kmUpdated: upd, warnings: errs.slice(0, 8),
+    step = 'tankowania a pozycja';
+    const devOf = new Map<string, string>(); map.forEach((v, id) => { if (!devOf.has(v.id)) devOf.set(v.id, id); });
+    let fuel: Record<string, unknown> = {};
+    try { fuel = await fuelGpsCheck(sb, rpc, host, cred, devOf, fuelLimit); } catch (e) { errs.push(step + ': ' + String((e as Error).message || e).slice(0, 120)); }
+    return await status({ok: true, devices: devices.length, matched: map.size, unmatched, readings, days: daily.length, kmUpdated: upd, warnings: errs.slice(0, 8), ...fuel,
       deviceList: devices.map(d => ({id: d.id, name: d.name || '', plate: d.licensePlate || '', vehicle: map.get(d.id) ? map.get(d.id)!.plate : null}))});
   } catch (e) {
     return await status({ok: false, error: (step ? step + ': ' : '') + String((e as Error).message || e).slice(0, 300)});
@@ -397,7 +471,7 @@ Deno.serve(async (req) => {
     const {data: me} = await sb.from('profiles').select('role, status').eq('id', testUser).maybeSingle();
     if (!me || me.role !== 'floty' || me.status !== 'active') return json({error: 'Synchronizację GPS uruchamia kierownik floty'}, 403);
     const {count} = await sb.from('gps_odometer').select('id', {count: 'exact', head: true});
-    return json(await geotabSync(sb, key, Math.min(Number(body.days) || (count ? 7 : 31), 120)));
+    return json(await geotabSync(sb, key, Math.min(Number(body.days) || (count ? 7 : 31), 120), Math.min(Number(body.fuel) || 300, 600)));
   }
   const emailTest = !!(testUser && body && body.emailTest);
   if (testUser && !emailTest){

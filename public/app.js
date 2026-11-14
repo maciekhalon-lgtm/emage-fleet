@@ -2,7 +2,7 @@
 'use strict';
 /* ---------- routing ---------- */
 const DRIVER_VIEWS = ['moje','wybierz','moje-dane','moj-grafik','moja-historia'];
-const TABS = ['moje','wybierz','moje-dane','moj-grafik','moja-historia','pulpit','pojazdy','trasy','terminy','usterki','ksiazka','przydzial','koszty','karty','oplaty','opony','wyposazenie','umowy','ocena','plan','spalanie','liczniki','raporty','rozliczenie','porownanie','srednie','rentownosc','trasy-zysk','historia','kierowcy','uzytkownicy','ustawienia'];
+const TABS = ['moje','wybierz','moje-dane','moj-grafik','moja-historia','pulpit','pojazdy','trasy','terminy','usterki','ksiazka','przydzial','koszty','karty','oplaty','opony','wyposazenie','umowy','ocena','plan','spalanie','liczniki','raporty','rozliczenie','porownanie','srednie','rentownosc','trasy-zysk','wykorzystanie','historia','kierowcy','uzytkownicy','ustawienia'];
 const homeTab = () => P().mycar ? 'moje' : 'pulpit';
 let pendingCard = null;
 let tab = 'pulpit', q = '', costMonth = today().slice(0,7), dlFilter = 'urgent';
@@ -70,6 +70,7 @@ function render(){
   else if (tab==='porownanie') v.innerHTML = viewCompare();
   else if (tab==='liczniki') v.innerHTML = viewOdometers();
   else if (tab==='srednie') v.innerHTML = viewAverages();
+  else if (tab==='wykorzystanie') v.innerHTML = viewUtilization();
   else if (tab==='rentownosc') v.innerHTML = viewProfit();
   else if (tab==='trasy-zysk') v.innerHTML = viewRouteProfit();
   else if (tab==='oplaty') v.innerHTML = viewTolls();

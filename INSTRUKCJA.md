@@ -251,3 +251,14 @@ Karta auta → **Terminy i serwis** → panel **Gwarancja** (kierownik floty i s
 - Km z GPS są używane w Rozliczeniu aut, rentowności i spalaniu (gdy lokalizator obejmuje okres: km z GPS, litry z kart – okres jest przycinany do ostatniego zaimportowanego zestawienia kart). Na karcie auta: „Przebieg GPS”.
 - **Liczniki do sprawdzenia**: licznik wpisany na stacji lub przy przejęciu, który nie mieści się między stanem z GPS na koniec poprzedniego dnia a stanem na koniec tego dnia (±100 km), ma rodzaj „niezgodny z GPS”.
 - Podłączenie (jednorazowo): w MyGeotab użytkownik tylko do odczytu → w Supabase → Edge Functions → Secrets: `GEOTAB_DATABASE`, `GEOTAB_USER`, `GEOTAB_PASSWORD` (hasło wpisuje tylko właściciel) → Ustawienia → „Synchronizuj teraz” (pierwszy raz miesiąc wstecz). Urządzenia przypisują się po numerze rejestracyjnym, nazwie albo VIN; niedopasowane można przypisać ręcznie w tabeli urządzeń.
+
+## Tankowanie a pozycja busa (Paliwo → Karty paliwowe) – po uruchomieniu 034_tankowanie_gps.sql
+- Przy każdej synchronizacji Geotab (codziennie i przyciskiem) aplikacja bierze tankowania z kart, które jeszcze nie były sprawdzane, i patrzy, gdzie w tej minucie był bus (zapis GPS w oknie ±20 min).
+- Położenie stacji to miejscowość z zestawienia kart (geokodowana przez Geotab i zapamiętana). Bus ponad 50 km od stacji i w innej miejscowości → „Bus X km od stacji (był: Miasto)” w Podejrzanych tankowaniach jako PEWNE.
+- Do 30 km albo ta sama miejscowość = w porządku. 30–50 km albo brak pozycji = bez oceny (nie alarmujemy).
+- W panelu „Podejrzane tankowania” widać, ile tankowań porównano; „Sprawdź z GPS” uruchamia sprawdzenie od razu (do 600 tankowań naraz, ostatnie 120 dni).
+
+## Wykorzystanie aut (Grafik → Wykorzystanie aut)
+- Z dziennych przebiegów GPS: km w okresie (14 / 30 / 90 dni), dni jazdy (ponad 20 km), procent wykorzystania, średnio km na dzień jazdy i ile dni z rzędu auto stoi.
+- „Stoją bez ruchu” – auta, które od 3+ dni nie jeździły; klik otwiera kartę auta.
+- „Km floty z GPS” – dzień po dniu i miesiąc po miesiącu. **Tylko informacyjnie** – te km nie wchodzą do Rentowności ani Rentowności tras.

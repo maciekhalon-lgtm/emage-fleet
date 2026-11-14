@@ -28,7 +28,7 @@ const FIELDS = {
   tires: {vehicleId:'vehicle_id', treadMm:'tread_mm', mountedAt:'mounted_at', mountedKm:'mounted_km'},
   loadingReports: {driverId:'driver_id', loadDate:'load_date', weightKg:'weight_kg'},
   fuelCardImports: {invoiceNo:'invoice_no', invoicePath:'invoice_path', fileName:'file_name', periodFrom:'period_from', periodTo:'period_to', rowsTotal:'rows_total', rowsOurs:'rows_ours'},
-  fuelCardRows: {importId:'import_id', vehicleId:'vehicle_id', txDate:'tx_date', txTime:'tx_time', cardNo:'card_no', costId:'cost_id'},
+  fuelCardRows: {importId:'import_id', vehicleId:'vehicle_id', txDate:'tx_date', txTime:'tx_time', cardNo:'card_no', costId:'cost_id', gpsPlace:'gps_place', gpsDistKm:'gps_dist_km', gpsOk:'gps_ok', gpsCheckedAt:'gps_checked_at'},
   bookings:  {vehicleId:'vehicle_id', driverId:'driver_id', routeId:'route_id', from:'date_from', to:'date_to', coDriverId:'co_driver_id', pickupConfirmedAt:'pickup_confirmed_at', returnConfirmedAt:'return_confirmed_at', disputeStage:'dispute_stage', disputeNote:'dispute_note', disputeAt:'dispute_at', disputeResolvedAt:'dispute_resolved_at'},
   costs:     {vehicleId:'vehicle_id', driverId:'driver_id', routeId:'route_id', amountOrig:'amount_orig', fxRate:'fx_rate', fxDate:'fx_date', fxTable:'fx_table', fxManual:'fx_manual', flagState:'flag_state', flagQuestion:'flag_question', flagReply:'flag_reply', flagBy:'flag_by', flagAt:'flag_at', full:'full_tank', coDriverId:'co_driver_id', confirmStatus:'confirm_status', confirmedAt:'confirmed_at', disputeNote:'dispute_note'},
   issues:    {vehicleId:'vehicle_id', repairNote:'repair_note', resolvedAt:'resolved_at'},

@@ -4,7 +4,7 @@
 
 /* ---------- grupy menu i zakładki ---------- */
 const GROUPS = {
-  rezerwacje: [['przydzial','Grafik', () => true], ['trasy','Trasy', () => !!P().manage]],
+  rezerwacje: [['przydzial','Grafik', () => true], ['trasy','Trasy', () => !!P().manage], ['wykorzystanie','Wykorzystanie aut', () => !!P().manage]],
   serwis:     [['usterki','Usterki', () => true], ['terminy','Terminy', () => true], ['ksiazka','Książka serwisowa', () => !!P().service], ['plan','Plan serwisu', () => planOn()], ['opony','Opony', () => tiresOn()], ['wyposazenie','Wyposażenie', () => eqOn()]],
   paliwo:     [['karty','Karty', () => !!P().manage], ['spalanie','Spalanie i liczniki', () => !!P().manage], ['oplaty','Opłaty drogowe', () => !!P().manage]],
   koszty:     [['koszty','Koszty', () => true], ['rozliczenie','Rozliczenie aut', () => !!P().manage], ['rentownosc','Rentowność', () => !!P().manage], ['trasy-zysk','Rentowność tras', () => !!P().manage], ['umowy','Leasing i umowy', () => contractsOn()], ['raporty','Raporty', () => !!P().reports]],

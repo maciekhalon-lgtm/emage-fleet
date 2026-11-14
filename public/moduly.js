@@ -123,7 +123,7 @@ document.addEventListener('click', async e => {
   try {
     const {data, error} = await sb.functions.invoke('powiadomienia', {body: {geotabSync: true}});
     if (error) throw error;
-    if (data && data.ok){ toast(`Geotab: ${data.matched} z ${data.devices} urządzeń, ${data.days} dni przebiegów`); await Promise.all(['settings', 'gpsOdometer', 'vehicles'].map(c => refresh(c))); render(); }
+    if (data && data.ok){ toast(`Geotab: ${data.matched} z ${data.devices} urządzeń, ${data.days} dni przebiegów${data.fuelChecked ? ', ' + data.fuelChecked + ' tankowań porównanych z GPS' : ''}`); await Promise.all(['settings', 'gpsOdometer', 'vehicles', 'fuelCardRows'].map(c => refresh(c))); render(); }
     else toast('Geotab: ' + ((data && (data.error || data.geotab)) || 'brak odpowiedzi'));
   } catch(err){ toast('Nie udało się: ' + (err.message || err)); }
   finally { b.disabled = false; b.textContent = old; }

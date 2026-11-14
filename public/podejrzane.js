@@ -8,6 +8,8 @@
      3. drugie tankowanie tego samego auta w ciągu 3 godzin,
      4. cena za litr ponad 15% wyżej niż mediana z tego miesiąca (PLN),
      5. auto nie było tego dnia w grafiku – tylko gdy to auto ma w tygodniu wokół tej daty inne przydziały (grafik jest dla niego prowadzony).
+   GPS (Geotab, migracja 034): w chwili tankowania bus był ponad 50 km od stacji i w innej miejscowości → PEWNE.
+   Sprawdza to funkcja „powiadomienia” przy synchronizacji Geotab (pola gps_ok / gps_dist_km / gps_place).
    „Sprawdzone” zapisuje się w ustawieniach (settings: fc_checked). Na Pulpicie liczą się tylko PEWNE. */
 
 const fcCheckedIds = () => new Set(((S.settings.find(x => x.id==='fc_checked') || {}).ids) || []);
@@ -17,7 +19,7 @@ const realOdo = r => { const o = Number(r.odometer); return o > 1000 && !(typeof
 
 function fcSuspicious(){
   const rows = (S.fuelCardRows || []).filter(r => r.kind!=='other' && r.vehicleId && Number(r.liters) > 0);
-  const key = rows.length + '|' + S.vehicles.length + '|' + S.bookings.length + '|' + (rows[0] || {}).id;
+  const key = rows.length + '|' + S.vehicles.length + '|' + S.bookings.length + '|' + (rows[0] || {}).id + '|' + rows.filter(r => r.gpsCheckedAt).length;
   if (suspMemo.k===key) return suspMemo.v;
   const ts = r => { const t = /^(\d{1,2}):(\d{2})/.exec(r.txTime || ''); return t ? Date.parse(r.txDate + 'T00:00:00') + (Number(t[1]) * 60 + Number(t[2])) * 60e3 : null; };
   const out = new Map(); const add = (r, why, lvl) => { if (!out.has(r.id)) out.set(r.id, {row: r, why: [], lvl: 'warn'}); const o = out.get(r.id); o.why.push(why); if (lvl==='bad') o.lvl = 'bad'; };
@@ -41,6 +43,8 @@ function fcSuspicious(){
       else if (t!=null && tp!=null && t - tp < 3 * 3600e3) add(r, `Drugie tankowanie po ${Math.round((t - tp) / 60e3)} min`, 'warn');
     });
   });
+  // pozycja busa z GPS w chwili tankowania
+  rows.forEach(r => { if (r.gpsOk===false) add(r, `Bus ${r.gpsDistKm!=null ? fl0(r.gpsDistKm) + ' km' : 'daleko'} od stacji${r.gpsPlace ? ' (był: ' + r.gpsPlace + ')' : ''}`, 'bad'); });
   // cena za litr vs mediana miesiąca
   const pln = rows.filter(r => (!r.currency || r.currency==='PLN') && Number(r.amount) > 0);
   const byM = {}; pln.forEach(r => (byM[r.txDate.slice(0, 7)] = byM[r.txDate.slice(0, 7)] || []).push(Number(r.amount) / Number(r.liters)));
@@ -58,6 +62,26 @@ function fcSuspicious(){
   suspMemo = {k: key, v};
   return v;
 }
+const fl0 = n => new Intl.NumberFormat('pl-PL', {maximumFractionDigits: 0}).format(Number(n));
+/* stan sprawdzania GPS: ile tankowań porównano z pozycją busa */
+function suspGpsInfo(){
+  const rows = (S.fuelCardRows || []).filter(r => r.kind!=='other' && r.vehicleId && Number(r.liters) > 0);
+  if (!(S.gpsOdometer || []).length) return '';
+  const chk = rows.filter(r => r.gpsCheckedAt), ok = chk.filter(r => r.gpsOk===true).length, far = chk.filter(r => r.gpsOk===false).length;
+  return `<span class="muted small sp-gps">GPS: porównano ${chk.length} z ${rows.length} tankowań – ${ok} przy stacji, ${far} daleko, ${chk.length - ok - far} bez pozycji. <button type="button" class="small ghost" data-sp-gps>${ic('route')}Sprawdź z GPS</button></span>`;
+}
+async function suspGpsRun(btn){
+  if (btn){ btn.disabled = true; btn.textContent = 'Sprawdzam…'; }
+  try {
+    const {data, error} = await sb.functions.invoke('powiadomienia', {body: {geotabSync: true, days: 3, fuel: 600}});
+    if (error) throw error;
+    if (data && data.ok===false) throw new Error(data.error || 'błąd Geotab');
+    toast(`Porównano ${data && data.fuelChecked || 0} tankowań z pozycją GPS${data && data.fuelFar ? ' – daleko od stacji: ' + data.fuelFar : ''}`);
+    await Promise.all(['settings', 'gpsOdometer', 'fuelCardRows'].map(c => refresh(c))); render();
+  } catch(err){ toast('Nie udało się: ' + (err.message || err)); }
+  finally { if (btn && btn.isConnected){ btn.disabled = false; btn.textContent = 'Sprawdź z GPS'; } }
+}
+document.addEventListener('click', e => { const b = e.target.closest('[data-sp-gps]'); if (!b) return; e.preventDefault(); suspGpsRun(b); });
 const suspActiveV = x => (byId('vehicles', x.row.vehicleId) || {}).status!=='wycofany';   // auta wycofane nie liczą się do „do sprawdzenia”
 const suspTodoCount = (lvl = 'bad') => { const ch = fcCheckedIds(); return fcSuspicious().filter(x => !ch.has(x.row.id) && suspActiveV(x) && (lvl==='all' || x.lvl===lvl)).length; };
 
@@ -70,12 +94,12 @@ function suspPanel(){
     <span class="sp-d num"><b>${fdate(r.txDate)}</b><em>${esc(r.txTime || '')}</em></span>
     <span class="sp-v">${vPlate(r.vehicleId)}<span class="sub">${esc(fcDriver(r, null) || 'kierowca nieustalony')}${r.station ? ' · ' + esc(r.station) : ''}</span></span>
     <span class="sp-a num">${fl(r.liters)}<span class="sub">${fm(r.amount, r.currency)}</span></span>
-    <span class="sp-w">${why.map(w => `<span class="pill ${lvl==='bad' && /bak|zmieściłoby/i.test(w) ? 'bad' : 'warn'}">${esc(w)}</span>`).join('')}</span>
+    <span class="sp-w">${why.map(w => `<span class="pill ${lvl==='bad' && /bak|zmieściłoby|od stacji/i.test(w) ? 'bad' : 'warn'}">${esc(w)}</span>`).join('')}</span>
     <button class="small ${ch.has(r.id) ? 'ghost' : ''}" data-sp-ok="${esc(r.id)}">${ch.has(r.id) ? 'Cofnij' : `${ic('check')}Sprawdzone`}</button></div>`).join('');
   return `<details class="panel fold susp" ${nBad ? 'open' : ''}><summary class="sec-head"><h3>Podejrzane tankowania</h3><span class="count ${nBad ? 'bad' : ''}">${nBad}</span></summary>
     <div class="sp-tools"><span class="seg small" role="group" aria-label="Poziom"><button type="button" class="${suspLevel==='bad' ? 'on' : ''}" data-sp-lvl="bad" aria-pressed="${suspLevel==='bad'}">Pewne (${nBad})</button><button type="button" class="${suspLevel==='all' ? 'on' : ''}" data-sp-lvl="all" aria-pressed="${suspLevel==='all'}">Wszystkie (${nAll})</button></span>
-      <span class="muted small">${suspLevel==='bad' ? 'Pewne = fizycznie niemożliwe dla jednego auta: więcej niż bak albo więcej, niż mogło wejść po poprzednim tankowaniu.' : 'Także do sprawdzenia: dwa tankowania w 3 godziny, wysoka cena za litr, auto poza grafikiem.'}</span>
-      <span class="sp-tr">${todo.length > 5 ? `<button class="small ghost" data-sp-allok>Te ${todo.length} jako sprawdzone</button>` : ''}<label class="check small"><input type="checkbox" data-sp-all ${suspShowChecked ? 'checked' : ''}> pokaż sprawdzone</label></span></div>
+      <span class="muted small">${suspLevel==='bad' ? 'Pewne = fizycznie niemożliwe dla jednego auta: więcej niż bak, więcej, niż mogło wejść po poprzednim tankowaniu, albo bus był wtedy daleko od stacji (GPS).' : 'Także do sprawdzenia: dwa tankowania w 3 godziny, wysoka cena za litr, auto poza grafikiem.'}</span>
+      ${suspGpsInfo()}<span class="sp-tr">${todo.length > 5 ? `<button class="small ghost" data-sp-allok>Te ${todo.length} jako sprawdzone</button>` : ''}<label class="check small"><input type="checkbox" data-sp-all ${suspShowChecked ? 'checked' : ''}> pokaż sprawdzone</label></span></div>
     ${rows || `<p class="muted sec-empty">${suspLevel==='bad' ? 'Brak pewnych przypadków do sprawdzenia.' : 'Wszystko sprawdzone.'}</p>`}${list.length > 200 ? `<p class="muted small sec-empty">Pokazano 200 z ${list.length}.</p>` : ''}</details>`;
 }
 
