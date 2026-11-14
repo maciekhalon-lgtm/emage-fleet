@@ -40,10 +40,7 @@ const myReport = wd => S.loadingReports.find(r => r.driverId===myDriverId() && r
 function weightField(wd){
   const r = myReport(wd);
   return `<div class="field full ld-weight"><label for="ld-kg">Waga towaru (kg) *</label>
-    <input id="ld-kg" type="number" inputmode="decimal" min="0" step="0.1" placeholder="np. 1250" value="${r ? esc(String(r.weightKg)) : ''}"></div>
-    <div class="field full"><label for="ld-photo">Zdjęcie towaru</label>
-    ${r && r.photo ? `<span class="thumbs">${photoStrip([r.photo])}</span><span class="muted small">Nowe zdjęcie zastąpi to.</span>` : ''}
-    <input id="ld-photo" type="file" accept="${PHOTO_TYPES.join(',')}" capture="environment"></div>`;
+    <input id="ld-kg" type="number" inputmode="decimal" min="0" step="0.1" placeholder="np. 1250" value="${r ? esc(String(r.weightKg)) : ''}"></div>`;
 }
 function openLoading(day){
   const me_ = myDriverId(); if (!me_) return toast('Kierownik floty musi najpierw powiązać Twoje konto z kierowcą');
@@ -79,7 +76,7 @@ async function saveLoading(before, withWeight, wd){
   let kg = null, file = null;
   if (withWeight){
     kg = Number(String($('#ld-kg').value || '').replace(',', '.'));
-    file = ($('#ld-photo').files || [])[0] || null;
+    file = null;
     if (now.size && !(kg > 0)){ $('#ld-kg').focus(); return warn('Wpisz wagę towaru w kg.'); }
     if (file && !PHOTO_TYPES.includes(file.type)) return warn('To nie jest zdjęcie JPG, PNG ani WebP.');
     if (file && file.size > 10*1024*1024) return warn('Zdjęcie jest większe niż 10 MB.');

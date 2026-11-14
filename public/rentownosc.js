@@ -19,9 +19,16 @@ const nfk = n => new Intl.NumberFormat('pl-PL').format(Math.round(n || 0));
 /* hurtowa cena: wpisana dla miesiąca, a gdy brak – ostatnia wcześniejsza */
 function pfHurt(cfg, m){ const ks = Object.keys(cfg.months).filter(k => k <= m && cfg.months[k].hurt).sort(); return ks.length ? {v: Number(cfg.months[ks[ks.length - 1]].hurt), own: ks[ks.length - 1]===m} : null; }
 
+/* km do faktury z tras: kursy z grafiku (dni z trasą) × stałe km trasy; liczba kursów wpisana w Rentowności tras ma pierwszeństwo */
+function pfRouteKm(m){
+  if (typeof routeKm!=='function' || typeof rtGrafikTrips!=='function') return 0;
+  const mm = (rtCfg().months || {})[m] || {};
+  return S.routes.reduce((s, r) => { const k = routeKm(r); if (!k) return s; const x = mm[r.id] || {}; const trips = x.trips!=null ? Number(x.trips) : rtGrafikTrips(r.id, m); return s + trips * k; }, 0);
+}
 function pfMonthCalc(m, delta = 0){
   const cfg = pfCfg(), mm = cfg.months[m] || {}, st = settlement(m);
-  const kmOdo = st.tot.km || 0, km_ = Number(mm.km) > 0 ? Number(mm.km) : kmOdo;
+  const kmOdo = st.tot.km || 0, kmRoutes = pfRouteKm(m);
+  const km_ = Number(mm.km) > 0 ? Number(mm.km) : kmRoutes > 0 ? kmRoutes : kmOdo;
   const h = pfHurt(cfg, m), rate = h ? cfg.base + cfg.coef * h.v + delta : null;
   const extra = Number(mm.extra) || 0;
   const revInv = Number(mm.revenue) > 0 ? Number(mm.revenue) : null;
@@ -31,7 +38,7 @@ function pfMonthCalc(m, delta = 0){
   const fleet = st.tot.total + 0;   // z udziałem kosztów ogólnych floty
   const cost = fleet + fixed + once;
   const profit = rev!=null ? rev - cost : null;
-  return {m, cfg, mm, st, km: km_, kmOdo, kmSrc: Number(mm.km) > 0 ? 'faktura' : 'liczniki', h, rate, extra, revInv, revKm, rev, fixed, once, fleet, cost, profit,
+  return {m, cfg, mm, st, km: km_, kmOdo, kmRoutes, kmSrc: Number(mm.km) > 0 ? 'faktura' : kmRoutes > 0 ? 'trasy' : 'liczniki', h, rate, extra, revInv, revKm, rev, fixed, once, fleet, cost, profit,
     perKm: profit!=null && km_ ? profit / km_ : null, costKm: km_ ? cost / km_ : null};
 }
 
@@ -49,7 +56,7 @@ function viewProfit(){
   const ln = (l, v, cls = '', sub = '') => `<tr class="${cls}"><td>${l}${sub ? `<span class="sub">${sub}</span>` : ''}</td><td class="r num">${v}</td></tr>`;
   const g = R.st.tot.g;
   const bill = `<div class="panel"><div class="sec-head"><h3>Rachunek – ${esc(monthName(pfMonth))}</h3></div><div class="tablewrap"><table class="pf-tbl"><tbody>
-    ${ln('Kilometry', nfk(R.km) + ' km', '', R.kmSrc==='faktura' ? `wpisane do faktury · z liczników ${nfk(R.kmOdo)} km` : 'z liczników floty (Rozliczenie aut) – wpisz km do faktury w „Dane miesiąca”, jeśli się różnią')}
+    ${ln('Kilometry', nfk(R.km) + ' km', '', R.kmSrc==='faktura' ? `wpisane do faktury · z tras ${nfk(R.kmRoutes)} km · z liczników ${nfk(R.kmOdo)} km` : R.kmSrc==='trasy' ? `kursy z grafiku × stałe km tras · z liczników ${nfk(R.kmOdo)} km` : 'z liczników floty – wpisz km do faktury trasom (Trasy → Edytuj trasę) albo w „Dane miesiąca”')}
     ${ln('Stawka', R.rate!=null ? zlk(R.rate) + ' / km' : '—', '', R.h ? `${String(cfg.base).replace('.', ',')} + ${String(cfg.coef).replace('.', ',')} × ${String(R.h.v).replace('.', ',')} zł/l (hurt ON Orlen${R.h.own ? '' : ', z poprzedniego miesiąca'})` : 'brak hurtowej ceny ON – wpisz w „Dane miesiąca”')}
     ${R.revInv!=null ? ln('Przychód z faktur', zl0(R.revInv), 'pf-sum') : `${ln('Przychód z km', zl0(R.revKm))}${ln('Dopłaty (drugi kierowca i inne)', zl0(R.extra))}${ln('Przychód', zl0(R.rev), 'pf-sum')}`}
     ${['Paliwo (aplikacja + karty)', 'Serwis i opony', 'Ubezpieczenie i leasing', 'Pozostałe koszty aut'].map((l, i) => ln(l, zl0(g[i]))).join('')}

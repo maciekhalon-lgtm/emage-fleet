@@ -62,7 +62,6 @@ function openHandover(id, kind, vehicleId){
     ${kind==='pickup' ? (modOn('obsada') ? crewField(b ? b.driverId : myDriverId(), b && b.coDriverId) : '') : (b && b.coDriverId ? `<div class="field full"><span class="pill info">Podwójna obsada: ${esc(crewName(b))}</span><span class="muted small">Zdanie musi potwierdzić drugi kierowca – do tego czasu auto czeka.</span></div>` : '')}
     ${check}
     <div class="field full"><label for="ho-note">${kind==='pickup' ? 'Inne uwagi o stanie auta' : 'Uwagi po dniu pracy'}</label><textarea id="ho-note" placeholder="${kind==='pickup'?'np. rysa na tylnym zderzaku – już była':'np. kontrolka oleju, stuki z zawieszenia'}"></textarea></div>
-    ${kind==='pickup' ? `<details class="field full ho-more"><summary>Dodaj zdjęcia (opcjonalnie)</summary>${photoField('ho')}</details>` : ''}
     ${kind==='return' ? `<div class="field full"><label class="check"><input id="ho-issue" type="checkbox"> Zgłoś usterkę na podstawie uwag</label>
       <select id="ho-sev" aria-label="Waga usterki"><option value="drobna">Drobna</option><option value="istotna" selected>Istotna</option><option value="stop">Auto niesprawne – nie wydawać</option></select></div>` : ''}
     <div class="warnline" id="dlg-warn" hidden></div>`;

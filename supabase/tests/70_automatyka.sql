@@ -16,16 +16,13 @@ insert into block_overrides (vehicle_id, reason) values ('22222222-0000-0000-000
 select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-00000000000b',false) \g /dev/null
 insert into bookings (id, vehicle_id, driver_id, date_from, date_to, pickup_at, pickup_km) values ('33333333-0000-0000-0000-000000000014','22222222-0000-0000-0000-000000000014','11111111-0000-0000-0000-000000000001',current_date,current_date,current_date,10000);
 select count(*) as przejete from bookings where id='33333333-0000-0000-0000-000000000014';
-\echo '3 PARAGON: procent 100 -> bez zdjęcia błąd, ze zdjęciem ok'
-reset role; insert into settings (key, value) values ('receipts','{"percent":100}') on conflict (key) do update set value=excluded.value; set role authenticated;
+\echo '3 BEZ KONTROLI PARAGONÓW (037): tankowanie kierowcy zapisuje się bez zdjęcia'
 select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-00000000000b',false) \g /dev/null
-select my_receipt_today();
-insert into costs (date, vehicle_id, driver_id, category, amount, liters, odometer, full_tank) values (current_date,'22222222-0000-0000-0000-000000000014','11111111-0000-0000-0000-000000000001','Paliwo',600,100,10300,true);
-insert into costs (id, date, vehicle_id, driver_id, category, amount, liters, odometer, full_tank, photos) values ('cccccccc-0000-0000-0000-000000000001',current_date,'22222222-0000-0000-0000-000000000014','11111111-0000-0000-0000-000000000001','Paliwo',600,100,10300,true,'{p1}');
+insert into costs (id, date, vehicle_id, driver_id, category, amount, liters, odometer, full_tank) values ('cccccccc-0000-0000-0000-000000000001',current_date,'22222222-0000-0000-0000-000000000014','11111111-0000-0000-0000-000000000001','Paliwo',600,100,10300,true);
+select count(*) = 1 as ok_bez_zdjecia from costs where id='cccccccc-0000-0000-0000-000000000001';
 \echo '4 SYGNAŁY: 100 l > bak 90'
 select flags, flag_state from costs where id='cccccccc-0000-0000-0000-000000000001';
 \echo '5 drugie tankowanie zaraz + Ewa (nie ma auta)'
-reset role; insert into settings (key, value) values ('receipts','{"percent":0}') on conflict (key) do update set value=excluded.value; set role authenticated;
 select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-00000000000c',false) \g /dev/null
 insert into costs (id, date, vehicle_id, driver_id, category, amount, liters, odometer, full_tank) values ('cccccccc-0000-0000-0000-000000000002',current_date,'22222222-0000-0000-0000-000000000014','11111111-0000-0000-0000-000000000002','Paliwo',300,50,10900,true);
 \echo '6 kierownik prosi o wyjaśnienie, Jan odpowiada, kierowca nie zmieni stanu sam'

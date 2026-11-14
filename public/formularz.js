@@ -83,7 +83,6 @@ const FORMS = {
     {k:'full',l:'Zatankowano do pełna (naładowano do 100%)',t:'check'},
     ...(P().costs==='rw' ? [{k:'driverId',l:'Kierowca',t:'select',o:drvOpts('— nie dotyczy —')}] : []),
     {k:'note',l:'Opis',ph:'np. stacja, faktura nr'},
-    {k:'photos',t:'photos'},
   ])},
   issues: { title:['Zgłoś usterkę','Edytuj zgłoszenie'], fields: () => [
     {k:'vehicleId',l:'Pojazd',t:'select',o:vehOpts(),req:1,full:1},
@@ -116,6 +115,7 @@ const FORMS = {
   routes: { title:['Nowa trasa','Edytuj trasę'], fields: () => [
     {k:'code',l:'Kod',req:1,ph:'np. R12'},
     {k:'name',l:'Nazwa',req:1,ph:'np. Wrocław – Praga'},
+    {k:'km',l:'Km do faktury za kurs (stałe)',t:'number',step:'0.1',ph:'np. 640',hint:'tyle km fakturujesz za jeden kurs tej trasy'},
     {k:'tacho',l:'Wymaga tachografu (tylko informacja)',t:'check'},
     {k:'loading',l:'Trasa załadunkowa',t:'check'},
     {k:'active',l:'Aktywna (można ją przypisywać)',t:'check'},
@@ -224,8 +224,8 @@ function svcUi(e){
   if (e && e.target && e.target.id==='f-serviceEntries-vehicleId'){ const v = byId('vehicles', veh); const k = $('#f-serviceEntries-km'); if (v && v.km && k && !k.value) k.value = v.km; }
 }
 /* Kierowca: szybkie tankowanie (tylko litry, kwota, licznik) i „Inny wydatek” – reszta uzupełnia się sama */
-const QUICK_FIELDS = ['liters','amount','odometer','abroad','currency','fxPrev','photos'];
-const OTHER_FIELDS = ['category','amount','currency','fxPrev','note','photos'];
+const QUICK_FIELDS = ['liters','amount','odometer','abroad','currency','fxPrev'];
+const OTHER_FIELDS = ['category','amount','currency','fxPrev','note'];
 function costFieldsFor(all){
   const mode = editing && editing.base && editing.base.mode;
   if (!mode) return all;
@@ -239,22 +239,11 @@ function costFieldsFor(all){
 }
 const FUEL_PREFS = 'ef-fuel-last';
 const fuelPrefs = () => { try { return JSON.parse(localStorage.getItem(FUEL_PREFS) || '{}'); } catch(_){ return {}; } };
-let receiptCache = null;
-async function receiptToday(){
-  if (receiptCache && receiptCache.d===today()) return receiptCache.v;
-  if (!navigator.onLine) return false;
-  try { const {data, error} = await sb.rpc('my_receipt_today'); if (error) return false; receiptCache = {d: today(), v: !!data}; return !!data; } catch(_){ return false; }
-}
 async function openQuickFuel(vid){
   const v = byId('vehicles', vid), pf = fuelPrefs();
   openForm('costs', null, {vehicleId: vid, mode:'quick', category: v && v.fuel==='Elektryczny' ? 'Ładowanie' : 'Paliwo', currency: pf.currency || 'PLN', station: pf.station || '', full: true});
   if (!editing) return;
   $('#dlg-title').textContent = 'Tankowanie';
-  const ph = $('#dlg-body input[type=file]')?.closest('.field'); if (ph) ph.hidden = true;   // zdjęcie tylko przy kontroli paragonu
-  if (P().costs==='own' && await receiptToday() && editing && editing.base.mode==='quick'){
-    editing.receipt = true; if (ph) ph.hidden = false;
-    $('#dlg-body').insertAdjacentHTML('afterbegin', '<div class="field full"><div class="notice"><span><b>Dziś wylosowano Cię do kontroli paragonów</b> – dodaj zdjęcie paragonu.</span></div></div>');
-  }
 }
 document.addEventListener('click', e => {
   const t = e.target.closest('[data-fuel],[data-action="more"],[data-action="loading"],[data-ck-expand]');
@@ -434,7 +423,6 @@ $('#dialog').addEventListener('submit', async e => {
       if (chk && chk.hard){ w.textContent = chk.hard; w.hidden = false; $('#f-costs-odometer').focus(); return; }
       if (chk && chk.soft && w.dataset.big!==String(data.odometer)){ w.dataset.big = String(data.odometer); w.textContent = chk.soft; w.hidden = false; return; }
     }
-    if (col==='costs' && editing.receipt && !(base.photos||[]).length && !($('#f-costs-photos')?.files||[]).length){ const w = $('#dlg-warn'); w.textContent = 'Dziś wylosowano Cię do kontroli paragonów – dodaj zdjęcie paragonu.'; w.hidden = false; return; }
 
   }
   data.updatedAt = new Date().toISOString();

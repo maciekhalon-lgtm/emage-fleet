@@ -13,6 +13,8 @@ const RT_MODES = [['kurs', 'za kurs'], ['km', 'za km'], ['mies', 'ryczałt / mie
 const rtCfg = () => { const s = (S.settings || []).find(x => x.id==='route_fin') || {}; return {routes: s.routes || {}, months: s.months || {}}; };
 const rtNum = x => { const s = String(x ?? '').replace(/\s/g, '').replace(',', '.'); return s==='' ? null : Number(s); };
 const rtShow = n => n==null || n==='' ? '' : String(n).replace('.', ',');
+/* km do faktury za jeden kurs trasy (stałe) – pole trasy; starsze wpisy z Rentowności tras jako zapas */
+const routeKm = r => r && Number(r.km) > 0 ? Number(r.km) : (Number(((rtCfg().routes || {})[r && r.id] || {}).km) || null);
 const zlr = n => n==null ? '—' : zl(Math.round(n));
 
 /* Koszt 1 km auta: paliwo + reszta kosztów aut na km (średnia z 3 pełnych miesięcy przed wybranym) */
@@ -38,7 +40,7 @@ function rtCalc(m){
   const rows = S.routes.filter(r => r.active!==false || (mm[r.id] && Object.keys(mm[r.id]).length)).sort((a, b) => String(a.code).localeCompare(b.code, 'pl', {numeric: true})).map(r => {
     const c = cfg.routes[r.id] || {}, x = mm[r.id] || {};
     const graf = rtGrafikTrips(r.id, m), trips = x.trips!=null ? Number(x.trips) : graf;
-    const kmT = Number(c.km) || 0, km_ = trips * kmT, extraKm = trips * (Number(c.extraKm) || 0) + (Number(x.extraKm) || 0);
+    const kmT = routeKm(r) || 0, km_ = trips * kmT, extraKm = trips * (Number(c.extraKm) || 0) + (Number(x.extraKm) || 0);
     const rate = Number(c.rate) || 0, mode = c.mode || 'kurs';
     const revCalc = mode==='kurs' ? trips * rate : mode==='km' ? km_ * rate : (trips > 0 || x.trips==null ? rate : 0);
     const rev = x.revenue!=null ? Number(x.revenue) : (rate ? revCalc : null);
@@ -83,7 +85,7 @@ function viewRouteProfit(){
   const routes = `<div class="panel"><div class="sec-head"><h3>Stawki i koszty tras</h3><button class="small primary" data-rt-save="c">Zapisz trasy</button></div><div class="tablewrap"><table class="rt-tbl"><thead><tr><th>Trasa</th><th>Rozliczenie</th><th>Stawka (zł)</th><th>Km kursu (tam i z powrotem)</th><th>Koszty kursu (zł)</th><th>Dodatkowe km na kurs</th><th>Kierowca na kurs (zł)</th></tr></thead><tbody>
     ${S.routes.filter(r => r.active!==false).sort((a, b) => String(a.code).localeCompare(b.code, 'pl', {numeric: true})).map(r => { const c = rtCfg().routes[r.id] || {};
       return `<tr><td><b>${esc(r.code)}</b> ${esc(r.name)}</td><td data-l="Rozliczenie"><select class="rt-in" data-rt-c="${esc(r.id)}" data-k="mode">${RT_MODES.map(([v, l]) => `<option value="${v}" ${(c.mode || 'kurs')===v ? 'selected' : ''}>${l}</option>`).join('')}</select></td>
-        <td data-l="Stawka">${cIn(r.id, 'rate', c.rate, 'np. 1800')}</td><td data-l="Km kursu">${cIn(r.id, 'km', c.km, 'np. 640')}</td><td data-l="Koszty kursu">${cIn(r.id, 'cost', c.cost, 'opłaty, parkingi')}</td><td data-l="Dodatkowe km na kurs">${cIn(r.id, 'extraKm', c.extraKm, 'np. dojazd do domu')}</td><td data-l="Kierowca na kurs">${cIn(r.id, 'driver', c.driver, 'opcjonalnie')}</td></tr>`; }).join('')}</tbody></table></div>
+        <td data-l="Stawka">${cIn(r.id, 'rate', c.rate, 'np. 1800')}</td><td data-l="Km kursu">${cIn(r.id, 'km', routeKm(r), 'np. 640')}</td><td data-l="Koszty kursu">${cIn(r.id, 'cost', c.cost, 'opłaty, parkingi')}</td><td data-l="Dodatkowe km na kurs">${cIn(r.id, 'extraKm', c.extraKm, 'np. dojazd do domu')}</td><td data-l="Kierowca na kurs">${cIn(r.id, 'driver', c.driver, 'opcjonalnie')}</td></tr>`; }).join('')}</tbody></table></div>
     <p class="muted small sec-empty">Rozliczenie: <b>za kurs</b> – stawka × liczba kursów; <b>za km</b> – stawka × km tras (dodatkowe km nie są płatne); <b>ryczałt</b> – stała kwota na miesiąc. Koszty kursu – stałe wydatki jednego kursu (opłaty drogowe, parkingi, winiety). Kierowca na kurs – jeśli chcesz liczyć zysk trasy po wynagrodzeniu kierowcy.</p></div>`;
   return head + kpis + res + month + routes;
 }
@@ -95,7 +97,12 @@ async function rtSave(kind){
       if (k==='mode'){ o.mode = i.value; return; }
       const n = rtNum(i.value); if (n!=null && (isNaN(n) || n < 0)) bad.push(i); else o[k] = n; });
     if (bad.length){ bad[0].focus(); toast('Wpisz same liczby (np. 1800 albo 1 800,50)'); return; }
-    try { await db.collection('settings').doc('route_fin').set({routes, months: cfg.months}); toast('Zapisano stawki i koszty tras'); } catch(err){ handleWriteErr(err); }
+    try {
+      // km do faktury za kurs są polem trasy (Trasy → Edytuj trasę) – tu tylko je aktualizujemy
+      for (const r of S.routes){ const o = routes[r.id]; if (!o || !('km' in o)) continue; const n = o.km; delete o.km;
+        if ((n ?? null)!==(r.km==null ? null : Number(r.km))) await db.collection('routes').doc(r.id).update({km: n}); }
+      await db.collection('settings').doc('route_fin').set({routes, months: cfg.months}); toast('Zapisano stawki i koszty tras');
+    } catch(err){ handleWriteErr(err); }
   } else {
     const mm = {...(cfg.months[rtMonth] || {})};
     document.querySelectorAll('[data-rt-m]').forEach(i => { const rid = i.dataset.rtM, k = i.dataset.k; const o = mm[rid] = {...(mm[rid] || {})};

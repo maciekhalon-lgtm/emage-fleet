@@ -136,7 +136,7 @@ function viewMyCar(){
       <button class="d-main" data-ho="return" data-id="${esc(active.id)}">${ic('key')}Zdaj auto</button>
     </section>`;
     const hasDocs = (S.docs || []).some(d => d.vehicleId===v.id);
-    quick = [qa(`data-fuel="${esc(v.id)}"`, 'fuel', 'Zatankuj', 'paragon i licznik', 'hot'),
+    quick = [qa(`data-fuel="${esc(v.id)}"`, 'fuel', 'Zatankuj', 'litry i licznik', 'hot'),
       qa(`data-new="issues" data-veh="${esc(v.id)}"`, 'wrench', 'Usterka', 'coś nie działa'),
       qa(`data-accident="${esc(v.id)}"`, 'alert', 'Szkoda', 'kolizja, zdjęcia', 'bad'),
       loadingRoutesOk() ? qa('data-action="loading"', 'box', 'Załadunek', loadingCount() ? `zaznaczone: ${loadingCount()}` : 'czyj towar wiozę') : '',
