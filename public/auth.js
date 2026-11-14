@@ -11,7 +11,7 @@ function showAuth(mode, msg = '', isErr = false){
   const forms = {
     login: {title:'Zaloguj się', btn:'Zaloguj się', body: f('a-email','E-mail','email','email') + f('a-pass','Hasło','password','current-password'),
       links: `<button type="button" class="link" data-auth="register">Załóż konto</button><button type="button" class="link" data-auth="reset">Nie pamiętasz hasła?</button>`},
-    register: {title:'Załóż konto', btn:'Załóż konto', body: f('a-name','Imię i nazwisko','text','name') + f('a-email','E-mail służbowy','email','email') + f('a-pass','Hasło (min. 10 znaków)','password','new-password') + f('a-pass2','Powtórz hasło','password','new-password')
+    register: {title:'Załóż konto', btn:'Załóż konto', body: `<div class="auth-row">${f('a-first','Imię *','text','given-name')}${f('a-last','Nazwisko *','text','family-name')}</div>` + f('a-email','E-mail służbowy *','email','email') + f('a-pass','Hasło * (min. 10 znaków)','password','new-password') + f('a-pass2','Powtórz hasło *','password','new-password')
       + `<p class="muted small">Po potwierdzeniu adresu e-mail konto musi zatwierdzić kierownik floty – wtedy nada Ci rolę.</p>`,
       links: `<button type="button" class="link" data-auth="login">Mam już konto – zaloguj się</button>`},
     reset: {title:'Reset hasła', btn:'Wyślij link', body: f('a-email','E-mail','email','email') + `<p class="muted small">Wyślemy link do ustawienia nowego hasła.</p>`,
@@ -19,9 +19,13 @@ function showAuth(mode, msg = '', isErr = false){
     newpass: {title:'Ustaw nowe hasło', btn:'Zapisz hasło', body: f('a-pass','Nowe hasło (min. 10 znaków)','password','new-password') + f('a-pass2','Powtórz hasło','password','new-password'), links: ''},
   };
   const c = forms[mode];
+  // przy błędzie w tym samym formularzu zostawiamy to, co już wpisano (bez haseł)
+  const keep = mode===box.dataset.mode && isErr ? Object.fromEntries([...box.querySelectorAll('input:not([type=password])')].map(i => [i.id, i.value])) : {};
+  box.dataset.mode = mode;
   box.innerHTML = `<h2>${c.title}</h2>${msg ? `<div class="auth-msg ${isErr ? 'err' : ''}" role="status">${esc(msg)}</div>` : ''}${c.body}
     <button type="submit" class="primary auth-btn" id="auth-btn">${c.btn}</button><div class="auth-links">${c.links}</div>`;
-  setTimeout(() => box.querySelector('input')?.focus(), 30);
+  Object.entries(keep).forEach(([id, val]) => { const i = document.getElementById(id); if (i) i.value = val; });
+  setTimeout(() => (box.querySelector('input:invalid, input[value=""]') || [...box.querySelectorAll('input')].find(i => !i.value) || box.querySelector('input'))?.focus(), 30);
 }
 
 const AUTH_ERR = [
@@ -48,11 +52,16 @@ async function onAuthSubmit(e){
       const {error} = await sb.auth.signInWithPassword({email: v('a-email').trim(), password: v('a-pass')});
       if (error) return showAuth('login', authErr(error), true);
     } else if (authMode==='register'){
-      const name = v('a-name').trim();
-      if (name.length < 3) return showAuth('register', 'Wpisz imię i nazwisko.', true);
+      // imię i nazwisko osobno, oba obowiązkowe; wielka litera na początku (także przy nazwiskach z myślnikiem)
+      const cap = x => x.trim().replace(/\s+/g, ' ').toLocaleLowerCase('pl').replace(/(^|[\s-])(\p{L})/gu, (m, a, b) => a + b.toLocaleUpperCase('pl'));
+      const first = cap(v('a-first')), last = cap(v('a-last'));
+      if (first.length < 2) return showAuth('register', 'Wpisz imię.', true);
+      if (last.length < 2) return showAuth('register', 'Wpisz nazwisko.', true);
+      if (!/^[\p{L}' -]+$/u.test(first + last)) return showAuth('register', 'Imię i nazwisko mogą zawierać tylko litery.', true);
+      const name = first + ' ' + last;
       if (v('a-pass').length < 10) return showAuth('register', 'Hasło musi mieć co najmniej 10 znaków.', true);
       if (v('a-pass') !== v('a-pass2')) return showAuth('register', 'Hasła się różnią.', true);
-      const {data, error} = await sb.auth.signUp({email: v('a-email').trim(), password: v('a-pass'), options: {data: {full_name: name}, emailRedirectTo: location.origin + location.pathname}});
+      const {data, error} = await sb.auth.signUp({email: v('a-email').trim(), password: v('a-pass'), options: {data: {full_name: name, first_name: first, last_name: last}, emailRedirectTo: location.origin + location.pathname}});
       if (error) return showAuth('register', authErr(error), true);
       if (data && data.session) return;   // potwierdzanie e-maili wyłączone – od razu zalogowany
       return showAuth('login', 'Sprawdź skrzynkę: wysłaliśmy link potwierdzający adres e-mail. Po kliknięciu wróć tu i zaloguj się.');
