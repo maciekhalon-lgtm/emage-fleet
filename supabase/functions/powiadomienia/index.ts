@@ -274,6 +274,9 @@ async function geotabSync(sb: any, key: (k: string) => string, days: number){
     const at = (d: string) => d === todayW ? new Date().toISOString() : d + 'T22:00:00.000Z';   // ok. północ czasu polskiego
     const need = new Map<string, string>();   // urządzenie|dzień → dzień
     devIds.forEach(id => dayList.forEach(d => need.set(id + '|' + d, d)));
+    // dni już zapisane pomijamy (oprócz dwóch ostatnich – wtedy licznik jeszcze rośnie); oszczędza limit Geotab (1000 zapytań/min)
+    const {data: have} = await sb.from('gps_odometer').select('device, day').gte('day', dayList[0]).lt('day', addDays(todayW, -1));
+    (have || []).forEach((h: Row) => need.delete(h.device + '|' + h.day));
     let readings = 0;
     for (const diag of DIAGS){
       step = `liczniki (${diag === DIAGS[0] ? 'skorygowany' : 'z silnika'})`;
