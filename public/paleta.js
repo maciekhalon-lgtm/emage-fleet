@@ -26,6 +26,7 @@ function palActions(){
   if (typeof eqOn==='function' && eqOn() && canEq()) a.push({ic:'check', t:'Sprawdź wyposażenie aut', s:'gaśnica, apteczka, trójkąt…', run: () => { location.hash = 'wyposazenie'; }});
   if (typeof contractsOn==='function' && contractsOn() && canContracts()) a.push({ic:'coins', t:'Dodaj umowę auta', s:'leasing, najem, kredyt', run: () => openForm('contracts')});
   if (canCreate('vehicles')) a.push({ic:'truck', t:'Dodaj pojazd', s:'nowe auto we flocie', run: () => openForm('vehicles')});
+  a.push({ic:'moon', t:'Zmień motyw (jasny / ciemny)', s:'wygląd strony', run: () => { setTheme(currentTheme()==='dark' ? 'light' : 'dark'); syncThemeUi(); }});
   if (!P().mycar || P().manage || P().service) a.push({ic:'search', t:'Skróty klawiszowe', s:'Ctrl+K, g + litera…', run: () => openShortcuts()});
   if (P().manage) a.push({ic:'fuel', t:'Import z karty paliwowej', s:'Paliwo → Karty', run: () => { location.hash = 'karty'; setTimeout(() => document.querySelector('#view [data-action="fc-import"]')?.click(), 150); }});
   return a;

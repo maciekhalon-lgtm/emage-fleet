@@ -53,13 +53,29 @@ function subTabs(){
     return `<a href="#${k}" ${k===(innerParent(tab) || tab) ? 'aria-current="page"' : ''}>${l}${c.n ? ` <span class="count ${c.bad ? 'bad' : ''}">${c.n}</span>` : ''}</a>`; }).join('')}</nav>` + innerTabs();
 }
 /* Link w menu prowadzi do pierwszej dostępnej zakładki grupy */
+/* górne menu na komputerze: stopniowo ciaśniej, aż wszystko się zmieści (bez przewijania i nachodzenia) */
+function fitNav(){
+  const side = document.getElementById('side'), nav = document.getElementById('tabs'); if (!side || !nav) return;
+  side.classList.remove('nav-c1', 'nav-c2', 'nav-c3');
+  if (innerWidth <= 1000) return;
+  for (const c of ['nav-c1', 'nav-c2', 'nav-c3']){ if (nav.scrollWidth <= nav.clientWidth + 1) break; side.classList.add(c); }
+}
+addEventListener('resize', () => { clearTimeout(fitNav.t); fitNav.t = setTimeout(fitNav, 80); });
+/* Menu pamięta ostatnio otwartą zakładkę w każdej grupie – „Serwis” wraca tam, gdzie skończyłeś (mniej klikania) */
+const navLast = (() => { try { return JSON.parse(localStorage.getItem('ef-nav-last') || '{}'); } catch(_){ return {}; } })();
+function navRemember(t){
+  const g = groupOf(t); if (!g || navLast[g]===t) return;
+  navLast[g] = t; try { localStorage.setItem('ef-nav-last', JSON.stringify(navLast)); } catch(_){}
+}
 function syncNav(){
   document.querySelectorAll('[data-group]').forEach(a => {
     const g = a.dataset.group, first = GROUPS[g].find(([, , ok]) => ok());
     a.hidden = !first || !!P().mycar || (a.id==='bb-usterki' && canDrive());
-    if (first) a.setAttribute('href', '#' + first[0]);
+    const last = navLast[g] && tabAllowed(navLast[g]) && groupOf(navLast[g])===g ? navLast[g] : null;
+    if (first) a.setAttribute('href', '#' + (last || first[0]));
     const c = a.querySelector('.count'); if (c){ const x = groupCount(g); c.textContent = x.n; c.hidden = !x.n; c.classList.toggle('bad', x.bad); }
   });
+  requestAnimationFrame(fitNav);
 }
 
 /* ---------- książka serwisowa wszystkich aut ---------- */

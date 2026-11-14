@@ -71,7 +71,7 @@ function respPanel(){
   const vs = S.vehicles.filter(v => v.status!=='wycofany').sort((a, b) => (respOf(a).length > 0) - (respOf(b).length > 0) || String(a.plate).localeCompare(b.plate));
   if (!vs.length) return '';
   const none = vs.filter(v => !respOf(v).length).length;
-  return `<details class="panel fold" ${none ? 'open' : ''}><summary class="sec-head"><h3>Kto odpowiada za który bus</h3><span class="count ${none ? 'bad' : ''}">${none ? none + ' bez kierowcy' : 'wszystkie przypisane'}</span></summary>
+  return `<details class="panel fold" ${respOpen ? 'open' : ''}><summary class="sec-head"><h3>Kto odpowiada za który bus</h3><span class="count ${none ? 'bad' : ''}">${none ? none + ' bez kierowcy' : 'wszystkie przypisane'}</span></summary>
     ${vs.map(v => `<div class="mini resp-row">${plate(v.plate)}<span>${respOf(v).length ? respOf(v).map(id => `<span class="pill">${esc(dName(id))}</span>`).join(' ') : '<span class="muted">nikt</span>'}</span>
       <span class="mini-r">${canResp() ? `<button class="small ${respOf(v).length ? 'ghost' : ''}" data-resp="${esc(v.id)}">${respOf(v).length ? 'Zmień' : `${ic('plus')}Przypisz`}</button>` : ''}</span></div>`).join('')}
   </details>`;
@@ -81,3 +81,6 @@ document.addEventListener('click', e => {
   const a = e.target.closest('[data-resp]'); if (a){ e.preventDefault(); e.stopPropagation(); openResp(a.dataset.resp); return; }
   const b = e.target.closest('[data-resp-drv]'); if (b){ e.preventDefault(); e.stopPropagation(); openDrvResp(b.dataset.respDrv); }
 }, true);
+/* panel zwinięty (mniej przewijania na liście kierowców); pamiętamy, czy go rozwinięto */
+let respOpen = false;
+document.addEventListener('toggle', e => { const d = e.target; if (d.matches && d.matches('details.panel.fold') && d.querySelector('summary h3')?.textContent==='Kto odpowiada za który bus') respOpen = d.open; }, true);

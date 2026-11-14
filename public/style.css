@@ -1640,3 +1640,40 @@ tr.on td{background:var(--accent-soft)}
 .set-tabs button{flex:none;white-space:nowrap}
 .dl-done-info{display:block;margin:-4px 0 4px}.dl-done-info b.neg{color:var(--bad)}
 
+/* górne menu: gdy się nie mieści – najpierw bez ikon, potem ciaśniej (bez przełącznika motywu – jest w wyszukiwarce) */
+@media (min-width:1001px){
+  .side.nav-c1 .nav a svg.i{display:none}
+  .side.nav-c1 .nav a{padding:9px 11px}
+  .side.nav-c2 .nav a{padding:8px 9px;font-size:13px;gap:6px}
+  .side.nav-c2 .theme-sw{display:none}
+  .side.nav-c2 .side-brand .wordmark>span{display:none}
+  .side.nav-c3 .who-act{display:none}
+  .side.nav-c3 .nav a .count{padding:0 5px;min-width:16px}
+}
+
+/* telefon: „+” szybkie dodawanie */
+.fab-wrap{display:none}
+@media (max-width:1000px){
+  .fab-wrap:not([hidden]){display:block;position:fixed;right:16px;bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:35}
+  .fab{width:56px;height:56px;border-radius:50%;padding:0;display:grid;place-items:center;background:var(--accent);color:var(--on-accent);border:0;box-shadow:0 10px 24px -8px rgba(22,19,14,.45)}
+  .fab svg.i{width:26px;height:26px;stroke-width:2.4;transition:transform .15s}
+  .fab[aria-expanded="true"] svg.i{transform:rotate(45deg)}
+  .fab-menu{position:absolute;right:0;bottom:66px;display:flex;flex-direction:column;gap:6px;min-width:230px;padding:8px;background:var(--surface);border:1px solid var(--line);border-radius:18px;box-shadow:0 16px 40px -12px rgba(22,19,14,.4)}
+  .fab-menu[hidden]{display:none}
+  .fab-menu button{display:flex;align-items:center;gap:10px;justify-content:flex-start;padding:12px 14px;font-weight:600}
+  .shell.bare .fab-wrap{display:none!important}
+  #view{padding-bottom:72px}
+}
+/* telefon: użytkownicy jako karty (role i powiązanie na całą szerokość) */
+@media (max-width:820px){
+  .usr-tbl,.usr-tbl tbody,.usr-tbl tr,.usr-tbl td{display:block;width:100%}
+  .usr-tbl thead{display:none}
+  .usr-tbl tr{padding:14px 16px;border-bottom:1px solid var(--line);display:grid;gap:8px}
+  .usr-tbl td{border:0!important;padding:0!important;position:static!important;box-shadow:none!important;background:none!important;min-width:0!important}
+  .usr-tbl select{width:100%}
+}
+@media (max-width:820px){
+  .bar .tools>.seg{flex-wrap:nowrap;overflow-x:auto;max-width:100%;scrollbar-width:none}
+  .bar .tools>.seg::-webkit-scrollbar{display:none}
+  .bar .tools>.seg button{white-space:nowrap;flex:none}
+}

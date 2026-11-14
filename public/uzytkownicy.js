@@ -80,8 +80,8 @@ function viewUsers(){
     return `<tr>
       <td><b>${esc(p.full_name || '—')}</b>${isMe?' <span class="muted">(Ty)</span>':''}<span class="sub">${esc(p.email)}</span>${p.created_at ? `<span class="sub">Konto od ${fdate(p.created_at.slice(0,10))}</span>` : ''}</td>
       <td><span class="pill ${st.cls}">${st.l}</span></td>
-      <td style="min-width:180px">${roleSelect(p, isMe || p.status==='blocked')}</td>
-      <td style="min-width:200px">${(p.role==='kierowca' || p.role==='floty' || (p.status==='pending' && (pendingChoice[p.id]||{}).role!=='serwisu')) ? driverSelect(p, p.status==='blocked' || (isMe && p.role!=='floty')) : '<span class="muted">—</span>'}${p.role==='floty' && !p.driver_id && p.status==='active' ? '<span class="sub muted">Powiąż, jeśli też prowadzi auta</span>' : ''}${p.role==='kierowca' && !p.driver_id && p.status==='active' ? '<span class="sub" style="color:var(--warn)">Powiąż, aby mógł rezerwować i tankować</span>' : ''}</td>
+      <td class="usr-role" style="min-width:180px">${roleSelect(p, isMe || p.status==='blocked')}</td>
+      <td class="usr-drv" style="min-width:200px">${(p.role==='kierowca' || p.role==='floty' || (p.status==='pending' && (pendingChoice[p.id]||{}).role!=='serwisu')) ? driverSelect(p, p.status==='blocked' || (isMe && p.role!=='floty')) : '<span class="muted">—</span>'}${p.role==='floty' && !p.driver_id && p.status==='active' ? '<span class="sub muted">Powiąż, jeśli też prowadzi auta</span>' : ''}${p.role==='kierowca' && !p.driver_id && p.status==='active' ? '<span class="sub" style="color:var(--warn)">Powiąż, aby mógł rezerwować i tankować</span>' : ''}</td>
       <td><div class="row-act">${act}</div></td></tr>`;
   }).join('');
   const pend = pendingUsers().length;
@@ -89,7 +89,7 @@ function viewUsers(){
     <div class="bar"><h2>Użytkownicy i role</h2>${pend ? `<span class="pill warn">${pend} ${isPlural(pend,'konto czeka','konta czekają','kont czeka')} na zatwierdzenie</span>` : ''}</div>
     ${disputesPanel()}
     ${requestsPanel()}
-    <div class="panel tablewrap"><table><thead><tr><th>Osoba</th><th>Status</th><th>Rola</th><th>Powiązany kierowca</th><th></th></tr></thead>
+    <div class="panel tablewrap"><table class="usr-tbl"><thead><tr><th>Osoba</th><th>Status</th><th>Rola</th><th>Powiązany kierowca</th><th></th></tr></thead>
       <tbody>${rows || '<tr><td colspan="5" class="muted">Nikt się jeszcze nie zarejestrował. Wyślij pracownikom adres strony – po rejestracji pojawią się tutaj.</td></tr>'}</tbody></table></div>
     <p class="muted small" style="margin:0;max-width:80ch">Nowa osoba rejestruje się sama na stronie i potwierdza adres e-mail. Do czasu zatwierdzenia nie widzi żadnych danych. Kierowcę powiąż z jego wpisem na liście kierowców – wtedy jego tankowania i rezerwacje przypiszą się automatycznie.</p>
   </div>`;

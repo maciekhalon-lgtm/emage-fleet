@@ -275,3 +275,11 @@ Karta auta → **Terminy i serwis** → panel **Gwarancja** (kierownik floty i s
 - Następny termin liczy się sam: przebieg + „Powtarzaj co (km)” i data + „Powtarzaj co (miesięcy)”. Oba wyniki można poprawić ręcznie. Pod spodem widać, ile zostało albo o ile przebieg jest przekroczony.
 - „Wykonane” otwiera ten sam formularz z dzisiejszą datą i obecnym przebiegiem – popraw je na faktyczne. Zaznaczone „Zapisz też w książce serwisowej” dodaje wpis.
 - Wpis w książce serwisowej z wymianą rozrządu / oleju sam uzupełnia „ostatnio wykonano” w terminie. Na liście terminów i w karcie auta widać „Ostatnio: … przy X km”.
+
+## Mniej klikania (listopad 2026)
+- **Menu pamięta zakładki**: „Serwis”, „Paliwo”, „Koszty” itd. otwierają ostatnio używaną zakładkę w tej grupie (np. Terminy zamiast Usterek).
+- **Telefon – przycisk „+”** w prawym dolnym rogu: koszt / tankowanie, usterka, przydział, termin, wpis serwisowy – z każdego ekranu jednym dotknięciem.
+- **Górne menu na komputerze** samo się zwęża na mniejszym ekranie (najpierw bez ikon, potem ciaśniej) – nic nie nachodzi na wyszukiwarkę i przyciski. Przełącznik motywu jest też w wyszukiwarce (Ctrl+K → „Zmień motyw”).
+- **Terminy**: filtry w jednym przełączniku, „Terminy floty” i „W kalendarzu” pod „Więcej”.
+- **Kierowcy**: panel „Kto odpowiada za który bus” jest zwinięty (licznik aut bez kierowcy widać na nagłówku).
+- **Użytkownicy na telefonie**: każda osoba jako karta, rola i powiązanie na całą szerokość.

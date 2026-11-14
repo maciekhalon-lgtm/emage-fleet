@@ -6,7 +6,7 @@ const TABS = ['moje','wybierz','moje-dane','moj-grafik','moja-historia','pulpit'
 const homeTab = () => P().mycar ? 'moje' : 'pulpit';
 let pendingCard = null;
 let tab = 'pulpit', q = '', costMonth = today().slice(0,7), dlFilter = 'urgent';
-function route(){ const h = location.hash.slice(1); tab = TABS.includes(h) ? h : homeTab(); cardId = pendingCard; pendingCard = null; $('#app').classList.remove('nav-open'); render(); window.scrollTo(0,0); }
+function route(){ actsOpen = false; const h = location.hash.slice(1); tab = TABS.includes(h) ? h : homeTab(); cardId = pendingCard; pendingCard = null; $('#app').classList.remove('nav-open'); render(); window.scrollTo(0,0); }
 window.addEventListener('hashchange', route);
 
 /* ---------- render ---------- */
@@ -41,6 +41,8 @@ function render(){
     const g = groupOf(tab), first = g && GROUPS[g].find(([, , ok]) => ok());
     tab = first ? first[0] : 'pulpit';
   }
+  navRemember(tab); syncNav();
+  syncFab();
   const navTab = DRIVER_VIEWS.includes(tab) ? 'moje' : (innerParent(tab) || tab), navGroup = groupOf(tab);
   document.querySelectorAll('#tabs a, #bottombar a').forEach(a => { if (a.dataset.tab===navTab || (a.dataset.group && a.dataset.group===navGroup)) a.setAttribute('aria-current','page'); else a.removeAttribute('aria-current'); });
   renderNotices();
@@ -178,6 +180,9 @@ document.addEventListener('keydown', e => { if (e.key==='Escape') $('#app').clas
 
 /* Telefon: aktywna zakładka w przewijanym pasku zakładek zawsze widoczna */
 let actsOpen = false;
+/* „Więcej” – rzadziej używane przyciski paska narzędzi w rozwijanym menu (pusta lista = brak przycisku) */
+const moreMenu = html => html ? `<button class="acts-toggle" data-action="acts-toggle" aria-expanded="${actsOpen}">${ic('cog')}Więcej</button><span class="acts-sec">${html}</span>` : '';
+const barOpen = () => actsOpen ? 'acts-open' : '';
 function centerTabs(){
   document.querySelectorAll('.subtabs, .inner-tabs').forEach(n => { const a = n.querySelector('[aria-current="page"]');
     if (!a || n.scrollWidth <= n.clientWidth) return;
@@ -186,3 +191,30 @@ function centerTabs(){
 }
 document.addEventListener('click', e => { if (e.target.closest('[data-action="acts-toggle"]')){ e.preventDefault(); e.stopPropagation(); actsOpen = !actsOpen; render(); } }, true);
 document.addEventListener('click', e => { if (!actsOpen || e.target.closest('[data-action="acts-toggle"]')) return; const inside = e.target.closest('.acts-sec'); actsOpen = false; if (!inside) render(); else document.querySelector('.bar.acts-open')?.classList.remove('acts-open'); });
+
+/* Telefon: przycisk „+” – najczęstsze wpisy jednym dotknięciem z każdego ekranu (kierownik floty i serwisu) */
+function fabItems(){
+  const it = [];
+  if (canCreate('costs') && P().manage) it.push(['fuel', 'Koszt / tankowanie', () => openForm('costs')]);
+  if (canCreate('issues')) it.push(['alert', 'Zgłoś usterkę', () => openForm('issues')]);
+  if (canCreate('bookings') && P().manage) it.push(['cal', 'Przydział w grafiku', () => openForm('bookings')]);
+  if (canCreate('deadlines')) it.push(['clip', 'Termin', () => openForm('deadlines')]);
+  if (canCreate('serviceEntries') && P().service) it.push(['wrench', 'Wpis serwisowy', () => openForm('serviceEntries')]);
+  return it;
+}
+function syncFab(){
+  const w = document.getElementById('fab'); if (!w) return;
+  const show = !!me && !P().mycar && fabItems().length > 0 && !['ustawienia', 'historia'].includes(tab);
+  w.hidden = !show; if (!show) fabClose();
+}
+function fabClose(){ const m = document.getElementById('fab-menu'); if (m) m.hidden = true; document.querySelector('.fab')?.setAttribute('aria-expanded', 'false'); }
+document.addEventListener('click', e => {
+  const f = e.target.closest('[data-action="fab"]');
+  const m = document.getElementById('fab-menu');
+  if (f){ e.preventDefault(); e.stopPropagation(); if (!m.hidden) return fabClose();
+    const items = fabItems(); m.innerHTML = items.map(([icn, l], k) => `<button type="button" data-fab-i="${k}">${ic(icn)}${l}</button>`).join('');
+    m.hidden = false; f.setAttribute('aria-expanded', 'true'); return; }
+  const b = e.target.closest('[data-fab-i]');
+  if (b){ e.preventDefault(); e.stopPropagation(); const x = fabItems()[Number(b.dataset.fabI)]; fabClose(); if (x) x[2](); return; }
+  if (m && !m.hidden && !e.target.closest('#fab')) fabClose();
+}, true);
