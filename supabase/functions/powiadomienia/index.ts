@@ -334,6 +334,46 @@ async function fuelGpsCheck(sb: any, rpc: (h: string, m: string, p: Record<strin
   return {fuelChecked: todo.length, fuelFar: bad, noPosition: todo.length - withPos.length};
 }
 
+/* ---------- Kontrola liczników (migracja 036): licznik GPS w chwili wpisu kierowcy / tankowania z karty ---------- */
+const warsawDay = (iso: string) => new Intl.DateTimeFormat('sv-SE', {timeZone: 'Europe/Warsaw'}).format(new Date(iso));
+async function odoGpsCheck(sb: any, rpc: (h: string, m: string, p: Record<string, unknown>) => Promise<any>, host: string, cred: unknown, devOf: Map<string, string>, limit: number){
+  const since = new Date(Date.now() - 120 * DAY).toISOString();
+  const {data: done} = await sb.from('odo_gps').select('source, ref_id, at, gps_km').gte('at', since);
+  // brak odczytu GPS ponawiamy przez 3 dni (lokalizator czasem wysyła dane z opóźnieniem)
+  const have = new Set((done || []).filter((x: Row) => x.gps_km != null || Date.parse(x.at) < Date.now() - 3 * DAY).map((x: Row) => x.source + '|' + x.ref_id));
+  const ev: {source: string; ref_id: string; vehicle_id: string; at: string}[] = [];
+  const add = (source: string, ref_id: string, vehicle_id: string, at: string) => { if (vehicle_id && devOf.has(vehicle_id) && at && !have.has(source + '|' + ref_id) && Date.parse(at) < Date.now() - 30 * 60000) ev.push({source, ref_id, vehicle_id, at}); };
+  // 1) tankowania z karty – godzina z wyciągu
+  const {data: card} = await sb.from('fuel_card_rows').select('id, vehicle_id, tx_date, tx_time, odometer, cost_id').not('odometer', 'is', null).not('tx_time', 'is', null).gte('tx_date', since.slice(0, 10)).limit(3000);
+  (card || []).forEach((r: Row) => add('karta', r.id, r.vehicle_id, warsawToUtc(r.tx_date, r.tx_time)));
+  const fromCard = new Set((card || []).map((r: Row) => r.cost_id).filter(Boolean));
+  // 2) tankowania wpisane w aplikacji – chwila wpisu, tylko gdy wpisane tego samego dnia (inaczej nie znamy godziny)
+  const {data: costs} = await sb.from('costs').select('id, vehicle_id, date, odometer, created_at, category').in('category', ['Paliwo', 'Ładowanie']).not('odometer', 'is', null).gte('created_at', since).limit(3000);
+  (costs || []).forEach((c: Row) => { if (!fromCard.has(c.id) && warsawDay(c.created_at) === c.date) add('tankowanie', c.id, c.vehicle_id, c.created_at); });
+  // 3) przejęcie i zdanie auta – chwila wpisania licznika
+  const {data: bk} = await sb.from('bookings').select('id, vehicle_id, pickup_ts, return_ts').or(`pickup_ts.gte.${since},return_ts.gte.${since}`).limit(3000);
+  (bk || []).forEach((b: Row) => { if (b.pickup_ts) add('przejecie', b.id, b.vehicle_id, b.pickup_ts); if (b.return_ts) add('zdanie', b.id, b.vehicle_id, b.return_ts); });
+  ev.sort((a, b) => b.at.localeCompare(a.at));
+  const todo = ev.slice(0, limit);
+  if (!todo.length) return {odoChecked: 0};
+  const km = new Map<number, number>();
+  for (const diag of ['DiagnosticOdometerAdjustmentId', 'DiagnosticOdometerId']){
+    const left = todo.map((e, i) => i).filter(i => !km.has(i));
+    for (let i = 0; i < left.length; i += 100){
+      const part = left.slice(i, i + 100);
+      const res: Row[][] = await rpc(host, 'ExecuteMultiCall', {calls: part.map(j => ({method: 'Get', params: {typeName: 'StatusData', search: {deviceSearch: {id: devOf.get(todo[j].vehicle_id)}, diagnosticSearch: {id: diag}, fromDate: todo[j].at, toDate: todo[j].at}}})), credentials: cred});
+      part.forEach((j, n) => { const r = (res[n] || []).find(x => x && x.data != null); const v = r ? Math.round(odoKm(Number(r.data)) * 10) / 10 : 0; if (v >= 50) km.set(j, v); });
+    }
+  }
+  const now = new Date().toISOString();
+  const rows = todo.map((e, i) => ({...e, gps_km: km.has(i) ? km.get(i) : null, checked_at: now}));
+  for (let i = 0; i < rows.length; i += 500){
+    const {error} = await sb.from('odo_gps').upsert(rows.slice(i, i + 500), {onConflict: 'source,ref_id'});
+    if (error) throw new Error('zapis: ' + error.message);
+  }
+  return {odoChecked: rows.length, odoNoGps: rows.filter(r => r.gps_km == null).length, odoLeft: ev.length - todo.length};
+}
+
 async function geotabSync(sb: any, key: (k: string) => string, days: number, fuelLimit = 300){
   const db = key('GEOTAB_DATABASE'), user = (Deno.env.get('GEOTAB_USER') || '').trim(), pass = (Deno.env.get('GEOTAB_PASSWORD') || '').trim();
   const status = async (o: Record<string, unknown>) => { await sb.from('settings').upsert({key: 'geotab', value: {...o, at: new Date().toISOString()}}, {onConflict: 'key'}); return o; };
@@ -402,6 +442,8 @@ async function geotabSync(sb: any, key: (k: string) => string, days: number, fue
     const devOf = new Map<string, string>(); map.forEach((v, id) => { if (!devOf.has(v.id)) devOf.set(v.id, id); });
     let fuel: Record<string, unknown> = {};
     try { fuel = await fuelGpsCheck(sb, rpc, host, cred, devOf, fuelLimit); } catch (e) { errs.push(step + ': ' + String((e as Error).message || e).slice(0, 120)); }
+    step = 'kontrola liczników';
+    try { fuel = {...fuel, ...await odoGpsCheck(sb, rpc, host, cred, devOf, 400)}; } catch (e) { errs.push(step + ': ' + String((e as Error).message || e).slice(0, 120)); }
     return await status({ok: true, devices: devices.length, matched: map.size, unmatched, readings, days: daily.length, kmUpdated: upd, warnings: errs.slice(0, 8), ...fuel,
       deviceList: devices.map(d => ({id: d.id, name: d.name || '', plate: d.licensePlate || '', vehicle: map.get(d.id) ? map.get(d.id)!.plate : null}))});
   } catch (e) {

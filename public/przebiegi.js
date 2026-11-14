@@ -23,8 +23,33 @@ function odoReadings(vid){
   // ten sam dzień: kolejność po liczniku (przejęcie rano, tankowania, zdanie wieczorem)
   return out.filter(x => x.d).sort((a, b) => a.d.localeCompare(b.d) || a.odo - b.odo || a.t.localeCompare(b.t));
 }
-function odoRange(vid, from, to){
+/* Skąd brać km: ustawienie 'odo_source' (Ustawienia → Lokalizatory GPS) albo przełącznik „Km z:” na ekranie (do końca sesji).
+   auto = wszystkie liczniki razem; gps = lokalizator; karty = liczniki z kart paliwowych; kierowcy = wpisy kierowców.
+   Gdy wybrane źródło nie ma danych w zakresie – liczymy jak „auto” i oznaczamy to (fb). */
+const ODO_SRCS = [['auto', 'Wszystkie'], ['gps', 'GPS'], ['karty', 'Karty'], ['kierowcy', 'Kierowcy']];
+let odoPick = null;
+const odoCfg = () => { const s = (S.settings || []).find(x => x.id==='odo_source') || {}; return {def: ODO_SRCS.some(x => x[0]===s.def) ? s.def : 'auto', tol: Number(s.tol) > 0 ? Number(s.tol) : 50}; };
+const odoSrc = () => odoPick || odoCfg().def;
+const odoSrcName = k => ({auto: 'wszystkie liczniki', gps: 'lokalizator GPS', karty: 'karty paliwowe', kierowcy: 'wpisy kierowców'})[k] || k;
+const ODO_DRIVER_SRC = ['tankowanie', 'przejęcie', 'zdanie'];
+function odoReadingsOf(vid, src){
   const all = odoReadings(vid);
+  if (src==='gps') return all.filter(x => x.src==='GPS');
+  if (src==='karty') return all.filter(x => x.src==='karta');
+  if (src==='kierowcy'){ const fromCard = new Set((S.fuelCardRows || []).map(r => r.costId).filter(Boolean)); return all.filter(x => ODO_DRIVER_SRC.includes(x.src) && !fromCard.has(x.id.slice(1))); }
+  return all;
+}
+/* przełącznik „Km z:” do wstawienia na ekranie */
+function odoSwitch(){
+  const cur = odoSrc();
+  return `<div class="seg odo-sw" role="group" aria-label="Skąd brać przebieg"><span class="label">Km z:</span>${ODO_SRCS.map(([k, l]) => `<button type="button" class="small ${cur===k ? 'on' : ''}" data-odo-src="${k}" aria-pressed="${cur===k}">${l}</button>`).join('')}</div>`;
+}
+document.addEventListener('click', e => { const b = e.target.closest('[data-odo-src]'); if (!b) return; odoPick = b.dataset.odoSrc===odoCfg().def ? null : b.dataset.odoSrc; render(); });
+function odoRange(vid, from, to, src = odoSrc()){
+  if (src!=='auto'){ const r = odoRangeOf(odoReadingsOf(vid, src), from, to); if (r.km!=null) return {...r, src}; return {...odoRangeOf(odoReadings(vid), from, to), src: 'auto', fb: src}; }
+  return {...odoRangeOf(odoReadings(vid), from, to), src: 'auto'};
+}
+function odoRangeOf(all, from, to){
   const before = all.filter(x => x.d < from), inR = all.filter(x => x.d >= from && x.d <= to);
   // punkt startowy: ostatni licznik sprzed zakresu, jeśli najwyżej 7 dni wcześniej (starszy zawyżyłby wynik)
   const anc = before.length && diffDays(before[before.length - 1].d, from) <= 7 ? before[before.length - 1] : null;
@@ -64,22 +89,25 @@ function fuelDataEnd(){
   if (!d) appFuel().forEach(c => { if (c.date > d) d = c.date; });
   fuelEndMemo = {k, d}; return d;
 }
-function consRange(vid, from, to){
+function consRange(vid, from, to, src = odoSrc()){
+  if (src==='karty' || src==='kierowcy'){ const only = consRangeOdo(vid, from, to, src); if (only.rate!=null) return only;
+    const r = consRange(vid, from, to, 'auto'); return {...r, fb: src}; }
   const base = consRangeOdo(vid, from, to), end = fuelDataEnd(), to2 = end && end < to ? end : to;
   if (to2 < from) return base;
   const g = gpsRange(vid, from, to2);
-  if (!g || g.km < 300) return base;
+  if (!g || g.km < 300) return src==='gps' ? {...base, fb: 'gps'} : base;
   const cards = S.fuelCardRows.filter(r => r.vehicleId===vid && r.kind!=='other' && r.txDate > g.from && r.txDate <= g.to);
   const fills = cards.length ? cards.map(r => Number(r.liters) || 0) : appFuel().filter(c => c.vehicleId===vid && c.date > g.from && c.date <= g.to).map(c => Number(c.liters) || 0);
   const l = fills.reduce((s, x) => s + x, 0); if (!l) return base;
   const rate = l / g.km * 100;
   return {...base, km: g.km, l, rate, from: g.from, to: g.to, n: fills.length, src: 'gps', unsure: rate < 4 || rate > 25, gps: true};
 }
-function consRangeOdo(vid, from, to){
+function consRangeOdo(vid, from, to, only){
   const pick = (list, d) => { const before = list.filter(x => d(x) < from).sort((a, b) => d(a).localeCompare(d(b))), inR = list.filter(x => d(x) >= from && d(x) <= to);
     const anc = before.length && diffDays(d(before[before.length - 1]), from) <= 7 ? [before[before.length - 1]] : []; return anc.concat(inR); };
   const card = fcCons(pick(S.fuelCardRows.filter(r => r.vehicleId===vid && r.kind!=='other'), r => r.txDate).map(r => ({id: r.id, odo: Number(r.odometer), l: r.liters, d: r.txDate + ' ' + (r.txTime || '')})));
-  if (card && card.rate!=null) return {...card, src:'karta'};
+  if (card && card.rate!=null && only!=='kierowcy') return {...card, src:'karta'};
+  if (only==='karty') return {src: null, n: card ? card.n : 0, bad: card ? card.bad : new Set(), breaks: card ? card.breaks || 0 : 0};
   const app = fcCons(pick(appFuel().filter(c => c.vehicleId===vid), c => c.date).map(c => ({id: c.id, odo: Number(c.odometer), l: c.liters, d: c.date + ' ' + (c.createdAt || '')})));
   if (app && app.rate!=null) return {...app, src:'kierowcy'};
   return {src: null, n: (card ? card.n : 0) + (app ? app.n : 0), bad: new Set([...(card ? card.bad : []), ...(app ? app.bad : [])]), breaks: (card ? card.breaks || 0 : 0)};
@@ -87,7 +115,7 @@ function consRangeOdo(vid, from, to){
 /* Średnie spalanie auta z całej historii – ta sama liczba w Pojazdach, karcie auta, kosztach i raportach */
 let fcMemo = {key: '', m: new Map()};
 function fleetConsumption(vid){
-  const key = S.fuelCardRows.length + '|' + S.costs.length + '|' + today();
+  const key = S.fuelCardRows.length + '|' + S.costs.length + '|' + today() + '|' + odoSrc();
   if (fcMemo.key!==key) fcMemo = {key, m: new Map()};
   if (!fcMemo.m.has(vid)){ const c = consRange(vid, ALL_FROM, today()); fcMemo.m.set(vid, c && c.rate!=null && !c.unsure ? c : null); }
   return fcMemo.m.get(vid);
@@ -132,7 +160,7 @@ function viewFuelMileage(){
   const all = pbFrom===ALL_FROM;
   const head = `<div class="bar"><h2>Spalanie i przebiegi</h2><div class="tools pb-tools">
       <label class="label" for="pb-from">Od</label><input id="pb-from" type="date" value="${all ? '' : pbFrom}" style="width:auto">
-      <label class="label" for="pb-to">Do</label><input id="pb-to" type="date" value="${pbTo}" style="width:auto"></div></div>
+      <label class="label" for="pb-to">Do</label><input id="pb-to" type="date" value="${pbTo}" style="width:auto">${odoSwitch()}</div></div>
     <div class="pb-quick">${quick.map(([l, f, e]) => `<button class="small ${f===pbFrom && e===pbTo ? 'primary' : ''}" data-pb="${f}|${e}">${l}</button>`).join('')}</div>`;
   const vs = S.vehicles.filter(v => v.status!=='wycofany');
   const res = vs.map(v => { const r = odoRange(v.id, pbFrom, pbTo), c = consRange(v.id, pbFrom, pbTo); return {v, r, c, km: r.km, rate: c.rate!=null && !c.unsure ? c.rate : null, l: c.l || 0}; });
@@ -153,7 +181,7 @@ function viewFuelMileage(){
     return `<tr class="click fc-vrow ${open ? 'open' : ''}" data-pbv="${esc(v.id)}" aria-expanded="${open}"><td>${ic('chev', 'fc-chev')} ${plate(v.plate)}<span class="sub">${esc(v.make + ' ' + v.model)}</span></td>
       <td class="r num">${rate!=null ? `<b class="fc-big">${rate.toFixed(1).replace('.', ',')}</b> l/100` : c.rate!=null ? `<span class="muted">${c.rate.toFixed(1).replace('.', ',')} l/100</span>` : `<span class="muted">${c.n ? 'za mało danych' : 'brak danych'}</span>`}
         <span class="sub">${c.rate!=null ? (c.unsure ? '<span class="pill off">niepewne – sprawdź liczniki</span>' : c.rate > THEFT_RATE ? '<span class="pill bad">podejrzane – możliwa kradzież</span>' : levelPill(levelFor(v.id, c.rate)) || '') : ''}</span></td>
-      <td class="r num">${kmV!=null ? `<b>${nf(kmV)} km</b>` : '<span class="muted">—</span>'}${kmV && days ? `<span class="sub">${nf(kmV / days)} km / dzień</span>` : ''}</td>
+      <td class="r num">${kmV!=null ? `<b>${nf(kmV)} km</b>` : '<span class="muted">—</span>'}${kmV && days ? `<span class="sub">${nf(kmV / days)} km / dzień</span>` : ''}${r.fb && kmV!=null ? `<span class="sub"><span class="pill off" title="Brak danych z: ${esc(odoSrcName(r.fb))} – policzone ze wszystkich liczników">bez ${({gps: 'GPS', karty: 'kart', kierowcy: 'wpisów kierowców'})[r.fb] || ''} – wszystkie</span></span>` : ''}</td>
       <td class="r num">${c.l ? fl(c.l) : '—'}</td>
       <td class="muted small">${c.src ? (c.src==='gps' ? 'km z GPS, litry z kart' : c.src==='karta' ? 'z kart paliwowych' : 'z wpisów kierowców') : ''}${c.from ? `<span class="sub">${fdate(c.from)} – ${fdate(c.to)}</span>` : ''}</td>
       <td>${notes.map(n => `<span class="pill off">${esc(n)}</span>`).join(' ')}${!open && consWhy(v, c, fleetRate) ? ' <span class="pill warn">Dlaczego tak dużo? – kliknij</span>' : ''}</td></tr>${det}`;
@@ -165,7 +193,7 @@ function viewFuelMileage(){
       <div><span class="label">Średnio na auto</span><b>${nf(totalKm / Math.max(1, res.filter(x => x.km).length))} km</b></div></div>
     <div class="panel tablewrap fc-table"><table><thead><tr>${th('plate', 'Auto')}${th('rate', 'Spalanie', 1)}${th('km', 'Przebieg', 1)}${th('l', 'Litry', 1)}<th>Dane</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
     ${routeConsPanel(res)}
-    <p class="muted small" style="margin:0">Kliknij nagłówek kolumny, aby posortować (drugi raz – odwrotnie). Przebieg: wszystkie liczniki (karta, tankowania, przejęcie i zdanie auta). Spalanie: tankowania z kart paliwowych, a gdy ich brak – wpisy kierowców; liczone odcinkami, pojedynczy zły licznik pomijany, dziura (np. tankowanie inną kartą) przerywa liczenie. Wynik poza 5–25 l/100 km – „niepewne”, poza średnią floty. Kliknij auto, aby zobaczyć liczniki po kolei.</p>`;
+    <p class="muted small" style="margin:0">Kliknij nagłówek kolumny, aby posortować (drugi raz – odwrotnie). Przebieg: ${odoSrc()==='auto' ? 'wszystkie liczniki (GPS, karta, tankowania, przejęcie i zdanie auta)' : esc(odoSrcName(odoSrc())) + ' (gdy brak – wszystkie liczniki)'}; źródło zmienisz przełącznikiem „Km z:”, domyślne w Ustawieniach. Spalanie: tankowania z kart paliwowych, a gdy ich brak – wpisy kierowców; liczone odcinkami, pojedynczy zły licznik pomijany, dziura (np. tankowanie inną kartą) przerywa liczenie. Wynik poza 5–25 l/100 km – „niepewne”, poza średnią floty. Kliknij auto, aby zobaczyć liczniki po kolei.</p>`;
 }
 document.addEventListener('change', e => {
   if (e.target.id==='pb-from'){ pbFrom = e.target.value || ALL_FROM; if (pbTo < pbFrom) pbTo = pbFrom; render(); }

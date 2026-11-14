@@ -70,7 +70,7 @@ function render(){
   else if (tab==='karty') v.innerHTML = viewFuelCards();
   else if (tab==='spalanie') v.innerHTML = viewFuelMileage();
   else if (tab==='porownanie') v.innerHTML = viewCompare();
-  else if (tab==='liczniki') v.innerHTML = viewOdometers();
+  else if (tab==='liczniki') v.innerHTML = viewOdoControl();
   else if (tab==='srednie') v.innerHTML = viewAverages();
   else if (tab==='wykorzystanie') v.innerHTML = viewUtilization();
   else if (tab==='rentownosc') v.innerHTML = viewProfit();

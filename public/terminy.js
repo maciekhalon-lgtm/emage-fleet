@@ -19,7 +19,7 @@ function viewDeadlines(){
     html += `<div class="dl-group label">${name} · ${items.length}</div>` + items.map(({d,s}) => {
       const v = byId('vehicles', d.vehicleId);
       const cyc = [d.intervalMonths?'co '+d.intervalMonths+' mies.':'', d.intervalKm?'co '+km(d.intervalKm):''].filter(Boolean).join(' lub ');
-      const kmInfo = (d.kmDue ? `<span class="sub num">lub przy ${km(d.kmDue)}${v&&v.km?` (teraz ${km(v.km)})`:''}</span>` : '') + (d.lastDoneKm || d.lastDoneDate ? `<span class="sub">Ostatnio: ${d.lastDoneDate ? fdate(d.lastDoneDate) : ''}${d.lastDoneKm ? (d.lastDoneDate ? ' przy ' : 'przy ') + km(d.lastDoneKm) : ''}</span>` : '') + (cyc ? `<span class="sub">Cykl: ${cyc}</span>` : '') + (d.note && !d.kmDue ? `<span class="sub">${esc(d.note)}</span>` : '');
+      const kmInfo = (d.kmDue ? (() => { const sk = svcKm(d.vehicleId); return `<span class="sub num">lub przy ${km(d.kmDue)}${sk.km ? ` (teraz ${km(sk.km)}${sk.gps ? ' z GPS' : ''})` : ''}</span>${sk.gps || !(S.gpsOdometer || []).length ? '' : `<span class="sub"><span class="pill off" title="Brak aktualnego odczytu z lokalizatora (ostatni: ${sk.day ? fdate(sk.day) : 'nigdy'}) – liczone z najwyższego wpisanego licznika">przebieg bez GPS</span></span>`}`; })() : '') + (d.lastDoneKm || d.lastDoneDate ? `<span class="sub">Ostatnio: ${d.lastDoneDate ? fdate(d.lastDoneDate) : ''}${d.lastDoneKm ? (d.lastDoneDate ? ' przy ' : 'przy ') + km(d.lastDoneKm) : ''}</span>` : '') + (cyc ? `<span class="sub">Cykl: ${cyc}</span>` : '') + (d.note && !d.kmDue ? `<span class="sub">${esc(d.note)}</span>` : '');
       return `<div class="dl-row ${s.cls==='ok'?'':s.cls}" ${canEditDoc('deadlines',d)?'data-edit="deadlines" tabindex="0"':'style="cursor:default"'} data-id="${esc(d.id)}">
         <div class="dl-date">${fdate(d.date)}</div>
         <div style="min-width:0"><b>${esc(d.type)}</b>${kmInfo}</div>
@@ -91,16 +91,17 @@ async function renewAfterSave(rn, deadlineId){
 /* Średni dzienny przebieg auta z ostatnich 60 dni (wszystkie liczniki) – do przewidywania terminów „na km” */
 function kmPerDay(vid){
   if (typeof odoRange!=='function') return 0;
-  const t = today(), r = odoRange(vid, addDays(t, -60), t);
+  const t = today(), r = odoRange(vid, addDays(t, -60), t, 'gps');
   return r && r.km > 0 ? r.km / 60 : 0;
 }
 /* Kiedy termin faktycznie wypadnie: data albo (wcześniej) dzień, w którym auto dojedzie do km_due */
 function dueEstimate(d){
   const v = byId('vehicles', d.vehicleId) || {};
   let when = d.date, byKm = false, rate = 0;
-  if (d.kmDue && v.km){
+  const sk = d.kmDue ? svcKm(d.vehicleId) : null;
+  if (d.kmDue && sk && sk.km){
     rate = kmPerDay(d.vehicleId);
-    const left = Number(d.kmDue) - Number(v.km);
+    const left = Number(d.kmDue) - sk.km;
     const kd = left <= 0 ? today() : rate > 0 ? addDays(today(), Math.floor(left / rate)) : null;
     if (kd && (!when || kd < when)){ when = kd; byKm = true; }
   }

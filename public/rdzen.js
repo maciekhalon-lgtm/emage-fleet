@@ -1,7 +1,7 @@
 /* Emage FLEET — rdzeń: stan danych, pomocnicze funkcje dat i formatowania, logika domenowa */
 'use strict';
-const COLS = ['vehicles','drivers','deadlines','bookings','costs','issues','docs','settings','requests','crewChanges','routes','serviceEntries','blockOverrides','loadings','loadingReports','fuelCardImports','fuelCardRows','routeStops','fleetCosts','tires','contracts','equipment','workshops','visits','gpsOdometer'];
-const S = {gpsOdometer:[],routeStops:[],fleetCosts:[],tires:[],contracts:[],equipment:[],workshops:[],visits:[],vehicles:[],drivers:[],deadlines:[],bookings:[],costs:[],issues:[],docs:[],settings:[],requests:[],crewChanges:[],routes:[],serviceEntries:[],blockOverrides:[],loadings:[],loadingReports:[],fuelCardImports:[],fuelCardRows:[]};
+const COLS = ['vehicles','drivers','deadlines','bookings','costs','issues','docs','settings','requests','crewChanges','routes','serviceEntries','blockOverrides','loadings','loadingReports','fuelCardImports','fuelCardRows','routeStops','fleetCosts','tires','contracts','equipment','workshops','visits','gpsOdometer','odoGps'];
+const S = {gpsOdometer:[],odoGps:[],routeStops:[],fleetCosts:[],tires:[],contracts:[],equipment:[],workshops:[],visits:[],vehicles:[],drivers:[],deadlines:[],bookings:[],costs:[],issues:[],docs:[],settings:[],requests:[],crewChanges:[],routes:[],serviceEntries:[],blockOverrides:[],loadings:[],loadingReports:[],fuelCardImports:[],fuelCardRows:[]};
 const got = {};
 let db = null, canWrite = true, dbState = 'loading';
 let myId = null;
@@ -40,19 +40,31 @@ const DL_TYPES = ['Przegląd techniczny','Ubezpieczenie OC','Ubezpieczenie AC','
 const COST_CATS = ['Paliwo','Ładowanie','Serwis i naprawy','Ubezpieczenie','Opony','Myjnia','Opłaty i parkingi','Leasing','Inne'];
 const FUELS = ['Diesel','Benzyna','Hybryda','Elektryczny','LPG'];
 
+/* Przebieg do serwisu (olej, rozrząd, przeglądy na km): licznik z lokalizatora GPS, jeśli odczyt ma najwyżej 3 dni;
+   inaczej najwyższy zapisany przebieg auta (karty, kierowcy) – wtedy termin oznaczamy „przebieg bez GPS”. */
+let svcKmMemo = {k: '', m: new Map()};
+function svcKm(vid){
+  const k = (S.gpsOdometer || []).length + '|' + today(); if (svcKmMemo.k!==k) svcKmMemo = {k, m: new Map()};
+  if (svcKmMemo.m.has(vid)) return svcKmMemo.m.get(vid);
+  const v = byId('vehicles', vid); let last = null;
+  (S.gpsOdometer || []).forEach(g => { if (g.vehicleId===vid && Number(g.km) > 0 && (!last || g.day > last.day)) last = g; });
+  const r = last && diffDays(last.day, today()) <= 3 ? {km: Math.round(Number(last.km)), gps: true, day: last.day}
+    : {km: v && v.km ? Number(v.km) : null, gps: false, day: last ? last.day : null};
+  svcKmMemo.m.set(vid, r); return r;
+}
 function dlState(dl){
   const dd = diffDays(today(), dl.date);
   if (dl.type==='Koniec gwarancji'){   // po końcu gwarancji nic nie alarmuje
-    const vv = byId('vehicles', dl.vehicleId), lk = dl.kmDue && vv && vv.km ? Number(dl.kmDue) - Number(vv.km) : null;
+    const sk = dl.kmDue ? svcKm(dl.vehicleId) : null, lk = sk && sk.km ? Number(dl.kmDue) - sk.km : null;
     if (dd < 0 || (lk!=null && lk <= 0)) return {cls:'off', txt:'Gwarancja zakończona', d: 9999};
   }
-  const veh = dl.kmDue ? byId('vehicles', dl.vehicleId) : null;
-  const left = veh && veh.km ? Number(dl.kmDue) - Number(veh.km) : null;
+  const sk = dl.kmDue ? svcKm(dl.vehicleId) : null;
+  const left = sk && sk.km ? Number(dl.kmDue) - sk.km : null;
   const warnAt = Number(dl.remindKm) || 1000, soonAt = Math.max(3000, warnAt + 1000);   // przypomnienie N km przed
   const kmEq = left===null ? Infinity : left<=0 ? 0 : left<=warnAt ? 7 : left<=soonAt ? 20 : Infinity;
   if (kmEq < dd || (kmEq===0 && dd>0)){
     const cls = left<=0 ? 'bad' : left<=warnAt ? 'warn' : 'soon';
-    return {cls, txt: left<0 ? 'Przebieg przekroczony o '+new Intl.NumberFormat('pl-PL').format(-left)+' km' : left===0 ? 'Przebieg osiągnięty' : 'Zostało '+new Intl.NumberFormat('pl-PL').format(left)+' km', d:kmEq, byKm:true};
+    return {cls, txt: (left<0 ? 'Przebieg przekroczony o '+new Intl.NumberFormat('pl-PL').format(-left)+' km' : left===0 ? 'Przebieg osiągnięty' : 'Zostało '+new Intl.NumberFormat('pl-PL').format(left)+' km') + (sk.gps ? '' : ' (przebieg bez GPS)'), d:kmEq, byKm:true, noGps: !sk.gps};
   }
   const d = dd;
   if (d < 0) return {cls:'bad', txt:'Po terminie '+(-d)+' '+isPlural(-d,'dzień','dni','dni'), d};

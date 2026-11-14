@@ -56,7 +56,7 @@ function rtCalc(m){
 function viewRouteProfit(){
   if (!P().manage) return '';
   const R = rtCalc(rtMonth), k = R.kc;
-  const head = `<div class="bar"><h2>Rentowność tras</h2><div class="tools"><label class="label" for="rt-m">Miesiąc</label><input id="rt-m" type="month" value="${rtMonth}" style="width:auto"></div></div>`;
+  const head = `<div class="bar"><h2>Rentowność tras</h2><div class="tools"><label class="label" for="rt-m">Miesiąc</label><input id="rt-m" type="month" value="${rtMonth}" style="width:auto">${typeof odoSwitch==='function' ? odoSwitch() : ''}</div></div>`;
   const kpis = `<div class="panel fc-meta">
     <div><span class="label">Przychód z tras</span><b>${zlr(R.tot.rev)}</b></div>
     <div><span class="label">Koszty tras</span><b>${zlr(R.tot.cost)}</b></div>

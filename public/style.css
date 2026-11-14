@@ -1684,3 +1684,23 @@ html[data-env="test"] body{padding-top:20px}
 @media (min-width:1001px){html[data-env="test"] .side{top:26px}}
 @media (max-width:600px){#env-bar span{display:none}}
 .auth-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}@media (max-width:420px){.auth-row{grid-template-columns:1fr}}
+/* przełącznik „Km z:” (źródło przebiegu) */
+.odo-sw{align-items:center}
+.odo-sw .label{padding:0 6px 0 10px;margin:0;white-space:nowrap}
+.odo-set{display:grid;gap:8px;padding-top:10px;border-top:1px solid var(--line)}
+/* kontrola liczników */
+.oc-mode{margin:0 0 12px}
+.oc-tbl tr.oc-bad td:first-child{box-shadow:inset 3px 0 0 var(--bad,#d92d20)}
+.oc-drv tr.sel td{background:var(--raised)}
+@media (max-width:700px){
+  .oc-tbl thead,.oc-drv thead{display:none}
+  .oc-tbl tr,.oc-drv tr{display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px 10px;padding:12px 14px;border-bottom:1px solid var(--line)}
+  .oc-tbl td,.oc-drv td{display:block;border:0!important;padding:0!important;text-align:left!important;min-width:0}
+  .oc-tbl td[data-l="Data"]{grid-column:1}.oc-tbl td[data-l="Auto"]{grid-column:2/4}
+  .oc-tbl td[data-l="Kierowca"],.oc-tbl td[data-l="Wynik"],.oc-tbl td.odo-act{grid-column:1/-1}
+  .oc-drv td[data-l="Kierowca"]{grid-column:1/-1}
+  .oc-tbl td .num{white-space:normal}
+  .oc-tbl td[data-l]:not([data-l="Data"]):not([data-l="Auto"]):not([data-l="Kierowca"])::before,.oc-drv td[data-l]:not([data-l="Kierowca"])::before{content:attr(data-l);display:block;font-size:12px;color:var(--muted)}
+  .oc-tbl tr.oc-bad td:first-child{box-shadow:none}.oc-tbl tr.oc-bad{box-shadow:inset 3px 0 0 var(--bad)}
+  .oc-mode{display:flex;width:100%}.oc-mode button{flex:1}
+}

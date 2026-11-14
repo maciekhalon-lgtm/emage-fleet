@@ -39,7 +39,7 @@ function viewProfit(){
   if (!P().manage) return '';
   const R = pfMonthCalc(pfMonth), cfg = R.cfg, D = pfDelta ? pfMonthCalc(pfMonth, pfDelta) : null;
   const gap = R.profit!=null ? R.profit - cfg.goal : null;
-  const head = `<div class="bar"><h2>Rentowność transportu</h2><div class="tools"><label class="label" for="pf-m">Miesiąc</label><input id="pf-m" type="month" value="${pfMonth}" style="width:auto">
+  const head = `<div class="bar"><h2>Rentowność transportu</h2><div class="tools"><label class="label" for="pf-m">Miesiąc</label><input id="pf-m" type="month" value="${pfMonth}" style="width:auto">${typeof odoSwitch==='function' ? odoSwitch() : ''}
     <button data-pf-month>${ic('edit')}Dane miesiąca</button><button class="ghost" data-pf-set>${ic('cog')}Stawka i koszty stałe</button></div></div>`;
   const kpi = (l, v, cls = '', sub = '') => `<div class="kpi ${cls}"><span class="label">${l}</span><b>${v}</b>${sub ? `<span class="sub">${sub}</span>` : ''}</div>`;
   const kpis = `<div class="kpis k4">${kpi('Przychód', zl0(R.rev), '', R.rev==null ? 'wpisz hurtową cenę ON albo kwotę z faktur' : R.revInv!=null ? 'z faktur' : `${nfk(R.km)} km × ${zlk(R.rate)}`)}

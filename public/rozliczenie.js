@@ -44,7 +44,7 @@ function viewSettlement(){
   const pk = x => x != null ? x.toFixed(2).replace('.', ',') + ' zł' : '<span class="muted">—</span>';
   const avgKm = st.tot.km ? st.tot.total / st.tot.km : null;
   const head = `<div class="bar"><h2>Rozliczenie aut · ${MONTHS_FULL[mm - 1]} ${y}</h2><div class="tools">
-    <input id="setl-month" type="month" value="${setlMonth}" style="width:auto" aria-label="Miesiąc rozliczenia">
+    <input id="setl-month" type="month" value="${setlMonth}" style="width:auto" aria-label="Miesiąc rozliczenia">${typeof odoSwitch==='function' ? odoSwitch() : ''}
     <button data-action="setl-xlsx">${ic('chart')}Excel</button>
     ${fleetCostsReady ? `<button class="primary" data-action="fleet-cost-new">${ic('plus')}Koszt ogólny floty</button>` : ''}</div></div>`;
   const kpis = `<div class="kpis k4">

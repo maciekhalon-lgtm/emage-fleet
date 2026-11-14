@@ -16,7 +16,7 @@ const INNER = {
   pojazdy:  [['pojazdy','Lista aut', () => true], ['wykorzystanie','Wykorzystanie aut', () => !!P().manage]],
   rentownosc: [['rentownosc','Cała firma', () => true], ['trasy-zysk','Trasy', () => true]],
   kierowcy: [['kierowcy','Lista kierowców', () => true], ['ocena','Ocena kierowców', () => !!P().manage]],
-  spalanie: [['spalanie','Spalanie i przebiegi', () => true], ['srednie','Średnie miesięczne', () => !!P().manage], ['liczniki','Liczniki do sprawdzenia', () => true]],
+  spalanie: [['spalanie','Spalanie i przebiegi', () => true], ['srednie','Średnie miesięczne', () => !!P().manage], ['liczniki','Kontrola liczników', () => true]],
   raporty:  [['raporty','Raporty', () => true], ['porownanie','Porównanie miesięcy', () => !!P().manage]],
 };
 const innerParent = t => Object.keys(INNER).find(p => INNER[p].some(([k]) => k===t && k!==p)) || '';
@@ -26,7 +26,7 @@ const tabAllowed = t => { const par = innerParent(t); if (par){ const e = INNER[
 function innerTabs(){
   const par = INNER[tab] ? tab : innerParent(tab); if (!par || (par==='pojazdy' && cardId)) return '';
   const list = INNER[par].filter(([, , ok]) => ok()); if (list.length < 2) return '';
-  return `<div class="seg inner-tabs" role="group" aria-label="Widok">${list.map(([k, l]) => { const c = k==='liczniki' && P().manage ? odoTodoCount() : 0;
+  return `<div class="seg inner-tabs" role="group" aria-label="Widok">${list.map(([k, l]) => { const c = k==='liczniki' && P().manage ? odoAllCount() : 0;
     return `<a href="#${k}" class="${k===tab ? 'on' : ''}" ${k===tab ? 'aria-current="true"' : ''}>${l}${c ? ` <span class="count bad">${c}</span>` : ''}</a>`; }).join('')}</div>`;
 }
 /* Liczniki przy zakładkach */
@@ -34,7 +34,7 @@ function tabCount(t){
   if (t==='usterki'){ const oi = openIssues(); return {n: oi.length, bad: oi.some(i => i.severity==='stop')}; }
   if (t==='terminy'){ const u = S.deadlines.filter(d => dlState(d).cls==='bad').length; return {n: u, bad: u > 0}; }
   if (t==='uzytkownicy' && P().manage){ const n = pendingUsers().length + pendingRequests().length + openDisputes().length; return {n, bad: n > 0}; }
-  if (t==='liczniki' && P().manage){ const n = odoTodoCount(); return {n, bad: n > 0}; }
+  if (t==='liczniki' && P().manage){ const n = odoAllCount(); return {n, bad: n > 0}; }
   if (t==='karty' && P().manage){ const n = suspTodoCount(); return {n, bad: n > 0}; }
   if (t==='spalanie' && P().manage){ const n = theftVehicles().length; return {n, bad: n > 0}; }
   if (t==='opony' && typeof tiresOn==='function' && tiresOn()){ const n = tireProblems().filter(x => x.t.location==='na_aucie').length; return {n, bad: tireProblems().some(x => x.t.location==='na_aucie' && x.w.some(([c]) => c==='bad'))}; }
