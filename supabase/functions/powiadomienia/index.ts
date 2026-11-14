@@ -266,30 +266,36 @@ async function geotabSync(sb: any, key: (k: string) => string, days: number){
     const {data: vehicles} = await sb.from('vehicles').select('id, plate, vin, status');
     const {data: mrow} = await sb.from('settings').select('value').eq('key', 'geotab_map').maybeSingle();
     const {map, unmatched} = matchDevices(devices, vehicles || [], (mrow && mrow.value && mrow.value.map) || {});
-    const to = new Date(), rows: Row[] = [];
+    // jeden stan licznika na koniec każdego dnia (Geotab interpoluje wartość, gdy fromDate = toDate) – mało danych, mało pamięci
     const DIAGS = ['DiagnosticOdometerAdjustmentId', 'DiagnosticOdometerId'];
-    // liczniki: zapytania po urządzeniu (tylko przypisane do aut), w paczkach przez ExecuteMultiCall, po 30 dni
-    const devIds = [...map.keys()], errs: string[] = [];
-    for (let back = days; back > 0; back -= 30){
-      const fromDate = new Date(to.getTime() - back * DAY).toISOString(), toDate = new Date(to.getTime() - Math.max(0, back - 30) * DAY).toISOString();
-      for (const diag of DIAGS){
-        step = `liczniki (${diag === DIAGS[0] ? 'skorygowany' : 'z silnika'})`;
-        const have = new Set(rows.map(r => r.device && r.device.id));
-        const ids = diag === DIAGS[0] ? devIds : devIds.filter(id => !have.has(id));
-        for (let i = 0; i < ids.length; i += 20){
-          const calls = ids.slice(i, i + 20).map(id => ({method: 'Get', params: {typeName: 'StatusData', resultsLimit: 50000, search: {deviceSearch: {id}, diagnosticSearch: {id: diag}, fromDate, toDate}}}));
-          try {
-            const res: Row[][] = await rpc(host, 'ExecuteMultiCall', {calls, credentials: cred});
-            res.forEach(list => (list || []).forEach(r => rows.push(r)));
-          } catch (e) {
-            // paczka nie przeszła – pojedynczo, żeby jedno urządzenie nie blokowało reszty
-            for (const c of calls){ try { const got: Row[] = await rpc(host, 'Get', {...c.params, credentials: cred}); got.forEach(r => rows.push(r)); } catch (e2) { errs.push(step + ' ' + (c.params.search as Row).deviceSearch.id + ': ' + (e2 as Error).message.slice(0, 80)); } }
-          }
-        }
+    const devIds = [...map.keys()], errs: string[] = [], daily: {vehicle_id: string; day: string; km: number; device: string}[] = [];
+    const todayW = new Intl.DateTimeFormat('sv-SE', {timeZone: 'Europe/Warsaw'}).format(new Date());
+    const dayList: string[] = []; for (let i = days; i >= 0; i--) dayList.push(addDays(todayW, -i));
+    const at = (d: string) => d === todayW ? new Date().toISOString() : d + 'T22:00:00.000Z';   // ok. północ czasu polskiego
+    const need = new Map<string, string>();   // urządzenie|dzień → dzień
+    devIds.forEach(id => dayList.forEach(d => need.set(id + '|' + d, d)));
+    let readings = 0;
+    for (const diag of DIAGS){
+      step = `liczniki (${diag === DIAGS[0] ? 'skorygowany' : 'z silnika'})`;
+      const keys = [...need.keys()];
+      for (let i = 0; i < keys.length; i += 100){
+        const part = keys.slice(i, i + 100);
+        const calls = part.map(k => { const [id, d] = k.split('|'); return {method: 'Get', params: {typeName: 'StatusData', search: {deviceSearch: {id}, diagnosticSearch: {id: diag}, fromDate: at(d), toDate: at(d)}}}; });
+        let res: Row[][] = [];
+        try { res = await rpc(host, 'ExecuteMultiCall', {calls, credentials: cred}); }
+        catch (e) { errs.push(step + ': ' + (e as Error).message.slice(0, 100)); continue; }
+        res.forEach((list, j) => {
+          const r = (list || []).find(x => x && x.data != null); if (!r) return;
+          const [id, d] = part[j].split('|'), v = map.get(id); const km = Math.round(odoKm(Number(r.data)) * 10) / 10;
+          if (!v || !(km > 0)) return;
+          readings++; need.delete(part[j]);
+          const o = daily.find(x => x.vehicle_id === v.id && x.day === d);
+          if (!o) daily.push({vehicle_id: v.id, day: d, km, device: id}); else if (km > o.km) o.km = km;
+        });
       }
     }
     step = 'zapis';
-    const daily = dailyMax(rows, map);
+
     for (let i = 0; i < daily.length; i += 500){
       const {error} = await sb.from('gps_odometer').upsert(daily.slice(i, i + 500).map(x => ({...x, updated_at: new Date().toISOString()})), {onConflict: 'vehicle_id,day'});
       if (error) throw new Error('zapis: ' + error.message);
@@ -299,7 +305,7 @@ async function geotabSync(sb: any, key: (k: string) => string, days: number){
     let upd = 0;
     for (const [vid, km] of last){ const v = (vehicles || []).find((x: Row) => x.id === vid); const {data: cur} = await sb.from('vehicles').select('km').eq('id', vid).maybeSingle();
       if (v && (!cur || !cur.km || Number(cur.km) < km)){ await sb.from('vehicles').update({km: Math.round(km)}).eq('id', vid); upd++; } }
-    return await status({ok: true, devices: devices.length, matched: map.size, unmatched, readings: rows.length, days: daily.length, kmUpdated: upd, warnings: errs.slice(0, 8),
+    return await status({ok: true, devices: devices.length, matched: map.size, unmatched, readings, days: daily.length, kmUpdated: upd, warnings: errs.slice(0, 8),
       deviceList: devices.map(d => ({id: d.id, name: d.name || '', plate: d.licensePlate || '', vehicle: map.get(d.id) ? map.get(d.id)!.plate : null}))});
   } catch (e) {
     return await status({ok: false, error: (step ? step + ': ' : '') + String((e as Error).message || e).slice(0, 300)});
@@ -388,7 +394,7 @@ Deno.serve(async (req) => {
     const {data: me} = await sb.from('profiles').select('role, status').eq('id', testUser).maybeSingle();
     if (!me || me.role !== 'floty' || me.status !== 'active') return json({error: 'Synchronizację GPS uruchamia kierownik floty'}, 403);
     const {count} = await sb.from('gps_odometer').select('id', {count: 'exact', head: true});
-    return json(await geotabSync(sb, key, Math.min(Number(body.days) || (count ? 7 : 92), 120)));
+    return json(await geotabSync(sb, key, Math.min(Number(body.days) || (count ? 7 : 31), 120)));
   }
   const emailTest = !!(testUser && body && body.emailTest);
   if (testUser && !emailTest){

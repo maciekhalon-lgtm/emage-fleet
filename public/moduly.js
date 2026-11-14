@@ -113,7 +113,7 @@ function geotabPanel(){
     <details><summary class="small"><b>Jak podłączyć</b> (jednorazowo)</summary><ol class="small muted" style="margin:8px 0 0;padding-left:18px">
       <li>W MyGeotab: Administracja → Użytkownicy → dodaj użytkownika tylko do odczytu (np. „emage-fleet”, rola z podglądem pojazdów i danych silnika).</li>
       <li>W Supabase → Edge Functions → Secrets dodaj: <b>GEOTAB_DATABASE</b> (nazwa bazy z adresu MyGeotab), <b>GEOTAB_USER</b> (login), <b>GEOTAB_PASSWORD</b> (hasło). Hasło wpisujesz tylko Ty.</li>
-      <li>Kliknij „Synchronizuj teraz” – za pierwszym razem pobierze ostatnie 3 miesiące.</li></ol></details>
+      <li>Kliknij „Synchronizuj teraz” – za pierwszym razem pobierze ostatni miesiąc.</li></ol></details>
   </div></div>`;
 }
 document.addEventListener('click', async e => {
