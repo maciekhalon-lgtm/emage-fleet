@@ -5,7 +5,7 @@
 /* ---------- grupy menu i zakładki ---------- */
 const GROUPS = {
   rezerwacje: [['przydzial','Grafik', () => !serviceOnly()], ['trasy','Trasy', () => !!P().manage]],
-  serwis:     [['usterki','Zgłoszenia', () => true], ['zlecenia','Zlecenia', () => typeof woOn==='function' && woOn()], ['ksiazka','Historia napraw', () => !!P().service], ['terminy','Terminy', () => !(typeof woOn==='function' && woOn())], ['plan','Plan serwisu', () => planOn() && !(typeof woOn==='function' && woOn())], ['opony','Opony', () => tiresOn()], ['wyposazenie','Wyposażenie', () => eqOn()]],
+  serwis:     [['usterki','Zgłoszenia', () => true], ['zlecenia','Zlecenia', () => typeof woOn==='function' && woOn()], ['ksiazka','Historia napraw', () => !!P().service], ['terminy','Terminy', () => !(typeof woOn==='function' && woOn())], ['plan','Plan serwisu', () => planOn() && !(typeof woOn==='function' && woOn())], ['opony','Opony', () => tiresOn()]],
   paliwo:     [['karty','Karty', () => !!P().manage], ['spalanie','Spalanie i liczniki', () => !!P().manage], ['oplaty','Opłaty drogowe', () => !!P().manage]],
   koszty:     [['koszty','Koszty', () => true], ['rozliczenie','Rozliczenie aut', () => !!P().manage], ['rentownosc','Rentowność', () => !!P().manage], ['raporty','Raporty', () => !!P().reports], ['umowy','Leasing i umowy', () => contractsOn()]],
   ludzie:     [['kierowcy','Kierowcy', () => !serviceOnly()], ['uzytkownicy','Użytkownicy', () => !!P().manage]],
@@ -13,7 +13,7 @@ const GROUPS = {
 };
 /* Zakładki „w środku” innej zakładki: przełącznik na górze strony zamiast osobnej pozycji w menu */
 const INNER = {
-  pojazdy:  [['pojazdy','Lista aut', () => true], ['wykorzystanie','Wykorzystanie aut', () => !!P().manage]],
+  pojazdy:  [['pojazdy','Lista aut', () => true], ['wykorzystanie','Wykorzystanie aut', () => !!P().manage], ['wyposazenie','Wyposażenie', () => eqOn()]],
   rentownosc: [['rentownosc','Cała firma', () => true], ['trasy-zysk','Trasy', () => true]],
   kierowcy: [['kierowcy','Lista kierowców', () => true], ['ocena','Ocena kierowców', () => !!P().manage]],
   spalanie: [['spalanie','Spalanie i przebiegi', () => true], ['srednie','Średnie miesięczne', () => !!P().manage], ['liczniki','Kontrola liczników', () => true]],
@@ -26,7 +26,7 @@ const tabAllowed = t => { const par = innerParent(t); if (par){ const e = INNER[
 function innerTabs(){
   const par = INNER[tab] ? tab : innerParent(tab); if (!par || (par==='pojazdy' && cardId)) return '';
   const list = INNER[par].filter(([, , ok]) => ok()); if (list.length < 2) return '';
-  return `<div class="seg inner-tabs" role="group" aria-label="Widok">${list.map(([k, l]) => { const c = k==='liczniki' && P().manage ? odoAllCount() : 0;
+  return `<div class="seg inner-tabs" role="group" aria-label="Widok">${list.map(([k, l]) => { const c = k==='liczniki' && P().manage ? odoAllCount() : k==='wyposazenie' ? tabCount(k).n || 0 : 0;
     return `<a href="#${k}" class="${k===tab ? 'on' : ''}" ${k===tab ? 'aria-current="true"' : ''}>${l}${c ? ` <span class="count bad">${c}</span>` : ''}</a>`; }).join('')}</div>`;
 }
 /* Liczniki przy zakładkach */
