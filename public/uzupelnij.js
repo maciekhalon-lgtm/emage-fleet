@@ -79,7 +79,7 @@ function openQuickEdit(){
   $('#dlg-title').textContent = `Edycja tabelą · ${vs.length} aut`;
   $('#dlg-body').innerHTML = `<p class="muted small field full" style="margin:0">Popraw wartości i kliknij Zapisz – zapiszą się tylko zmienione pola. Tab przechodzi do następnego pola, Enter w dół.</p>
     <div class="field full tablewrap sb-wrap"><table class="sb-tbl fd-tbl qe-tbl"><thead><tr><th>Auto</th>${qeCols().map(c => `<th>${c[1]}</th>`).join('')}</tr></thead><tbody>${vs.map(v => `<tr><td>${plate(v.plate)}<span class="sub">${esc((v.make || '') + ' ' + (v.model || ''))}</span></td>${
-      qeCols().map(([k, , t, a]) => `<td><input type="${t}" ${a} data-qe="${esc(v.id)}" data-k="${k}" value="${esc(v[k]==null ? '' : String(v[k]))}" aria-label="${esc(v.plate)}: ${k}"></td>`).join('')}</tr>`).join('')}</tbody></table></div><div class="warnline" id="dlg-warn" hidden></div>`;
+      qeCols().map(([k, l, t, a]) => `<td data-l="${l}"><input type="${t}" ${a} data-qe="${esc(v.id)}" data-k="${k}" value="${esc(v[k]==null ? '' : String(v[k]))}" aria-label="${esc(v.plate)}: ${k}"></td>`).join('')}</tr>`).join('')}</tbody></table></div><div class="warnline" id="dlg-warn" hidden></div>`;
   $('#dialog')?.classList.add('dlg-wide');
   editing = {col:'quick-edit', id: null, base:{}, special: saveQuickEdit};
   $('#dlg-save').textContent = 'Zapisz zmiany'; $('#dlg-del').hidden = true; $('#scrim').hidden = false;

@@ -79,6 +79,7 @@ function render(){
   else v.innerHTML = viewCosts();
   if (st) v.insertAdjacentHTML('afterbegin', st);
   hydrateFiles(v);
+  centerTabs();
 }
 function updateCounts(){
   $('#c-pojazdy').textContent = S.vehicles.length;
@@ -171,3 +172,13 @@ document.addEventListener('click', e => {
   if (e.target.closest('[data-action="nav-close"]') || e.target.closest('#tabs a')){ $('#app').classList.remove('nav-open'); }
 });
 document.addEventListener('keydown', e => { if (e.key==='Escape') $('#app').classList.remove('nav-open'); });
+
+/* Telefon: aktywna zakładka w przewijanym pasku zakładek zawsze widoczna */
+let actsOpen = false;
+function centerTabs(){
+  document.querySelectorAll('.subtabs, .inner-tabs').forEach(n => { const a = n.querySelector('[aria-current="page"]');
+    if (!a || n.scrollWidth <= n.clientWidth) return;
+    const nr = n.getBoundingClientRect(), ar = a.getBoundingClientRect();
+    n.scrollLeft += (ar.left - nr.left) - (nr.width - ar.width) / 2; });
+}
+document.addEventListener('click', e => { if (e.target.closest('[data-action="acts-toggle"]')){ e.preventDefault(); e.stopPropagation(); actsOpen = !actsOpen; render(); } }, true);

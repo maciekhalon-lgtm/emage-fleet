@@ -1515,3 +1515,59 @@ button.d-set{cursor:pointer}button.d-set:hover{background:var(--sunk)}
 .avg-tbl tfoot td{border-top:2px solid var(--line-2);background:var(--sunk)}
 .avg-good{color:var(--ok);font-weight:700}.avg-warn{color:var(--warn);font-weight:700}.avg-bad{color:var(--bad);font-weight:800}.avg-u{color:var(--faint);font-style:italic}
 th.sortable{cursor:pointer;user-select:none}
+
+/* ======================================================================
+   Telefon: większe pola dotyku, bez powiększania przy wpisywaniu,
+   tabele przewijane z przypiętą pierwszą kolumną, zwijane opcje.
+   ====================================================================== */
+.acts-toggle{display:none}
+.acts-sec{display:contents}
+@media (max-width:820px){
+  /* iOS nie powiększa strony przy polu z czcionką 16 px */
+  input,select,textarea{font-size:16px}
+  /* pola dotyku min. 40 px */
+  button,a.btn{min-height:40px}
+  button.small,.btn.small{min-height:38px;padding-top:8px;padding-bottom:8px}
+  button.icon,.ghost.icon{min-width:40px;min-height:40px}
+  .seg button{min-height:36px}
+  .chip{min-height:36px}
+  .check input[type="checkbox"],input[type="checkbox"]{width:20px;height:20px}
+  .bar .tools{gap:8px}
+  /* zakładki: jeden przewijany wiersz, bez paska przewijania */
+  .subtabs,.inner-tabs{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;scroll-snap-type:x proximity}
+  .subtabs::-webkit-scrollbar,.inner-tabs::-webkit-scrollbar{display:none}
+  .inner-tabs{display:flex}
+  .subtabs a,.inner-tabs a{flex:none;white-space:nowrap;scroll-snap-align:center}
+  /* szerokie tabele: przewijanie w bok z przypiętą pierwszą kolumną */
+  .tablewrap{-webkit-overflow-scrolling:touch}
+  .tablewrap table td:first-child,.tablewrap table th:first-child{position:sticky;left:0;z-index:1;background:var(--surface);box-shadow:6px 0 8px -8px rgba(22,19,14,.35)}
+  .tablewrap table tfoot td:first-child{background:var(--sunk)}
+  .tablewrap td.num,.tablewrap td.r{white-space:nowrap}
+  /* Pojazdy: rzadziej używane przyciski pod „Więcej opcji” */
+  .acts-toggle{display:inline-flex}
+  .acts-sec{display:none}
+  .bar.acts-open .acts-sec{display:flex;flex-wrap:wrap;gap:8px;width:100%}
+  .bar.acts-open .acts-toggle{background:var(--ink);color:var(--bg)}
+  /* kafle podsumowań po dwa w rzędzie */
+  .fc-tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+  /* edycja tabelą: każde auto jako karta z podpisanymi polami */
+  .qe-tbl,.qe-tbl tbody,.qe-tbl tr,.qe-tbl td{display:block;width:100%}
+  .qe-tbl thead{display:none}
+  .qe-tbl tr{padding:12px 0;border-bottom:1px solid var(--line);display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 10px}
+  .qe-tbl td{border:0!important;padding:0!important;position:static!important;box-shadow:none!important;background:none!important}
+  .qe-tbl td:first-child{grid-column:1/-1}
+  .qe-tbl td[data-l]::before{content:attr(data-l);display:block;font-size:12px;color:var(--muted);margin-bottom:3px}
+  .qe-tbl td input[data-k]{width:100%!important}
+  .qe-tbl td:has(input[data-k="vin"]){grid-column:1/-1}
+  .sb-wrap:has(.qe-tbl){overflow:visible}
+}
+@media (max-width:820px){
+  /* tabele zamienione na karty nie mają przypiętej kolumny */
+  .veh-tbl td,.veh-tbl th,.setl td,.setl th,.tire-tbl td,.tire-tbl th,.ct-tbl td,.ct-tbl th{position:static!important;box-shadow:none!important;background:transparent}
+  /* Pojazdy: zwarta karta auta – status i najbliższy termin w jednym wierszu */
+  .veh-tbl tr{gap:6px 10px;padding:12px 14px}
+  .veh-tbl td{padding:0!important;border:0!important}
+  .veh-tbl .vt-st{grid-column:1 / -1;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+  .veh-tbl .vt-st:empty{display:none}
+}
+@media (max-width:820px){.fc-tiles>*{text-align:left}}
