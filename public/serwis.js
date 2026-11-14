@@ -6,13 +6,14 @@
       (baza sama zamyka usterki, odnawia olej i rozrząd, dopisuje koszt); niezrobione wracają do Zgłoszeń.
    Dane: work_orders, work_order_items (migracja 038). Kierowca widzi tylko swoje usterki (widok w usterki.js). */
 'use strict';
-const WO_SOON_DAYS = 30, WO_SOON_KM = 2000;
+const WO_SOON_DAYS = 30, WO_SOON_KM = 2000, WO_OWN = 'EMAGE SERWIS';   // własny warsztat – domyślny na zleceniu
 const WO_KIND = {usterka: 'usterka', olej: 'wymiana oleju', rozrzad: 'wymiana rozrządu', inne: 'informacja serwisowa'};
 const SVC_TYPES = [['rozrzad', 'Wymiana rozrządu'], ['olej', 'Wymiana oleju'], ['inne', 'Inne (wpisz)']];
 const woOn = () => typeof optOn==='function' && optOn('workOrders') && optOn('woItems') && (P().manage || P().service);
 const woStaff = () => !!(P().manage || P().service);
 const woPicked = new Set();
 let woShowDone = false;
+const normTxt = x => String(x || '').trim().toLowerCase().replace(/\s+/g, ' ');
 const issueKind = i => i.serviceType==='olej' ? 'olej' : i.serviceType==='rozrzad' ? 'rozrzad' : i.serviceType==='inne' ? 'inne' : 'usterka';
 const dlKind = d => d.type==='Serwis olejowy' ? 'olej' : d.type==='Wymiana rozrządu' ? 'rozrzad' : null;
 /* pozycje już na otwartym zleceniu */
@@ -113,8 +114,9 @@ function openWoMake(keys){
   }};
   $('#dialog').classList.add('dlg-wide');
   $('#dlg-title').textContent = 'Nowe zlecenie dla warsztatu';
-  $('#dlg-body').innerHTML = `<div class="field"><label for="wo-ws">Warsztat *</label><select id="wo-ws"><option value="">— wpisz poniżej —</option>${ws.map(w => `<option value="${esc(w.id)}">${esc(w.name)}</option>`).join('')}</select>
-      <input id="wo-ws-txt" placeholder="albo nazwa warsztatu" style="margin-top:6px" ${ws.length ? 'hidden' : ''}></div>
+  const own = ws.find(w => normTxt(w.name)===normTxt(WO_OWN));
+  $('#dlg-body').innerHTML = `<div class="field"><label for="wo-ws">Warsztat *</label><select id="wo-ws"><option value="" ${own ? '' : 'selected'}>${own ? 'inny – wpisz poniżej' : esc(WO_OWN) + ' (nasz warsztat)'}</option>${ws.map(w => `<option value="${esc(w.id)}" ${own && w.id===own.id ? 'selected' : ''}>${esc(w.name)}</option>`).join('')}</select>
+      <input id="wo-ws-txt" placeholder="nazwa warsztatu" value="${own ? '' : esc(WO_OWN)}" style="margin-top:6px" ${own ? 'hidden' : ''}></div>
     <div class="field"><label for="wo-date">Data oddania auta *</label><input id="wo-date" type="date" value="${addDays(today(), 1)}"></div>
     <div class="field full"><label for="wo-note">Uwagi do warsztatu</label><textarea id="wo-note" placeholder="np. proszę o kontakt przed wymianą części powyżej 1000 zł"></textarea></div>
     <div class="field full"><span class="label">Na zleceniu (${xs.length} ${isPlural(xs.length, 'pozycja', 'pozycje', 'pozycji')}, ${Object.keys(byV).length} ${isPlural(Object.keys(byV).length, 'auto', 'auta', 'aut')})</span>
