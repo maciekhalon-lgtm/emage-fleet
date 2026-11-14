@@ -120,7 +120,7 @@ function openWoMake(keys){
     <div class="field"><label for="wo-date">Data oddania auta *</label><input id="wo-date" type="date" value="${addDays(today(), 1)}"></div>
     <div class="field full"><label for="wo-note">Uwagi do warsztatu</label><textarea id="wo-note" placeholder="np. proszę o kontakt przed wymianą części powyżej 1000 zł"></textarea></div>
     <div class="field full"><span class="label">Na zleceniu (${xs.length} ${isPlural(xs.length, 'pozycja', 'pozycje', 'pozycji')}, ${Object.keys(byV).length} ${isPlural(Object.keys(byV).length, 'auto', 'auta', 'aut')})</span>
-      <div class="wo-sum">${Object.entries(byV).map(([vid, ys]) => `<div>${vPlate(vid)}<ul>${ys.map(x => `<li>${esc(x.title)} <span class="muted small">(${WO_KIND[x.kind]})</span></li>`).join('')}</ul></div>`).join('')}</div></div>
+      <div class="wo-sum">${Object.entries(byV).map(([vid, ys]) => `<div>${vPlate(vid)}<ul>${ys.map(x => `<li><b>${esc(x.title)}</b>${woItemInfo({kind: x.kind, issueId: x.issue && x.issue.id, deadlineId: x.deadline && x.deadline.id}).map(t => `<span class="sub pre">${esc(t)}</span>`).join('')}</li>`).join('')}</ul></div>`).join('')}</div></div>
     <p class="muted small field full">Po zapisaniu otworzy się wydruk (albo zapis do PDF) – każde auto na osobnej kartce.</p>
     <div class="warnline" id="dlg-warn" hidden></div>`;
   $('#wo-ws').addEventListener('change', e => { $('#wo-ws-txt').hidden = !!e.target.value; });
@@ -136,7 +136,7 @@ function viewWorkOrders(){
     return `<div class="panel wo-card ${o.status}"><div class="sec-head"><h3>${esc(o.no || 'Zlecenie')}</h3><span class="muted small">${esc(o.workshop || (w ? w.name : ''))}${w && w.phone ? ` · <a href="tel:${esc(String(w.phone).replace(/\s/g, ''))}">${esc(w.phone)}</a>` : ''} · oddanie ${fdate(o.date)}</span>
         <span class="pill ${open ? 'warn' : o.status==='zakonczone' ? 'ok' : 'off'}">${open ? 'w warsztacie' : o.status==='zakonczone' ? 'zakończone' : 'anulowane'}</span></div>
       ${o.note ? `<p class="muted small sec-empty">${esc(o.note)}</p>` : ''}
-      <div class="wo-sum">${Object.entries(byV).map(([vid, ys]) => `<div>${vPlate(vid)}<ul>${ys.map(x => `<li class="${x.status}">${x.status==='zrobione' ? '✓ ' : x.status==='niezrobione' ? '✗ ' : ''}${esc(x.title)} <span class="muted small">(${WO_KIND[x.kind] || x.kind})</span></li>`).join('')}</ul></div>`).join('')}</div>
+      <div class="wo-sum">${Object.entries(byV).map(([vid, ys]) => `<div>${vPlate(vid)}<ul>${ys.map(x => `<li class="${x.status}">${x.status==='zrobione' ? '✓ ' : x.status==='niezrobione' ? '✗ ' : ''}<b>${esc(x.title)}</b>${woItemInfo(x).map(t => `<span class="sub pre">${esc(t)}</span>`).join('')}</li>`).join('')}</ul></div>`).join('')}</div>
       <div class="wo-act"><button class="small" data-wo-print="${esc(o.id)}">${ic('clip')}Drukuj / PDF</button>
         ${open && canWrite ? `<button class="small primary" data-wo-finish="${esc(o.id)}">${ic('check')}Zakończ naprawę</button><button class="small ghost" data-wo-cancel="${esc(o.id)}">Anuluj zlecenie</button>` : ''}</div></div>`; };
   const open = S.workOrders.filter(o => o.status==='otwarte').sort((a, b) => a.date.localeCompare(b.date));
@@ -149,6 +149,21 @@ function viewWorkOrders(){
     <details class="panel fold"><summary class="sec-head"><h3>Warsztaty</h3><span class="count">${ws.length}</span></summary>
       <div class="dl">${ws.map(w => `<div class="mini"><span>${ic('wrench')}</span><span><b>${esc(w.name)}</b><span class="sub">${esc([w.kind, w.address, w.phone].filter(Boolean).join(' · '))}</span></span><span class="mini-r">${canCreate('workshops') ? `<button class="small ghost" data-edit="workshops" data-id="${esc(w.id)}">Edytuj</button>` : ''}</span></div>`).join('') || '<p class="muted sec-empty">Dodaj warsztaty, z którymi współpracujesz – wybierzesz je przy zleceniu.</p>'}</div>
       ${canCreate('workshops') ? `<p class="sec-empty"><button class="small" data-new="workshops">${ic('plus')}Warsztat</button></p>` : ''}</details>`;
+}
+
+/* Pełny opis pozycji zlecenia: kto i kiedy zgłosił, przy jakim przebiegu, waga, szczegóły, notatki terminu */
+function woItemInfo(x){
+  const i = x.issueId ? byId('issues', x.issueId) : null, d = x.deadlineId ? byId('deadlines', x.deadlineId) : null, out = [];
+  if (i){
+    out.push([WO_KIND[x.kind] || '', i.date ? 'zgłoszone ' + fdate(i.date) : '', i.createdBy ? pName(i.createdBy) : '', i.km ? 'przy ' + km(i.km) : '', x.kind==='usterka' && ISSUE_SEV[i.severity] ? ISSUE_SEV[i.severity].l.toLowerCase() : ''].filter(Boolean).join(' · '));
+    if (i.description) out.push(i.description);
+    if (i.repairNote) out.push('Uwagi: ' + i.repairNote);
+  } else if (d){
+    const sk = d.kmDue ? svcKm(d.vehicleId) : null;
+    out.push([WO_KIND[x.kind] || '', d.kmDue ? 'termin przy ' + km(d.kmDue) + (sk && sk.km ? ` (teraz ${km(sk.km)})` : '') : '', d.date ? 'do ' + fdate(d.date) : '', d.lastDoneKm ? 'ostatnio przy ' + km(d.lastDoneKm) : ''].filter(Boolean).join(' · '));
+    if (d.note) out.push(d.note);
+  } else out.push(WO_KIND[x.kind] || '');
+  return out.filter(Boolean);
 }
 
 /* ---------- wydruk: strona tytułowa + każde auto na osobnej kartce ---------- */
@@ -170,10 +185,13 @@ function printWorkOrders(id){
       return `<div class="pa pa-page">${head(`auto ${n + 1} z ${cars.length}`)}
         <h1>${esc(v.plate || '')} · ${esc([v.make, v.model].filter(Boolean).join(' '))}</h1>
         <table class="pa-t"><tr><th>VIN</th><td>${esc(v.vin || '')}</td></tr><tr><th>Rok / paliwo</th><td>${esc([v.year, v.fuel].filter(Boolean).join(' · '))}</td></tr>
-          <tr><th>Przebieg przy oddaniu</th><td>${sk.km ? km(sk.km) : ''} &nbsp; (sprawdź: ______________ km)</td></tr></table>
+          <tr><th>Przebieg przy oddaniu</th><td>${sk.km ? km(sk.km) : ''} &nbsp; (sprawdź: ______________ km)</td></tr>
+          ${v.tireSize ? `<tr><th>Rozmiar opon</th><td>${esc(v.tireSize)}</td></tr>` : ''}
+          <tr><th>Warsztat</th><td>${esc(o.workshop || (w ? w.name : ''))} · oddanie ${fdate(o.date)}</td></tr>
+          ${o.note ? `<tr><th>Uwagi do zlecenia</th><td>${esc(o.note).replace(/\n/g, '<br>')}</td></tr>` : ''}</table>
         <h2>Do zrobienia</h2>
         <table class="pa-t wo-t"><tr><th style="width:24px"></th><th>Zakres</th><th style="width:30%">Uwagi warsztatu</th></tr>
-          ${byV[vid].map(x => { const i = x.issueId ? byId('issues', x.issueId) : null; return `<tr><td>${box}</td><td><b>${esc(x.title)}</b><br><span class="pa-s">${WO_KIND[x.kind] || ''}${i && i.description ? ' · ' + esc(i.description).replace(/\n/g, '<br>') : ''}</span></td><td></td></tr>`; }).join('')}
+          ${byV[vid].map(x => `<tr><td>${box}</td><td><b>${esc(x.title)}</b>${woItemInfo(x).map(t => `<br><span class="pa-s">${esc(t).replace(/\n/g, '<br>')}</span>`).join('')}</td><td></td></tr>`).join('')}
           ${[1, 2].map(() => `<tr><td>${box}</td><td>&nbsp;</td><td></td></tr>`).join('')}</table>
         <h2>Koszt i części</h2><div class="pa-desc" style="min-height:80px"></div>
         <div class="pa-sign"><div>Zlecający (Emage)</div><div>Warsztat – przyjęcie</div><div>Odbiór auta</div></div></div>`; }).join('')}`;
@@ -225,7 +243,7 @@ function openWoFinish(id){
   $('#dlg-body').innerHTML = `<div class="field"><label for="wf-date">Data naprawy *</label><input id="wf-date" type="date" value="${today()}"></div><div class="field"><span class="label">Warsztat</span><b>${esc(o.workshop || '')}</b></div>
     ${vids.map(vid => { const v = byId('vehicles', vid) || {}, sk = svcKm(vid);
       return `<fieldset class="field full wf-veh"><legend>${plate(v.plate || '?')} <span class="muted small">${esc([v.make, v.model].filter(Boolean).join(' '))}</span></legend>
-        <div class="wf-items">${byV[vid].map(x => `<label class="check"><input type="checkbox" id="wf-x-${esc(x.id)}" checked> ${esc(x.title)} <span class="muted small">(${WO_KIND[x.kind]})</span></label>`).join('')}</div>
+        <div class="wf-items">${byV[vid].map(x => `<label class="check"><input type="checkbox" id="wf-x-${esc(x.id)}" checked> <span><b>${esc(x.title)}</b>${woItemInfo(x).map(t => `<span class="sub pre">${esc(t)}</span>`).join('')}</span></label>`).join('')}</div>
         <div class="wf-grid"><div><label for="wf-km-${esc(vid)}">Przebieg (km) *</label><input id="wf-km-${esc(vid)}" type="text" inputmode="numeric" value="${sk.km ? Math.round(sk.km) : ''}"></div>
           <div><label for="wf-cost-${esc(vid)}">Koszt brutto (zł)</label><input id="wf-cost-${esc(vid)}" type="text" inputmode="decimal" placeholder="np. 1 850"></div>
           <div class="wf-wide"><label for="wf-desc-${esc(vid)}">Co jeszcze zrobiono / części</label><input id="wf-desc-${esc(vid)}" placeholder="opcjonalnie"></div>

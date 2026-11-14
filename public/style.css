@@ -1725,3 +1725,5 @@ html[data-env="test"] body{padding-top:20px}
   .wo-item{grid-template-columns:auto 1fr;padding:12px 14px}.wo-p,.wo-a{grid-column:2;justify-content:flex-start}
   .wo-bar-fix{bottom:84px;flex-wrap:wrap}.wf-grid{grid-template-columns:1fr}
 }
+.wo-sum li .sub,.wf-items .sub{display:block;font-size:12.5px;color:var(--muted)}
+.wo-sum li{margin-bottom:6px}.wf-items .check{align-items:flex-start}
