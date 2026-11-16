@@ -48,7 +48,7 @@ function viewRequests(){
   const vids = Object.keys(byV).sort((a, b) => Math.min(...byV[a].map(x => sevO[x.cls] ?? 3)) - Math.min(...byV[b].map(x => sevO[x.cls] ?? 3)) || String((byId('vehicles', a) || {}).plate).localeCompare((byId('vehicles', b) || {}).plate));
   const inWs = S.woItems.filter(x => x.status==='zlecone' && S.workOrders.some(o => o.id===x.orderId && o.status==='otwarte')).length;
   const head = `<div class="bar"><h2>Zgłoszenia</h2><div class="tools">
-      ${canCreate('issues') ? `<button data-new="issues">${ic('plus')}Usterka</button>` : ''}
+      ${canCreate('issues') ? `<button data-new="issues">${ic('alert')}Zgłoś usterkę</button>` : ''}
       <button class="primary" data-svc-info>${ic('plus')}Informacja serwisowa</button></div></div>
     <p class="muted small wo-steps"><b>1. Zgłoszenia</b> → 2. Zlecenie dla warsztatu → 3. Zakończenie naprawy. Zaznacz pozycje (mogą być z kilku aut) i kliknij „Zrób zlecenie”.${inWs ? ` W warsztacie: <a href="#zlecenia">${inWs} ${isPlural(inWs, 'pozycja', 'pozycje', 'pozycji')}</a>.` : ''}</p>`;
   const row = x => `<label class="wo-item ${x.cls}"><input type="checkbox" data-wo-pick="${esc(x.key)}" ${woPicked.has(x.key) ? 'checked' : ''}>
@@ -57,7 +57,7 @@ function viewRequests(){
       <span class="wo-a">${x.issue && canEditDoc('issues', x.issue) ? `<button type="button" class="small ghost" data-edit="issues" data-id="${esc(x.issue.id)}">Szczegóły</button>` : x.deadline ? `<button type="button" class="small ghost" data-edit="deadlines" data-id="${esc(x.deadline.id)}">Termin</button>` : ''}</span></label>`;
   const groups = vids.map(vid => { const v = byId('vehicles', vid) || {}, xs = byV[vid], all = xs.every(x => woPicked.has(x.key));
     return `<div class="panel wo-veh"><div class="sec-head">${plate(v.plate || '?')}<span class="muted small">${esc([v.make, v.model].filter(Boolean).join(' '))}</span>
-      <button type="button" class="small ghost" data-wo-all="${esc(vid)}">${all ? 'Odznacz' : 'Zaznacz wszystkie'}</button></div>${xs.map(row).join('')}</div>`; }).join('');
+      <span class="wo-vbtn">${canCreate('issues') ? `<button type="button" class="small ghost" data-new="issues" data-veh="${esc(vid)}">+ usterka</button>` : ''}<button type="button" class="small ghost" data-wo-all="${esc(vid)}">${all ? 'Odznacz' : 'Zaznacz wszystkie'}</button></span></div>${xs.map(row).join('')}</div>`; }).join('');
   const n = woPicked.size, cars = new Set(items.filter(x => woPicked.has(x.key)).map(x => x.vid)).size;
   const bar = n ? `<div class="wo-bar-fix"><span><b>${n}</b> ${isPlural(n, 'pozycja', 'pozycje', 'pozycji')} · ${cars} ${isPlural(cars, 'auto', 'auta', 'aut')}</span><button type="button" class="ghost small" data-wo-clear>Wyczyść</button><button type="button" class="primary" data-wo-make>${ic('clip')}Zrób zlecenie</button></div>` : '';
   const done = S.issues.filter(i => i.status==='naprawione').sort((a, b) => (b.resolvedAt || b.date).localeCompare(a.resolvedAt || a.date));
