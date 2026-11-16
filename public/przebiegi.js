@@ -28,7 +28,7 @@ function odoReadings(vid){
    Gdy wybrane źródło nie ma danych w zakresie – liczymy jak „auto” i oznaczamy to (fb). */
 const ODO_SRCS = [['auto', 'Wszystkie'], ['gps', 'GPS'], ['karty', 'Karty'], ['kierowcy', 'Kierowcy']];
 let odoPick = null;
-const odoCfg = () => { const s = (S.settings || []).find(x => x.id==='odo_source') || {}; return {def: ODO_SRCS.some(x => x[0]===s.def) ? s.def : 'auto', tol: Number(s.tol) > 0 ? Number(s.tol) : 50}; };
+const odoCfg = () => { const s = (S.settings || []).find(x => x.id==='odo_source') || {}; return {def: ODO_SRCS.some(x => x[0]===s.def) ? s.def : 'gps', tol: Number(s.tol) > 0 ? Number(s.tol) : 50}; };
 const odoSrc = () => odoPick || odoCfg().def;
 const odoSrcName = k => ({auto: 'wszystkie liczniki', gps: 'lokalizator GPS', karty: 'karty paliwowe', kierowcy: 'wpisy kierowców'})[k] || k;
 const ODO_DRIVER_SRC = ['tankowanie', 'przejęcie', 'zdanie'];

@@ -5,7 +5,7 @@
    Gdy brak odczytu z tej chwili – przedział z dziennych odczytów GPS (koniec dnia poprzedniego … koniec tego dnia).
    Różnica ponad próg (Ustawienia → Lokalizatory GPS, domyślnie 50 km) = niezgodność; liczy się do oceny kierowcy. */
 'use strict';
-let ocMode = 'cmp', ocVeh = '', ocDrv = '', ocMonth = '', ocOnlyBad = true;
+let ocMode = 'cmp', ocVeh = '', ocDrv = '', ocMonth = today().slice(0, 7), ocOnlyBad = true;   // domyślnie bieżący miesiąc
 const OC_SRC = {karta: 'tankowanie z karty', tankowanie: 'tankowanie w aplikacji', przejecie: 'przejęcie auta', zdanie: 'zdanie auta'};
 const ocTime = ts => ts ? new Date(ts).toLocaleTimeString('pl-PL', {hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Warsaw'}) : '';
 const ocDay = ts => ts ? new Intl.DateTimeFormat('sv-SE', {timeZone: 'Europe/Warsaw'}).format(new Date(ts)) : '';
@@ -77,7 +77,7 @@ function viewOdoControl(){
 function viewOdoCompare(){
   const nf = n => new Intl.NumberFormat('pl-PL').format(Math.round(n)), tol = odoCfg().tol, ch = ocChecked();
   const all = odoEvents();
-  const months = [...new Set(all.map(e => e.d.slice(0, 7)))].sort().reverse();
+  const months = [...new Set([today().slice(0, 7), ocMonth, ...all.map(e => e.d.slice(0, 7))].filter(Boolean))].sort().reverse();
   const scope = all.filter(e => (!ocVeh || e.vid===ocVeh) && (!ocMonth || e.d.slice(0, 7)===ocMonth));
   const list = scope.filter(e => (!ocDrv || e.whoIds.includes(ocDrv)) && (!ocOnlyBad || (e.bad && !ch.has(e.key))));
   const vs = S.vehicles.filter(v => all.some(e => e.vid===v.id)).sort((a, b) => String(a.plate).localeCompare(b.plate));

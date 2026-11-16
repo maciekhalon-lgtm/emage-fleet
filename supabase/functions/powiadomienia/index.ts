@@ -56,12 +56,12 @@ export function itemsFor(p: Row, d: Data, today: string): {pri: number; text: st
     // busy, za które kierowca odpowiada: terminy, przebieg, niesprawność
     d.vehicles.filter(v => v.status !== 'wycofany' && (v.responsible || []).includes(p.driver_id)).forEach(v => {
       d.deadlines.filter(t => t.vehicle_id === v.id).forEach(t => {
-        if (t.type === 'Koniec gwarancji' && (diffDays(today, t.date) < 0 || (t.km_due && v.km && t.km_due - v.km <= 0))) return;   // zakończona gwarancja to nie alarm
+        if (t.type === 'Koniec gwarancji' && (diffDays(today, t.date) < 0 || (t.km_due && (v.km_svc ?? v.km) && t.km_due - (v.km_svc ?? v.km) <= 0))) return;   // zakończona gwarancja to nie alarm
         const dd = diffDays(today, t.date);
         if (dd < 0) out.push({pri: 0, text: `Twój bus ${v.plate}: ${t.type} po terminie (${dm(t.date)})`});
         else if (dd <= 7) out.push({pri: 1, text: `Twój bus ${v.plate}: ${t.type} ${dm(t.date)}`});
-        if (t.km_due && v.km){
-          const left = t.km_due - v.km;
+        if (t.km_due && (v.km_svc ?? v.km)){
+          const left = t.km_due - (v.km_svc ?? v.km);
           if (left <= 0) out.push({pri: 0, text: `Twój bus ${v.plate}: ${t.type} – przebieg przekroczony`});
           else if (left <= (t.remind_km || 1000)) out.push({pri: 1, text: `Twój bus ${v.plate}: ${t.type} za ${kmf(left)}`});
         }
@@ -85,13 +85,13 @@ export function itemsFor(p: Row, d: Data, today: string): {pri: number; text: st
     if (tl.length) out.push({pri: md >= '10-15' || (md >= '04-20' && md <= '05-31') ? 1 : 2, text: `${tl.length} ${tl.length === 1 ? 'auto' : 'aut(a)'} do wymiany opon na ${md >= '10-01' ? 'zimowe' : 'letnie'}: ${tl.slice(0, 5).map(v => v.plate).join(', ')}`});
     d.deadlines.forEach(t => {
       const v = veh(t.vehicle_id); if (!v || v.status === 'wycofany') return;
-      if (t.type === 'Koniec gwarancji' && (diffDays(today, t.date) < 0 || (t.km_due && v.km && t.km_due - v.km <= 0))) return;   // zakończona gwarancja to nie alarm
+      if (t.type === 'Koniec gwarancji' && (diffDays(today, t.date) < 0 || (t.km_due && (v.km_svc ?? v.km) && t.km_due - (v.km_svc ?? v.km) <= 0))) return;   // zakończona gwarancja to nie alarm
       const dd = diffDays(today, t.date);
       if (dd < 0) out.push({pri: 0, text: `${v.plate}: ${t.type} po terminie (${dm(t.date)})`});
       else if (dd === 0) out.push({pri: 0, text: `${v.plate}: ${t.type} dziś`});
       else if (dd <= 7) out.push({pri: 1, text: `${v.plate}: ${t.type} ${dm(t.date)}`});
-      if (t.km_due && v.km){
-        const left = t.km_due - v.km;
+      if (t.km_due && (v.km_svc ?? v.km)){
+        const left = t.km_due - (v.km_svc ?? v.km);
         if (left <= 0) out.push({pri: 0, text: `${v.plate}: ${t.type} – przebieg przekroczony o ${kmf(-left)}`});
         else if (left <= (t.remind_km || 1000)) out.push({pri: 1, text: `${v.plate}: ${t.type} za ${kmf(left)}`});
       }
@@ -551,6 +551,10 @@ Deno.serve(async (req) => {
     settings: await load('settings'),
     cardRows: await load('fuel_card_rows', b => b.gte('tx_date', addDays(today, -35))),
   };
+  // przebieg do terminów na km (olej, rozrząd): licznik GPS z ostatnich 3 dni, a bez niego najwyższy zapisany (jak w aplikacji)
+  { const gps = await load('gps_odometer', b => b.gte('day', addDays(today, -3)));
+    const last = new Map<string, Row>(); gps.forEach((g: Row) => { if (Number(g.km) > 0 && (!last.has(g.vehicle_id) || g.day > (last.get(g.vehicle_id) as Row).day)) last.set(g.vehicle_id, g); });
+    d.vehicles.forEach((v: Row) => { const g = last.get(v.id); if (g) v.km_svc = Math.round(Number(g.km)); }); }
   // raport e-mail (Resend): adresy w ustawieniach 'report_email', klucz RESEND_API_KEY w sekretach funkcji
   const mailWeekly = async () => {
     const cfg = (d.settings.find(x => x.key === 'report_email') || {}).value || {};
