@@ -134,4 +134,18 @@ sb.auth.onAuthStateChange((event, session) => {
   }, 0);
 });
 
-if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+if ('serviceWorker' in navigator) window.addEventListener('load', () => {
+  // nowa wersja aplikacji: sprawdzaj przy powrocie do aplikacji i co 15 min; po aktualizacji odśwież stronę, gdy nic nie jest otwarte
+  const had = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.register('sw.js').then(reg => {
+    const chk = () => reg.update().catch(() => {});
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState==='visible') chk(); });
+    setInterval(chk, 15 * 60000);
+  }).catch(() => {});
+  let done = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!had || done) return; done = true;
+    const go = () => { const s = document.getElementById('scrim'); if (s && !s.hidden){ setTimeout(go, 5000); return; } location.reload(); };
+    go();
+  });
+});

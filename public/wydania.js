@@ -54,7 +54,10 @@ function openHandover(id, kind, vehicleId){
         <span class="ck-btns"><label><input type="radio" name="ck-${i}" value="ok" checked> OK</label><label><input type="radio" name="ck-${i}" value="bad"> Uwaga</label></span>
         <input class="ck-note" id="ck-note-${i}" type="text" placeholder="Co jest nie tak?" hidden></div>`).join('')}</div>
       <span class="muted small">Punkt z uwagą trafi do serwisu jako zgłoszenie usterki.</span></div>` : '';
-  $('#dlg-body').innerHTML = `
+  const where = kind==='return' ? `<div class="field full ho-where" id="ho-where"><span class="label">Gdzie zdajesz auto?</span>
+      <div class="ho-where-b"><button type="button" class="ho-pl" data-ho-place="baza">${ic('truck')}<b>Na bazę</b><span>auto wraca na bazę firmy</span></button>
+      <button type="button" class="ho-pl" data-ho-place="dom">${ic('home')}<b>Pod dom</b><span>auto zostaje pod Twoim domem</span></button></div></div>` : '';
+  $('#dlg-body').innerHTML = where + `<div class="ho-rest" ${kind==='return' ? 'hidden' : ''}>
     <div class="field full"><span class="ho-car">${plate(v.plate)} <b>${esc(v.make)} ${esc(v.model)}</b></span>
       ${b ? `<span class="muted">${esc(dName(b.driverId))} · ${fdate(b.from)}${b.to!==b.from?'–'+fdate(b.to):''}${b.purpose?' · '+esc(b.purpose):''}</span>` : '<span class="muted">Auto na dzisiejszy dzień pracy</span>'}</div>
     <div class="field"><label for="ho-km">Stan licznika (km) *</label><input id="ho-km" type="number" inputmode="numeric" min="${minKm}" placeholder="${minKm ? 'co najmniej '+new Intl.NumberFormat('pl-PL').format(minKm) : ''}" required><span class="muted small">Ostatni zapis: ${km(minKm)}</span></div>
@@ -64,15 +67,24 @@ function openHandover(id, kind, vehicleId){
     <div class="field full"><label for="ho-note">${kind==='pickup' ? 'Inne uwagi o stanie auta' : 'Uwagi po dniu pracy'}</label><textarea id="ho-note" placeholder="${kind==='pickup'?'np. rysa na tylnym zderzaku – już była':'np. kontrolka oleju, stuki z zawieszenia'}"></textarea></div>
     ${kind==='return' ? `<div class="field full"><label class="check"><input id="ho-issue" type="checkbox"> Zgłoś usterkę na podstawie uwag</label>
       <select id="ho-sev" aria-label="Waga usterki"><option value="drobna">Drobna</option><option value="istotna" selected>Istotna</option><option value="stop">Auto niesprawne – nie wydawać</option></select></div>` : ''}
-    <div class="warnline" id="dlg-warn" hidden></div>`;
-  $('#dlg-save').textContent = kind==='pickup' ? 'Przyjmij auto' : 'Zdaj do bazy';
-  if (kind==='return'){ const h = document.createElement('button'); h.type = 'button'; h.id = 'dlg-home'; h.className = 'primary'; h.textContent = 'Pod domem';
-    h.title = 'Auto zostaje pod Twoim domem'; h.addEventListener('click', () => { if (editing && editing.col==='handover'){ editing.home = true; editing.special(); } });
-    $('#dlg-save').before(h); }
+    </div><div class="warnline" id="dlg-warn" hidden></div>`;
+  $('#dlg-save').textContent = kind==='pickup' ? 'Przyjmij auto' : 'Zdaj pojazd';
+  $('#dlg-save').hidden = kind==='return';   // najpierw wybór: na bazę czy pod dom
   $('#dlg-del').hidden = true;
   $('#scrim').hidden = false;
-  setTimeout(() => $('#ho-km')?.focus(), 20);
+  if (kind==='pickup') setTimeout(() => $('#ho-km')?.focus(), 20);
 }
+/* zdanie auta – krok 1: na bazę czy pod dom, potem licznik i uwagi */
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-ho-place],[data-ho-replace]'); if (!t || !editing || editing.col!=='handover') return;
+  if (t.dataset.hoReplace!==undefined){ $('#ho-where').hidden = false; $('.ho-rest').hidden = true; $('#dlg-save').hidden = true; return; }
+  editing.home = t.dataset.hoPlace==='dom';
+  $('#ho-where').hidden = true; $('.ho-rest').hidden = false; $('#dlg-save').hidden = false;
+  $('#dlg-save').textContent = editing.home ? 'Zdaj pod domem' : 'Zdaj na bazę';
+  let tag = $('#ho-where-tag'); if (!tag){ tag = document.createElement('div'); tag.id = 'ho-where-tag'; tag.className = 'field full'; $('.ho-rest').prepend(tag); }
+  tag.innerHTML = `<span class="pill ${editing.home ? 'info' : 'ok'}">${editing.home ? 'Pod domem' : 'Na bazę'}</span> <button type="button" class="small ghost" data-ho-replace>zmień</button>`;
+  setTimeout(() => $('#ho-km')?.focus(), 20);
+});
 document.addEventListener('change', e => {
   const r = e.target.closest('.ck input[type=radio]'); if (!r) return;
   const row = r.closest('.ck'), note = row.querySelector('.ck-note');
@@ -95,7 +107,7 @@ document.addEventListener('change', e => {
 });
 
 async function saveHandover({id, kind, vehicleId, minKm, items}){
-  const home = !!(editing && editing.home); if (editing) editing.home = false;   // przycisk „Pod domem” ustawia to na jedno kliknięcie
+  const home = !!(editing && editing.home);   // wybór z kroku 1 (na bazę / pod dom)
   const w = $('#dlg-warn');
   const warn = t => { w.textContent = t; w.hidden = false; };
   const crew = kind==='pickup' && $('#ho-crew') && $('#ho-crew').checked;
