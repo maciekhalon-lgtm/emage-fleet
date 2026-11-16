@@ -1730,3 +1730,24 @@ html[data-env="test"] body{padding-top:20px}
 .wo-print h1{font-size:17px;margin:14px 0 6px}.wo-print .pa-t{margin-bottom:6px}
 @media print{ html.print-doc .wo-car{break-inside:avoid;page-break-inside:avoid} }
 .wo-v{table-layout:fixed;width:100%}.wo-v th{width:14%}.wo-v td{width:36%}
+
+/* ===== Motyw 2026-11: jasny = wyraźny kontrast (białe menu), ciemny = nocny granat ===== */
+:root{--bg:#e9e7e1;--surface:#ffffff;--sunk:#f4f3ef;--raised:#e3e0d8;--line:#dedad0;--line-2:#cfc9bb;
+  --shadow-sm:0 1px 2px rgba(0,0,0,.05),0 8px 24px -12px rgba(0,0,0,.12);
+  --night:#ffffff;--night-ink:#16130e;--night-muted:#5d574d}
+:root:not([data-theme="dark"]) .side{box-shadow:0 1px 0 rgba(0,0,0,.04),0 14px 30px -18px rgba(0,0,0,.25)!important;border:1px solid var(--line)!important}
+:root:not([data-theme="dark"]) .bottombar{border:1px solid var(--line)!important;box-shadow:0 14px 30px -14px rgba(0,0,0,.3)!important}
+:root:not([data-theme="dark"]) .nav a:hover,:root:not([data-theme="dark"]) .side .theme-sw,:root:not([data-theme="dark"]) .side .who-act button:hover{background:rgba(0,0,0,.05)!important}
+:root:not([data-theme="dark"]) .side .count:not(.bad){background:rgba(0,0,0,.07)!important}
+:root:not([data-theme="dark"]) .side .theme-sw button[aria-pressed="true"]{background:#16130e!important;color:#fff!important}
+:root:not([data-theme="dark"]) .kpi:nth-child(1),:root:not([data-theme="dark"]) .d-hero,:root:not([data-theme="dark"]) .d-profile{background:#16130e!important;color:#f6f1e7!important}
+:root:not([data-theme="dark"]) .kpi:nth-child(1):hover{background:#16130e!important}
+:root:not([data-theme="dark"]) .side .wordmark{color:#16130e!important}
+:root[data-theme="dark"]{--bg:#0b1220;--surface:#131d2e;--sunk:#0f1828;--raised:#1b2740;--ink:#e9eef7;--muted:#97a3b8;--faint:#6c7890;--line:#22304a;--line-2:#2d3d5c;
+  --night:#060b15;--night-ink:#e9eef7;--night-muted:#8e9ab0;--accent:#ffc83a}
+:root[data-theme="dark"] .side,:root[data-theme="dark"] .bottombar{background:#060b15!important;border:1px solid var(--line)!important}
+:root[data-theme="dark"] .kpi:nth-child(1){background:#060b15!important}
+:root:not([data-theme="dark"]) .kpi:nth-child(1),:root:not([data-theme="dark"]) .d-hero,:root:not([data-theme="dark"]) .d-profile{--night-ink:#f6f1e7;--night-muted:#a59d8f}
+:root[data-theme="dark"] .d-hero,:root[data-theme="dark"] .d-profile{background:#060b15!important;border:1px solid var(--line)!important}
+:root[data-theme="dark"] .d-bar{background:#060b15!important;border:1px solid var(--line)}
+:root[data-theme="dark"] .d-steps i{background:#1b2740}
