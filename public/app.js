@@ -98,13 +98,13 @@ function renderWho(role){
   const name = me.full_name || me.email || '';
   const ini = name.split(/[\s@.]+/).filter(Boolean).slice(0,2).map(x => x[0].toUpperCase()).join('');
   el.innerHTML = `<span class="ava">${esc(ini)}</span><div class="who-t"><b>${esc(name)}</b><span>${role?esc(ROLES[role].name):'Bez roli'}</span></div>
-    <div class="who-act">${role ? `<button type="button" class="ghost icon" data-action="push-open" title="Powiadomienia" aria-label="Powiadomienia">${ic('bell')}</button>` : ''}<button type="button" class="ghost icon" data-action="logout" title="Wyloguj" aria-label="Wyloguj">${ic('out')}</button></div>`;
+    <div class="who-act">${role ? `<button type="button" class="ghost icon bell" data-action="${typeof notifOn==='function' && notifOn() ? 'notif-open' : 'push-open'}" title="Powiadomienia" aria-label="Powiadomienia">${ic('bell')}${typeof notifBadge==='function' ? notifBadge() : ''}</button>` : ''}<button type="button" class="ghost icon" data-action="logout" title="Wyloguj" aria-label="Wyloguj">${ic('out')}</button></div>`;
 }
 /* Nagłówek na telefonie (i zawsze u kierowcy): motyw, powiadomienia, wylogowanie */
 function renderTop(role){
   const t = currentTheme()==='dark' ? 'sun' : 'moon';
   $('#mtop-r').innerHTML = `<button type="button" class="ghost icon" data-action="theme-toggle" aria-label="Zmień motyw" title="Zmień motyw">${ic(t)}</button>`
-    + (role ? `<button type="button" class="ghost icon" data-action="push-open" aria-label="Powiadomienia" title="Powiadomienia">${ic('bell')}</button>` : '')
+    + (role ? `<button type="button" class="ghost icon bell" data-action="${typeof notifOn==='function' && notifOn() ? 'notif-open' : 'push-open'}" aria-label="Powiadomienia" title="Powiadomienia">${ic('bell')}${typeof notifBadge==='function' ? notifBadge() : ''}</button>` : '')
     + `<button type="button" class="ghost icon" data-action="logout" aria-label="Wyloguj" title="Wyloguj">${ic('out')}</button>`;
 }
 
