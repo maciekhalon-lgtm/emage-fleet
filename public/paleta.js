@@ -93,7 +93,7 @@ document.addEventListener('click', e => {
 });
 
 /* Skróty klawiszowe (komputer): „?” – lista skrótów, „g” + litera – przejście do zakładki */
-const KEY_GO = [['p','pulpit','Pulpit'],['a','pojazdy','Pojazdy'],['g','przydzial','Grafik'],['u','usterki','Usterki'],['t','terminy','Terminy'],['k','koszty','Koszty'],['r','raporty','Raporty'],['s','ustawienia','Ustawienia']];
+const KEY_GO = [['p','pulpit','Pulpit'],['a','pojazdy','Pojazdy'],['g','przydzial','Grafik'],['u','usterki','Zgłoszenia'],['t','terminy','Terminy'],['k','koszty','Koszty'],['r','raporty','Raporty'],['s','ustawienia','Ustawienia']];
 let keyG = 0;
 function openShortcuts(){
   editing = {col:'shortcuts', id: null, base:{}, special: () => closeForm()};
