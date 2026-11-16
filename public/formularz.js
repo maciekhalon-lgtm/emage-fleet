@@ -349,6 +349,9 @@ function bookingCheck(){
     const c = S.bookings.find(b => b.id!==editing.id && !b.returned && crewOf(b).includes(dr) && b.from<=t && f<=b.to);
     if (c) msg = dName(dr)+' ma już w tym dniu przydział: '+((byId('vehicles', c.vehicleId)||{}).plate||'?')+'.';
   }
+  if (!msg && v && dr && typeof homeOf==='function'){   // auto stoi pod domem innego kierowcy
+    const hm = homeOf(v); if (hm && !crewOf(hm.b).includes(dr)) msg = `Info: auto stoi pod domem – ${hm.who}${hm.at ? ' (od ' + fdate(hm.at) + ')' : ''}. Ustal przekazanie kluczyków.`;
+  }
   if (!msg && dr && f){   // dokumenty kierowcy ważne w dniu przydziału
     const d = byId('drivers', dr) || {};
     const bad = [['licenseExpiry','prawo jazdy'],['medicalExpiry','badania lekarskie'],['psychExpiry','badania psychologiczne']].filter(([k]) => d[k] && d[k] < f).map(([, l]) => l);
@@ -368,7 +371,7 @@ function bookingCheck(){
   if (!msg && r && r.tacho && veh && !veh.hasTacho) msg = `Uwaga: trasa ${r.code} wymaga tachografu, a ${veh.plate} nie ma tachografu. Możesz zapisać – to tylko informacja.`;
   w.textContent=msg; w.hidden=!msg;
 }
-function closeForm(){ $('#scrim').hidden = true; $('#dialog').classList.remove('dlg-wide'); editing = null; $('#dlg-save').textContent = 'Zapisz'; $('#dialog').removeEventListener('input', bookingCheck); $('#dialog').removeEventListener('input', costFxUi); $('#dialog').removeEventListener('input', svcUi); $('#dialog').removeEventListener('input', dlDoneUi); }
+function closeForm(){ $('#dlg-home')?.remove(); $('#scrim').hidden = true; $('#dialog').classList.remove('dlg-wide'); editing = null; $('#dlg-save').textContent = 'Zapisz'; $('#dialog').removeEventListener('input', bookingCheck); $('#dialog').removeEventListener('input', costFxUi); $('#dialog').removeEventListener('input', svcUi); $('#dialog').removeEventListener('input', dlDoneUi); }
 
 $('#dialog').addEventListener('submit', async e => {
   e.preventDefault();

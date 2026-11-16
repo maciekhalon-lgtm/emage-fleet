@@ -88,6 +88,12 @@ const holds = b => !!b.pickup && (!b.returned || (!!b.coDriverId && !b.returnCon
 const crewOf = b => [b.driverId, b.coDriverId].filter(Boolean);
 const crewName = b => crewOf(b).map(dName).join(' + ');
 function activeBooking(vehId){ const t=today(); return S.bookings.find(b => b.vehicleId===vehId && (holds(b) || (!b.pickup && !b.returned && b.from<=t && b.to>=t))); }
+/* Auto zostawione „pod domem” kierowcy przy ostatnim zdaniu (znika przy kolejnym przejęciu) → {b, who, at} albo null */
+function homeOf(vid){
+  let last = null;
+  S.bookings.forEach(b => { if (b.vehicleId===vid && b.pickup && b.pickup.at && (!last || (b.pickup.at + (b.from || '')) > (last.pickup.at + (last.from || '')))) last = b; });
+  return last && last.returned && last.returned.home ? {b: last, who: crewName(last), at: last.returned.at} : null;
+}
 function vehicleState(v){
   if (v.status === 'wycofany') return {cls:'off', txt:'Wycofany'};
   if (v.status === 'serwis') return {cls:'warn', txt:'W serwisie'};
@@ -97,7 +103,8 @@ function vehicleState(v){
   if (b) return {cls:'info', txt:'W użyciu – '+crewName(b)};
   const bl = typeof vehicleBlock==='function' ? vehicleBlock(v) : null;
   if (bl && !bl.override) return {cls:'bad', txt:'Zablokowane – '+bl.reason};
-  return {cls:'ok', txt: bl ? 'Dostępny dziś (zgoda kierownika)' : 'Dostępny'};
+  const hm = homeOf(v.id);
+  return {cls:'ok', txt: (bl ? 'Dostępny dziś (zgoda kierownika)' : 'Dostępny') + (hm ? ` · pod domem – ${hm.who}${hm.at ? ' (od ' + fdate(hm.at) + ')' : ''}` : '')};
 }
 function conflicts(){
   const set = new Set();

@@ -65,7 +65,10 @@ function openHandover(id, kind, vehicleId){
     ${kind==='return' ? `<div class="field full"><label class="check"><input id="ho-issue" type="checkbox"> Zgłoś usterkę na podstawie uwag</label>
       <select id="ho-sev" aria-label="Waga usterki"><option value="drobna">Drobna</option><option value="istotna" selected>Istotna</option><option value="stop">Auto niesprawne – nie wydawać</option></select></div>` : ''}
     <div class="warnline" id="dlg-warn" hidden></div>`;
-  $('#dlg-save').textContent = kind==='pickup' ? 'Przyjmij auto' : 'Zdaj pojazd';
+  $('#dlg-save').textContent = kind==='pickup' ? 'Przyjmij auto' : 'Zdaj do bazy';
+  if (kind==='return'){ const h = document.createElement('button'); h.type = 'button'; h.id = 'dlg-home'; h.className = 'primary'; h.textContent = 'Pod domem';
+    h.title = 'Auto zostaje pod Twoim domem'; h.addEventListener('click', () => { if (editing && editing.col==='handover'){ editing.home = true; editing.special(); } });
+    $('#dlg-save').before(h); }
   $('#dlg-del').hidden = true;
   $('#scrim').hidden = false;
   setTimeout(() => $('#ho-km')?.focus(), 20);
@@ -92,6 +95,7 @@ document.addEventListener('change', e => {
 });
 
 async function saveHandover({id, kind, vehicleId, minKm, items}){
+  const home = !!(editing && editing.home); if (editing) editing.home = false;   // przycisk „Pod domem” ustawia to na jedno kliknięcie
   const w = $('#dlg-warn');
   const warn = t => { w.textContent = t; w.hidden = false; };
   const crew = kind==='pickup' && $('#ho-crew') && $('#ho-crew').checked;
@@ -112,8 +116,8 @@ async function saveHandover({id, kind, vehicleId, minKm, items}){
   if (kind==='return' && !navigator.onLine){
     const iss = $('#ho-issue')?.checked ? {title: $('#ho-note').value.trim().slice(0, 120), description: $('#ho-note').value.trim(), severity: $('#ho-sev').value} : null;
     if (iss && !iss.title){ $('#ho-note').focus(); return warn('Opisz usterkę w polu „Uwagi po dniu pracy”.'); }
-    await queueOffline('return', {bookingId: id, vehicleId, rec: {km: kmV, fuel: ($('#ho-fuel') ? $('#ho-fuel').value : null), note: $('#ho-note').value.trim(), at: today(), photos: [], by: myId}, issue: iss}, filesOf('ho'));
-    const bk = byId('bookings', id); if (bk) bk.returned = {km: kmV, fuel: ($('#ho-fuel') ? $('#ho-fuel').value : null), note: $('#ho-note').value.trim(), at: today(), photos: [], by: myId};   // od razu widać, że auto zdane
+    await queueOffline('return', {bookingId: id, vehicleId, rec: {km: kmV, fuel: ($('#ho-fuel') ? $('#ho-fuel').value : null), note: $('#ho-note').value.trim(), at: today(), photos: [], by: myId, home}, issue: iss}, filesOf('ho'));
+    const bk = byId('bookings', id); if (bk) bk.returned = {km: kmV, fuel: ($('#ho-fuel') ? $('#ho-fuel').value : null), note: $('#ho-note').value.trim(), at: today(), photos: [], by: myId, home};   // od razu widać, że auto zdane
     closeForm(); render(); return toast('Brak zasięgu – zdanie auta zapisze się samo po odzyskaniu sieci');
   }
   const note = $('#ho-note').value.trim();
@@ -123,6 +127,7 @@ async function saveHandover({id, kind, vehicleId, minKm, items}){
     const photos = await uploadPhotos('ho');
     if (photos === null) return;
     const rec = {km: kmV, fuel: ($('#ho-fuel') ? $('#ho-fuel').value : null), note, at: today(), photos, by: myId};
+    if (kind==='return') rec.home = home;
     if (kind==='pickup') rec.checklist = checklist;
     let bid = id;
     if (!bid){
@@ -142,7 +147,7 @@ async function saveHandover({id, kind, vehicleId, minKm, items}){
     const bk = byId('bookings', bid) || {};
     const partner = coDriverId ? dName(coDriverId) : (bk.coDriverId ? dName(crewOf(bk).find(d => d!==myDriverId()) || bk.coDriverId) : '');
     if (partner) return toast(kind==='pickup' ? `Przejęto auto – ${partner} musi potwierdzić przejęcie u siebie` : `Zdano pojazd – ${partner} musi potwierdzić zdanie u siebie`);
-    toast(kind==='pickup' ? (issues.length ? `Przejęto auto · zgłoszono ${issues.length} ${isPlural(issues.length,'usterkę','usterki','usterek')}` : 'Przejęto auto – szerokiej drogi!') : (issues.length ? 'Zdano pojazd i zgłoszono usterkę' : (bk.pickup && bk.pickup.km && kmV > bk.pickup.km ? `Zdano pojazd – przejechane ${new Intl.NumberFormat('pl-PL').format(kmV - bk.pickup.km)} km. Dziękujemy!` : 'Zdano pojazd – dziękujemy')));
+    toast(kind==='pickup' ? (issues.length ? `Przejęto auto · zgłoszono ${issues.length} ${isPlural(issues.length,'usterkę','usterki','usterek')}` : 'Przejęto auto – szerokiej drogi!') : (issues.length ? 'Zdano pojazd i zgłoszono usterkę' : (bk.pickup && bk.pickup.km && kmV > bk.pickup.km ? `Zdano pojazd${home ? ' (pod domem)' : ''} – przejechane ${new Intl.NumberFormat('pl-PL').format(kmV - bk.pickup.km)} km. Dziękujemy!` : `Zdano pojazd${home ? ' – zostaje pod Twoim domem' : ''} – dziękujemy`)));
   } catch(err){ handleWriteErr(err); }
   finally { btn.disabled = false; }
 }

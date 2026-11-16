@@ -57,7 +57,7 @@ const WRITABLE = {
   equipment: ['id','vehicle_id','item','ok','valid_until','checked_at','note'],
   tires: ['id','vehicle_id','season','size','brand','dot','tread_mm','location','storage','mounted_at','mounted_km','note'],
   loadingReports: ['id','driver_id','weight_kg','photo'],
-  bookings:  ['id','vehicle_id','driver_id','date_from','date_to','purpose','route_id','pickup_at','pickup_km','pickup_fuel','pickup_note','pickup_photos','pickup_by','pickup_checklist','return_at','return_km','return_fuel','return_note','return_photos','return_by','co_driver_id'],
+  bookings:  ['id','vehicle_id','driver_id','date_from','date_to','purpose','route_id','pickup_at','pickup_km','pickup_fuel','pickup_note','pickup_photos','pickup_by','pickup_checklist','return_at','return_km','return_fuel','return_note','return_photos','return_by','return_home','co_driver_id'],
   costs:     ['id','date','vehicle_id','driver_id','category','amount','liters','odometer','full_tank','note','photos','co_driver_id','confirm_status','currency','amount_orig','fx_rate','fx_manual','station','flag_state','flag_question'],
   issues:    ['id','vehicle_id','title','description','severity','status','date','km','repair_note','resolved_at','photos','service_type'],
   workOrders: ['id','workshop_id','workshop','date','note','status','closed_at'],
@@ -82,6 +82,8 @@ function toApp(col, r){
   if (col==='bookings'){
     const part = p => r[p+'km']==null ? null : {at: r[p+'at'], km: r[p+'km'], fuel: r[p+'fuel']==null ? '' : String(r[p+'fuel']), note: r[p+'note'] || '', photos: r[p+'photos'] || [], by: r[p+'by'], checklist: p==='pickup_' ? (r.pickup_checklist || []) : undefined};
     o.pickup = part('pickup_'); o.returned = part('return_');
+    if (o.returned) o.returned.home = !!r.return_home;
+    delete o.return_home;
   }
   return o;
 }
@@ -96,6 +98,7 @@ function toDb(col, o){
       out[p+'note'] = v && v.note ? v.note : null; out[p+'photos'] = v ? (v.photos || []) : [];
       out[p+'by'] = v ? (v.by || myId) : null;
       if (k==='pickup') out.pickup_checklist = v ? (v.checklist || []) : [];
+      else out.return_home = !!(v && v.home);
       continue;
     }
     out[m[k] || k] = v==='' ? null : v;

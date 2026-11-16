@@ -132,7 +132,9 @@ function fleetNowCard(){
     ${phoneOf(b) ? `<a class="btn small" href="tel:${esc(String(phoneOf(b)).replace(/[^\d+]/g, ''))}" aria-label="Zadzwoń">${ic('phone')}</a>` : '<span class="pill soon">czeka</span>'}</div>`).join('');
   return card('Flota teraz', list.length ? list.length + ' w trasie' : 'w trasie',
     (rows ? `<div class="fl">${rows}</div>${list.length > 8 ? `<p class="muted small more">i ${list.length - 8} więcej – zobacz Grafik.</p>` : ''}` : '<p class="muted sec-empty">Żadne auto nie jest teraz w trasie.</p>')
-    + (wait.length ? `<div class="fl-sub"><span class="label">Dziś w grafiku – jeszcze nie przejęte (${wait.length})</span></div><div class="fl">${waitRows}</div>` : ''));
+    + (wait.length ? `<div class="fl-sub"><span class="label">Dziś w grafiku – jeszcze nie przejęte (${wait.length})</span></div><div class="fl">${waitRows}</div>` : '')
+    + (() => { const hs = S.vehicles.filter(v => v.status!=='wycofany' && !activeBooking(v.id)).map(v => ({v, h: homeOf(v.id)})).filter(x => x.h);
+      return hs.length ? `<div class="fl-sub"><span class="label">Pod domem kierowcy (${hs.length})</span></div><div class="fl">${hs.map(x => `<div class="fl-row" data-card-go="${esc(x.v.id)}" tabindex="0">${vPlate(x.v.id)}<div class="att-t"><b>${esc(x.h.who)}</b><span class="sub">zdane pod domem${x.h.at ? ' ' + fdate(x.h.at) : ''}</span></div><span class="pill info">pod domem</span></div>`).join('')}</div>` : ''; })());
 }
 
 
