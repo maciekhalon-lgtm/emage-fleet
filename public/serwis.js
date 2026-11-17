@@ -102,7 +102,7 @@ function openWoMake(keys){
     if (!date){ w.textContent = 'Podaj datę oddania auta.'; w.hidden = false; return; }
     const btn = $('#dlg-save'); btn.disabled = true;
     try {
-      const id = crypto.randomUUID();
+      const id = newId();
       const {error} = await sb.from('work_orders').insert({id, workshop_id: wsObj ? wsObj.id : null, workshop: wsName, date, note: note || null}); if (error) throw dbErr(error);
       const rows = xs.map(x => ({order_id: id, vehicle_id: x.vid, issue_id: x.issue ? x.issue.id : null, deadline_id: x.deadline ? x.deadline.id : null, kind: x.kind, title: String(x.title).slice(0, 200)}));
       const r2 = await sb.from('work_order_items').insert(rows); if (r2.error) throw dbErr(r2.error);

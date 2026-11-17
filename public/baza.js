@@ -156,7 +156,7 @@ function docRef(col, id){
     },
   };
 }
-const dbApi = {collection: col => ({doc: id => docRef(col, id || crypto.randomUUID())})};
+const dbApi = {collection: col => ({doc: id => docRef(col, id || newId())})};
 
 /* ---------- wczytywanie i odświeżanie ---------- */
 let pending = false;
@@ -275,7 +275,7 @@ const BUCKET = 'pliki';
 const storageApi = {
   async upload(file, opts = {}){
     const ext = ((file.name || '').split('.').pop() || 'bin').toLowerCase().replace(/[^a-z0-9]/g, '') || 'bin';
-    const path = `${myId}/${crypto.randomUUID()}.${ext}`;
+    const path = `${myId}/${newId()}.${ext}`;
     const {error} = await sb.storage.from(BUCKET).upload(path, file, {contentType: opts.type || file.type, upsert:false});
     if (error) throw {code: /size|large/i.test(error.message) ? 'too_big' : 'upload', message:error.message};
     return {id:path, contentType: opts.type || file.type, sizeBytes:file.size};

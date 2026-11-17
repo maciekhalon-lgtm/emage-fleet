@@ -5,6 +5,8 @@
    Klucz „publishable” jest przeznaczony do aplikacji w przeglądarce – dostęp do danych
    chronią reguły bezpieczeństwa (RLS) w bazie. Nigdy nie wpisuj tu klucza secret / service_role. */
 (function(){
+  // zawsze bezpieczne połączenie (na http przeglądarka blokuje m.in. tworzenie nowych wpisów)
+  if (location.protocol === 'http:' && !/^(localhost|127\.0\.0\.1)$/.test(location.hostname)){ location.replace('https://' + location.host + location.pathname + location.search + location.hash); return; }
   const prod = /(^|\.)emage-fleet\.com$/.test(location.hostname);
   window.CONFIG = prod ? {
     env: 'prod',

@@ -368,7 +368,7 @@ async function fcSave(){
     let lastId = null, nF = 0, nO = 0, fresh = 0;
     for (const j of jobs){
       const ds = j.fresh.map(r => r.txDate).sort();
-      const id = crypto.randomUUID(); lastId = id;
+      const id = newId(); lastId = id;
       let {error} = await sb.from('fuel_card_imports').insert({id, provider: prov || null, invoice_no: jobs.length===1 ? invNo || null : null, invoice_path: invoicePath, file_name: j.f.name,
         period_from: ds[0], period_to: ds[ds.length - 1], rows_total: j.f.data.length, rows_ours: j.fresh.length});
       if (error) throw dbErr(error);

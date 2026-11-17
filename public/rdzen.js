@@ -14,6 +14,13 @@ const pad = n => String(n).padStart(2,'0');
 const isoOf = d => d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
 const parse = iso => { const [y,m,d] = String(iso).split('-').map(Number); return new Date(y, (m||1)-1, d||1); };
 const today = () => isoOf(new Date());
+/* identyfikator nowego wpisu – crypto.randomUUID działa tylko na https; na http (np. stary link) losujemy ręcznie */
+const newId = () => {
+  if (window.crypto && crypto.randomUUID) try { return crypto.randomUUID(); } catch(_){}
+  const b = crypto.getRandomValues(new Uint8Array(16)); b[6] = (b[6] & 15) | 64; b[8] = (b[8] & 63) | 128;
+  const h = [...b].map(x => x.toString(16).padStart(2, '0')).join('');
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+};
 const addDays = (iso, n) => { const d = parse(iso); d.setDate(d.getDate()+n); return isoOf(d); };
 const addMonths = (iso, n) => { const d = parse(iso); d.setMonth(d.getMonth()+n); return isoOf(d); };
 const diffDays = (a, b) => Math.round((parse(b) - parse(a)) / 864e5);
