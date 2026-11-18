@@ -365,6 +365,12 @@ async function odoGpsCheck(sb: any, rpc: (h: string, m: string, p: Record<string
       part.forEach((j, n) => { const r = (res[n] || []).find(x => x && x.data != null); const v = r ? Math.round(odoKm(Number(r.data)) * 10) / 10 : 0; if (v >= 50) km.set(j, v); });
     }
   }
+  // odczyt z chwili zdarzenia musi zgadzać się z dziennymi licznikami tego auta (±2000 km) – inaczej to błąd lokalizatora
+  { const vids = [...new Set(todo.map(e => e.vehicle_id))];
+    const {data: dd} = await sb.from('gps_odometer').select('vehicle_id, day, km').in('vehicle_id', vids).gte('day', since.slice(0, 10));
+    const byV = new Map<string, Row[]>(); (dd || []).forEach((r: Row) => { if (!byV.has(r.vehicle_id)) byV.set(r.vehicle_id, []); byV.get(r.vehicle_id)!.push(r); });
+    todo.forEach((e, i) => { if (!km.has(i)) return; const d = warsawDay(e.at), xs = (byV.get(e.vehicle_id) || []).filter(r => Math.abs(diffDays(r.day, d)) <= 3);
+      if (xs.length && !xs.some(r => Math.abs(Number(r.km) - (km.get(i) as number)) <= 2000)) km.delete(i); }); }
   const now = new Date().toISOString();
   const rows = todo.map((e, i) => ({...e, gps_km: km.has(i) ? km.get(i) : null, checked_at: now}));
   for (let i = 0; i < rows.length; i += 500){
@@ -427,6 +433,25 @@ async function geotabSync(sb: any, key: (k: string) => string, days: number, fue
         });
       }
     }
+    step = 'kontrola odczytów';
+    // odrzucamy niewiarygodne odczyty (np. lokalizator po odłączeniu czyta licznik z komputera auta w złym formacie):
+    // skok o ponad 1500 km na dzień albo cofnięcie o ponad 50 km względem ostatniego przyjętego odczytu
+    { const vids = [...new Set(daily.map(x => x.vehicle_id))], first = daily.reduce((m, x) => x.day < m ? x.day : m, todayW);
+      const {data: prevRows} = vids.length ? await sb.from('gps_odometer').select('vehicle_id, day, km').in('vehicle_id', vids).lt('day', first).gte('day', addDays(first, -60)) : {data: []};
+      const ref = new Map<string, {day: string; km: number}>();
+      (prevRows || []).forEach((r: Row) => { const o = ref.get(r.vehicle_id); if (!o || r.day > o.day) ref.set(r.vehicle_id, {day: r.day, km: Number(r.km)}); });
+      daily.sort((a, b) => a.vehicle_id.localeCompare(b.vehicle_id) || a.day.localeCompare(b.day));
+      const ok: typeof daily = [];
+      for (const x of daily){
+        const r = ref.get(x.vehicle_id), gap = r ? Math.max(1, diffDays(r.day, x.day)) : 1;
+        if (r && (x.km - r.km > 1500 * gap || x.km < r.km - 50)){
+          const v = (vehicles || []).find((y: Row) => y.id === x.vehicle_id);
+          errs.push(`${v ? v.plate : '?'}: niewiarygodny licznik z lokalizatora ${x.day.slice(8, 10)}.${x.day.slice(5, 7)} (${Math.round(x.km)} km, poprzednio ${Math.round(r.km)} km) – pominięty`);
+          continue;
+        }
+        ok.push(x); ref.set(x.vehicle_id, {day: x.day, km: x.km});
+      }
+      daily.length = 0; daily.push(...ok); }
     step = 'zapis';
 
     for (let i = 0; i < daily.length; i += 500){
@@ -444,7 +469,7 @@ async function geotabSync(sb: any, key: (k: string) => string, days: number, fue
     try { fuel = await fuelGpsCheck(sb, rpc, host, cred, devOf, fuelLimit); } catch (e) { errs.push(step + ': ' + String((e as Error).message || e).slice(0, 120)); }
     step = 'kontrola liczników';
     try { fuel = {...fuel, ...await odoGpsCheck(sb, rpc, host, cred, devOf, 400)}; } catch (e) { errs.push(step + ': ' + String((e as Error).message || e).slice(0, 120)); }
-    return await status({ok: true, devices: devices.length, matched: map.size, unmatched, readings, days: daily.length, kmUpdated: upd, warnings: errs.slice(0, 8), ...fuel,
+    return await status({ok: true, devices: devices.length, matched: map.size, unmatched, readings, days: daily.length, kmUpdated: upd, warnings: errs.slice(0, 12), ...fuel,
       deviceList: devices.map(d => ({id: d.id, name: d.name || '', plate: d.licensePlate || '', vehicle: map.get(d.id) ? map.get(d.id)!.plate : null}))});
   } catch (e) {
     return await status({ok: false, error: (step ? step + ': ' : '') + String((e as Error).message || e).slice(0, 300)});
