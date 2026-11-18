@@ -72,7 +72,7 @@ function openPolicyRenew(id){
     <label class="field"><span class="label">Towarzystwo *</span><input id="pr-ins" value="${val(v.insurer)}" placeholder="np. Generali"></label>
     <label class="field"><span class="label">Numer nowej polisy *</span><input id="pr-no" placeholder="${v.policyNo ? 'poprzednia: ' + val(v.policyNo) : 'np. 50018290257'}"></label>
     <label class="field"><span class="label">Ważna do *</span><input id="pr-to" type="date" value="${d.date ? addMonths(d.date, 12) : addMonths(today(), 12)}"></label>
-    <label class="field"><span class="label">Składka brutto (zł)</span><input id="pr-cost" inputmode="decimal" placeholder="doda się do kosztów"></label>
+    <label class="field"><span class="label">Składka (zł, bez VAT)</span><input id="pr-cost" inputmode="decimal" placeholder="doda się do kosztów"></label>
     <label class="field full"><span class="label">Telefon assistance</span><input id="pr-tel" type="tel" value="${val(v.assistancePhone)}"></label>
     <div class="warnline" id="dlg-warn" hidden></div>`;
   $('#dlg-save').textContent = 'Zapisz polisę'; $('#dlg-del').hidden = true; $('#scrim').hidden = false;

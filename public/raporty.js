@@ -129,11 +129,11 @@ async function exportXlsx(){
   try { X = await loadXLSX(); } catch(_){ toast('Nie udało się wczytać modułu Excel – sprawdź połączenie'); return; }
   const [a, b, label] = periodRange();
   const rows = reportRows();
-  const sum = rows.map(r => ({'Rejestracja': r.v.plate, 'Pojazd': r.v.make+' '+r.v.model, 'Koszty brutto (zł)': +r.cost.toFixed(2), 'W tym paliwo (zł)': +r.fuel.toFixed(2),
+  const sum = rows.map(r => ({'Rejestracja': r.v.plate, 'Pojazd': r.v.make+' '+r.v.model, 'Koszty (zł)': +r.cost.toFixed(2), 'W tym paliwo (zł)': +r.fuel.toFixed(2),
     'Przejechane km': r.km || '', 'Koszt na km (zł)': r.perKm ? +r.perKm.toFixed(2) : '', 'Śr. zużycie': r.cons ? +r.cons.val.toFixed(1) : '', 'Jednostka zużycia': r.cons ? r.cons.unit : '',
     'Limit miesięczny (zł)': r.limit || '', ...Object.fromEntries(COST_CATS.map(k => [k+' (zł)', +r.cats[k].toFixed(2)]))}));
   const entries = visibleCosts().filter(c => c.date >= a && c.date <= b).sort((x,y) => x.date<y.date?-1:1).map(c => ({
-    'Data': fdate(c.date), 'Rejestracja': byId('vehicles', c.vehicleId)?.plate || '', 'Kategoria': c.category, 'Kwota brutto (zł)': Number(c.amount||0),
+    'Data': fdate(c.date), 'Rejestracja': byId('vehicles', c.vehicleId)?.plate || '', 'Kategoria': c.category, 'Kwota (zł)': Number(c.amount||0), 'Netto / brutto': costKind(c.category),
     'Ilość (l/kWh)': c.liters || '', 'Stan licznika (km)': c.odometer || '', 'Trasa': rLabel(c.routeId), 'Stacja': c.station || '', 'Waluta': c.currency || 'PLN', 'Kwota w walucie': c.currency && c.currency!=='PLN' ? Number(c.amountOrig||0) : '',
     'Kurs': c.fxRate ? Number(c.fxRate) : '', 'Data kursu': c.fxDate ? fdate(c.fxDate) : '', 'Tabela NBP': c.fxTable || '', 'Opis': c.note || '', 'Dodał(a)': c.createdBy ? pName(c.createdBy) : ''}));
   const wb = X.utils.book_new();
@@ -145,7 +145,7 @@ async function exportXlsx(){
   X.utils.book_append_sheet(wb, ws2, 'Koszty');
   if (P().service){
     const se = S.serviceEntries.filter(x => x.date >= a && x.date <= b).sort((x,y) => x.date<y.date?-1:1).map(x => ({'Data': fdate(x.date), 'Rejestracja': byId('vehicles', x.vehicleId)?.plate || '',
-      'Przebieg (km)': x.km || '', 'Warsztat': x.workshop || '', 'Co zrobiono': x.description || '', 'Koszt brutto (zł)': x.cost ? Number(x.cost) : '', 'Wymiana oleju': x.oilChange ? 'tak' : '', 'Wymiana rozrządu': x.timingChange ? 'tak' : '',
+      'Przebieg (km)': x.km || '', 'Warsztat': x.workshop || '', 'Co zrobiono': x.description || '', 'Koszt netto (zł)': x.cost ? Number(x.cost) : '', 'Wymiana oleju': x.oilChange ? 'tak' : '', 'Wymiana rozrządu': x.timingChange ? 'tak' : '',
       'Naprawione usterki': (x.issueIds||[]).map(id => byId('issues', id)?.title || '').filter(Boolean).join('; '), 'Uwagi': x.note || ''}));
     const wsS = X.utils.json_to_sheet(se.length ? se : [{'Informacja':'Brak wpisów serwisowych w okresie'}]);
     wsS['!cols'] = [{wch:12},{wch:12},{wch:13},{wch:22},{wch:44},{wch:16},{wch:13},{wch:36},{wch:24}];
@@ -153,7 +153,7 @@ async function exportXlsx(){
   }
   if (S.routes.length){
     const rr = routeReportRows(a, b).map(x => ({'Kod trasy': x.r ? x.r.code : 'bez trasy', 'Nazwa': x.r ? x.r.name : '', 'Dni pracy': x.days, 'Przejechane km': x.km || '',
-      'Koszty brutto (zł)': +x.cost.toFixed(2), 'Paliwo (zł)': +x.fuelCost.toFixed(2), 'Paliwo (l)': +x.liters.toFixed(1), 'Spalanie orient. (l/100 km)': x.cons ? +x.cons.toFixed(1) : '', 'Koszt na km (zł)': x.perKm ? +x.perKm.toFixed(2) : ''}));
+      'Koszty (zł)': +x.cost.toFixed(2), 'Paliwo (zł)': +x.fuelCost.toFixed(2), 'Paliwo (l)': +x.liters.toFixed(1), 'Spalanie orient. (l/100 km)': x.cons ? +x.cons.toFixed(1) : '', 'Koszt na km (zł)': x.perKm ? +x.perKm.toFixed(2) : ''}));
     const wsR = X.utils.json_to_sheet(rr.length ? rr : [{'Informacja':'Brak danych tras w okresie'}]);
     wsR['!cols'] = [{wch:12},{wch:28},{wch:10},{wch:14},{wch:16},{wch:12},{wch:11},{wch:22},{wch:15}];
     X.utils.book_append_sheet(wb, wsR, 'Trasy');

@@ -71,7 +71,7 @@ const FORMS = {
     {k:'date',l:'Data',t:'date',req:1},
     {k:'category',l:'Kategoria',t:'select',o:(P().costs==='own'?DRIVER_CATS:COST_CATS).map(c=>[c,c]),req:1},
     {k:'vehicleId',l:'Pojazd',t:'select',o:vehOpts(),req:1,full:1},
-    {k:'amount',l:'Kwota brutto',t:'number',step:'0.01',req:1},
+    {k:'amount',l:'Kwota',t:'number',step:'0.01',req:1},
     ...(editing && editing.base && editing.base.mode==='quick' ? [{k:'abroad',l:'Tankuję za granicą (EUR / CZK)',t:'check'}] : []),
     {k:'currency',l:'Waluta',t:'select',o:CURRENCIES.map(c=>[c,c])},
     {k:'fxPrev',t:'html',html:'<div class="fx-prev muted small" id="fx-prev" hidden></div>'},
@@ -102,7 +102,7 @@ const FORMS = {
     {k:'date',l:'Data',t:'date',req:1},
     {k:'km',l:'Przebieg (km)',t:'number'},
     {k:'workshop',l:'Warsztat',ph:'np. Auto-Serwis Kowalski'},
-    {k:'cost',l:'Koszt brutto (zł)',t:'number',step:'0.01',hint:'doda się sam do kosztów'},
+    {k:'cost',l:'Koszt netto (zł)',t:'number',step:'0.01',hint:'doda się sam do kosztów (Serwis i naprawy)'},
     {k:'description',l:'Co zrobiono',t:'textarea',req:1,full:1,ph:'np. wymiana oleju i filtrów, klocki przód'},
     {k:'oilChange',l:'Wymiana oleju – następna = ten przebieg + cykl km ustawiony w terminie (domyślnie 15 000 km)',t:'check'},
     {k:'timingChange',l:'Wymiana rozrządu – następna = ten przebieg + cykl km ustawiony w terminie (domyślnie 80 000 km)',t:'check'},
@@ -273,7 +273,7 @@ async function costFxUi(){
   const cur = g('currency')?.value || 'PLN', foreign = cur!=='PLN';
   const sel = g('stationSel')?.value;
   const other = $('#wrap-costs-stationOther'); if (other) other.hidden = sel!=='Inna';
-  const lab = $('#wrap-costs-amount label'); if (lab) lab.textContent = `Kwota brutto (${cur==='PLN'?'zł':cur}) *`;
+  const ck = costKind(g('category')?.value), lab = $('#wrap-costs-amount label'); if (lab) lab.textContent = ck==='bez VAT' ? `Kwota (${cur==='PLN'?'zł':cur}, bez VAT) *` : `Kwota ${ck} (${cur==='PLN'?'zł':cur}) *`;
   ['fxManual','fxRate'].forEach(k => { const w = $('#wrap-costs-'+k); if (w) w.hidden = !foreign; });
   const man = g('fxManual')?.checked; const wr = $('#wrap-costs-fxRate'); if (wr && foreign) wr.hidden = !man;
   const box = $('#fx-prev'); if (!box) return;

@@ -238,7 +238,7 @@ function openWoFinish(id){
       return `<fieldset class="field full wf-veh"><legend>${plate(v.plate || '?')} <span class="muted small">${esc([v.make, v.model].filter(Boolean).join(' '))}</span></legend>
         <div class="wf-items">${byV[vid].map(x => `<label class="check"><input type="checkbox" id="wf-x-${esc(x.id)}" checked> <span><b>${esc(x.title)}</b>${woItemInfo(x).map(t => `<span class="sub pre">${esc(t)}</span>`).join('')}</span></label>`).join('')}</div>
         <div class="wf-grid"><div><label for="wf-km-${esc(vid)}">Przebieg (km) *</label><input id="wf-km-${esc(vid)}" type="text" inputmode="numeric" value="${sk.km ? Math.round(sk.km) : ''}"></div>
-          <div><label for="wf-cost-${esc(vid)}">Koszt brutto (zł)</label><input id="wf-cost-${esc(vid)}" type="text" inputmode="decimal" placeholder="np. 1 850"></div>
+          <div><label for="wf-cost-${esc(vid)}">Koszt netto (zł)</label><input id="wf-cost-${esc(vid)}" type="text" inputmode="decimal" placeholder="np. 1 850"></div>
           <div class="wf-wide"><label for="wf-desc-${esc(vid)}">Co jeszcze zrobiono / części</label><input id="wf-desc-${esc(vid)}" placeholder="opcjonalnie"></div>
           <div class="wf-wide"><label for="wf-file-${esc(vid)}">Faktura (PDF albo zdjęcie)</label><input id="wf-file-${esc(vid)}" type="file" accept="${DOC_TYPES.join(',')}"></div></div></fieldset>`; }).join('')}
     <p class="muted small field full">Odznacz to, czego nie zrobiono – wróci do Zgłoszeń. Zrobione usterki zamkną się same, a wymiana oleju i rozrządu ustawi kolejny termin od wpisanego przebiegu.</p>

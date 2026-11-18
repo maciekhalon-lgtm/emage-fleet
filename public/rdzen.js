@@ -47,6 +47,8 @@ const DL_TYPES = ['Przegląd techniczny','Ubezpieczenie OC','Ubezpieczenie AC','
 /* Terminy liczone tylko z przebiegu (bez daty, migracja 042) */
 const KM_DL = ['Serwis olejowy','Wymiana rozrządu','Przegląd gwarancyjny'];
 const isKmDl = d => KM_DL.includes(typeof d==='string' ? d : d && d.type);
+/* Rodzaj kwoty kosztu: naprawy netto, ubezpieczenie bez VAT, reszta (paliwo, opłaty…) brutto z paragonu / karty */
+const costKind = cat => cat==='Serwis i naprawy' ? 'netto' : cat==='Ubezpieczenie' ? 'bez VAT' : 'brutto';
 const COST_CATS = ['Paliwo','Ładowanie','Serwis i naprawy','Ubezpieczenie','Opony','Myjnia','Opłaty i parkingi','Leasing','Inne'];
 const FUELS = ['Diesel','Benzyna','Hybryda','Elektryczny','LPG'];
 

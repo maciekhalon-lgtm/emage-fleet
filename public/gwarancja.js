@@ -122,7 +122,7 @@ function openWarrantyDone(vid){
     <label class="field"><span class="label">Przebieg przy przeglądzie (km) *</span><input id="wd-k" type="number" inputmode="numeric" min="0" value="${v.km ? Math.round(Number(v.km)) : ''}"></label>
     <label class="field"><span class="label">Następny co (km)</span><input id="wd-s" type="number" inputmode="numeric" min="1000" step="1000" value="${ins && ins.intervalKm || WR_STEP}"></label>
     <label class="field"><span class="label">Warsztat</span><input id="wd-w" placeholder="np. ASO Iveco"></label>
-    <label class="field"><span class="label">Koszt brutto (zł)</span><input id="wd-c" type="number" inputmode="decimal" min="0" step="0.01" placeholder="doda się sam do kosztów"></label>
+    <label class="field"><span class="label">Koszt netto (zł)</span><input id="wd-c" type="number" inputmode="decimal" min="0" step="0.01" placeholder="doda się sam do kosztów"></label>
     <label class="field"><span class="label">Uwagi</span><input id="wd-n"></label>
     <p class="field full small" id="wd-info" style="margin:0;display:block"></p>
     <div class="warnline" id="dlg-warn" hidden></div>`;
