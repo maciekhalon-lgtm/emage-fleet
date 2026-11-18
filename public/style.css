@@ -1767,3 +1767,26 @@ html[data-env="test"] body{padding-top:20px}
 .nt-ic svg.i{width:18px;height:18px;color:var(--muted)}.nt-t .sub{display:block}
 .dh-day{font-size:12px;font-weight:650;color:var(--muted);padding:12px 8px 4px}
 @media (max-width:700px){ .wo-veh .sec-head{flex-wrap:wrap;row-gap:6px}.wo-vbtn{margin-left:0;width:100%;justify-content:flex-start;flex-wrap:wrap} }
+
+/* Serwis → Terminy: odliczanie km */
+.cd-list{display:flex;flex-direction:column}
+.cd-row{display:grid;grid-template-columns:118px 1fr auto;gap:16px;align-items:center;padding:12px 4px;border-top:1px solid var(--line)}
+.cd-row:first-child{border-top:0}
+.cd-left{display:flex;flex-direction:column;line-height:1.1}
+.cd-left b{font-size:26px;font-weight:700;letter-spacing:-.02em}
+.cd-left span{font-size:12px;color:var(--muted)}
+.cd-row.bad .cd-left b{color:var(--bad)}
+.cd-row.warn .cd-left b{color:var(--warn)}
+.cd-mid{display:flex;flex-direction:column;gap:6px;min-width:0}
+.cd-car{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.cd-meter{height:6px;border-radius:3px;background:var(--line);overflow:hidden;max-width:420px}
+.cd-meter i{display:block;height:100%;background:var(--ok);border-radius:3px}
+.cd-row.soon .cd-meter i{background:#d4a017}
+.cd-row.warn .cd-meter i{background:var(--warn)}
+.cd-row.bad .cd-meter i{background:var(--bad)}
+.cd-act{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+@media (max-width:640px){
+  .cd-row{grid-template-columns:84px 1fr;gap:10px}
+  .cd-left b{font-size:20px}
+  .cd-act{grid-column:1 / -1;flex-direction:row;justify-content:space-between;align-items:center}
+}
