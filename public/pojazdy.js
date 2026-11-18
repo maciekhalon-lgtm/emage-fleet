@@ -21,14 +21,14 @@ function viewVehicles(){
     return `<button class="small ${vehFilter===k ? 'primary' : ''}" data-vf="${k}">${l} <span class="count ${k==='att' && n ? 'bad' : ''}">${n}</span></button>`; }).join('')}</div>`;
   const list = base.filter(F[vehFilter][1]).sort((a,b) => String(a.plate).localeCompare(b.plate));
   const rows = list.map(v => {
-    const st = vehicleState(v); const nd = nextDeadline(v.id); const ds = nd && dlState(nd); const c = consumption(v.id);
+    const st = vehicleState(v); const nd = nextDeadline(v.id); const ds = nd && dlState(nd); const sk = svcKm(v.id), m30 = typeof odoRange==='function' ? odoRange(v.id, addDays(today(), -29), today()) : null;
     return `<tr class="click" data-card="${esc(v.id)}" tabindex="0" title="Otwórz kartę pojazdu">
-      <td>${plate(v.plate)}<span class="sub">${esc(v.make)} ${esc(v.model)} · ${km(v.km)}</span></td>
+      <td>${plate(v.plate)}<span class="sub">${esc(v.make)} ${esc(v.model)}</span></td>
       <td class="vt-st"><span class="pill ${st.cls}">${esc(st.txt)}</span>${theftIds.has(v.id) ? ' <span class="pill bad">podejrzane spalanie</span>' : ''}${spBy[v.id] ? ` <span class="pill bad">${spBy[v.id]} ${isPlural(spBy[v.id],'niemożliwe tankowanie','niemożliwe tankowania','niemożliwych tankowań')}</span>` : ''}</td>
       <td class="vt-dl">${nd?`<span class="pill ${ds.cls}">${esc(nd.type)}</span><span class="sub num">${esc(ds.txt)}</span>`:'<span class="muted">brak terminów</span>'}</td>
-      <td class="r num vt-c">${c ? `<b>${c.val.toFixed(1).replace('.', ',')}</b> <span class="muted small">l/100</span>` : '<span class="muted">—</span>'}</td>
+      <td class="r vt-c">${sk && sk.km ? `<b class="num">${km(sk.km)}</b><span class="sub">${sk.gps ? 'GPS' : 'z wpisów'}${m30 && m30.km > 0 ? ` · ${new Intl.NumberFormat('pl-PL').format(Math.round(m30.km))} km / 30 dni` : ''}</span>` : '<span class="muted">—</span>'}</td>
     </tr>`; }).join('');
-  return head + chips + `<div class="panel tablewrap veh-tbl"><table><thead><tr><th>Auto</th><th>Status</th><th>Najbliższy termin</th><th class="r">Spalanie</th></tr></thead><tbody>${rows || `<tr><td colspan="4" class="muted">Brak pojazdów${q ? ` pasujących do „${esc(q)}”` : ' w tym filtrze'}.</td></tr>`}</tbody></table></div>`;
+  return head + chips + `<div class="panel tablewrap veh-tbl"><table><thead><tr><th>Auto</th><th>Status</th><th>Najbliższy termin</th><th class="r">Przebieg</th></tr></thead><tbody>${rows || `<tr><td colspan="4" class="muted">Brak pojazdów${q ? ` pasujących do „${esc(q)}”` : ' w tym filtrze'}.</td></tr>`}</tbody></table></div>`;
 }
 let vehFilter = 'all';
 document.addEventListener('click', e => { const t = e.target.closest('[data-vf]'); if (!t) return; vehFilter = t.dataset.vf; render(); });

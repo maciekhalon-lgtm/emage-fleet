@@ -7,8 +7,9 @@ function viewDeadlines(){
     + (P().manage ? `<button data-action="cal-open" title="Terminy w kalendarzu Google lub iPhone">${ic('cal')}W kalendarzu</button>` : '');
   const head = `<div class="bar ${barOpen()}"><h2>Terminy i przypomnienia</h2><div class="tools"><div class="seg" role="group" aria-label="Pokaż">${chips.map(([k,l])=>`<button class="small ${dlFilter===k?'on':''}" aria-pressed="${dlFilter===k}" data-dlf="${k}">${l}</button>`).join('')}</div>${moreMenu(moreBtns)}${canCreate('deadlines')?'<button class="primary" data-new="deadlines">+ Dodaj termin</button>':''}</div></div>`;
   if (!S.deadlines.length) return head + loadingOr('deadlines', emptyBlock('Brak zapisanych terminów','Zapisz daty przeglądów technicznych, końca polis OC/AC, serwisów i wymiany opon. Strona podświetli to, co zbliża się w ciągu 30 dni.', '<button class="primary" data-new="deadlines">+ Dodaj termin</button>', '', 'deadlines'));
-  if (dlFilter==='plan') return head + deadlinePlan();
-  const all = S.deadlines.map(d => ({d, s:dlState(d)})).sort((a,b)=> a.s.d - b.s.d || String(a.d.date||'9999').localeCompare(String(b.d.date||'9999')));
+  const kmNote = `<p class="muted small" style="margin:0 0 10px">Olej, rozrząd i przegląd gwarancyjny (liczone w km) są w <a href="#serwis-terminy">Serwis → Terminy</a>.</p>`;
+  if (dlFilter==='plan') return head + kmNote + deadlinePlan();
+  const all = S.deadlines.filter(d => !isKmDl(d)).map(d => ({d, s:dlState(d)})).sort((a,b)=> a.s.d - b.s.d || String(a.d.date||'9999').localeCompare(String(b.d.date||'9999')));
   // pilne: po terminie albo w ciągu 60 dni (przy terminach na km – gdy zbliża się przypomnienie)
   const f = all.filter(({s}) => dlFilter==='all' || (dlFilter==='over' && s.d<=0) || (dlFilter==='urgent' && s.d<=60));
   const hidden = all.length - f.length;
@@ -29,7 +30,7 @@ function viewDeadlines(){
       </div>`; }).join('');
   }
   const more = hidden && dlFilter!=='all' ? `<p class="muted small" style="margin:0">${hidden} ${isPlural(hidden,'dalszy termin ukryty','dalsze terminy ukryte','dalszych terminów ukrytych')} – <a href="#" data-dlf="all">pokaż wszystkie</a>.</p>` : '';
-  return head + `<div class="panel dl">${html || `<div class="empty"><p>${dlFilter==='urgent' ? 'Nic pilnego – wszystkie terminy są dalej niż 60 dni.' : 'Brak terminów w tym filtrze.'}</p></div>`}</div>` + more;
+  return head + kmNote + `<div class="panel dl">${html || `<div class="empty"><p>${dlFilter==='urgent' ? 'Nic pilnego – wszystkie terminy są dalej niż 60 dni.' : 'Brak terminów w tym filtrze.'}</p></div>`}</div>` + more;
 }
 /* domyślne cykle: [miesiące, km] */
 const DL_INTERVALS = {'Przegląd techniczny':[12,null],'Ubezpieczenie OC':[12,null],'Ubezpieczenie AC':[12,null],'Serwis olejowy':[null,15000],'Wymiana rozrządu':[null,80000],'Wymiana opon':[6,null],'Przegląd gwarancyjny':[null,30000],'Koniec gwarancji':[null,null],'Legalizacja tachografu':[24,null],'Leasing – koniec umowy':[null,null],'Inne':[null,null]};
@@ -154,7 +155,7 @@ function dueEstimate(d){
 }
 function deadlinePlan(){
   const t = today(), mon = mondayOf(t), end = addDays(mon, 7 * 8 - 1);
-  const items = S.deadlines.map(d => ({d, e: dueEstimate(d)})).filter(x => x.e.when && x.e.when <= end).sort((a, b) => a.e.when < b.e.when ? -1 : 1);
+  const items = S.deadlines.filter(d => !isKmDl(d)).map(d => ({d, e: dueEstimate(d)})).filter(x => x.e.when && x.e.when <= end).sort((a, b) => a.e.when < b.e.when ? -1 : 1);
   if (!items.length) return '<div class="panel"><div class="empty"><p>W najbliższych 8 tygodniach nie ma żadnych terminów.</p></div></div>';
   const weeks = [{k:'over', l:'Po terminie', f: x => x.e.when < t}];
   for (let i = 0; i < 8; i++){ const a = addDays(mon, 7 * i), b = addDays(a, 6);

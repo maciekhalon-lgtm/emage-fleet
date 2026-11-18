@@ -99,9 +99,9 @@ function viewCard(){
     ${P().manage && typeof fcSuspicious==='function' ? (sp => sp.length ? sec(`Niemożliwe tankowania z kart (${sp.length})`, `<button class="small" data-go="karty">Wszystkie</button>`, sp.slice(0, 8).map(({row: r, why}) => `<div class="mini"><span class="num">${fdate(r.txDate)}${r.txTime ? ' ' + esc(r.txTime) : ''}</span><span>${fl(r.liters)} · ${fm(r.amount, r.currency)}<span class="sub">${esc(fcDriver(r, null) || 'kierowca nieustalony')}${r.station ? ' · ' + esc(r.station) : ''}</span></span><span class="mini-r">${why.map(w => `<span class="pill warn">${esc(w)}</span>`).join(' ')}</span></div>`).join(''), '') : '')(fcSuspicious().filter(x => x.row.vehicleId===v.id && x.lvl==='bad' && !fcCheckedIds().has(x.row.id))) : ''}
     <div class="grid2"><div class="section">${P().manage ? sec('Tankowania z kart (ostatnie 30)', '', fuelHtml, 'Brak tankowań z kart paliwowych.') : ''}</div>
     <div class="section">${sec('Koszty (ostatnie 40)', add('costs','+ Koszt'), costRows, 'Brak kosztów.')}</div></div>`;
-  else if (cardTab==='historia') body = sec('Historia', '', histHtml ? `<div class="tlist">${histHtml}</div>` : '', 'Brak wpisów – tu pojawią się koszty, usterki, naprawy i wyjazdy tego auta.');
+  else if (cardTab==='historia') body = (typeof vehOdoWhoHtml==='function' ? vehOdoWhoHtml(v.id) : '') + sec('Historia', '', histHtml ? `<div class="tlist">${histHtml}</div>` : '', 'Brak wpisów – tu pojawią się koszty, usterki, naprawy i wyjazdy tego auta.');
   else body = `<div class="vf-groups">${facts}</div><div class="grid2">
-      <div class="section">${serviceOnly() ? '' : sec('Grafik', add('bookings','+ Przydział'), bkHtml, 'Brak przydziałów.')}${P().manage || P().service ? whoDroveHtml(v.id) : ''}${typeof vehOdoWhoHtml==='function' ? vehOdoWhoHtml(v.id) : ''}</div>
+      <div class="section">${serviceOnly() ? '' : sec('Grafik', add('bookings','+ Przydział'), bkHtml, 'Brak przydziałów.')}${P().manage || P().service ? whoDroveHtml(v.id) : ''}</div>
       <div class="section">${sec('Dokumenty', canUpload ? `<button class="small" data-new="docs" data-veh="${esc(v.id)}">+ Dodaj plik</button>` : '', docHtml,
           'Brak dokumentów – dodaj skan dowodu rejestracyjnego, polisy lub umowy (PDF albo zdjęcie).')}</div></div>`;
   return `<div class="section">

@@ -32,7 +32,7 @@ function innerTabs(){
 /* Liczniki przy zakładkach */
 function tabCount(t){
   if (t==='usterki'){ const oi = openIssues(); return {n: oi.length, bad: oi.some(i => i.severity==='stop')}; }
-  if (t==='terminy'){ const u = S.deadlines.filter(d => dlState(d).cls==='bad').length; return {n: u, bad: u > 0}; }
+  if (t==='terminy'){ const u = S.deadlines.filter(d => !isKmDl(d) && dlState(d).cls==='bad').length; return {n: u, bad: u > 0}; }
   if (t==='uzytkownicy' && P().manage){ const n = pendingUsers().length + pendingRequests().length + openDisputes().length; return {n, bad: n > 0}; }
   if (t==='liczniki' && P().manage){ const n = odoAllCount(); return {n, bad: n > 0}; }
   if (t==='karty' && P().manage){ const n = suspTodoCount(); return {n, bad: n > 0}; }
