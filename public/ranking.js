@@ -11,19 +11,29 @@ function rkRange(){
   return [addDays(t, -(Number(rkPer) - 1)), t];
 }
 /* odcinki spalania z wpisów kierowców: {vid, drv, km, l, date} */
-function rkLegs(from, to){
-  const out = [], by = {};
-  appFuel().filter(c => Number(c.liters) > 0 && Number(c.odometer) > 0 && !String(c.note || '').startsWith('Karta:'))
-    .forEach(c => (by[c.vehicleId] = by[c.vehicleId] || []).push(c));
-  Object.entries(by).forEach(([vid, xs]) => {
-    xs.sort((a, b) => Number(a.odometer) - Number(b.odometer) || String(a.date).localeCompare(b.date));
-    for (let i = 1; i < xs.length; i++){
-      const c = xs[i], km = Number(c.odometer) - Number(xs[i - 1].odometer);
-      if (c.date < from || c.date > to || km < 50 || km > 3000) continue;
-      const rate = Number(c.liters) / km * 100; if (rate < 3 || rate > 40) continue;
-      out.push({vid, drv: fillDriver(c) || c.driverId || '', km, l: Number(c.liters), date: c.date});
-    }
+/* Spalanie metodą „do pełna – do pełna”: odcinek zaczyna się od tankowania do pełna albo od przejęcia auta
+   (przejmowane z pełnym bakiem – chyba że kierowca zaznaczył inny poziom), kończy na następnym tankowaniu do pełna.
+   Litry odcinka = wszystkie tankowania po starcie (też dotankowania) + tankowanie kończące. */
+function rkVehLegs(vid){
+  const fills = appFuel().filter(c => c.vehicleId===vid && Number(c.liters) > 0 && Number(c.odometer) > 0 && !String(c.note || '').startsWith('Karta:'))
+    .map(c => ({t: 'f', odo: Number(c.odometer), c, date: c.date}));
+  const picks = S.bookings.filter(b => b.vehicleId===vid && b.pickup && Number(b.pickup.km) > 0 && (b.pickup.fuel==null || b.pickup.fuel==='' || Number(b.pickup.fuel)===100))
+    .map(b => ({t: 'p', odo: Number(b.pickup.km), date: String(b.pickup.at || b.from).slice(0, 10)}));
+  const ev = [...fills, ...picks].sort((a, b) => a.odo - b.odo || (a.t==='f' ? -1 : 1) || String(a.date).localeCompare(b.date));
+  let anchor = null, acc = 0; const out = [];
+  ev.forEach(e => {
+    if (e.t==='p'){ anchor = e.odo; acc = 0; return; }
+    acc += Number(e.c.liters);
+    if (e.c.full===false) return;
+    if (anchor!=null){ const km = e.odo - anchor, rate = km > 0 ? acc / km * 100 : null;
+      if (km >= 50 && km <= 5000 && rate >= 3 && rate <= 40) out.push({vid, drv: fillDriver(e.c) || e.c.driverId || '', km, l: acc, date: e.c.date, c: e.c, rate}); }
+    anchor = e.odo; acc = 0;
   });
+  return out;
+}
+function rkLegs(from, to){
+  const out = [];
+  S.vehicles.forEach(v => rkVehLegs(v.id).forEach(x => { if (x.date >= from && x.date <= to) out.push(x); }));
   return out;
 }
 function rkData(){

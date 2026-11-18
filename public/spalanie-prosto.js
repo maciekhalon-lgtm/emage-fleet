@@ -38,16 +38,17 @@ function viewFuelSimple(){
 function openSpVehicle(vid){
   const v = byId('vehicles', vid); if (!v) return;
   const [from, to] = spRange(), nf = new Intl.NumberFormat('pl-PL'), f1 = x => x.toFixed(1).replace('.', ',');
-  const all = appFuel().filter(c => c.vehicleId===vid && Number(c.liters) > 0 && !String(c.note || '').startsWith('Karta:')).sort((a, b) => (Number(a.odometer) || 0) - (Number(b.odometer) || 0) || String(a.date).localeCompare(b.date));
-  const rows = all.map((c, i) => { const p = all[i - 1], km = p && Number(c.odometer) && Number(p.odometer) ? Number(c.odometer) - Number(p.odometer) : null;
-    return {c, km, rate: km > 50 ? Number(c.liters) / km * 100 : null}; }).filter(x => x.c.date >= from && x.c.date <= to).sort((a, b) => String(b.c.date).localeCompare(a.c.date) || (Number(b.c.odometer) || 0) - (Number(a.c.odometer) || 0));
+  const legs = new Map(rkVehLegs(vid).map(x => [x.c.id, x]));
+  const rows = appFuel().filter(c => c.vehicleId===vid && Number(c.liters) > 0 && !String(c.note || '').startsWith('Karta:') && c.date >= from && c.date <= to)
+    .map(c => { const g = legs.get(c.id); return {c, km: g ? g.km : null, l: g ? g.l : null, rate: g ? g.rate : null}; })
+    .sort((a, b) => String(b.c.date).localeCompare(a.c.date) || (Number(b.c.odometer) || 0) - (Number(a.c.odometer) || 0));
   editing = {col: 'sp-veh', id: vid, base: {}, special: () => closeForm()};
   $('#dialog').classList.add('dlg-wide');
   $('#dlg-title').textContent = `${v.plate} – tankowania`;
-  $('#dlg-body').innerHTML = `<p class="muted small field full" style="margin:0;display:block">${fdate(from)} – ${fdate(to)} · z wpisów kierowców</p>
-    <div class="field full tablewrap"><table class="sp-tbl"><thead><tr><th>Data</th><th>Kierowca</th><th class="r">Litry</th><th class="r">Licznik</th><th class="r">Km od poprz.</th><th class="r">l/100</th><th></th></tr></thead><tbody>
+  $('#dlg-body').innerHTML = `<p class="muted small field full" style="margin:0;display:block">${fdate(from)} – ${fdate(to)} · z wpisów kierowców · spalanie liczone od tankowania do pełna (albo przejęcia auta) do następnego tankowania do pełna</p>
+    <div class="field full tablewrap"><table class="sp-tbl"><thead><tr><th>Data</th><th>Kierowca</th><th class="r">Litry</th><th class="r">Licznik</th><th class="r">Odcinek (km / l)</th><th class="r">l/100</th><th></th></tr></thead><tbody>
     ${rows.map(x => `<tr ${canEditDoc('costs', x.c) ? `class="click" data-edit="costs" data-id="${esc(x.c.id)}"` : ''}><td>${fdate(x.c.date)}</td><td>${esc(dName(fillDriver(x.c) || x.c.driverId) || '—')}</td>
-      <td class="r num">${f1(Number(x.c.liters))}</td><td class="r num">${x.c.odometer ? nf.format(x.c.odometer) : '—'}</td><td class="r num">${x.km ? nf.format(x.km) : '—'}</td>
+      <td class="r num">${f1(Number(x.c.liters))}</td><td class="r num">${x.c.odometer ? nf.format(x.c.odometer) : '—'}</td><td class="r num">${x.km ? `${nf.format(x.km)} km / ${f1(x.l)} l` : '—'}</td>
       <td class="r">${x.rate!=null ? `<b class="num ${x.rate > THEFT_RATE ? 'neg' : ''}">${f1(x.rate)}</b>` : '—'}</td><td>${x.c.full===false ? '<span class="pill off">dotankowanie</span>' : ''}${(x.c.flags || []).length ? ' <span class="pill bad">uwaga</span>' : ''}</td></tr>`).join('')
       || '<tr><td colspan="7" class="muted">Brak tankowań w tym okresie.</td></tr>'}</tbody></table></div>`;
   $('#dlg-save').textContent = 'Zamknij'; $('#dlg-del').hidden = true; $('#scrim').hidden = false;
