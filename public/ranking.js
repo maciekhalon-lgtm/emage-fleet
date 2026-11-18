@@ -85,13 +85,47 @@ function viewRankingFleet(drvTab){
   const zl2 = x => new Intl.NumberFormat('pl-PL', {minimumFractionDigits: 2, maximumFractionDigits: 2}).format(x);
   return head + `<div class="seg" style="margin:0 0 10px">${[['rate', 'Wg spalania'], ['costKm', 'Wg kosztu / km'], ['km', 'Wg km']].map(([k, l]) => `<button type="button" class="small ${sk===k ? 'on' : ''}" data-rk-sort-set="${k}">${l}</button>`).join('')}</div>
     <div class="panel tablewrap"><table class="rk2-tbl"><thead><tr><th>#</th>${th('name', 'Auto')}${th('rate', 'Spalanie l/100', 1)}${th('diff', 'vs średnia', 1)}${th('costKm', 'Koszt / km', 1)}${th('cost', 'Koszty', 1)}${th('km', 'Km', 1)}${th('days', 'Dni w grafiku', 1)}${th('card', 'Niezgodne z kartą', 1)}</tr></thead><tbody>
-    ${xs.map((x, i) => `<tr class="click ${top.has(x.v.id) ? 'rk-top' : low.has(x.v.id) ? 'rk-low' : ''}" data-card-go="${esc(x.v.id)}" data-ctab-go="paliwo"><td class="num">${i + 1}</td><td>${plate(x.v.plate)}<span class="sub">${esc([x.v.make, x.v.model].filter(Boolean).join(' '))}</span></td>
+    ${xs.map((x, i) => `<tr class="click ${top.has(x.v.id) ? 'rk-top' : low.has(x.v.id) ? 'rk-low' : ''}" data-rk-veh="${esc(x.v.id)}"><td class="num">${i + 1}</td><td>${plate(x.v.plate)}<span class="sub">${esc([x.v.make, x.v.model].filter(Boolean).join(' '))}</span></td>
       <td class="r">${rateCell(x)}</td><td class="r">${diffCell(x)}</td><td class="r num">${x.costKm!=null ? `<b>${zl2(x.costKm)}</b> <span class="muted small">zł</span>` : '<span class="muted">—</span>'}</td>
       <td class="r num">${x.cost ? zl(x.cost) : '—'}</td><td class="r num">${x.km ? nf.format(x.km) : '—'}</td><td class="r num">${x.days || '—'}</td>
       <td class="r">${x.card ? `<span class="pill bad">${x.card}</span>` : '<span class="muted">0</span>'}</td></tr>`).join('')}</tbody></table></div>
-    <p class="muted small">Koszt / km = wszystkie koszty auta w okresie (paliwo, naprawy, opłaty…) podzielone przez km z przejęć i zdań. Kliknij auto – karta auta, zakładka „Paliwo i koszty”.</p>`;
+    <p class="muted small">Koszt / km = wszystkie koszty auta w okresie (paliwo, naprawy, opłaty…) podzielone przez km z przejęć i zdań. Kliknij auto – ranking kierowców na tym aucie.</p>`;
+}
+/* Kierowcy na jednym aucie (okno po kliknięciu auta w rankingu) */
+function openRkVehicle(vid){
+  const v = byId('vehicles', vid); if (!v) return;
+  const [from, to] = rkRange(), legs = rkLegs(from, to).filter(x => x.vid===vid), nf = new Intl.NumberFormat('pl-PL'), f1 = x => x.toFixed(1).replace('.', ',');
+  const vKm = legs.reduce((a, x) => a + x.km, 0), vL = legs.reduce((a, x) => a + x.l, 0), vRate = vKm >= 300 ? vL / vKm * 100 : null;
+  const cardEv = (S.events || []).filter(e => e.kind==='karta' && e.vehicleId===vid && String(e.at).slice(0, 10) >= from);
+  const m = {}; const g = id => m[id] = m[id] || {id, km: 0, days: new Set(), fills: 0, l: 0, lkm: 0, ll: 0};
+  S.bookings.forEach(b => { if (b.vehicleId!==vid) return; const crew = crewOf(b);
+    crew.forEach(id => { const o = g(id); for (let x = b.from > from ? b.from : from; x <= (b.to < to ? b.to : to); x = addDays(x, 1)) o.days.add(x); });
+    const p = b.pickup, r = b.returned;
+    if (p && r && r.at >= from && r.at <= to && Number(r.km) > Number(p.km) && Number(r.km) - Number(p.km) < 20000) crew.forEach(id => g(id).km += (Number(r.km) - Number(p.km)) / crew.length); });
+  appFuel().filter(c => c.vehicleId===vid && c.date >= from && c.date <= to && !String(c.note || '').startsWith('Karta:')).forEach(c => { const id = fillDriver(c) || c.driverId; if (!id) return; const o = g(id); o.fills++; o.l += Number(c.liters || 0); });
+  legs.forEach(x => { if (!x.drv) return; const o = g(x.drv); o.lkm += x.km; o.ll += x.l; });
+  const rows = Object.values(m).filter(o => byId('drivers', o.id) && (o.km || o.fills || o.days.size)).map(o => {
+    const rate = o.lkm >= 150 ? o.ll / o.lkm * 100 : null;
+    return {...o, name: dName(o.id), rate, diff: rate!=null && vRate ? (rate - vRate) / vRate * 100 : null, card: cardEv.filter(e => e.driverId===o.id).length};
+  }).sort((a, b) => (a.rate==null) - (b.rate==null) || (a.rate || 0) - (b.rate || 0) || b.km - a.km);
+  editing = {col: 'rk-veh', id: vid, base: {}, special: () => closeForm()};
+  $('#dialog').classList.add('dlg-wide');
+  $('#dlg-title').textContent = `${v.plate} – kierowcy`;
+  $('#dlg-body').innerHTML = `<p class="muted small field full" style="margin:0;display:block">${esc([v.make, v.model].filter(Boolean).join(' '))} · ${fdate(from)} – ${fdate(to)} · spalanie auta: <b>${vRate!=null ? f1(vRate) + ' l/100 km' : 'za mało danych'}</b> · z wpisów kierowców w aplikacji.</p>
+    <div class="field full tablewrap"><table class="rk2-tbl"><thead><tr><th>#</th><th>Kierowca</th><th class="r">Spalanie l/100</th><th class="r">vs auto</th><th class="r">Km</th><th class="r">Dni</th><th class="r">Tankowania</th><th class="r">Niezgodne z kartą</th></tr></thead><tbody>
+    ${rows.map((o, i) => `<tr class="click" data-drv-hist="${esc(o.id)}"><td class="num">${i + 1}</td><td><b>${esc(o.name)}</b></td>
+      <td class="r">${o.rate!=null ? `<b class="num ${o.rate > THEFT_RATE ? 'neg' : ''}">${f1(o.rate)}</b>` : '<span class="muted">—</span>'}</td>
+      <td class="r">${o.diff==null ? '<span class="muted">—</span>' : `<span class="pill ${o.diff > 15 ? 'bad' : o.diff > 5 ? 'warn' : o.diff < -5 ? 'ok' : 'off'}">${o.diff > 0 ? '+' : ''}${Math.round(o.diff)}%</span>`}</td>
+      <td class="r num">${o.km ? nf.format(Math.round(o.km)) : '—'}</td><td class="r num">${o.days.size || '—'}</td>
+      <td class="r num">${o.fills ? `${o.fills} <span class="muted small">· ${nf.format(Math.round(o.l))} l</span>` : '—'}</td>
+      <td class="r">${o.card ? `<span class="pill bad">${o.card}</span>` : '<span class="muted">0</span>'}</td></tr>`).join('') || '<tr><td colspan="8" class="muted">Nikt nie jeździł tym autem w tym okresie (brak przejęć, zdań i tankowań w aplikacji).</td></tr>'}</tbody></table></div>
+    <p class="muted small field full" style="margin:0">Spalanie kierowcy liczymy od 150 km z jego tankowaniami na tym aucie. Kliknij kierowcę – jego historia.</p>
+    <div class="field full" style="display:block"><button type="button" class="small" data-rk-card="${esc(vid)}">${ic('truck')}Karta auta</button></div>`;
+  $('#dlg-save').textContent = 'Zamknij'; $('#dlg-del').hidden = true; $('#scrim').hidden = false;
 }
 document.addEventListener('click', e => {
+  const rv = e.target.closest('[data-rk-veh]'); if (rv){ openRkVehicle(rv.dataset.rkVeh); return; }
+  const rc = e.target.closest('[data-rk-card]'); if (rc){ const id = rc.dataset.rkCard; closeForm(); cardTab = 'paliwo'; pendingCard = id; if (location.hash==='#pojazdy'){ tab = 'pojazdy'; cardId = id; render(); } else location.hash = 'pojazdy'; return; }
   const v = e.target.closest('[data-rk-view]'); if (v){ rkView = v.dataset.rkView; render(); return; }
   const p = e.target.closest('[data-rk-per]'); if (p){ rkPer = p.dataset.rkPer; render(); return; }
   const ss = e.target.closest('[data-rk-sort-set]'); if (ss){ const k = ss.dataset.rkSortSet; rkSort[rkView] = [k, k==='km' ? -1 : 1]; render(); return; }
