@@ -216,8 +216,8 @@ export function digest(items: {pri: number; text: string}[], title?: string){
 
 /* ---------- Geotab (lokalizatory GPS): dzienne stany licznika → tabela gps_odometer (migracja 033) ---------- */
 export const normPlate = (x: string) => String(x || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
-/* Licznik z Geotab: StatusData w metrach; gdy wartość wygląda na km (auta < 3 mln km), zostawiamy */
-export const odoKm = (v: number) => v > 3e6 ? v / 1000 : v;
+/* Licznik z Geotab: StatusData zawsze w metrach (nowe auta < 3000 km też – wcześniej zostawały w metrach) */
+export const odoKm = (v: number) => v / 1000;
 /* Dopasowanie urządzenia do auta: ręczna mapa → numer rejestracyjny → nazwa urządzenia → VIN */
 export function matchDevices(devices: Row[], vehicles: Row[], manual: Record<string, string>){
   const byPlate = new Map(vehicles.filter(v => v.status !== 'wycofany').map(v => [normPlate(v.plate), v]));
