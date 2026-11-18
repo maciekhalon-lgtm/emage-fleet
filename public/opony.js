@@ -39,21 +39,22 @@ function viewTires(){
   const probs = tireProblems(), spare = S.tires.filter(t => !t.vehicleId && t.location==='magazyn');
   const season = typeof tireReminder==='function' ? tireReminder() : null;
   const tile = (k, n, l, cls) => `<button class="fc-tile ${cls} ${tireFilter===k ? 'on' : ''}" data-tf="${k}"><b>${n}</b><span>${l}</span></button>`;
+  if (!['all','season','warn','noset'].includes(tireFilter) || (tireFilter==='warn' && !probs.length) || (tireFilter==='noset' && !noSet.length) || (tireFilter==='season' && !season)) tireFilter = 'all';
   const list = tireFilter==='noset' ? noSet : tireFilter==='noother' ? noOther : tireFilter==='warn' ? vs.filter(v => tiresOf(v.id).some(t => tireWarn(t).length)) : tireFilter==='season' && season ? season.list : vs;
   const row = v => { const m = mountedOf(v.id), st = tiresOf(v.id).filter(t => t.location==='magazyn');
     const swap = m && st.length ? st.find(t => t.season!==m.season) || st[0] : (!m && st.length ? st[0] : null);
-    return `<tr><td>${plate(v.plate)}<span class="sub">${[v.tireSize ? `<b>${esc(v.tireSize)}</b>` : (tireSizeOn() ? '<span class="muted">rozmiar?</span>' : ''), v.km ? km(v.km) : ''].filter(Boolean).join(' · ')}</span></td>
+    return `<tr><td>${plate(v.plate)}<span class="sub">${[v.tireSize ? `<b>${esc(v.tireSize)}</b>` : '', v.km ? km(v.km) : ''].filter(Boolean).join(' · ')}</span></td>
       <td data-l="Na aucie">${m ? tireChip(m) : v.tires ? `<span class="muted">${esc(TIRES[v.tires])} – komplet nieopisany</span>` : '<span class="muted">—</span>'}</td>
       <td data-l="W magazynie">${st.map(tireChip).join('') || '<span class="muted">—</span>'}</td>
       <td class="r">${canTires() ? `${swap ? `<button class="small" data-tire-swap="${esc(v.id)}" data-to="${esc(swap.id)}">Załóż ${esc((TIRES[swap.season] || '').toLowerCase())}</button> ` : ''}<button class="small ghost" data-tire-new="${esc(v.id)}">${ic('plus')}Komplet</button>` : ''}</td></tr>`; };
   return `<div class="bar"><h2>Opony</h2><div class="tools">${canTires() ? `<button class="primary" data-tire-new="">${ic('plus')}Komplet opon</button>` : ''}</div></div>
     ${season ? `<div class="notice ${season.urgent ? 'err' : ''}"><span><b>Sezon na ${esc(season.to)}:</b> ${season.list.length} ${isPlural(season.list.length,'auto jeździ','auta jeżdżą','aut jeździ')} jeszcze na innych oponach. Kliknij „Załóż …” przy aucie albo dodaj komplet.</span></div>` : ''}
-    <div class="fc-tiles">${tile('all', vs.length, 'aut', '')}${tile('zim', cnt('zimowe'), 'na zimowych', 'info')}${tile('let', cnt('letnie'), 'na letnich', '')}${season ? tile('season', season.list.length, 'do wymiany na sezon', 'warn') : ''}${tile('warn', probs.length, 'zużyte lub stare', probs.length ? 'bad' : 'ok')}${tile('noset', noSet.length, 'bez opisanych opon', noSet.length ? 'warn' : 'ok')}${tile('noother', noOther.length, 'bez drugiego kompletu', '')}</div>
+    <div class="fc-tiles">${tile('all', vs.length, 'wszystkie auta', '')}${season ? tile('season', season.list.length, 'do wymiany na sezon', 'warn') : ''}${probs.length ? tile('warn', probs.length, 'zużyte lub stare', 'bad') : ''}${noSet.length ? tile('noset', noSet.length, 'bez opisanych opon', 'warn') : ''}</div>
     <div class="panel tablewrap"><table class="tire-tbl"><thead><tr><th>Auto</th><th>Na aucie</th><th>W magazynie</th><th></th></tr></thead><tbody>
       ${(tireFilter==='zim' ? vs.filter(v => (mountedOf(v.id) || {season: v.tires}).season==='zimowe') : tireFilter==='let' ? vs.filter(v => (mountedOf(v.id) || {season: v.tires}).season==='letnie') : list).map(row).join('') || '<tr><td colspan="4" class="muted">Brak aut dla tego filtra.</td></tr>'}
     </tbody></table></div>
     ${spare.length ? `<div class="panel"><div class="sec-head"><h3>Zapas bez auta</h3><span class="count">${spare.length}</span></div><div class="tire-spare">${spare.map(tireChip).join('')}</div></div>` : ''}
-    <p class="muted small" style="margin:0;max-width:90ch">Bieżnik: prawo w Polsce i UE – min. 1,6 mm; zimą w Niemczech i Austrii zalecane min. 4 mm (dla tras zagranicznych). Opony starsze niż 6 lat (rok z kodu DOT na boku opony) tracą przyczepność nawet z dobrym bieżnikiem. Komplet „na aucie” sam ustawia rodzaj opon auta – z tego korzysta przypomnienie o sezonowej wymianie.</p>`;
+    <p class="muted small" style="margin:0;max-width:90ch">Bieżnik min. 1,6 mm (zimą w Niemczech i Austrii 4 mm). Opony starsze niż 6 lat warto wymienić.</p>`;
 }
 /* Wymiana jednym kliknięciem: zdejmij komplet z auta do magazynu, załóż wybrany; opcjonalnie koszt wymiany */
 function openTireSwap(vid, toId){

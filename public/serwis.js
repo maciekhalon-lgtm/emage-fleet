@@ -50,14 +50,14 @@ function viewRequests(){
   const head = `<div class="bar"><h2>Zgłoszenia</h2><div class="tools">
       ${canCreate('issues') ? `<button data-new="issues">${ic('alert')}Zgłoś usterkę</button>` : ''}
       <button class="primary" data-svc-info>${ic('plus')}Informacja serwisowa</button></div></div>
-    <p class="muted small wo-steps"><b>1. Zgłoszenia</b> → 2. Zlecenie dla warsztatu → 3. Zakończenie naprawy. Zaznacz pozycje (mogą być z kilku aut) i kliknij „Zrób zlecenie”.${inWs ? ` W warsztacie: <a href="#zlecenia">${inWs} ${isPlural(inWs, 'pozycja', 'pozycje', 'pozycji')}</a>.` : ''}</p>`;
+    <p class="muted small wo-steps">Zaznacz pozycje (mogą być z kilku aut) i kliknij „Zrób zlecenie”.${inWs ? ` W warsztacie: <a href="#zlecenia">${inWs} ${isPlural(inWs, 'pozycja', 'pozycje', 'pozycji')}</a>.` : ''}</p>`;
   const row = x => `<label class="wo-item ${x.cls}"><input type="checkbox" data-wo-pick="${esc(x.key)}" ${woPicked.has(x.key) ? 'checked' : ''}>
       <span class="wo-t"><b>${esc(x.title)}</b>${x.issue && typeof isAccident==='function' && isAccident(x.issue) ? ' <span class="pill bad">szkoda</span>' : ''}<span class="sub">${x.sub}</span>${x.issue && x.issue.description ? `<span class="sub">${esc(String(x.issue.description).slice(0, 160))}</span>` : ''}${x.issue ? photoStrip(x.issue.photos) : ''}</span>
       <span class="wo-p"><span class="pill ${x.kind==='usterka' ? 'off' : 'info'}">${WO_KIND[x.kind]}</span>${x.sev ? `<span class="pill ${x.cls}">${esc(x.sev)}</span>` : ''}</span>
       <span class="wo-a">${x.issue && canEditDoc('issues', x.issue) ? `<button type="button" class="small ghost" data-edit="issues" data-id="${esc(x.issue.id)}">Szczegóły</button>` : x.deadline ? `<button type="button" class="small ghost" data-edit="deadlines" data-id="${esc(x.deadline.id)}">Termin</button>` : ''}</span></label>`;
   const groups = vids.map(vid => { const v = byId('vehicles', vid) || {}, xs = byV[vid], all = xs.every(x => woPicked.has(x.key));
     return `<div class="panel wo-veh"><div class="sec-head">${plate(v.plate || '?')}<span class="muted small">${esc([v.make, v.model].filter(Boolean).join(' '))}</span>
-      <span class="wo-vbtn">${canCreate('issues') ? `<button type="button" class="small ghost" data-new="issues" data-veh="${esc(vid)}">+ usterka</button>` : ''}<button type="button" class="small ghost" data-wo-all="${esc(vid)}">${all ? 'Odznacz' : 'Zaznacz wszystkie'}</button></span></div>${xs.map(row).join('')}</div>`; }).join('');
+      <span class="wo-vbtn"><button type="button" class="small ghost" data-wo-all="${esc(vid)}">${all ? 'Odznacz' : 'Zaznacz wszystkie'}</button></span></div>${xs.map(row).join('')}</div>`; }).join('');
   const n = woPicked.size, cars = new Set(items.filter(x => woPicked.has(x.key)).map(x => x.vid)).size;
   const bar = n ? `<div class="wo-bar-fix"><span><b>${n}</b> ${isPlural(n, 'pozycja', 'pozycje', 'pozycji')} · ${cars} ${isPlural(cars, 'auto', 'auta', 'aut')}</span><button type="button" class="ghost small" data-wo-clear>Wyczyść</button><button type="button" class="primary" data-wo-make>${ic('clip')}Zrób zlecenie</button></div>` : '';
   const done = S.issues.filter(i => i.status==='naprawione').sort((a, b) => (b.resolvedAt || b.date).localeCompare(a.resolvedAt || a.date));
@@ -143,7 +143,7 @@ function viewWorkOrders(){
   const closed = S.workOrders.filter(o => o.status!=='otwarte').sort((a, b) => (b.closedAt || b.createdAt || '').localeCompare(a.closedAt || a.createdAt || '')).slice(0, 30);
   const ws = S.workshops.slice().sort((a, b) => a.name.localeCompare(b.name, 'pl'));
   return `<div class="bar"><h2>Zlecenia</h2><div class="tools"><a class="btn primary" href="#usterki">${ic('plus')}Nowe zlecenie ze zgłoszeń</a></div></div>
-    <p class="muted small wo-steps">1. Zgłoszenia → <b>2. Zlecenie dla warsztatu</b> → 3. Zakończenie naprawy. Po naprawie kliknij „Zakończ naprawę” – wpiszesz przebieg, koszt i co zrobiono.</p>
+
     ${open.map(card).join('') || '<div class="panel"><div class="empty"><p>Brak otwartych zleceń. Zrób je w Zgłoszeniach.</p></div></div>'}
     ${closed.length ? `<details class="panel fold"><summary class="sec-head"><h3>Zakończone i anulowane</h3><span class="count">${closed.length}</span></summary>${closed.map(card).join('')}</details>` : ''}
     <details class="panel fold"><summary class="sec-head"><h3>Warsztaty</h3><span class="count">${ws.length}</span></summary>
