@@ -1812,3 +1812,8 @@ html[data-env="test"] body{padding-top:20px}
 .wo-ex-list .check{font-size:13.5px}
 #dlg-body .wo-sum{grid-template-columns:minmax(0,1fr);padding:4px 0 0}
 #dlg-body .wo-sum>div{border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+
+/* Paliwo → Spalanie (prosty widok) */
+.sp-kpi{display:flex;gap:32px;flex-wrap:wrap;padding:14px 18px}
+.sp-kpi>div{display:flex;flex-direction:column;gap:2px}.sp-kpi b{font-size:22px}
+.sp-none{display:flex;flex-wrap:wrap;gap:8px}

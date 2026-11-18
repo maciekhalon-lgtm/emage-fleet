@@ -6,7 +6,7 @@
 const GROUPS = {
   rezerwacje: [['przydzial','Grafik', () => !serviceOnly()], ['trasy','Trasy', () => !!P().manage]],
   serwis:     [['usterki','Zgłoszenia', () => true], ['serwis-terminy','Terminy', () => typeof cdOn==='function' && cdOn()], ['zlecenia','Zlecenia', () => typeof woOn==='function' && woOn()], ['ksiazka','Historia napraw', () => !!P().service], ['plan','Plan serwisu', () => planOn() && !(typeof woOn==='function' && woOn())], ['opony','Opony', () => tiresOn()]],
-  paliwo:     [['karty','Karty', () => !!P().manage], ['spalanie','Spalanie i liczniki', () => !!P().manage], ['oplaty','Opłaty drogowe', () => !!P().manage]],
+  paliwo:     [['karty','Karty', () => !!P().manage], ['spalanie','Spalanie', () => !!P().manage], ['oplaty','Opłaty drogowe', () => !!P().manage]],
   koszty:     [['koszty','Koszty', () => true], ['rozliczenie','Rozliczenie aut', () => !!P().manage], ['rentownosc','Rentowność', () => !!P().manage], ['raporty','Raporty', () => !!P().reports], ['umowy','Leasing i umowy', () => contractsOn()]],
   ludzie:     [['kierowcy','Kierowcy', () => !serviceOnly()], ['uzytkownicy','Użytkownicy', () => !!P().manage]],
   ustawienia: [['ustawienia','Ustawienia', () => !!P().manage], ['historia','Historia zmian', () => !!P().history]],
@@ -16,7 +16,6 @@ const INNER = {
   pojazdy:  [['pojazdy','Lista aut', () => true], ['ranking','Ranking aut', () => !!P().manage], ['terminy','Terminy', () => !!(P().manage || P().service)]],
   rentownosc: [['rentownosc','Cała firma', () => true], ['trasy-zysk','Trasy', () => true]],
   kierowcy: [['kierowcy','Lista kierowców', () => true], ['ranking-kierowcy','Ranking kierowców', () => !!P().manage]],
-  spalanie: [['spalanie','Spalanie i przebiegi', () => true], ['srednie','Średnie miesięczne', () => !!P().manage], ['liczniki','Kontrola liczników', () => true]],
   raporty:  [['raporty','Raporty', () => true], ['porownanie','Porównanie miesięcy', () => !!P().manage]],
 };
 const innerParent = t => Object.keys(INNER).find(p => INNER[p].some(([k]) => k===t && k!==p)) || '';
@@ -36,7 +35,7 @@ function tabCount(t){
   if (t==='uzytkownicy' && P().manage){ const n = pendingUsers().length + pendingRequests().length + openDisputes().length; return {n, bad: n > 0}; }
   if (t==='liczniki' && P().manage){ const n = odoAllCount(); return {n, bad: n > 0}; }
   if (t==='karty' && P().manage){ const n = suspTodoCount(); return {n, bad: n > 0}; }
-  if (t==='spalanie' && P().manage){ const n = theftVehicles().length; return {n, bad: n > 0}; }
+  if (t==='spalanie' && P().manage && typeof spData==='function'){ const n = spData().ok.filter(r => r.rate > THEFT_RATE).length; return {n, bad: n > 0}; }
   if (t==='opony' && typeof tiresOn==='function' && tiresOn()){ const n = tireProblems().filter(x => x.t.location==='na_aucie').length; return {n, bad: tireProblems().some(x => x.t.location==='na_aucie' && x.w.some(([c]) => c==='bad'))}; }
   if (t==='wyposazenie' && typeof eqOn==='function' && eqOn()){ const p = eqProblems(); return {n: p.length, bad: p.some(x => x.s.cls==='bad')}; }
   if (t==='umowy' && typeof contractsOn==='function' && contractsOn()){ const p = contractProblems(); return {n: p.length, bad: p.some(x => x.i.warn.some(([c]) => c==='bad'))}; }

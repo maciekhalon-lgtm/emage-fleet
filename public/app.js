@@ -68,10 +68,10 @@ function render(){
   else if (tab==='historia') v.innerHTML = viewHistory();
   else if (tab==='przydzial') v.innerHTML = viewAssign();
   else if (tab==='karty') v.innerHTML = viewFuelCards();
-  else if (tab==='spalanie') v.innerHTML = viewFuelMileage();
+  else if (tab==='spalanie') v.innerHTML = viewFuelSimple();
   else if (tab==='porownanie') v.innerHTML = viewCompare();
   else if (tab==='liczniki') v.innerHTML = viewOdoControl();
-  else if (tab==='srednie') v.innerHTML = viewAverages();
+  else if (tab==='srednie') v.innerHTML = P().manage ? viewAverages() : '';
   else if (tab==='wykorzystanie') v.innerHTML = viewUtilization();
   else if (tab==='rentownosc') v.innerHTML = viewProfit();
   else if (tab==='trasy-zysk') v.innerHTML = viewRouteProfit();
