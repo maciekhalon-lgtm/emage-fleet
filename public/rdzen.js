@@ -44,6 +44,9 @@ function toast(msg){ const t=$('#toast'); t.textContent=msg; t.hidden=false; cle
 
 /* ---------- domain ---------- */
 const DL_TYPES = ['Przegląd techniczny','Ubezpieczenie OC','Ubezpieczenie AC','Serwis olejowy','Wymiana rozrządu','Wymiana opon','Przegląd gwarancyjny','Koniec gwarancji','Legalizacja tachografu','Leasing – koniec umowy','Inne'];
+/* Terminy liczone tylko z przebiegu (bez daty, migracja 042) */
+const KM_DL = ['Serwis olejowy','Wymiana rozrządu','Przegląd gwarancyjny'];
+const isKmDl = d => KM_DL.includes(typeof d==='string' ? d : d && d.type);
 const COST_CATS = ['Paliwo','Ładowanie','Serwis i naprawy','Ubezpieczenie','Opony','Myjnia','Opłaty i parkingi','Leasing','Inne'];
 const FUELS = ['Diesel','Benzyna','Hybryda','Elektryczny','LPG'];
 
@@ -69,7 +72,11 @@ function dlState(dl){
   const left = sk && sk.km ? Number(dl.kmDue) - sk.km : null;
   const warnAt = Number(dl.remindKm) || 1000, soonAt = Math.max(3000, warnAt + 1000);   // przypomnienie N km przed
   const kmEq = left===null ? Infinity : left<=0 ? 0 : left<=warnAt ? 7 : left<=soonAt ? 20 : Infinity;
-  if (kmEq < dd || (kmEq===0 && dd>0)){
+  if (!dl.date){   // termin tylko na km
+    if (left===null) return {cls:'soon', txt: dl.kmDue ? 'Brak przebiegu auta' : 'Wpisz przebieg terminu', d: 999, byKm:true};
+    if (kmEq===Infinity) return {cls:'ok', txt:'Zostało '+new Intl.NumberFormat('pl-PL').format(left)+' km' + (sk.gps ? '' : ' (przebieg bez GPS)'), d: 999, byKm:true, noGps: !sk.gps};
+  }
+  if (kmEq < dd || (kmEq===0 && dd>0) || !dl.date){
     const cls = left<=0 ? 'bad' : left<=warnAt ? 'warn' : 'soon';
     return {cls, txt: (left<0 ? 'Przebieg przekroczony o '+new Intl.NumberFormat('pl-PL').format(-left)+' km' : left===0 ? 'Przebieg osiągnięty' : 'Zostało '+new Intl.NumberFormat('pl-PL').format(left)+' km') + (sk.gps ? '' : ' (przebieg bez GPS)'), d:kmEq, byKm:true, noGps: !sk.gps};
   }

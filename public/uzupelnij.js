@@ -76,7 +76,7 @@ const QE_COLS_ALL = [['tankL','Zbiornik (l)','number','min="20" max="400" step="
   ['dl:Przegląd techniczny','Przegląd techniczny','date',''],['dl:Koniec gwarancji','Gwarancja do','date',''],['dlkm:Przegląd gwarancyjny','Przegląd gwar. przy km','number','min="0" step="1000" inputmode="numeric"']];
 const qeCols = () => QE_COLS_ALL.filter(c => c[0]!=='tireSize' || tireSizeOn());
 /* Termin danego rodzaju dla auta (najbliższy) – kolumny „dl:…” zapisują się w terminach, nie w danych auta */
-const qeDl = (vid, type) => S.deadlines.filter(d => d.vehicleId===vid && d.type===type).sort((a, b) => a.date < b.date ? -1 : 1)[0] || null;
+const qeDl = (vid, type) => S.deadlines.filter(d => d.vehicleId===vid && d.type===type).sort((a, b) => String(a.date||'9999').localeCompare(String(b.date||'9999')))[0] || null;
 function qeVal(v, k){
   if (k.startsWith('dl:')){ const d = qeDl(v.id, k.slice(3)); return d ? d.date : ''; }
   if (k.startsWith('dlkm:')){ const d = qeDl(v.id, k.slice(5)); return d && d.kmDue!=null ? String(d.kmDue) : ''; }
@@ -122,8 +122,9 @@ async function saveQuickEdit(){
     for (const vid of ids){ await db.collection('vehicles').doc(vid).update(ch[vid]); n++; }
     for (const d of dl){
       const ex = qeDl(d.vid, d.type), iv = DL_INTERVALS[d.type] || [null, null];
-      if (ex){ const up = {}; if (d.date) up.date = d.date; if (d.kmDue!=null) up.kmDue = d.kmDue; await db.collection('deadlines').doc(ex.id).update(up); }
-      else await db.collection('deadlines').doc().set({vehicleId: d.vid, type: d.type, date: d.date || addMonths(today(), iv[0] || 12), kmDue: d.kmDue ?? null,
+      const kmOnly = isKmDl(d.type);
+      if (ex){ const up = {}; if (d.date) up.date = d.date; if (d.kmDue!=null) up.kmDue = d.kmDue; if (kmOnly && d.kmDue!=null){ up.date = null; up.intervalMonths = null; } await db.collection('deadlines').doc(ex.id).update(up); }
+      else await db.collection('deadlines').doc().set({vehicleId: d.vid, type: d.type, date: kmOnly ? null : d.date || addMonths(today(), iv[0] || 12), kmDue: d.kmDue ?? null,
         intervalMonths: iv[0], intervalKm: iv[1], remindKm: d.type==='Przegląd gwarancyjny' ? 5000 : null, note: null});
       nd++;
     }

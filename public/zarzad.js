@@ -41,7 +41,7 @@ function printBoardReport(){
   const cats = Object.keys(now.cats).filter(k => now.cats[k] || prev.cats[k]).sort((x, y) => now.cats[y] - now.cats[x]);
   const top = now.per.filter(r => r.cost > 0).sort((x, y) => y.cost - x.cost).slice(0, 8);
   const nextA = addDays(today(), 1), nextB = addDays(today(), 31);
-  const dls = S.deadlines.filter(d => { const v = byId('vehicles', d.vehicleId); return v && v.status!=='wycofany' && (d.date <= nextB); }).sort((x, y) => x.date.localeCompare(y.date)).slice(0, 14);
+  const dls = S.deadlines.filter(d => { const v = byId('vehicles', d.vehicleId); return v && v.status!=='wycofany' && (d.date ? d.date <= nextB : ['bad','warn'].includes(dlState(d).cls)); }).sort((x, y) => String(x.date || today()).localeCompare(String(y.date || today()))).slice(0, 14);
   const open = typeof openIssues==='function' ? openIssues() : [];
   const ctr = typeof contractsOn==='function' && contractsOn() ? contractProblems() : [];
   const notes = [];
@@ -58,7 +58,7 @@ function printBoardReport(){
       <div><h2>Najdroższe auta</h2><table class="pa-t pa-k"><tr><th>Auto</th><th>koszt</th><th>km</th><th>zł/km</th></tr>${top.map(r => `<tr><th>${esc(r.v.plate)}</th><td>${zl(r.cost)}</td><td>${r.km ? nf(r.km) : '—'}</td><td>${r.km ? (r.cost / r.km).toFixed(2).replace('.', ',') : '—'}</td></tr>`).join('') || '<tr><td colspan="4">brak</td></tr>'}</table></div>
     </div>
     <div class="pa-2">
-      <div><h2>Terminy do ${fdate(nextB)} (i zaległe)</h2><table class="pa-t pa-k">${dls.map(d => { const s = dlState(d); return `<tr><th>${esc((byId('vehicles', d.vehicleId) || {}).plate || '')}</th><td>${esc(d.type)}</td><td style="${d.date < today() ? 'color:#b42318;font-weight:600' : ''}">${fdate(d.date)}</td></tr>`; }).join('') || '<tr><td>brak terminów w tym okresie</td></tr>'}</table></div>
+      <div><h2>Terminy do ${fdate(nextB)} (i zaległe)</h2><table class="pa-t pa-k">${dls.map(d => { const s = dlState(d); return `<tr><th>${esc((byId('vehicles', d.vehicleId) || {}).plate || '')}</th><td>${esc(d.type)}</td><td style="${(d.date ? d.date < today() : s.cls==='bad') ? 'color:#b42318;font-weight:600' : ''}">${d.date ? fdate(d.date) : esc(s.txt)}</td></tr>`; }).join('') || '<tr><td>brak terminów w tym okresie</td></tr>'}</table></div>
       <div><h2>Stan na dziś</h2><table class="pa-t pa-k">
         <tr><th>Otwarte usterki</th><td>${open.length}${open.filter(i => i.severity==='stop').length ? ` (niesprawne: ${open.filter(i => i.severity==='stop').length})` : ''}</td></tr>
         <tr><th>Auta w serwisie</th><td>${S.vehicles.filter(v => v.status==='serwis').length}</td></tr>

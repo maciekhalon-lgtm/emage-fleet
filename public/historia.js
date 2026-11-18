@@ -12,7 +12,7 @@ function labelFor(col, d){
   switch (col){
     case 'vehicles':  return [d.plate, d.make, d.model].filter(Boolean).join(' ');
     case 'drivers':   return d.name || '';
-    case 'deadlines': return `${d.type||''} · ${p} · ${fdate(d.date)}`;
+    case 'deadlines': return `${d.type||''} · ${p} · ${d.date ? fdate(d.date) : d.km_due || d.kmDue ? 'przy ' + km(d.km_due || d.kmDue) : '—'}`;
     case 'bookings':  return `${dName(d.driverId)} · ${p} · ${fdate(d.from)}–${fdate(d.to)}`;
     case 'costs':     return `${d.category||''} ${zl2(d.amount)} · ${p}`;
     case 'issues':    return `${d.title||''} · ${p}${d.status?' → '+(ISSUE_ST[d.status]||{}).l:''}`;

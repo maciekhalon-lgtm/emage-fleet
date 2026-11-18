@@ -46,7 +46,7 @@ function viewPlan(){
       ${done.length ? `<details class="panel fold"><summary class="sec-head"><h3>Ostatnie zakończone</h3><span class="count">${done.length}</span></summary><div class="dl">${done.map(visitRow).join('')}</div></details>` : ''}
     </div><div class="dcol">
       <div class="panel"><div class="sec-head"><h3>Do umówienia</h3><span class="count ${dl.length + is.length ? 'bad' : ''}">${dl.length + is.length}</span></div><div class="dl">
-        ${dl.map(d => { const s = dlState(d); return `<div class="mini">${vPlate(d.vehicleId)}<span><b>${esc(d.type)}</b><span class="sub">${fdate(d.date)} · ${esc(s.txt.toLowerCase())}</span></span><span class="mini-r">${planBtn(d.vehicleId, d.type, `data-dl="${esc(d.id)}"`)}</span></div>`; }).join('')}
+        ${dl.map(d => { const s = dlState(d); return `<div class="mini">${vPlate(d.vehicleId)}<span><b>${esc(d.type)}</b><span class="sub">${d.date ? fdate(d.date) : 'przy ' + km(d.kmDue)} · ${esc(s.txt.toLowerCase())}</span></span><span class="mini-r">${planBtn(d.vehicleId, d.type, `data-dl="${esc(d.id)}"`)}</span></div>`; }).join('')}
         ${is.map(i => `<div class="mini">${vPlate(i.vehicleId)}<span><b>${esc(i.title)}</b><span class="sub">usterka${i.severity==='stop' ? ' · <b class="neg">niesprawne</b>' : ''} · ${fdate(i.date)}</span></span><span class="mini-r">${planBtn(i.vehicleId, i.title, `data-iss="${esc(i.id)}"`)}</span></div>`).join('')}
         ${dl.length + is.length ? '' : '<p class="muted sec-empty">Wszystkie pilne terminy i usterki mają umówione wizyty.</p>'}</div></div>
       <div class="panel"><div class="sec-head"><h3>Warsztaty</h3>${canPlan() ? `<button class="small" data-new="workshops">${ic('plus')}Warsztat</button>` : ''}</div><div class="dl">

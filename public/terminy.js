@@ -8,7 +8,7 @@ function viewDeadlines(){
   const head = `<div class="bar ${barOpen()}"><h2>Terminy i przypomnienia</h2><div class="tools"><div class="seg" role="group" aria-label="Pokaż">${chips.map(([k,l])=>`<button class="small ${dlFilter===k?'on':''}" aria-pressed="${dlFilter===k}" data-dlf="${k}">${l}</button>`).join('')}</div>${moreMenu(moreBtns)}${canCreate('deadlines')?'<button class="primary" data-new="deadlines">+ Dodaj termin</button>':''}</div></div>`;
   if (!S.deadlines.length) return head + loadingOr('deadlines', emptyBlock('Brak zapisanych terminów','Zapisz daty przeglądów technicznych, końca polis OC/AC, serwisów i wymiany opon. Strona podświetli to, co zbliża się w ciągu 30 dni.', '<button class="primary" data-new="deadlines">+ Dodaj termin</button>', '', 'deadlines'));
   if (dlFilter==='plan') return head + deadlinePlan();
-  const all = S.deadlines.map(d => ({d, s:dlState(d)})).sort((a,b)=> a.d.date<b.d.date?-1:a.d.date>b.d.date?1:0);
+  const all = S.deadlines.map(d => ({d, s:dlState(d)})).sort((a,b)=> a.s.d - b.s.d || String(a.d.date||'9999').localeCompare(String(b.d.date||'9999')));
   // pilne: po terminie albo w ciągu 60 dni (przy terminach na km – gdy zbliża się przypomnienie)
   const f = all.filter(({s}) => dlFilter==='all' || (dlFilter==='over' && s.d<=0) || (dlFilter==='urgent' && s.d<=60));
   const hidden = all.length - f.length;
@@ -19,9 +19,9 @@ function viewDeadlines(){
     html += `<div class="dl-group label">${name} · ${items.length}</div>` + items.map(({d,s}) => {
       const v = byId('vehicles', d.vehicleId);
       const cyc = [d.intervalMonths?'co '+d.intervalMonths+' mies.':'', d.intervalKm?'co '+km(d.intervalKm):''].filter(Boolean).join(' lub ');
-      const kmInfo = (d.kmDue ? (() => { const sk = svcKm(d.vehicleId); return `<span class="sub num">lub przy ${km(d.kmDue)}${sk.km ? ` (teraz ${km(sk.km)}${sk.gps ? ' z GPS' : ''})` : ''}</span>${sk.gps || !(S.gpsOdometer || []).length ? '' : `<span class="sub"><span class="pill off" title="Brak aktualnego odczytu z lokalizatora (ostatni: ${sk.day ? fdate(sk.day) : 'nigdy'}) – liczone z najwyższego wpisanego licznika">przebieg bez GPS</span></span>`}`; })() : '') + (d.lastDoneKm || d.lastDoneDate ? `<span class="sub">Ostatnio: ${d.lastDoneDate ? fdate(d.lastDoneDate) : ''}${d.lastDoneKm ? (d.lastDoneDate ? ' przy ' : 'przy ') + km(d.lastDoneKm) : ''}</span>` : '') + (cyc ? `<span class="sub">Cykl: ${cyc}</span>` : '') + (d.note && !d.kmDue ? `<span class="sub">${esc(d.note)}</span>` : '');
+      const kmInfo = (d.kmDue ? (() => { const sk = svcKm(d.vehicleId); return `<span class="sub num">${d.date ? 'lub przy' : 'przy'} ${km(d.kmDue)}${sk.km ? ` (teraz ${km(sk.km)}${sk.gps ? ' z GPS' : ''})` : ''}</span>${sk.gps || !(S.gpsOdometer || []).length ? '' : `<span class="sub"><span class="pill off" title="Brak aktualnego odczytu z lokalizatora (ostatni: ${sk.day ? fdate(sk.day) : 'nigdy'}) – liczone z najwyższego wpisanego licznika">przebieg bez GPS</span></span>`}`; })() : '') + (d.lastDoneKm || d.lastDoneDate ? `<span class="sub">Ostatnio: ${d.lastDoneDate ? fdate(d.lastDoneDate) : ''}${d.lastDoneKm ? (d.lastDoneDate ? ' przy ' : 'przy ') + km(d.lastDoneKm) : ''}</span>` : '') + (cyc ? `<span class="sub">Cykl: ${cyc}</span>` : '') + (d.note && !d.kmDue ? `<span class="sub">${esc(d.note)}</span>` : '');
       return `<div class="dl-row ${s.cls==='ok'?'':s.cls}" ${canEditDoc('deadlines',d)?'data-edit="deadlines" tabindex="0"':'style="cursor:default"'} data-id="${esc(d.id)}">
-        <div class="dl-date">${fdate(d.date)}</div>
+        <div class="dl-date">${d.date ? fdate(d.date) : d.kmDue ? `<span class="num">${km(d.kmDue)}</span>` : '—'}</div>
         <div style="min-width:0"><b>${esc(d.type)}</b>${kmInfo}</div>
         <div class="is-veh" style="min-width:0">${vPlate(d.vehicleId)} <span class="sub">${esc(vName(d.vehicleId))}</span></div>
         <div class="is-pills"><span class="pill ${s.cls}">${esc(s.txt)}</span></div>
@@ -32,14 +32,14 @@ function viewDeadlines(){
   return head + `<div class="panel dl">${html || `<div class="empty"><p>${dlFilter==='urgent' ? 'Nic pilnego – wszystkie terminy są dalej niż 60 dni.' : 'Brak terminów w tym filtrze.'}</p></div>`}</div>` + more;
 }
 /* domyślne cykle: [miesiące, km] */
-const DL_INTERVALS = {'Przegląd techniczny':[12,null],'Ubezpieczenie OC':[12,null],'Ubezpieczenie AC':[12,null],'Serwis olejowy':[12,15000],'Wymiana rozrządu':[60,80000],'Wymiana opon':[6,null],'Przegląd gwarancyjny':[12,30000],'Koniec gwarancji':[null,null],'Legalizacja tachografu':[24,null],'Leasing – koniec umowy':[null,null],'Inne':[null,null]};
+const DL_INTERVALS = {'Przegląd techniczny':[12,null],'Ubezpieczenie OC':[12,null],'Ubezpieczenie AC':[12,null],'Serwis olejowy':[null,15000],'Wymiana rozrządu':[null,80000],'Wymiana opon':[6,null],'Przegląd gwarancyjny':[null,30000],'Koniec gwarancji':[null,null],'Legalizacja tachografu':[24,null],'Leasing – koniec umowy':[null,null],'Inne':[null,null]};
 function renew(id){
   const d = byId('deadlines', id); if (!d) return;
   if (typeof openWarrantyDone==='function' && d.type==='Przegląd gwarancyjny' && canCreate('serviceEntries')) return openWarrantyDone(d.vehicleId);
   if (typeof openWarranty==='function' && d.type==='Koniec gwarancji') return openWarranty(d.vehicleId);
   const def = DL_INTERVALS[d.type] || [12,null];
-  const months = Number(d.intervalMonths) || def[0] || 12;
-  const kmStep = Number(d.intervalKm) || (d.kmDue ? def[1] : null);
+  const kmOnly = isKmDl(d), months = kmOnly ? null : Number(d.intervalMonths) || def[0] || 12;
+  const kmStep = Number(d.intervalKm) || (d.kmDue || kmOnly ? def[1] : null);
   const v = byId('vehicles', d.vehicleId);
   openForm('deadlines', id);
   if (editing) editing.renew = {type: d.type, vehicleId: d.vehicleId, months, kmStep};
@@ -49,7 +49,7 @@ function renew(id){
     if (dd) dd.value = today();
     if (dk) dk.value = v && v.km ? Math.round(Number(v.km)) : '';
     const im = $('#f-deadlines-intervalMonths'), ik = $('#f-deadlines-intervalKm');
-    if (im && !im.value) im.value = months; if (ik && !ik.value && kmStep) ik.value = kmStep;
+    if (im && !im.value && months) im.value = months; if (ik && !ik.value && kmStep) ik.value = kmStep;
     const svcOk = canCreate('serviceEntries') && !!P().service && !/Ubezpieczenie|Leasing|gwarancji/.test(d.type), svcOn = ['Wymiana rozrządu','Serwis olejowy','Wymiana opon','Przegląd techniczny','Inne'].includes(d.type);
     if (svcOk){ const w = document.createElement('div'); w.className = 'field full';
       w.innerHTML = `<label class="check small"><input type="checkbox" id="rn-svc" ${svcOn ? 'checked' : ''}> Zapisz też w książce serwisowej (${esc(d.type)})</label>`;
@@ -69,13 +69,19 @@ function dlDoneUi(e){
   const src = e && e.target && e.target.id;
   const doneKm = num('lastDoneKm'), stepKm = num('intervalKm'), doneDate = (g('lastDoneDate') || {}).value, stepM = num('intervalMonths');
   const fromDone = !src || /lastDone|interval/.test(src);
+  const kmOnly = isKmDl(type);
+  ['date', 'intervalMonths'].forEach(n => { const w = $('#wrap-deadlines-' + n); if (w) w.hidden = kmOnly; });
+  if (kmOnly && g('date')) g('date').value = '';
+  const kl = $('#wrap-deadlines-kmDue label'); if (kl) kl.textContent = kmOnly ? 'Następny przy przebiegu (km) *' : 'Następny przy przebiegu (km)';
+  const dl0 = $('#wrap-deadlines-date label'); if (dl0) dl0.textContent = 'Następny termin *';
   if (fromDone && doneKm && stepKm && g('kmDue')) g('kmDue').value = doneKm + stepKm;
-  if (fromDone && doneDate && stepM && g('date')) g('date').value = addMonths(doneDate, stepM);
+  if (fromDone && doneDate && stepM && g('date') && !kmOnly) g('date').value = addMonths(doneDate, stepM);
   const v = byId('vehicles', (g('vehicleId') || {}).value) || {}, cur = Number(v.km) || 0, due = num('kmDue');
   let info = $('#dl-done-info');
   if (!info){ info = document.createElement('p'); info.id = 'dl-done-info'; info.className = 'muted small field full dl-done-info'; $('#wrap-deadlines-date')?.after(info); }
   const nf = n => new Intl.NumberFormat('pl-PL').format(n);
   info.innerHTML = due && cur ? (cur >= due ? `<b class="neg">Przebieg przekroczony o ${nf(cur - due)} km</b> – auto ma ${nf(cur)} km, następny był przy ${nf(due)} km.` : `Zostało ${nf(due - cur)} km (auto ma ${nf(cur)} km).`)
+    : kmOnly ? (doneKm ? 'Następny przebieg = ostatnie wykonanie + cykl km.' : `${type} liczy się tylko z przebiegu – wpisz, przy jakim przebiegu ostatnio wykonano, a następny policzy się sam.`)
     : (doneKm || doneDate ? 'Następny termin liczy się od ostatniego wykonania + cykl.' : 'Wpisz, kiedy i przy jakim przebiegu ostatnio wykonano – następny termin policzy się sam.');
 }
 async function renewAfterSave(rn, deadlineId){
@@ -120,7 +126,7 @@ function deadlinePlan(){
       ${xs.map(({d, e}) => `<div class="pl-it" ${canEditDoc('deadlines', d) ? `data-edit="deadlines" data-id="${esc(d.id)}" tabindex="0"` : ''}>
         <span class="pl-d num">${fdate(e.when).slice(0, 5)}<em>${DOW[(parse(e.when).getDay() + 6) % 7]}</em></span>
         ${vPlate(d.vehicleId)}
-        <span class="pl-t"><b>${esc(d.type)}</b><span class="sub">${e.byKm ? `wg przebiegu: ${km(d.kmDue)} (jeździ ok. ${Math.round(e.rate)} km/dzień)` : d.kmDue ? `albo przy ${km(d.kmDue)}` : 'termin kalendarzowy'}</span></span>
+        <span class="pl-t"><b>${esc(d.type)}</b><span class="sub">${e.byKm ? `wg przebiegu: ${km(d.kmDue)} (jeździ ok. ${Math.round(e.rate)} km/dzień)` : d.kmDue ? `${d.date ? 'albo ' : ''}przy ${km(d.kmDue)}` : 'termin kalendarzowy'}</span></span>
         ${canEditDoc('deadlines', d) && d.type!=='Koniec gwarancji' ? `<button class="small" data-renew="${esc(d.id)}">Wykonane</button>` : ''}</div>`).join('')}</div>`; }).join('');
   return `<p class="muted small" style="margin:0">Terminy „na kilometry” są przeliczone na datę według tego, ile auto jeździło w ostatnich 60 dniach – widać, kiedy naprawdę trzeba zjechać do serwisu.</p><div class="panel pl">${html}</div>`;
 }

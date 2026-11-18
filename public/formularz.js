@@ -54,7 +54,7 @@ const FORMS = {
     {k:'intervalKm',l:'Powtarzaj co (km)',t:'number',ph:'np. 15000'},
     {k:'intervalMonths',l:'Powtarzaj co (miesięcy)',t:'number',ph:'np. 12'},
     {k:'kmDue',l:'Następny przy przebiegu (km)',t:'number'},
-    {k:'date',l:'Następny termin',t:'date',req:1},
+    {k:'date',l:'Następny termin',t:'date'},
     {k:'remindKm',l:'Przypomnij … km przed',t:'number',ph:'domyślnie 1000'},
     {k:'note',l:'Notatka',ph:'np. polisa nr, warsztat',full:1},
   ]},
@@ -104,8 +104,8 @@ const FORMS = {
     {k:'workshop',l:'Warsztat',ph:'np. Auto-Serwis Kowalski'},
     {k:'cost',l:'Koszt brutto (zł)',t:'number',step:'0.01',hint:'doda się sam do kosztów'},
     {k:'description',l:'Co zrobiono',t:'textarea',req:1,full:1,ph:'np. wymiana oleju i filtrów, klocki przód'},
-    {k:'oilChange',l:'Wymiana oleju – następna za 12 000 km (przypomnienie 2 000 km wcześniej)',t:'check'},
-    {k:'timingChange',l:'Wymiana rozrządu – następna za 80 000 km (przypomnienie 5 000 km wcześniej)',t:'check'},
+    {k:'oilChange',l:'Wymiana oleju – następna = ten przebieg + cykl km ustawiony w terminie (domyślnie 15 000 km)',t:'check'},
+    {k:'timingChange',l:'Wymiana rozrządu – następna = ten przebieg + cykl km ustawiony w terminie (domyślnie 80 000 km)',t:'check'},
     {k:'tiresSet',l:'Założono opony',t:'select',o:[['','— bez zmiany opon —'],...Object.entries(TIRES)]},
     {k:'deadlineId',l:'Odnów termin',t:'select',o:svcDeadlineOpts(),full:1},
     {k:'issueIds',l:'Naprawione usterki',t:'checks',o:svcIssueOpts(),full:1},
@@ -209,8 +209,8 @@ const FORM_VIEW = {
     return {...d, currency: d.currency || 'PLN', amount: foreign ? (d.amountOrig ?? '') : d.amount, stationSel: !st ? '' : known ? st : 'Inna', stationOther: !st || known ? '' : st, abroad: !!foreign}; },
 };
 /* ---------- książka serwisowa: terminy i usterki auta wybranego w formularzu ---------- */
-const svcDeadlineOpts = () => [['','— nie odnawiaj —'], ...S.deadlines.slice().sort((a,b) => a.date<b.date?-1:1)
-  .map(d => [d.id, `${byId('vehicles', d.vehicleId)?.plate || ''} · ${d.type} · ${fdate(d.date)}${d.kmDue ? ' / '+km(d.kmDue) : ''}`, d.vehicleId])];
+const svcDeadlineOpts = () => [['','— nie odnawiaj —'], ...S.deadlines.slice().sort((a,b) => String(a.date||'9999').localeCompare(String(b.date||'9999')))
+  .map(d => [d.id, `${byId('vehicles', d.vehicleId)?.plate || ''} · ${d.type} · ${[d.date ? fdate(d.date) : '', d.kmDue ? 'przy '+km(d.kmDue) : ''].filter(Boolean).join(' / ')}`, d.vehicleId])];
 const svcIssueOpts = () => { const keep = (editing && editing.base && editing.base.issueIds) || [];
   return S.issues.filter(i => i.status!=='naprawione' || keep.includes(i.id)).sort((a,b) => a.date<b.date?1:-1)
     .map(i => [i.id, `${fdate(i.date)} · ${i.title}${i.status==='naprawione' ? ' (naprawione)' : ''}`, i.vehicleId]); };
@@ -457,6 +457,11 @@ $('#dialog').addEventListener('submit', async e => {
     const repeatUntil = data.repeatUntil; delete data.repeatUntil;
     let rn = null;
     if (col==='deadlines'){
+      if (isKmDl(data.type)){   // olej, rozrząd, przegląd gwarancyjny – tylko na km
+        data.date = null; data.intervalMonths = null;
+        if (!data.kmDue && data.lastDoneKm && data.intervalKm) data.kmDue = Number(data.lastDoneKm) + Number(data.intervalKm);
+        if (!data.kmDue) throw Object.assign(new Error(`${data.type} liczy się tylko z przebiegu – wpisz „Następny przy przebiegu” albo ostatnie wykonanie i cykl km.`), {code: 'check'});
+      } else if (!data.date) throw Object.assign(new Error('Uzupełnij pole: Następny termin'), {code: 'check'});
       if (data.lastDoneDate && data.lastDoneDate > today()) throw Object.assign(new Error('Data ostatniego wykonania nie może być w przyszłości.'), {code: 'check'});
       const v = byId('vehicles', data.vehicleId);
       if (data.lastDoneKm && v && Number(v.km) && Number(data.lastDoneKm) > Number(v.km) + 1000) throw Object.assign(new Error(`Przebieg wykonania (${km(data.lastDoneKm)}) jest większy niż obecny przebieg auta (${km(v.km)}).`), {code: 'check'});

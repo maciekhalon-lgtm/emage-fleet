@@ -36,7 +36,7 @@ document.addEventListener('click', e => { const t = e.target.closest('[data-vf]'
 /* Lista floty do Excela (np. dla ubezpieczyciela lub księgowości): dane auta, polisa, najbliższe terminy, przebieg, kto jeździ */
 async function vehiclesXlsx(){
   let X; try { X = await loadXLSX(); } catch(_){ return toast('Nie udało się wczytać modułu Excel – sprawdź połączenie'); }
-  const dl = (vid, type) => { const d = S.deadlines.filter(x => x.vehicleId===vid && x.type===type).sort((a, b) => a.date < b.date ? -1 : 1)[0]; return d ? fdate(d.date) : ''; };
+  const dl = (vid, type) => { const d = S.deadlines.filter(x => x.vehicleId===vid && x.type===type).sort((a, b) => String(a.date||'9999').localeCompare(String(b.date||'9999')))[0]; return d ? (d.date ? fdate(d.date) : d.kmDue ? km(d.kmDue) : '') : ''; };
   const rows = S.vehicles.slice().sort((a, b) => String(a.plate).localeCompare(b.plate)).map(v => {
     const b = S.bookings.find(x => x.vehicleId===v.id && holds(x));
     return {'Rejestracja': v.plate, 'Marka': v.make || '', 'Model': v.model || '', 'Rok': v.year || '', 'VIN': v.vin || '', 'Paliwo': v.fuel || '', 'Przebieg (km)': v.km || '',
