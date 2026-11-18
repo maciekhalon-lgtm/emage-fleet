@@ -14,7 +14,6 @@ function viewCosts(){
   const maxC = Math.max(1,...cats.map(c=>c[1]));
   const months = []; for (let i=5;i>=0;i--){ const d=new Date(y, m-1-i, 1); const key=d.getFullYear()+'-'+pad(d.getMonth()+1); months.push([key, MONTHS[d.getMonth()], VC.filter(c=>(c.date||'').startsWith(key)).reduce((s,c)=>s+Number(c.amount||0),0)]); }
   const maxM = Math.max(1, ...months.map(x=>x[2]));
-  const perV = S.vehicles.map(v => ({v, m: inM.filter(c=>c.vehicleId===v.id).reduce((s,c)=>s+Number(c.amount||0),0), y: VC.filter(c=>c.vehicleId===v.id && (c.date||'').startsWith(String(y))).reduce((s,c)=>s+Number(c.amount||0),0), cons: consumption(v.id)})).filter(x=>x.y>0||x.m>0).sort((a,b)=>b.m-a.m||b.y-a.y);
   const entries = inM.filter(c=>!c.virtual).sort((a,b)=>a.date<b.date?1:-1);
   const cardM = inM.filter(c=>c.virtual), cardSum = cardM.reduce((s,c)=>s+Number(c.amount||0),0);
   const fl = flagsPanel();
@@ -24,7 +23,6 @@ function viewCosts(){
         <div class="totals"><div><span class="label">Razem w miesiącu</span><b>${zl(total)}</b></div><div><span class="label">W tym paliwo i ładowanie</span><b>${zl(fuelT)}</b></div><div><span class="label">Od początku ${y} r.</span><b>${zl(yr)}</b></div></div>
         <div class="months" role="img" aria-label="Koszty w ostatnich 6 miesiącach">${months.map(([k,l,v])=>`<div class="mcol ${k===costMonth?'cur':''}"><span class="v">${v?zl(v):''}</span><div class="col" style="height:${Math.round(v/maxM*120)}px"></div><span class="m">${l}</span></div>`).join('')}</div>
       </div>
-      <div class="panel tablewrap"><table><thead><tr><th>Pojazd</th><th class="r">Miesiąc</th><th class="r">Rok ${y}</th><th class="r">Śr. zużycie</th></tr></thead><tbody>${(P().manage ? perV.filter(x=>x.m>0) : perV).map(x=>`<tr><td>${plate(x.v.plate)} <span class="sub">${esc(x.v.make+' '+x.v.model)}</span></td><td class="r num">${zl(x.m)}</td><td class="r num">${zl(x.y)}</td><td class="r num">${x.cons?x.cons.val.toFixed(1).replace('.',',')+' '+x.cons.unit:'<span class="muted">—</span>'}</td></tr>`).join('') || '<tr><td colspan="4" class="muted">Brak kosztów przypisanych do pojazdów.</td></tr>'}</tbody></table>${P().manage ? `<p class="muted small sec-empty">Tylko auta z kosztami w tym miesiącu. Km, koszty ogólne i koszt 1 km każdego auta: <a href="#rozliczenie">Rozliczenie aut</a>.</p>` : ''}</div>
     </div>
     <div class="section">
       <div class="panel"><div style="padding:14px 16px 0"><h3>Według kategorii</h3></div><div class="catbars">${cats.map(([c,v])=>`<div class="catbar"><span>${esc(c)}</span><div class="track"><div class="fill" style="width:${(v/maxC*100).toFixed(1)}%"></div></div><span class="v">${zl(v)}</span></div>`).join('') || '<p class="muted" style="margin:0">Brak kosztów w tym miesiącu.</p>'}</div></div>

@@ -44,7 +44,7 @@ function viewSettlement(){
   const pk = x => x != null ? x.toFixed(2).replace('.', ',') + ' zł' : '<span class="muted">—</span>';
   const avgKm = st.tot.km ? st.tot.total / st.tot.km : null;
   const head = `<div class="bar"><h2>Rozliczenie aut · ${MONTHS_FULL[mm - 1]} ${y}</h2><div class="tools">
-    <input id="setl-month" type="month" value="${setlMonth}" style="width:auto" aria-label="Miesiąc rozliczenia">${typeof odoSwitch==='function' ? odoSwitch() : ''}
+    <input id="setl-month" type="month" value="${setlMonth}" style="width:auto" aria-label="Miesiąc rozliczenia">
     <button data-action="setl-xlsx">${ic('chart')}Excel</button>
     ${fleetCostsReady ? `<button class="primary" data-action="fleet-cost-new">${ic('plus')}Koszt ogólny floty</button>` : ''}</div></div>`;
   const kpis = `<div class="kpis k4">
@@ -65,7 +65,7 @@ function viewSettlement(){
         : `<p class="muted sec-empty">Brak kosztów ogólnych w tym miesiącu. Dodaj np. abonament GPS, plac, księgowość floty – rozłożą się po równo na wszystkie auta.</p>`}
       ${st.fleet.length ? '' : prevFleetHint(setlMonth)}</div>`;
   return `<div class="section">${head}${kpis}${table}${fleetList}
-    <p class="muted small" style="margin-top:12px">Km z odczytów licznika (tankowania, przejęcia i zwroty). Paliwo: wpisy w aplikacji + tankowania z kart paliwowych niepołączone z wpisem (tylko PLN). Koszty ogólne dzielone po równo na ${st.n} ${isPlural(st.n,'aktywne auto','aktywne auta','aktywnych aut')} (bez wycofanych).</p></div>`;
+    <p class="muted small" style="margin-top:12px">Km z GPS (bez GPS – z liczników z tankowań, przejęć i zwrotów). Paliwo: wpisy w aplikacji + tankowania z kart paliwowych niepołączone z wpisem (tylko PLN). Koszty ogólne dzielone po równo na ${st.n} ${isPlural(st.n,'aktywne auto','aktywne auta','aktywnych aut')} (bez wycofanych).</p></div>`;
 }
 
 /* podpowiedź: skopiuj stałe koszty ogólne z poprzedniego miesiąca */

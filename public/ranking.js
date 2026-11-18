@@ -14,20 +14,28 @@ function rkRange(){
 /* Spalanie metodą „do pełna – do pełna”: odcinek zaczyna się od tankowania do pełna albo od przejęcia auta
    (przejmowane z pełnym bakiem – chyba że kierowca zaznaczył inny poziom), kończy na następnym tankowaniu do pełna.
    Litry odcinka = wszystkie tankowania po starcie (też dotankowania) + tankowanie kończące. */
+let rkLegMemo = {k: '', m: new Map()};
 function rkVehLegs(vid){
+  const mk = String(rkStamp);
+  if (rkLegMemo.k!==mk) rkLegMemo = {k: mk, m: new Map()};
+  if (rkLegMemo.m.has(vid)) return rkLegMemo.m.get(vid);
+  const r = rkVehLegsRaw(vid); rkLegMemo.m.set(vid, r); return r;
+}
+var rkStamp = 0;   // podbijane przy każdym render() – wyniki liczone raz na odświeżenie ekranu
+function rkVehLegsRaw(vid){
   const fills = appFuel().filter(c => c.vehicleId===vid && Number(c.liters) > 0 && Number(c.odometer) > 0 && !String(c.note || '').startsWith('Karta:'))
     .map(c => ({t: 'f', odo: Number(c.odometer), c, date: c.date}));
   const picks = S.bookings.filter(b => b.vehicleId===vid && b.pickup && Number(b.pickup.km) > 0 && (b.pickup.fuel==null || b.pickup.fuel==='' || Number(b.pickup.fuel)===100))
     .map(b => ({t: 'p', odo: Number(b.pickup.km), date: String(b.pickup.at || b.from).slice(0, 10)}));
   const ev = [...fills, ...picks].sort((a, b) => a.odo - b.odo || (a.t==='f' ? -1 : 1) || String(a.date).localeCompare(b.date));
-  let anchor = null, acc = 0; const out = [];
+  let anchor = null, aDate = null, acc = 0; const out = [];
   ev.forEach(e => {
-    if (e.t==='p'){ anchor = e.odo; acc = 0; return; }
+    if (e.t==='p'){ anchor = e.odo; aDate = e.date; acc = 0; return; }
     acc += Number(e.c.liters);
     if (e.c.full===false) return;
     if (anchor!=null){ const km = e.odo - anchor, rate = km > 0 ? acc / km * 100 : null;
-      if (km >= 50 && km <= 5000 && rate >= 3 && rate <= 40) out.push({vid, drv: fillDriver(e.c) || e.c.driverId || '', km, l: acc, date: e.c.date, c: e.c, rate}); }
-    anchor = e.odo; acc = 0;
+      if (km >= 50 && km <= 5000 && rate >= 3 && rate <= 40) out.push({vid, drv: fillDriver(e.c) || e.c.driverId || '', km, l: acc, date: e.c.date, d0: aDate || e.c.date, c: e.c, rate}); }
+    anchor = e.odo; aDate = e.c.date; acc = 0;
   });
   return out;
 }

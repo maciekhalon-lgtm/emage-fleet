@@ -16,7 +16,6 @@ const INNER = {
   pojazdy:  [['pojazdy','Lista aut', () => true], ['ranking','Ranking aut', () => !!P().manage], ['terminy','Terminy', () => !!(P().manage || P().service)]],
   rentownosc: [['rentownosc','Cała firma', () => true], ['trasy-zysk','Trasy', () => true]],
   kierowcy: [['kierowcy','Lista kierowców', () => true], ['ranking-kierowcy','Ranking kierowców', () => !!P().manage]],
-  raporty:  [['raporty','Raporty', () => true], ['porownanie','Porównanie miesięcy', () => !!P().manage]],
 };
 const innerParent = t => Object.keys(INNER).find(p => INNER[p].some(([k]) => k===t && k!==p)) || '';
 const groupOf = t => { t = innerParent(t) || t; return Object.keys(GROUPS).find(g => GROUPS[g].some(([k]) => k===t)) || ''; };

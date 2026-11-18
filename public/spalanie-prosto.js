@@ -1,19 +1,26 @@
 /* Emage FLEET — Paliwo → Spalanie (prosty widok).
    Jedno źródło: wpisy kierowców w aplikacji (litry i liczniki z tankowań, jak w Rankingu aut).
-   Okres: ten miesiąc / poprzedni / ostatnie 3 miesiące. Klik w auto – lista jego tankowań. */
+   Okres: ten miesiąc / poprzedni / ostatnie 3 miesiące, ze zmianą do okresu wcześniej. Klik w auto – lista jego tankowań. */
 'use strict';
 let spPer = 'mies';
-function spRange(){
+function spRange(per = spPer){
   const t = today(), m0 = t.slice(0, 8) + '01';
-  if (spPer==='prev'){ const p = prevMonth(t.slice(0, 7)); return [p + '-01', addDays(m0, -1)]; }
-  if (spPer==='3m') return [addDays(t, -89), t];
+  if (per==='prev'){ const p = prevMonth(t.slice(0, 7)); return [p + '-01', addDays(m0, -1)]; }
+  if (per==='3m') return [addDays(t, -89), t];
   return [m0, t];
 }
+/* okres do porównania: poprzedni miesiąc (albo 3 miesiące wcześniej dla „3 miesiące”) */
+function spPrevRange(){
+  const [from, to] = spRange();
+  if (spPer==='3m') return [addDays(from, -90), addDays(from, -1)];
+  const p = prevMonth(from.slice(0, 7)); return [p + '-01', addDays(from, -1)];
+}
+const spRate = lg => { const km = lg.reduce((a, x) => a + x.km, 0), l = lg.reduce((a, x) => a + x.l, 0); return {km, l, rate: km >= 300 ? l / km * 100 : null}; };
 function spData(){
-  const [from, to] = spRange(), legs = rkLegs(from, to);
+  const [from, to] = spRange(), legs = rkLegs(from, to), [pf, pt] = spPrevRange(), prev = rkLegs(pf, pt);
   const rows = S.vehicles.filter(v => v.status!=='wycofany').map(v => {
-    const lg = legs.filter(x => x.vid===v.id), km = lg.reduce((a, x) => a + x.km, 0), l = lg.reduce((a, x) => a + x.l, 0);
-    return {v, km, l, rate: km >= 300 ? l / km * 100 : null};
+    const {km, l, rate} = spRate(legs.filter(x => x.vid===v.id)), pr = spRate(prev.filter(x => x.vid===v.id)).rate;
+    return {v, km, l, rate, prev: pr, chg: rate!=null && pr!=null ? rate - pr : null};
   });
   const ok = rows.filter(r => r.rate!=null), fKm = ok.reduce((a, r) => a + r.km, 0), fL = ok.reduce((a, r) => a + r.l, 0);
   const avg = fKm ? fL / fKm * 100 : null;
@@ -28,8 +35,9 @@ function viewFuelSimple(){
   const row = r => `<tr class="click" data-sp-veh="${esc(r.v.id)}"><td>${plate(r.v.plate)}<span class="sub">${esc([r.v.make, r.v.model].filter(Boolean).join(' '))}</span></td>
     <td class="r"><b class="num ${r.rate > THEFT_RATE ? 'neg' : ''}">${f1(r.rate)}</b></td>
     <td class="r">${r.diff==null ? '' : `<span class="pill ${r.diff > 15 ? 'bad' : r.diff > 5 ? 'warn' : r.diff < -5 ? 'ok' : 'off'}">${r.diff > 0 ? '+' : ''}${Math.round(r.diff)}%</span>`}</td>
+    <td class="r">${r.chg==null ? '<span class="muted">—</span>' : `<span class="num ${r.chg > 0.5 ? 'neg' : r.chg < -0.5 ? 'pos' : 'muted'}" title="poprzednio ${f1(r.prev)} l/100 km">${r.chg > 0 ? '+' : r.chg < 0 ? '−' : ''}${f1(Math.abs(r.chg))}</span>`}</td>
     <td class="r num">${nf.format(Math.round(r.km))}</td><td class="r num">${nf.format(Math.round(r.l))}</td></tr>`;
-  const tbl = D.ok.length ? `<div class="panel tablewrap"><table class="sp-tbl"><thead><tr><th>Auto</th><th class="r">Spalanie l/100</th><th class="r">vs średnia</th><th class="r">Km</th><th class="r">Litry</th></tr></thead><tbody>${D.ok.map(row).join('')}</tbody></table></div>`
+  const tbl = D.ok.length ? `<div class="panel tablewrap"><table class="sp-tbl"><thead><tr><th>Auto</th><th class="r">Spalanie l/100</th><th class="r">vs średnia</th><th class="r">${spPer==='3m' ? 'Zmiana do 3 mies. wcześniej' : 'Zmiana do poprz. miesiąca'}</th><th class="r">Km</th><th class="r">Litry</th></tr></thead><tbody>${D.ok.map(row).join('')}</tbody></table></div>`
     : `<div class="panel empty"><p>Brak tankowań z licznikiem w tym okresie – spalanie policzy się, gdy kierowcy wpiszą co najmniej 2 tankowania auta (min. 300 km).</p></div>`;
   const none = D.none.length ? `<details class="panel fold"><summary class="sec-head"><h3>Bez danych</h3><span class="count">${D.none.length} ${isPlural(D.none.length, 'auto', 'auta', 'aut')}</span></summary>
     <p class="muted small" style="margin:0 0 8px">Za mało tankowań z licznikiem w tym okresie.</p><div class="sp-none">${D.none.map(r => `<span data-sp-veh="${esc(r.v.id)}" class="click">${plate(r.v.plate)}</span>`).join('')}</div></details>` : '';

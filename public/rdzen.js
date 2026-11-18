@@ -138,8 +138,8 @@ function nextDeadline(vehId){
 }
 function consumption(vehId){
   const v = byId('vehicles', vehId);
-  // kierownik: ta sama średnia co w „Spalanie i przebiegi” (karty paliwowe, a gdy brak – wpisy kierowców)
-  if (P().manage && typeof fleetConsumption==='function'){ const c = fleetConsumption(vehId); if (c) return {val: c.rate, unit: (v && v.fuel==='Elektryczny') ? 'kWh/100 km' : 'l/100 km', km: c.km, method:'fleet'}; }
+  // kierownik: ta sama średnia co w Paliwo → Spalanie (wpisy kierowców, do pełna – do pełna)
+  if (typeof fleetConsumption==='function'){ const c = fleetConsumption(vehId); if (c) return {val: c.rate, unit: (v && v.fuel==='Elektryczny') ? 'kWh/100 km' : 'l/100 km', km: c.km, method:'fleet'}; }
   if (typeof vehicleConsumption==='function'){ const full = vehicleConsumption(vehId); if (full) return full; }
   const fuel = (typeof fillSource==='function' ? fillSource() : S.costs).filter(c => c.vehicleId===vehId && (c.category==='Paliwo'||c.category==='Ładowanie') && c.odometer && c.liters).sort((a,b)=>a.odometer-b.odometer);
   if (fuel.length < 2) return null;
@@ -154,3 +154,11 @@ function consumption(vehId){
 const DOW = ['pn','wt','śr','cz','pt','so','nd'];
 function mondayOf(iso){ const d = parse(iso); d.setDate(d.getDate() - (d.getDay()+6)%7); return isoOf(d); }
 let calStart = mondayOf(today());
+
+/* drobne pomocnicze (dawniej w srednie.js i porownanie.js) */
+const MONTHS_GEN = ['styczeń','luty','marzec','kwiecień','maj','czerwiec','lipiec','sierpień','wrzesień','październik','listopad','grudzień'];
+const monthName = m => `${MONTHS_GEN[Number(m.slice(5, 7)) - 1]} ${m.slice(0, 4)}`;
+const prevMonth = m => { const d = parse(m + '-01'); d.setMonth(d.getMonth() - 1); return isoOf(d).slice(0, 7); };
+const r1 = n => n==null ? '—' : n.toFixed(1).replace('.', ',');
+const monthsBack = n => { const out = []; let m = today().slice(0, 7); for (let i = 0; i < n; i++){ out.unshift(m); m = prevMonth(m); } return out; };
+const odoOk = o => { const x = Number(o); return x > 1000 && !(typeof fakeOdo==='function' && fakeOdo(x)); };

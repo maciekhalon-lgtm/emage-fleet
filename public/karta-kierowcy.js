@@ -10,10 +10,9 @@ function drvCardStats(id, from, to){
   S.bookings.forEach(b => { if (!crewOf(b).includes(id)) return;
     for (let x = b.from > from ? b.from : from; x <= (b.to < to ? b.to : to); x = addDays(x, 1)) days.add(x); });
   const fuel = appFuel().filter(c => (fillDriver(c) || c.driverId)===id && c.date>=from && c.date<=to).sort((a, b) => a.date<b.date ? 1 : -1);
-  const drv = cmpDriverOf();
+  // spalanie kierowcy = to samo co w Rankingu kierowców (jego tankowania do pełna)
   let km_ = 0, l = 0; const veh = new Set();
-  S.vehicles.forEach(v => { const c = consRange(v.id, from, to);
-    if (c && c.parts && c.rate!=null && !c.unsure) c.parts.forEach(p => { if (drv(p.id)===id){ km_ += p.km; l += p.l; veh.add(v.id); } }); });
+  rkLegs(from, to).forEach(p => { if (p.drv===id){ km_ += p.km; l += p.l; veh.add(p.vid); } });
   const bad = name ? badOdometers().filter(x => x.d>=from && x.d<=to && String(x.who || '').includes(name)) : [];
   const flagged = flaggedCosts().filter(c => (fillDriver(c) || c.driverId)===id);
   const susp = typeof fcSuspicious==='function' && name ? fcSuspicious().filter(x => x.lvl==='bad' && x.row.txDate>=from && x.row.txDate<=to && String(fcDriver(x.row, null) || '').includes(name)) : [];

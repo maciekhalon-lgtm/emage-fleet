@@ -1,9 +1,9 @@
-/* Emage FLEET — kontrola liczników (Paliwo → Spalanie i liczniki → Kontrola liczników, kierownik floty).
+/* Emage FLEET — kontrola liczników (otwierana z Pulpitu, kierownik floty).
    Trzy źródła przebiegu kontrolują się nawzajem: licznik wpisany przez kierowcę (przejęcie, zdanie, tankowanie w aplikacji),
    licznik z karty paliwowej (wpisany na stacji) i licznik z lokalizatora GPS.
    GPS w chwili zdarzenia: tabela odo_gps (migracja 036, uzupełnia ją co rano funkcja „powiadomienia” z Geotab).
    Gdy brak odczytu z tej chwili – przedział z dziennych odczytów GPS (koniec dnia poprzedniego … koniec tego dnia).
-   Różnica ponad próg (Ustawienia → Lokalizatory GPS, domyślnie 50 km) = niezgodność; liczy się do oceny kierowcy. */
+   Różnica ponad próg (Ustawienia → Lokalizatory GPS, domyślnie 50 km) = niezgodność. */
 'use strict';
 let ocMode = 'cmp', ocVeh = '', ocDrv = '', ocMonth = today().slice(0, 7), ocOnlyBad = true;   // domyślnie bieżący miesiąc
 const OC_SRC = {karta: 'tankowanie z karty', tankowanie: 'tankowanie w aplikacji', przejecie: 'przejęcie auta', zdanie: 'zdanie auta'};

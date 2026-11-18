@@ -73,16 +73,3 @@ function routeReportRows(a, b){
       cons: kmD && liters ? liters / kmD * 100 : null, perKm: kmD ? cost / kmD : null};
   }).sort((x, y) => (!x.id) - (!y.id) || y.km - x.km || y.cost - x.cost);
 }
-function routeReportSection(){
-  if (!S.routes.length) return '';
-  const [a, b, label] = periodRange();
-  const rows = routeReportRows(a, b);
-  const body = rows.map(x => `<tr><td>${x.r ? `<b class="num">${esc(x.r.code)}</b><span class="sub">${esc(x.r.name)}</span>` : '<span class="muted">bez trasy</span>'}</td>
-    <td class="r num">${x.days || '—'}</td><td class="r num">${x.km ? fmtInt(x.km)+' km' : '—'}</td>
-    <td class="r num">${zl(x.cost)}</td><td class="r num">${x.liters ? fmt1(x.liters)+' l' : '—'}</td>
-    <td class="r num">${x.cons ? fmt1(x.cons)+' l/100 km' : '—'}</td><td class="r num">${x.perKm ? x.perKm.toFixed(2).replace('.', ',')+' zł' : '—'}</td></tr>`).join('');
-  return `<div class="section"><div class="bar"><h2>Trasy – ${label}</h2></div>
-    ${rows.length ? `<div class="panel tablewrap"><table><thead><tr><th>Trasa</th><th class="r">Dni pracy</th><th class="r">Przejechane</th><th class="r">Koszty</th><th class="r">Paliwo</th><th class="r">Spalanie (orient.)</th><th class="r">Koszt / km</th></tr></thead><tbody>${body}</tbody></table></div>`
-      : '<div class="panel empty"><p>Brak dni pracy i kosztów w tym okresie.</p></div>'}
-    <p class="muted small" style="margin:0;max-width:90ch">Kilometry z dni pracy (przejęcie → zdanie) z trasą. Spalanie orientacyjne: wszystkie litry z tankowań na trasie ÷ kilometry × 100 – dokładne spalanie aut i kierowców liczymy dalej między tankowaniami do pełna.</p></div>`;
-}

@@ -1817,3 +1817,5 @@ html[data-env="test"] body{padding-top:20px}
 .sp-kpi{display:flex;gap:32px;flex-wrap:wrap;padding:14px 18px}
 .sp-kpi>div{display:flex;flex-direction:column;gap:2px}.sp-kpi b{font-size:22px}
 .sp-none{display:flex;flex-wrap:wrap;gap:8px}
+.sp-tbl .neg{color:var(--bad)}
+.sp-tbl .pos{color:var(--ok)}

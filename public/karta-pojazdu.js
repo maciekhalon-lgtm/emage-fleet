@@ -91,7 +91,7 @@ function viewCard(){
   else if (cardTab==='paliwo') body = (fc && fc.rate!=null && !fc.unsure && fc.rate > THEFT_RATE ? `<div class="notice err"><span><b>Podejrzane spalanie: ${fc.rate.toFixed(1).replace('.', ',')} l/100 km</b> – powyżej ${THEFT_RATE} l/100 km dla busa to możliwa kradzież paliwa (albo tankowanie kartą innego auta). Sprawdź odcinki z najwyższym spalaniem poniżej.</span></div>` : '') + `<div class="facts">
       <div><span class="label">Średnie spalanie</span><span class="fv">${fc && fc.rate!=null ? `<b>${fc.rate.toFixed(1).replace('.', ',')} l/100 km</b> ${fc.unsure ? '<span class="pill off">niepewne</span>' : levelPill(levelFor(v.id, fc.rate))}` : '—'}</span></div>
       <div><span class="label">Policzone km</span><span class="fv">${fc && fc.km ? new Intl.NumberFormat('pl-PL').format(fc.km) + ' km' : '—'}</span></div>
-      <div><span class="label">Źródło</span><span class="fv">${fc && fc.src ? (fc.src==='gps' ? 'GPS (km) i karty (litry)' : fc.src==='karta' ? 'karty paliwowe' : 'wpisy kierowców') : '—'}</span></div>
+      <div><span class="label">Źródło</span><span class="fv">${fc && fc.src ? 'wpisy kierowców (do pełna – do pełna)' : '—'}</span></div>
       <div><span class="label">${P().costs==='own' ? 'Moje koszty ' + yr : 'Koszty ' + yr}</span><span class="fv">${zl(yearCost)}</span></div></div>
     ${P().manage || P().reports ? sec('Koszt utrzymania – ostatnie 12 miesięcy', '', tcoHtml(v, VC), '') : ''}
     ${P().manage && typeof vehMonthsHtml==='function' ? sec('Km i koszty miesięcznie', `<a class="btn small ghost" href="#rozliczenie">Rozliczenie floty</a>`, vehMonthsHtml(v), '') : ''}
@@ -138,10 +138,9 @@ function policyHtml(v){
 
 /* 10 odcinków (między tankowaniami) z najwyższym spalaniem – kto zatankował na końcu odcinka */
 function topLegsHtml(fc){
-  const drv = typeof cmpDriverOf==='function' ? cmpDriverOf() : () => '';
   const legs = fc.parts.filter(p => p.km >= 100).map(p => ({...p, r: p.l / p.km * 100})).sort((a, b) => b.r - a.r).slice(0, 10);
   return legs.map(p => `<div class="mini"><span class="num">${fdate(p.d0)} – ${fdate(p.d1)}</span>
-    <span>${new Intl.NumberFormat('pl-PL').format(p.km)} km · ${fl(p.l)}<span class="sub">${esc(drv(p.id) ? dName(drv(p.id)) : 'kierowca nieustalony')}</span></span>
+    <span>${new Intl.NumberFormat('pl-PL').format(p.km)} km · ${fl(p.l)}<span class="sub">${esc(p.drv ? dName(p.drv) : 'kierowca nieustalony')}</span></span>
     <span class="mini-r"><b class="${p.r > THEFT_RATE ? 'neg' : ''}">${p.r.toFixed(1).replace('.', ',')} l/100</b></span></div>`).join('');
 }
 

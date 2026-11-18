@@ -107,9 +107,8 @@ function geotabPanel(){
     ${st.error ? `<p class="warnline" style="margin:0">Geotab: ${esc(st.error)}</p>` : ''}
     <p class="muted" style="margin:0">Co rano aplikacja pobiera z Geotab stan licznika każdego busa. Z tego liczy przejechane km (Rozliczenie aut, rentowność, spalanie) i wyłapuje liczniki wpisane na stacji niezgodnie z GPS.</p>
     ${gpsOn ? `<span class="re-btns"><button class="small" data-action="geo-sync">Synchronizuj teraz</button></span>` : ''}
-    ${typeof odoCfg==='function' ? (() => { const c = odoCfg(); return `<div class="odo-set"><b>Przebiegi – skąd brać km</b>
-      <p class="muted small" style="margin:0">Terminy serwisowe na km (olej, rozrząd, przeglądy) zawsze liczą się z GPS; bez aktualnego odczytu – z najwyższego wpisanego licznika (oznaczone „przebieg bez GPS”). Poniżej wybierasz domyślne źródło km dla spalania, Rozliczenia aut i Rentowności – na tych ekranach możesz je chwilowo zmienić przełącznikiem „Km z:”.</p>
-      <div class="field"><label for="odo-def">Domyślne źródło km</label><select id="odo-def" data-odo-set="def">${ODO_SRCS.map(([k, l]) => `<option value="${k}" ${c.def===k ? 'selected' : ''}>${k==='auto' ? 'Wszystkie liczniki razem' : l}</option>`).join('')}</select></div>
+    ${typeof odoCfg==='function' ? (() => { const c = odoCfg(); return `<div class="odo-set"><b>Przebiegi</b>
+      <p class="muted small" style="margin:0">Terminy serwisowe na km (olej, rozrząd, przeglądy) zawsze liczą się z GPS; bez aktualnego odczytu – z najwyższego wpisanego licznika (oznaczone „przebieg bez GPS”). Rozliczenie aut i Rentowność też liczą km z GPS (bez GPS – z liczników z tankowań, przejęć i zdań auta). Spalanie liczy się z wpisów kierowców.</p>
       <div class="field"><label for="odo-tol">Kontrola liczników: dopuszczalna różnica (km)</label><input id="odo-tol" type="number" inputmode="numeric" min="5" step="5" value="${c.tol}" data-odo-set="tol" style="max-width:140px"></div></div>`; })() : ''}
     ${devs.length ? `<div class="tablewrap"><table><thead><tr><th>Urządzenie</th><th>Auto</th></tr></thead><tbody>${devs.map(d => `<tr><td>${esc(d.name || d.plate || d.id)}${d.plate && d.plate!==d.name ? `<span class="sub muted">${esc(d.plate)}</span>` : ''}</td>
       <td><select data-geo-dev="${esc(d.id)}" aria-label="Auto dla ${esc(d.name || d.id)}"><option value="">${d.vehicle && !map[d.id] ? `auto: ${esc(d.vehicle)}` : '— nie przypisano —'}</option>${vs.map(v => `<option value="${esc(v.id)}" ${map[d.id]===v.id ? 'selected' : ''}>${esc(v.plate)}</option>`).join('')}</select></td></tr>`).join('')}</tbody></table></div>
@@ -135,7 +134,7 @@ document.addEventListener('click', async e => {
 document.addEventListener('change', async e => {
   const o = e.target.closest && e.target.closest('[data-odo-set]'); if (!o) return;
   const c = {...odoCfg()}; if (o.dataset.odoSet==='def') c.def = o.value; else { const n = Math.round(Number(o.value)); if (!(n >= 5 && n <= 2000)) return toast('Podaj różnicę od 5 do 2000 km'); c.tol = n; }
-  try { await db.collection('settings').doc('odo_source').set(c); odoPick = null; toast('Zapisano'); } catch(err){ handleWriteErr(err); }
+  try { await db.collection('settings').doc('odo_source').set(c); toast('Zapisano'); } catch(err){ handleWriteErr(err); }
 });
 document.addEventListener('change', async e => {
   const s = e.target.closest && e.target.closest('[data-geo-dev]'); if (!s) return;
