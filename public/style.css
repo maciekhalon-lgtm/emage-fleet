@@ -1804,3 +1804,5 @@ html[data-env="test"] body{padding-top:20px}
 
 .sch-free .sch-freec[data-free-day]{cursor:pointer}
 .sch-free .sch-freec[data-free-day]:hover{background:var(--raised)}
+.fill-seg{display:flex;width:100%}
+.fill-seg button{flex:1;padding:12px 10px;font-size:15px}

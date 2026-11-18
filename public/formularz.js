@@ -80,7 +80,7 @@ const FORMS = {
     {k:'stationOther',l:'Nazwa stacji',ph:'np. Shell, Aral'},
     {k:'liters',l:'Ilość (l / kWh)',t:'number',step:'0.01',hint:'dla paliwa i ładowania'},
     {k:'odometer',l:'Stan licznika (km) – wymagany przy tankowaniu',t:'number'},
-    {k:'full',l:'Zatankowano do pełna (naładowano do 100%)',t:'check'},
+    {k:'full',l:'Tankowanie',t:'fill'},
     ...(P().costs==='rw' ? [{k:'driverId',l:'Kierowca',t:'select',o:drvOpts('— nie dotyczy —')}] : []),
     {k:'note',l:'Opis',ph:'np. stacja, faktura nr'},
   ])},
@@ -186,7 +186,7 @@ const DEFAULTS = {
   deadlines: () => ({type:'Przegląd techniczny', date: addDays(today(),30), intervalMonths:12}),
   bookings: () => ({from: today(), to: today(), driverId: P().bookings==='own' ? myDriverId() : ''}),
   costs: () => {
-    const base = {date: today(), category:'Paliwo', full:true};
+    const base = {date: today(), category:'Paliwo', full:null};
     if (P().costs==='own'){
       const me = myDriverId();
       const b = me && S.bookings.find(x => x.driverId===me && !x.returned && (x.pickup || (x.from<=today() && x.to>=today())));
@@ -224,7 +224,7 @@ function svcUi(e){
   if (e && e.target && e.target.id==='f-serviceEntries-vehicleId'){ const v = byId('vehicles', veh); const k = $('#f-serviceEntries-km'); if (v && v.km && k && !k.value) k.value = v.km; }
 }
 /* Kierowca: szybkie tankowanie (tylko litry, kwota, licznik) i „Inny wydatek” – reszta uzupełnia się sama */
-const QUICK_FIELDS = ['liters','amount','odometer','abroad','currency','fxPrev'];
+const QUICK_FIELDS = ['liters','amount','odometer','full','abroad','currency','fxPrev'];
 const OTHER_FIELDS = ['category','amount','currency','fxPrev','note'];
 function costFieldsFor(all){
   const mode = editing && editing.base && editing.base.mode;
@@ -241,7 +241,7 @@ const FUEL_PREFS = 'ef-fuel-last';
 const fuelPrefs = () => { try { return JSON.parse(localStorage.getItem(FUEL_PREFS) || '{}'); } catch(_){ return {}; } };
 async function openQuickFuel(vid){
   const v = byId('vehicles', vid), pf = fuelPrefs();
-  openForm('costs', null, {vehicleId: vid, mode:'quick', category: v && v.fuel==='Elektryczny' ? 'Ładowanie' : 'Paliwo', currency: pf.currency || 'PLN', station: pf.station || '', full: true});
+  openForm('costs', null, {vehicleId: vid, mode:'quick', category: v && v.fuel==='Elektryczny' ? 'Ładowanie' : 'Paliwo', currency: pf.currency || 'PLN', station: pf.station || '', full: null});
   if (!editing) return;
   $('#dlg-title').textContent = 'Tankowanie';
 }
@@ -270,6 +270,7 @@ async function costFxUi(){
   const ab = g('abroad');
   if (ab && g('currency')){ const w = $('#wrap-costs-currency'); if (w) w.hidden = !ab.checked;
     if (!ab.checked) g('currency').value = 'PLN'; else if (g('currency').value==='PLN') g('currency').value = 'EUR'; }
+  const fw = $('#wrap-costs-full'); if (fw) fw.hidden = !FUEL_CATS.includes(g('category')?.value || 'Paliwo');
   const cur = g('currency')?.value || 'PLN', foreign = cur!=='PLN';
   const sel = g('stationSel')?.value;
   const other = $('#wrap-costs-stationOther'); if (other) other.hidden = sel!=='Inna';
@@ -306,6 +307,9 @@ function openForm(col, id, preset){
     if (f.t==='html') return `<div class="field full" id="wrap-${col}-${f.k}">${f.html}</div>`;
     if (f.t==='checks'){ const cur = (vw && vw[f.k]) || [];
       return `<div class="field full" id="wrap-${col}-${f.k}"><span class="label">${esc(f.l)}</span><div class="checks" id="f-${col}-${f.k}">${f.o.map(([val, lab, veh]) => `<label class="check" data-veh="${esc(veh||'')}"><input type="checkbox" value="${esc(val)}" ${cur.includes(val)?'checked':''}> ${esc(lab)}</label>`).join('') || '<span class="muted small">Brak otwartych usterek.</span>'}</div></div>`; }
+    if (f.t==='fill'){ const cur = vw && vw.id ? (vw[f.k] ? '1' : '0') : '';   // do pełna / dotankowanie – kierowca musi wybrać
+      return `<div class="field full" id="wrap-${col}-${f.k}"><span class="label">Do pełna czy dotankowanie? *</span><input type="hidden" id="f-${col}-${f.k}" value="${cur}">
+        <div class="seg fill-seg" role="group" aria-label="Do pełna czy dotankowanie"><button type="button" class="${cur==='1' ? 'on' : ''}" data-fill="1">Do pełna</button><button type="button" class="${cur==='0' ? 'on' : ''}" data-fill="0">Dotankowanie</button></div></div>`; }
     if (f.t==='check') return `<div class="field full" id="wrap-${col}-${f.k}"><label class="check"><input id="f-${col}-${f.k}" type="checkbox" ${vw && vw[f.k] ? 'checked' : ''}> ${esc(f.l)}</label></div>`;
     const v = vw?.[f.k] ?? '';
     const fid = 'f-'+col+'-'+f.k;
@@ -386,6 +390,7 @@ $('#dialog').addEventListener('submit', async e => {
     if (f.t==='photos' || f.t==='html') continue;
     if (f.t==='checks'){ data[f.k] = [...el.querySelectorAll('input:checked')].map(i => i.value); continue; }
     if (f.t==='check'){ data[f.k] = !!el.checked; continue; }
+    if (f.t==='fill'){ data[f.k] = el.value==='1' ? true : el.value==='0' ? false : null; continue; }
     if (f.t==='file'){ file = el.files && el.files[0]; if (f.req && !file){ toast('Wybierz plik do wgrania'); return; } continue; }
     let v = el.value.trim();
     if (f.req && !v){ el.focus(); toast('Uzupełnij pole: '+f.l); return; }
@@ -412,6 +417,12 @@ $('#dialog').addEventListener('submit', async e => {
       const est = data.fxManual ? data.fxRate : (fxCache[data.currency+':'+data.date] || {}).rate;
       data.amount = est ? Math.round(data.amount * est * 100) / 100 : 0;   // dokładną kwotę w zł policzy baza z kursu NBP
     } else { data.amountOrig = null; data.fxManual = false; }
+    if (FUEL_CATS.includes(data.category)){
+      if (data.full==null){ const w = $('#dlg-warn'); w.textContent = 'Zaznacz: „Do pełna” czy „Dotankowanie”.'; w.hidden = false; $('#wrap-costs-full')?.scrollIntoView({block: 'center'}); return; }
+      const tank = Number((byId('vehicles', data.vehicleId) || {}).tankL) || 90;
+      if (data.full && data.category==='Paliwo' && Number(data.liters) > 0 && Number(data.liters) < tank * 0.4 && !editing.fillOk){
+        editing.fillOk = true; const w = $('#dlg-warn'); w.textContent = `Tylko ${String(data.liters).replace('.', ',')} l przy baku ${tank} l. Jeśli to na pewno do pełna, kliknij Zapisz jeszcze raz – jeśli nie, wybierz „Dotankowanie”.`; w.hidden = false; return; }
+    } else data.full = false;
     if (asDriver && myDriverId()) data.driverId = myDriverId();
     // podwójna obsada: tankowanie w trakcie wspólnego dnia pracy potwierdza drugi kierowca
     if (asDriver && FUEL_CATS.includes(data.category) && !id){
@@ -549,3 +560,9 @@ document.addEventListener('change', e => {
   if (rSel && !rSel.value && past[0] && past[0].routeId && [...rSel.options].some(o => o.value===past[0].routeId)){ rSel.value = past[0].routeId; hint.push(`trasa ${rCode(past[0].routeId)}`); }
   if (hint.length){ toast('Podpowiedź: ' + hint.join(', ') + ' – możesz zmienić'); bookingCheck(); }
 });
+
+/* Do pełna / dotankowanie */
+document.addEventListener('click', e => { const b = e.target.closest('[data-fill]'); if (!b) return;
+  const wrap = b.closest('.field'), inp = wrap && wrap.querySelector('input[type=hidden]'); if (!inp) return;
+  inp.value = b.dataset.fill; wrap.querySelectorAll('[data-fill]').forEach(x => x.classList.toggle('on', x===b));
+  if (editing) editing.fillOk = false; const w = $('#dlg-warn'); if (w) w.hidden = true; });
