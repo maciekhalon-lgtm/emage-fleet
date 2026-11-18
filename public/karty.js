@@ -9,6 +9,8 @@ const FC_FIELDS = [
   ['plate','Nr rejestracyjny',1,['nr rejestracyjny','numer rejestracyjny','rejestracja','nr rej','nr rej.','tablica','numer pojazdu','pojazd','license plate','registration','kennzeichen','kfz-kennzeichen']],
   ['liters','Ilość (litry)',1,['ilosc','ilosc l','ilosc [l]','litry','ilosc litrow','quantity','volume','menge']],
   ['amount','Kwota brutto',1,['wartosc brutto','kwota brutto','wartosc brutto pln','brutto','gross amount','gross','kwota','amount','betrag','wartosc']],
+  ['net','Kwota netto',0,['wartosc netto','kwota netto','wartosc netto pln','netto','net amount','net','nettobetrag']],
+  ['vat','Stawka VAT (%)',0,['stawka vat','stawka vat %','vat %','vat [%]','% vat','vat rate','stawka','mwst %','mwst-satz']],
   ['currency','Waluta',0,['waluta','currency','wahrung']],
   ['odometer','Stan licznika',0,['stan licznika','licznik','przebieg','km','odometer','mileage','kilometerstand']],
   ['station','Stacja (miejscowość)',0,['miejscowosc','miasto','nazwa stacji','adres stacji','stacja','miejsce','city','ort','station','location','tankstelle']],
@@ -39,6 +41,8 @@ function fcDate(v){
 const fcSettings = () => S.settings.find(x => x.id==='fuelcard') || {};
 
 /* ---------- porównanie z wpisami kierowców ---------- */
+/* netto wiersza karty: z pliku (kwota netto / stawka VAT), a bez nich brutto / 1,23 */
+const fcNet = r => Number(r.amountNet) > 0 ? Number(r.amountNet) : Number(r.amount) / (1 + (r.vatRate!=null ? Number(r.vatRate) : 23) / 100);
 const appFuel = () => S.costs.filter(c => FUEL_CATS.includes(c.category) && c.vehicleId);
 function fcCompare(rows){
   const used = new Set(), out = [];
@@ -252,7 +256,7 @@ async function fcReadFile(f){
   return X.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1, defval:'', raw:true});
 }
 /* Kolumny, których nie wolno pomylić: kwota tylko brutto (nie netto / VAT / cena), stacja nie z kolumn z wartościami */
-const FC_EXCLUDE = {amount: /netto|vat|cena|stawka/, station: /wartosc|vat|netto|brutto|cena|^nr|typ stacji/, liters: /cena|wartosc/, plate: /karty/, date: /ksiegowania/};
+const FC_EXCLUDE = {amount: /netto|vat|cena|stawka/, net: /brutto|vat|cena|stawka/, vat: /kwota|wartosc|brutto|netto|cena|nr|numer/, station: /wartosc|vat|netto|brutto|cena|^nr|typ stacji/, liters: /cena|wartosc/, plate: /karty/, date: /ksiegowania/};
 function fcGuess(heads){
   const map = {}, hs = heads.map(fcHead), used = () => Object.values(map);
   FC_FIELDS.forEach(([k, , , syn]) => {
@@ -280,7 +284,9 @@ document.addEventListener('change', async e => {
     if (!files.length){ box.innerHTML = '<span class="warnline">Nie udało się odczytać pliku. Zapisz go jako CSV albo .xlsx i spróbuj ponownie.</span>'; fcParsed = null; return; }
     // układy kolumn: każdy dopasowujemy raz (zapamiętane z poprzednich importów albo zgadnięte)
     const maps = {};
-    files.forEach(f => { if (!maps[f.sig]){ const saved = (fcSettings().maps2 || {})[f.sig]; maps[f.sig] = {heads: f.heads, map: saved ? {...saved} : fcGuess(f.heads)}; } });
+    files.forEach(f => { if (!maps[f.sig]){ const saved = (fcSettings().maps2 || {})[f.sig], gu = fcGuess(f.heads), m = saved ? {...saved} : gu;
+      if (saved) ['net', 'vat'].forEach(k => { if (m[k]==null && gu[k]!=null && !Object.values(m).includes(gu[k])) m[k] = gu[k]; });   // nowe kolumny w zapamiętanym układzie
+      maps[f.sig] = {heads: f.heads, map: m}; } });
     fcParsed = {files, failed, maps, sigs: Object.keys(maps)};
     fcRenderMap();
   }
@@ -305,6 +311,12 @@ function fcRowsOf(file, m){
     const row = {plate: pRaw.trim(), vehicle: v || null, txDate: dt.d, txTime: time || null, liters: fcNum(g(r, 'liters')), amount: fcNum(g(r, 'amount')),
       currency: (String(g(r, 'currency') || 'PLN').trim().toUpperCase().slice(0, 3)) || 'PLN', odometer: Math.round(fcNum(g(r, 'odometer')) || 0) || null,
       station: String(g(r, 'station') || '').trim() || null, card: String(g(r, 'card') || '').trim() || null, product: String(g(r, 'product') || '').trim() || null};
+    // netto i VAT z pliku: stawka wprost, albo wyliczona z brutto/netto; netto ze stawki, gdy w pliku jej brak
+    let net = fcNum(g(r, 'net')), vat = fcNum(g(r, 'vat'));
+    if (vat!=null && vat > 0 && vat < 1) vat = vat * 100;
+    if (vat==null && net > 0 && row.amount > 0) vat = Math.round((row.amount / net - 1) * 100);
+    if ((net==null || !(net > 0)) && vat!=null && vat >= 0 && row.amount > 0) net = Math.round(row.amount / (1 + vat / 100) * 100) / 100;
+    row.amountNet = net > 0 ? Math.round(net * 100) / 100 : null; row.vatRate = vat!=null && vat >= 0 && vat <= 30 ? vat : null;
     if (!v) foreign.add(normPlate(pRaw));
     all.push(row);
   });
@@ -372,7 +384,7 @@ async function fcSave(){
       let {error} = await sb.from('fuel_card_imports').insert({id, provider: prov || null, invoice_no: jobs.length===1 ? invNo || null : null, invoice_path: invoicePath, file_name: j.f.name,
         period_from: ds[0], period_to: ds[ds.length - 1], rows_total: j.f.data.length, rows_ours: j.fresh.length});
       if (error) throw dbErr(error);
-      const rows = j.fresh.map(r => ({import_id: id, vehicle_id: r.vehicle.id, plate: r.plate, tx_date: r.txDate, tx_time: r.txTime, liters: r.liters, amount: r.amount,
+      const rows = j.fresh.map(r => ({import_id: id, vehicle_id: r.vehicle.id, plate: r.plate, tx_date: r.txDate, tx_time: r.txTime, liters: r.liters, amount: r.amount, amount_net: r.amountNet, vat_rate: r.vatRate,
         currency: r.currency, odometer: r.odometer, station: r.station, card_no: r.card, product: r.product, kind: r.kind}));
       for (let i = 0; i < rows.length; i += 500){ ({error} = await sb.from('fuel_card_rows').insert(rows.slice(i, i + 500))); if (error) throw dbErr(error); }
       nF += j.fresh.filter(r => r.kind==='fuel').length; nO += j.fresh.filter(r => r.kind!=='fuel').length; fresh += j.fresh.length;
