@@ -10,7 +10,7 @@ const FC_FIELDS = [
   ['liters','Ilość (litry)',1,['ilosc','ilosc l','ilosc [l]','litry','ilosc litrow','quantity','volume','menge']],
   ['amount','Kwota brutto',1,['wartosc brutto','kwota brutto','wartosc brutto pln','brutto','gross amount','gross','kwota','amount','betrag','wartosc']],
   ['net','Kwota netto',0,['wartosc netto','kwota netto','wartosc netto pln','netto','net amount','net','nettobetrag']],
-  ['vat','Stawka VAT (%)',0,['stawka vat','stawka vat %','vat %','vat [%]','% vat','vat rate','stawka','mwst %','mwst-satz']],
+  ['vat','Stawka VAT (%)',0,['stawka vat','stawka vat %','vat %','vat [%]','% vat','vat rate','stawka','mwst %','mwst-satz','vat','mwst']],
   ['currency','Waluta',0,['waluta','currency','wahrung']],
   ['odometer','Stan licznika',0,['stan licznika','licznik','przebieg','km','odometer','mileage','kilometerstand']],
   ['station','Stacja (miejscowość)',0,['miejscowosc','miasto','nazwa stacji','adres stacji','stacja','miejsce','city','ort','station','location','tankstelle']],
@@ -28,15 +28,32 @@ function fcNum(v){
   if (c > d) s = s.replace(/\./g, '').replace(',', '.'); else s = s.replace(/,/g, '');
   const n = Number(s); return Number.isFinite(n) ? n : null;
 }
-function fcDate(v){
-  if (v instanceof Date && !isNaN(v)) return {d: isoOf(v), t: v.getHours() || v.getMinutes() ? pad(v.getHours()) + ':' + pad(v.getMinutes()) : ''};
-  if (typeof v==='number' && v > 20000 && v < 80000){ const ms = Math.round((v - 25569) * 864e5), x = new Date(ms); return {d: x.toISOString().slice(0, 10), t: (v % 1) ? x.toISOString().slice(11, 16) : ''}; }
+/* Excel zapisuje godzinę z ułamkiem sekundy – 00:05 potrafi wrócić jako 00:04:59. Zaokrąglamy do pełnej minuty. */
+const fcMin = d => new Date(Math.round(d.getTime() / 6e4) * 6e4);
+function fcDate(v, mdy){
+  if (v instanceof Date && !isNaN(v)){ v = fcMin(v); return {d: isoOf(v), t: v.getHours() || v.getMinutes() ? pad(v.getHours()) + ':' + pad(v.getMinutes()) : ''}; }
+  if (typeof v==='number' && v > 20000 && v < 80000){ const ms = Math.round((v - 25569) * 1440) * 6e4, x = new Date(ms); return {d: x.toISOString().slice(0, 10), t: x.toISOString().slice(11, 16)!=='00:00' ? x.toISOString().slice(11, 16) : ''}; }
   const s = String(v || ''), tm = (s.match(/(\d{1,2}):(\d{2})/) || []);
   let m = s.match(/(\d{4})[-./](\d{1,2})[-./](\d{1,2})/);
   if (m) return {d: `${m[1]}-${pad(m[2])}-${pad(m[3])}`, t: tm[0] ? pad(tm[1]) + ':' + tm[2] : ''};
   m = s.match(/(\d{1,2})[-./](\d{1,2})[-./](\d{2,4})/);
-  if (m) return {d: `${m[3].length===2 ? '20' + m[3] : m[3]}-${pad(m[2])}-${pad(m[1])}`, t: tm[0] ? pad(tm[1]) + ':' + tm[2] : ''};
+  if (m){ const [dd, mm] = mdy ? [m[2], m[1]] : [m[1], m[2]]; if (Number(mm) > 12 || Number(dd) > 31) return null;
+    return {d: `${m[3].length===2 ? '20' + m[3] : m[3]}-${pad(mm)}-${pad(dd)}`, t: tm[0] ? pad(tm[1]) + ':' + tm[2] : ''}; }
   return null;
+}
+/* Kolejność dzień/miesiąc w całym pliku: jeśli gdzieś drugi człon > 12 (np. 11/25/2026), plik jest w układzie MM/DD (amerykańskim). */
+function fcMdy(vals){
+  let dmy = false, mdy = false;
+  vals.forEach(v => { if (v instanceof Date || typeof v==='number') return; const m = String(v || '').match(/(?:^|\D)(\d{1,2})[-./](\d{1,2})[-./](\d{2,4})/); if (!m) return;
+    if (Number(m[1]) > 12) dmy = true; if (Number(m[2]) > 12) mdy = true; });
+  return mdy && !dmy;
+}
+/* Waluta: „zł”, „€”, „Euro”, „Kč” → kod ISO. Nieznane oznaczenie → null (do wyboru w podglądzie importu). */
+const FC_CUR = {PLN: 'PLN', ZL: 'PLN', 'ZŁ': 'PLN', PLZ: 'PLN', EUR: 'EUR', EURO: 'EUR', '€': 'EUR', CZK: 'CZK', 'KČ': 'CZK', KC: 'CZK', USD: 'USD', $: 'USD', GBP: 'GBP', '£': 'GBP', CHF: 'CHF', HUF: 'HUF', FT: 'HUF', SEK: 'SEK', NOK: 'NOK', DKK: 'DKK', RON: 'RON', LEI: 'RON', BGN: 'BGN', LV: 'BGN', UAH: 'UAH', 'ГРН': 'UAH'};
+function fcCur(v){
+  const s = String(v==null ? '' : v).trim().toUpperCase().replace(/[.\s]/g, '');
+  if (!s) return 'PLN';
+  return FC_CUR[s] || null;
 }
 const fcSettings = () => S.settings.find(x => x.id==='fuelcard') || {};
 
@@ -74,7 +91,9 @@ function fcIssues(r, c){
   return is;
 }
 const fl = v => v==null ? '—' : String(Number(v).toFixed(2)).replace(/\.?0+$/, '').replace('.', ',') + ' l';
-const fm = (v, cur) => v==null || !Number.isFinite(Number(v)) ? '—' : new Intl.NumberFormat('pl-PL', {style:'currency', currency: cur || 'PLN'}).format(Number(v));
+const fm = (v, cur) => { if (v==null || !Number.isFinite(Number(v))) return '—';
+  try { return new Intl.NumberFormat('pl-PL', {style:'currency', currency: cur || 'PLN'}).format(Number(v)); }
+  catch(_){ return new Intl.NumberFormat('pl-PL', {minimumFractionDigits: 2, maximumFractionDigits: 2}).format(Number(v)) + ' ' + String(cur); } };   // nieznany kod waluty nie może wywrócić ekranu
 /* Przejechane km i spalanie z liczników – odcinkami między kolejnymi tankowaniami (wg daty i godziny).
    Jeden błędnie wpisany licznik nie psuje wyniku: licznik odbiegający > 20 000 km od mediany auta albo dający odcinek
    ≤ 0 lub > 3000 km jest pomijany (oznaczany „licznik podejrzany”), a jego litry liczą się do następnego dobrego odcinka.
@@ -295,25 +314,36 @@ document.addEventListener('change', async e => {
     if (v==='') delete m[e.target.dataset.fcmap]; else m[e.target.dataset.fcmap] = Number(v);
     fcRenderMap(true);
   }
+  if (e.target.matches && e.target.matches('[data-fccur]') && fcParsed){ fcParsed.curMap = fcParsed.curMap || {}; if (e.target.value) fcParsed.curMap[e.target.dataset.fccur] = e.target.value; else delete fcParsed.curMap[e.target.dataset.fccur]; fcRenderMap(true); return; }
   if (e.target.matches && e.target.matches('[data-fcprod]') && fcParsed){ fcParsed.prodOff = fcParsed.prodOff || new Set(); e.target.checked ? fcParsed.prodOff.delete(e.target.value) : fcParsed.prodOff.add(e.target.value); fcRenderMap(true); }
 });
 const fcMissing = m => FC_FIELDS.filter(([k, , req]) => req && m[k]==null).map(x => x[1]);
 function fcRowsOf(file, m){
   const vByPlate = new Map(S.vehicles.map(v => [normPlate(v.plate), v]));
   const g = (r, k) => m[k]!=null ? r[m[k]] : '';
-  const all = [], foreign = new Set();
+  const all = [], foreign = new Set(), mdy = fcMdy(file.data.map(r => g(r, 'date'))), curs = fcParsed && fcParsed.curMap || {};
+  // kolumna „VAT”: stawka (23, 8, 0,23, „23%”) albo kwota podatku – sprawdzamy po wartościach w całym pliku
+  const RATES = [0, 5, 7, 8, 9, 10, 12, 13, 15, 19, 20, 21, 22, 23, 24, 25, 27];
+  const vatVals = m.vat!=null ? file.data.map(r => g(r, 'vat')).filter(x => String(x).trim()!=='') : [];
+  const rateLike = n => n!=null && (RATES.includes(n) || (n > 0 && n < 1 && RATES.includes(Math.round(n * 1000) / 10)));
+  const vatIsAmt = vatVals.length > 0 && !vatVals.every(x => String(x).includes('%') || rateLike(fcNum(x)));
   file.data.forEach(r => {
     const pRaw = String(g(r, 'plate') || ''); if (!pRaw.trim()) return;
     let v = vByPlate.get(normPlate(pRaw));
     if (!v){ const np = normPlate(pRaw); v = S.vehicles.find(x => np.includes(normPlate(x.plate))); }
-    const dt = fcDate(g(r, 'date')); if (!dt) return;
-    const time = m.time!=null ? ((String(g(r, 'time')).match(/(\d{1,2}):(\d{2})/) || []).slice(1).map(x => pad(x)).join(':') || dt.t) : dt.t;
+    const dt = fcDate(g(r, 'date'), mdy); if (!dt) return;
+    const tv = m.time!=null ? g(r, 'time') : '';
+    const time = m.time!=null ? (tv instanceof Date && !isNaN(tv) ? (x => pad(x.getHours()) + ':' + pad(x.getMinutes()))(fcMin(tv))
+      : typeof tv==='number' && tv >= 0 && tv < 1 ? (x => pad(Math.floor(x / 60) % 24) + ':' + pad(x % 60))(Math.round(tv * 1440))
+      : ((String(tv).match(/(\d{1,2}):(\d{2})/) || []).slice(1).map(x => pad(x)).join(':') || dt.t)) : dt.t;
+    const curRaw = String(g(r, 'currency') || '').trim(), cur = fcCur(curRaw) || curs[curRaw] || null;
     const row = {plate: pRaw.trim(), vehicle: v || null, txDate: dt.d, txTime: time || null, liters: fcNum(g(r, 'liters')), amount: fcNum(g(r, 'amount')),
-      currency: (String(g(r, 'currency') || 'PLN').trim().toUpperCase().slice(0, 3)) || 'PLN', odometer: Math.round(fcNum(g(r, 'odometer')) || 0) || null,
+      currency: cur, curRaw, odometer: Math.round(fcNum(g(r, 'odometer')) || 0) || null,
       station: String(g(r, 'station') || '').trim() || null, card: String(g(r, 'card') || '').trim() || null, product: String(g(r, 'product') || '').trim() || null};
     // netto i VAT z pliku: stawka wprost, albo wyliczona z brutto/netto; netto ze stawki, gdy w pliku jej brak
     let net = fcNum(g(r, 'net')), vat = fcNum(g(r, 'vat'));
-    if (vat!=null && vat > 0 && vat < 1) vat = vat * 100;
+    if (vatIsAmt){ if ((net==null || !(net > 0)) && vat!=null && row.amount > 0) net = Math.round((row.amount - vat) * 100) / 100; vat = null; }
+    if (vat!=null && vat > 0 && vat < 1) vat = Math.round(vat * 1000) / 10;
     if (vat==null && net > 0 && row.amount > 0) vat = Math.round((row.amount / net - 1) * 100);
     if ((net==null || !(net > 0)) && vat!=null && vat >= 0 && row.amount > 0) net = Math.round(row.amount / (1 + vat / 100) * 100) / 100;
     row.amountNet = net > 0 ? Math.round(net * 100) / 100 : null; row.vatRate = vat!=null && vat >= 0 && vat <= 30 ? vat : null;
@@ -337,8 +367,28 @@ function fcRenderMap(keepScroll){
     const prods = [...new Set(allRows.map(r => r.product).filter(Boolean))];
     if (!P_.prodOff){ P_.prodOff = new Set(prods.filter(p => !FUEL_LIKE.test(p))); }
     per.forEach(x => { x.ours = x.all.filter(r => r.vehicle); x.ours.forEach(r => { r.kind = (r.product && P_.prodOff.has(r.product)) || !(Number(r.liters) > 0) ? 'other' : 'fuel'; }); });
+    // korekty (storno): wiersz z minusem kasuje swoją pozycję (to samo auto, te same litry i kwota, do 3 dni) – pomijamy obie
+    const near = (a, b) => Math.abs(Math.abs(Number(a) || 0) - Math.abs(Number(b) || 0)) < 0.015;
+    const dd = (a, b) => Math.abs(new Date(a) - new Date(b)) / 864e5;
+    const neg = r => Number(r.amount) < 0 || Number(r.liters) < 0;
+    const everyRow = per.flatMap(x => x.ours);
+    everyRow.filter(neg).forEach(n => {
+      const o = everyRow.find(p => !p.skip && !neg(p) && p.vehicle.id===n.vehicle.id && near(p.amount, n.amount) && near(p.liters, n.liters) && dd(p.txDate, n.txDate) <= 3);
+      if (o){ o.skip = n.skip = 'storno'; return; }
+      n.skip = 'minus';
+      n.old = S.fuelCardRows.find(p => p.vehicleId===n.vehicle.id && Number(p.amount) > 0 && near(p.amount, n.amount) && near(p.liters, n.liters) && dd(p.txDate, n.txDate) <= 3) || null;
+    });
+    everyRow.forEach(r => { if (r.currency==='-') r.skip = 'waluta'; });
+    per.forEach(x => { x.skipped = x.ours.filter(r => r.skip); x.ours = x.ours.filter(r => !r.skip); });
+    P_.unk = [...new Set(everyRow.filter(r => !r.currency).map(r => r.curRaw))];
     P_.per = per;
-    const ours = per.flatMap(x => x.ours), foreign = new Set(per.flatMap(x => [...x.foreign]));
+    const ours = per.flatMap(x => x.ours), foreign = new Set(per.flatMap(x => [...x.foreign])), skipped = per.flatMap(x => x.skipped);
+    const nSt = skipped.filter(r => r.skip==='storno').length / 2, minus = skipped.filter(r => r.skip==='minus'), nCur = skipped.filter(r => r.skip==='waluta').length;
+    const curOpts = ['PLN', 'EUR', 'CZK', 'USD', 'GBP', 'CHF', 'HUF', 'SEK', 'NOK', 'DKK', 'RON', 'BGN', 'UAH'];
+    const fixes = (P_.unk.length ? `<div class="warnline fc-cur"><b>Nieznana waluta w pliku – wybierz, co oznacza:</b>${P_.unk.map(u => `<label>„${esc(u)}” <select data-fccur="${esc(u)}"><option value="">— wybierz —</option>${curOpts.map(c => `<option>${c}</option>`).join('')}<option value="-">pomiń te pozycje</option></select></label>`).join('')}</div>` : '')
+      + (nSt ? `<span class="pill info">${nSt} ${isPlural(nSt, 'korekta (storno)', 'korekty (storno)', 'korekt (storno)')} – tankowanie i jego anulowanie pominięte</span>` : '')
+      + (nCur ? `<span class="pill off">${nCur} ${isPlural(nCur, 'pozycja', 'pozycje', 'pozycji')} w pominiętej walucie</span>` : '')
+      + (minus.length ? `<div class="warnline">Korekty bez pary w pliku – nie importujemy ich (sprawdź ręcznie):<ul style="margin:4px 0 0 18px;padding:0">${minus.map(r => `<li>${fdate(r.txDate)} · ${esc(r.vehicle.plate)} · ${fm(r.amount, r.currency || r.curRaw)}${r.liters ? ' · ' + fl(r.liters) : ''}${r.old ? ` – anuluje tankowanie z ${fdate(r.old.txDate)} zaimportowane wcześniej: usuń je w zestawieniu` : ''}</li>`).join('')}</ul></div>` : '');
     const nF = ours.filter(r => r.kind==='fuel').length, nO = ours.length - nF;
     const ds = ours.map(r => r.txDate).sort();
     const files = P_.files.length > 1 ? `<div class="tablewrap imp-table"><table><thead><tr><th>Plik</th><th>Okres</th><th class="r">Tankowania</th><th class="r">Inne</th></tr></thead><tbody>${per.map(x => { const d = x.ours.map(r => r.txDate).sort();
@@ -351,10 +401,11 @@ function fcRenderMap(keepScroll){
           <p class="muted small">Karty i numery spoza floty (np. prywatne, bez numeru auta) nie trafiają do kosztów transportu ani do spalania.</p>
           <div class="tablewrap"><table><thead><tr><th>Karta / numer</th><th class="r">Transakcje</th><th class="r">Litry</th><th class="r">Kwota</th></tr></thead><tbody>${Object.entries(g).sort((a, b) => b[1].a - a[1].a).map(([p, o]) => `<tr><td>${esc(p)}</td><td class="r num">${o.n}</td><td class="r num">${fl(Math.round(o.l))}</td><td class="r num">${zl(Math.round(o.a))}</td></tr>`).join('')}</tbody></table></div></details>`; })()}
       ${(() => { const ret = [...new Set(per.flatMap(x => x.ours.filter(r => r.vehicle.status==='wycofany').map(r => r.vehicle.plate)))]; return ret.length ? `<span class="warnline">Tankowania aut wycofanych z floty: ${esc(ret.join(', '))} – sprawdź, czy to na pewno koszt transportu.</span>` : ''; })()}
+      ${fixes}
       ${P_.failed.length ? `<span class="warnline">Nie udało się odczytać: ${esc(P_.failed.join(', '))}</span>` : ''}
       ${prods.length > 1 ? `<div class="fc-prods"><span class="label">Zaznaczone = paliwo (porównanie z kierowcami). Pozostałe trafią do „Przejazdy i parkingi” i do kosztów auta</span>${prods.map(p => `<label class="check"><input type="checkbox" data-fcprod value="${esc(p)}" ${P_.prodOff.has(p) ? '' : 'checked'}> ${esc(p)}</label>`).join('')}</div>` : ''}
       ${files || `<div class="tablewrap imp-table"><table><thead><tr><th>Data</th><th>Auto</th><th class="r">Litry</th><th class="r">Kwota</th><th class="r">Licznik</th></tr></thead><tbody>
-      ${ours.slice(0, 8).map(r => `<tr><td class="num">${fdate(r.txDate)} ${esc(r.txTime || '')}</td><td>${plate(r.vehicle.plate)}</td><td class="r num">${fl(r.liters)}</td><td class="r num">${fm(r.amount, r.currency)}</td><td class="r num">${r.kind==='fuel' ? (r.odometer ? km(r.odometer) : '—') : `<span class="pill info">${esc(r.product || 'inne')}</span>`}</td></tr>`).join('')}
+      ${ours.slice(0, 8).map(r => `<tr><td class="num">${fdate(r.txDate)} ${esc(r.txTime || '')}</td><td>${plate(r.vehicle.plate)}</td><td class="r num">${fl(r.liters)}</td><td class="r num">${fm(r.amount, r.currency || r.curRaw)}</td><td class="r num">${r.kind==='fuel' ? (r.odometer ? km(r.odometer) : '—') : `<span class="pill info">${esc(r.product || 'inne')}</span>`}</td></tr>`).join('')}
       </tbody></table></div>${ours.length > 8 ? `<span class="sub muted">…i ${ours.length - 8} kolejnych</span>` : ''}`}`;
   } else { P_.per = null; sum = `<span class="warnline">Wskaż kolumny: ${esc([...new Set(miss)].join(', '))}.</span>`; }
   const y = $('#dlg-body').scrollTop;
@@ -365,6 +416,7 @@ async function fcSave(){
   const warn = msg => { const w = $('#dlg-warn'); w.textContent = msg; w.hidden = false; };
   if (!fcParsed) return warn('Wybierz plik z zestawieniem transakcji.');
   if (!fcParsed.per) return warn('Wskaż wszystkie wymagane kolumny.');
+  if ((fcParsed.unk || []).length) return warn('Wybierz, co oznacza nieznana waluta w pliku (albo pomiń te pozycje).');
   const key = (vid, r) => [vid, r.txDate, r.txTime || '', Number(r.liters), Number(r.amount), r.product || ''].join('|');
   const exist = new Set(S.fuelCardRows.map(r => key(r.vehicleId, r)));
   const jobs = fcParsed.per.map(x => { const fresh = x.ours.filter(r => { const k = key(r.vehicle.id, r); if (exist.has(k)) return false; exist.add(k); return true; }); return {...x, fresh}; }).filter(x => x.fresh.length);

@@ -23,6 +23,15 @@ function normFuel(s){
   if (/benz|pb|tsi|petrol/.test(t)) return 'Benzyna';
   return '';
 }
+/* Przebieg z pliku: „186 200”, „186.200”, „186 200,5”, 186200.7 → 186200 / 186201 (ułamek to nie kolejne cyfry) */
+function impKm(v){
+  if (typeof v==='number') return Number.isFinite(v) && v > 0 ? Math.round(v) : null;
+  let s = String(v || '').replace(/[\s\u00a0]/g, '').replace(/km$/i, '');
+  if (!s) return null;
+  if (/^\d{1,3}([.,]\d{3})+$/.test(s)) s = s.replace(/[.,]/g, '');          // separatory tysięcy
+  else s = s.replace(',', '.');                                              // przecinek dziesiętny
+  const n = Number(s); return Number.isFinite(n) && n > 0 ? Math.round(n) : null;
+}
 function prettyPlate(p){
   const s = normPlate(p);
   const m = s.match(/^([A-Z]{2,3})([A-Z0-9]{4,5})$/);
@@ -53,7 +62,7 @@ async function readImportFile(e){
   let X; try { X = await loadXLSX(); } catch(_){ box.innerHTML = '<span class="warnline">Nie udało się wczytać modułu Excel.</span>'; return; }
   try {
     const wb = X.read(await f.arrayBuffer(), {type:'array'});
-    const raw = X.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {defval:''});
+    const raw = X.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {defval:'', raw:true});
     if (!raw.length){ box.innerHTML = '<span class="warnline">Plik nie zawiera wierszy z danymi.</span>'; return; }
     const heads = Object.keys(raw[0]);
     const map = {};
@@ -64,10 +73,11 @@ async function readImportFile(e){
     importRows = raw.map(r => {
       const g = k => map[k] ? String(r[map[k]]).trim() : '';
       const plate = prettyPlate(g('plate'));
-      const row = {plate, make:g('make'), model:g('model'), year: Number(g('year'))||null, vin:g('vin').toUpperCase(), km: Number(String(g('km')).replace(/[^\d]/g,''))||null, fuel: normFuel(g('fuel')), notes:g('notes')};
+      const row = {plate, make:g('make'), model:g('model'), year: Number(g('year'))||null, vin:g('vin').toUpperCase(), km: impKm(map.km ? r[map.km] : ''), fuel: normFuel(g('fuel')), notes:g('notes')};
       const key = normPlate(plate);
       row.state = !key ? 'skip' : seen.has(key) ? 'dup' : existing.has(key) ? 'update' : 'new';
       row.existing = existing.get(key) || null;
+      if (row.state==='update' && row.km && Number(row.existing.km) > row.km) row.kmLower = true;   // nie cofamy przebiegu auta
       seen.add(key);
       return row;
     }).filter(r => r.state!=='skip');
@@ -76,7 +86,7 @@ async function readImportFile(e){
     box.innerHTML = `<div class="imp-sum"><span class="pill ok">${n('new')} nowych</span><span class="pill info">${n('update')} już w ewidencji</span>${n('dup')?`<span class="pill warn">${n('dup')} powtórzonych w pliku – pominięte</span>`:''}</div>
       ${miss.length ? `<span class="sub muted">Brak kolumn: ${miss.map(k => IMPORT_COLS[k][0]).join(', ')} – te pola zostaną puste.</span>` : ''}
       <div class="tablewrap imp-table"><table><thead><tr><th>Rejestracja</th><th>Pojazd</th><th class="r">Przebieg</th><th>Napęd</th><th></th></tr></thead><tbody>
-      ${importRows.slice(0,50).map(r => `<tr><td>${plate(r.plate)}</td><td>${esc([r.make,r.model,r.year].filter(Boolean).join(' '))}</td><td class="r num">${km(r.km)}</td><td>${esc(r.fuel||'—')}</td><td>${r.state==='new'?'<span class="pill ok">nowy</span>':r.state==='update'?'<span class="pill info">aktualizacja</span>':'<span class="pill warn">pominięty</span>'}</td></tr>`).join('')}
+      ${importRows.slice(0,50).map(r => `<tr><td>${plate(r.plate)}</td><td>${esc([r.make,r.model,r.year].filter(Boolean).join(' '))}</td><td class="r num">${km(r.km)}${r.kmLower ? ` <span class="pill off" title="W systemie jest ${esc(km(r.existing.km))} – przebiegu nie zmniejszamy">niższy – bez zmiany</span>` : ''}</td><td>${esc(r.fuel||'—')}</td><td>${r.state==='new'?'<span class="pill ok">nowy</span>':r.state==='update'?'<span class="pill info">aktualizacja</span>':'<span class="pill warn">pominięty</span>'}</td></tr>`).join('')}
       </tbody></table></div>${importRows.length>50?`<span class="sub muted">…i ${importRows.length-50} kolejnych</span>`:''}`;
   } catch(_){ box.innerHTML = '<span class="warnline">Nie udało się odczytać pliku. Zapisz go jako .xlsx lub .csv i spróbuj ponownie.</span>'; importRows = []; }
 }
@@ -91,7 +101,7 @@ async function runImport(){
   try {
     for (const r of todo){
       btn.textContent = `Importowanie ${++done}/${todo.length}…`;
-      const fields = Object.fromEntries(['plate','make','model','year','vin','km','fuel','notes'].map(k => [k, r[k]]).filter(([,v]) => v!=='' && v!==null));
+      const fields = Object.fromEntries(['plate','make','model','year','vin','km','fuel','notes'].map(k => [k, r[k]]).filter(([k, v]) => v!=='' && v!==null && !(k==='km' && r.kmLower)));
       const meta = {updatedAt: new Date().toISOString()}; if (myId) meta.updatedBy = myId;
       if (r.state==='update') await db.collection('vehicles').doc(r.existing.id).update({...fields, ...meta});
       else await db.collection('vehicles').doc().set({status:'aktywny', fuel:'Diesel', ...fields, ...meta, ...(myId?{createdBy:myId}:{})});
