@@ -37,6 +37,7 @@ function renew(id){
   const d = byId('deadlines', id); if (!d) return;
   if (typeof openWarrantyDone==='function' && d.type==='Przegląd gwarancyjny' && canCreate('serviceEntries')) return openWarrantyDone(d.vehicleId);
   if (typeof openWarranty==='function' && d.type==='Koniec gwarancji') return openWarranty(d.vehicleId);
+  if (d.type==='Ubezpieczenie OC') return openPolicyRenew(id);
   const def = DL_INTERVALS[d.type] || [12,null];
   const kmOnly = isKmDl(d), months = kmOnly ? null : Number(d.intervalMonths) || def[0] || 12;
   const kmStep = Number(d.intervalKm) || (d.kmDue || kmOnly ? def[1] : null);
@@ -57,6 +58,44 @@ function renew(id){
     dlDoneUi();
     if (dk){ dk.focus(); dk.select(); }
   },30);
+}
+/* Odnowienie OC: tylko dane nowej polisy (towarzystwo, numer, ważna do, składka, assistance).
+   Zapis w danych auta – baza (017) sama przestawia termin „Ubezpieczenie OC” i notatkę. Składka → koszt „Ubezpieczenie”. */
+function openPolicyRenew(id){
+  const d = byId('deadlines', id), v = d && byId('vehicles', d.vehicleId); if (!d || !v) return;
+  const val = x => x==null ? '' : esc(String(x));
+  editing = {col:'policy-renew', id, base:{}, special: () => savePolicyRenew(id)};
+  $('#dialog').classList.remove('dlg-wide');
+  $('#dlg-title').textContent = `Nowa polisa OC · ${v.plate}`;
+  $('#dlg-body').innerHTML = `
+    <p class="muted small field full" style="margin:0">Obecna polisa: ${esc([v.insurer, v.policyNo].filter(Boolean).join(' · ') || d.note || 'brak danych')} – ważna do ${fdate(d.date)}.</p>
+    <label class="field"><span class="label">Towarzystwo *</span><input id="pr-ins" value="${val(v.insurer)}" placeholder="np. Generali"></label>
+    <label class="field"><span class="label">Numer nowej polisy *</span><input id="pr-no" placeholder="${v.policyNo ? 'poprzednia: ' + val(v.policyNo) : 'np. 50018290257'}"></label>
+    <label class="field"><span class="label">Ważna do *</span><input id="pr-to" type="date" value="${d.date ? addMonths(d.date, 12) : addMonths(today(), 12)}"></label>
+    <label class="field"><span class="label">Składka brutto (zł)</span><input id="pr-cost" inputmode="decimal" placeholder="doda się do kosztów"></label>
+    <label class="field full"><span class="label">Telefon assistance</span><input id="pr-tel" type="tel" value="${val(v.assistancePhone)}"></label>
+    <div class="warnline" id="dlg-warn" hidden></div>`;
+  $('#dlg-save').textContent = 'Zapisz polisę'; $('#dlg-del').hidden = true; $('#scrim').hidden = false;
+  setTimeout(() => $('#pr-no')?.focus(), 40);
+}
+async function savePolicyRenew(id){
+  const d = byId('deadlines', id), v = d && byId('vehicles', d.vehicleId), warn = $('#dlg-warn'); if (!v) return;
+  const fail = t => { warn.textContent = t; warn.hidden = false; }; warn.hidden = true;
+  const ins = $('#pr-ins').value.trim(), no = $('#pr-no').value.trim(), to = $('#pr-to').value, tel = $('#pr-tel').value.trim();
+  const cost = Number(String($('#pr-cost').value).replace(',', '.')) || 0;
+  if (!ins) return fail('Podaj towarzystwo.');
+  if (!no) return fail('Podaj numer nowej polisy.');
+  if (!to) return fail('Podaj, do kiedy polisa jest ważna.');
+  if (to <= today()) return fail('Data „ważna do” musi być w przyszłości.');
+  const btn = $('#dlg-save'); btn.disabled = true;
+  try {
+    if (canEditDoc('vehicles', v)) await db.collection('vehicles').doc(v.id).update({insurer: ins, policyNo: no, policyUntil: to, assistancePhone: tel || null});
+    else await db.collection('deadlines').doc(id).update({date: to, note: [ins, no].join(' · ')});
+    if (cost > 0) await db.collection('costs').doc().set({date: today(), vehicleId: v.id, category: 'Ubezpieczenie', amount: cost, currency: 'PLN', note: `Polisa OC ${ins} ${no}`.slice(0, 500)});
+    await Promise.all(['vehicles', 'deadlines', 'costs'].map(c => typeof refresh==='function' ? refresh(c) : null));
+    closeForm(); toast(`Zapisano polisę – OC ważne do ${fdate(to)}`);
+  } catch(err){ handleWriteErr(err); }
+  finally { btn.disabled = false; }
 }
 /* Formularz terminu: „ostatnio wykonano” (km, data) + cykl → następny termin liczy się sam (można go poprawić ręcznie) */
 function dlDoneUi(e){
