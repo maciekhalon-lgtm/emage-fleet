@@ -556,6 +556,11 @@ Deno.serve(async (req) => {
     return json({event: true, users: out.length, report: out});
   }
 
+  // co godzinę (harmonogram emage-fleet-gps): tylko przebiegi z lokalizatorów, bez powiadomień
+  if (isCron && body && body.mode === 'gps'){
+    if (!key('GEOTAB_DATABASE')) return json({gps: 'brak sekretów Geotab'});
+    return json({gps: await geotabSync(sb, key, 2)});
+  }
   const gpsReq = !!(testUser && body && body.geotabSync);
   if (gpsReq){
     const {data: me} = await sb.from('profiles').select('role, status').eq('id', testUser).maybeSingle();
