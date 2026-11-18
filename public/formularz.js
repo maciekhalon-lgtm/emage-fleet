@@ -528,8 +528,8 @@ $('#dialog').addEventListener('click', e => {
   editing.base = {...editing.base, photos: (editing.base.photos||[]).filter(p => p !== rm.dataset.rmphoto)};
   rm.closest('.thumb-edit').remove();
 });
-$('#scrim').addEventListener('click', e => { if (e.target.id==='scrim' || e.target.closest('[data-action="close"]')) closeForm(); });
-document.addEventListener('keydown', e => { if (e.key==='Escape' && !$('#scrim').hidden) closeForm(); });
+/* Okno zamyka się tylko krzyżykiem albo „Anuluj” – kliknięcie obok ani Esc nie kasują wpisanych danych */
+$('#scrim').addEventListener('click', e => { if (e.target.closest('[data-action="close"]')) closeForm(); });
 
 
 /* Nowy przydział: po wyborze kierowcy podpowiadamy jego auto (odpowiedzialny albo ostatnio jeżdżone, jeśli wolne) i ostatnią trasę */
