@@ -50,7 +50,7 @@ function fcSuspicious(){
   const byM = {}; pln.forEach(r => (byM[r.txDate.slice(0, 7)] = byM[r.txDate.slice(0, 7)] || []).push(Number(r.amount) / Number(r.liters)));
   const med = {}; Object.entries(byM).forEach(([m, a]) => { a.sort((x, y) => x - y); med[m] = a[Math.floor(a.length / 2)]; });
   pln.forEach(r => { const pr = Number(r.amount) / Number(r.liters), m = med[r.txDate.slice(0, 7)];
-    if (m && byM[r.txDate.slice(0, 7)].length >= 10 && pr > m * 1.15) add(r, `Cena ${pr.toFixed(2).replace('.', ',')} zł/l – mediana ${m.toFixed(2).replace('.', ',')}`, 'warn'); });
+    if (m && byM[r.txDate.slice(0, 7)].length >= 10 && pr > m * 1.15) add(r, `Cena ${(pr / 1.23).toFixed(2).replace('.', ',')} zł/l netto – mediana ${(m / 1.23).toFixed(2).replace('.', ',')} netto`, 'warn'); });
   // poza grafikiem – tylko dla aut, dla których grafik w tym tygodniu jest prowadzony
   rows.forEach(r => {
     const bs = S.bookings.filter(b => b.vehicleId===r.vehicleId);
@@ -128,10 +128,10 @@ function fuelPricePanel(){
   const st = {}; rows.forEach(r => { const k = (r.station || '').trim(); if (!k) return; (st[k] = st[k] || {l:0, a:0, n:0}); st[k].l += +r.liters; st[k].a += +r.amount; st[k].n++; });
   const all = rows.reduce((s, r) => s + +r.amount, 0) / rows.reduce((s, r) => s + +r.liters, 0);
   const sl = Object.entries(st).filter(([, x]) => x.n >= 5).map(([k, x]) => ({k, p: x.a / x.l, n: x.n, l: x.l})).sort((a, b) => b.p - a.p);
-  const f2 = x => x.toFixed(2).replace('.', ',');
+  const f2 = x => (x / 1.23).toFixed(2).replace('.', ',');   // ceny pokazujemy netto (bez 23% VAT)
   const stRow = x => `<div class="mini"><span>${esc(x.k)}</span><span class="muted small">${x.n} tank. · ${fl(x.l)}</span><span class="mini-r num"><b class="${x.p > all * 1.03 ? 'neg' : x.p < all * 0.98 ? 'pos' : ''}">${f2(x.p)} zł/l</b></span></div>`;
-  return `<details class="panel fold"><summary class="sec-head"><h3>Cena paliwa</h3><span class="muted small">średnio ${f2(all)} zł/l</span></summary>
+  return `<details class="panel fold"><summary class="sec-head"><h3>Cena paliwa</h3><span class="muted small">średnio ${f2(all)} zł/l netto</span></summary>
     <div class="fp-ch">${ms.map(m => `<div class="fp-c"><b class="num">${f2(pr(m))}</b><div class="fp-b" style="height:${Math.round((pr(m) - lo) / Math.max(0.01, hi - lo) * 100)}%"></div><span>${MN[+m.slice(5) - 1]}</span></div>`).join('')}</div>
     ${sl.length >= 4 ? `<div class="grid2 fp-st"><div><span class="label">Najdroższe stacje</span>${sl.slice(0, Math.min(5, Math.floor(sl.length / 2))).map(stRow).join('')}</div><div><span class="label">Najtańsze stacje</span>${sl.slice(-Math.min(5, Math.floor(sl.length / 2))).reverse().map(stRow).join('')}</div></div>
-      <p class="muted small sec-empty">Kwoty brutto z kart, tylko stacje z co najmniej 5 tankowaniami. Warto podpowiedzieć kierowcom tańsze stacje na trasach.</p>` : ''}</details>`;
+      <p class="muted small sec-empty">Ceny netto (z kart, bez 23% VAT), tylko stacje z co najmniej 5 tankowaniami. Warto podpowiedzieć kierowcom tańsze stacje na trasach.</p>` : ''}</details>`;
 }

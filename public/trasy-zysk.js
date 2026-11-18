@@ -25,7 +25,7 @@ function rtKmCost(m){
   const [a] = setlRange(ms[2]), [, b] = setlRange(ms[0]);
   (S.fuelCardRows || []).forEach(r => { if (r.kind!=='other' && r.txDate >= a && r.txDate <= b && (!r.currency || r.currency==='PLN') && Number(r.liters) > 0 && Number(r.amount) > 0){ fuelZl += Number(r.amount); fuelL += Number(r.liters); } });
   let ck = 0, cl = 0; S.vehicles.filter(v => v.status!=='wycofany').forEach(v => { const c = consRange(v.id, a, b); if (c && c.rate!=null && !c.unsure){ ck += c.km; cl += c.l; } });
-  const lp100 = ck ? cl / ck * 100 : 10, price = fuelL ? fuelZl / fuelL : 6.5;
+  const lp100 = ck ? cl / ck * 100 : 10, price = (fuelL ? fuelZl / fuelL : 6.5) / 1.23;   // netto (trasy fakturujemy netto)
   const fuelKm = lp100 / 100 * price, otherKm = km_ ? other / km_ : 0;
   return {lp100, price, fuelKm, otherKm, total: fuelKm + otherKm, from: a, to: b};
 }
@@ -65,7 +65,7 @@ function viewRouteProfit(){
     <div><span class="label">Zysk z tras</span><b class="${R.tot.profit!=null && R.tot.profit < 0 ? 'neg' : ''}">${zlr(R.tot.profit)}</b></div>
     <div><span class="label">Kursy / km</span><b>${R.tot.trips} · ${nfk(R.tot.km)} km</b></div>
     <div><span class="label">Dodatkowe km (np. do domu)</span><b>${nfk(R.tot.extraKm)} km · ${zlr(R.tot.extraCost)}</b></div>
-    <div><span class="label">Koszt 1 km auta</span><b>${zlk(k.total)}</b><span class="sub muted small">paliwo ${zlk(k.fuelKm)} (${r1(k.lp100)} l/100 × ${zlk(k.price)}) + reszta ${zlk(k.otherKm)}</span></div></div>`;
+    <div><span class="label">Koszt 1 km auta</span><b>${zlk(k.total)}</b><span class="sub muted small">paliwo ${zlk(k.fuelKm)} (${r1(k.lp100)} l/100 × ${zlk(k.price)} netto) + reszta ${zlk(k.otherKm)}</span></div></div>`;
   // wynik miesiąca
   const res = `<div class="panel"><div class="sec-head"><h3>Wynik tras – ${esc(monthName(rtMonth))}</h3><span class="muted small">od najsłabszej</span></div><div class="tablewrap"><table><thead><tr><th>Trasa</th><th class="r">Kursy</th><th class="r">Km</th><th class="r">Dodatk. km</th><th class="r">Przychód</th><th class="r">Koszt auta</th><th class="r">Koszty trasy</th><th class="r">Kierowca</th><th class="r">Zysk</th><th class="r">Na kurs</th><th class="r">Marża</th></tr></thead><tbody>
     ${R.rows.slice().sort((a, b) => (a.profit==null) - (b.profit==null) || (a.perTrip ?? 0) - (b.perTrip ?? 0)).map(x => `<tr><td><b>${esc(x.r.code)}</b> ${esc(x.r.name)}${!x.set ? '<span class="sub muted">brak stawki – uzupełnij niżej</span>' : ''}</td>
