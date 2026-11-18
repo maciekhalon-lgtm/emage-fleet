@@ -1796,3 +1796,8 @@ html[data-env="test"] body{padding-top:20px}
 @media (pointer:coarse), (max-width:640px){
   input[type=checkbox], input[type=radio], .check input[type="checkbox"]{width:24px;height:24px;min-width:24px;flex:0 0 24px}
 }
+
+/* Pojazdy → Ranking */
+.rk2-tbl th.click{cursor:pointer;user-select:none;white-space:nowrap}
+.rk2-tbl tr.rk-top td:first-child{box-shadow:inset 3px 0 0 var(--ok)}
+.rk2-tbl tr.rk-low td:first-child{box-shadow:inset 3px 0 0 var(--bad)}

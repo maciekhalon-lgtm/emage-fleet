@@ -6,7 +6,7 @@
 'use strict';
 let notifSeen = null, notifFilter = 'all', notifSeenLoaded = false;
 const notifOn = () => !!(P().manage || P().service) && typeof optOn==='function' && optOn('events');
-const NOTIF_KIND = {zdanie: ['Zdanie auta', 'truck'], tankowanie: ['Tankowanie', 'fuel'], usterka: ['Usterka', 'alert']};
+const NOTIF_KIND = {zdanie: ['Zdanie auta', 'truck'], tankowanie: ['Tankowanie', 'fuel'], usterka: ['Usterka', 'alert'], karta: ['Kontrola karty paliwowej', 'fuel']};
 const notifList = () => (S.events || []).filter(e => P().manage || e.kind==='usterka').slice().sort((a, b) => String(b.at).localeCompare(String(a.at)));
 async function notifLoadSeen(){
   if (notifSeenLoaded || !sb || !myId) return; notifSeenLoaded = true;
@@ -26,7 +26,7 @@ function notifRowGo(e){
 function notifHtml(){
   const all = notifList(), seen = String(notifSeen || '');
   const xs = all.filter(e => notifFilter==='all' || e.kind===notifFilter);
-  const kinds = P().manage ? [['all', 'Wszystkie'], ['zdanie', 'Zdania aut'], ['tankowanie', 'Tankowania'], ['usterka', 'Usterki']] : [['usterka', 'Usterki']];
+  const kinds = P().manage ? [['all', 'Wszystkie'], ['zdanie', 'Zdania aut'], ['tankowanie', 'Tankowania'], ['karta', 'Karty paliwowe'], ['usterka', 'Usterki']] : [['usterka', 'Usterki']];
   const tm = ts => { const d = new Date(ts), day = new Intl.DateTimeFormat('sv-SE', {timeZone: 'Europe/Warsaw'}).format(d);
     return (day===today() ? 'dziś' : day===addDays(today(), -1) ? 'wczoraj' : fdate(day)) + ' ' + d.toLocaleTimeString('pl-PL', {hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Warsaw'}); };
   return `<div class="field full nt-head"><div class="seg">${kinds.map(([k, l]) => `<button type="button" class="small ${notifFilter===k || kinds.length===1 ? 'on' : ''}" data-nt-f="${k}">${l}</button>`).join('')}</div>
