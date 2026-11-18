@@ -1806,3 +1806,9 @@ html[data-env="test"] body{padding-top:20px}
 .sch-free .sch-freec[data-free-day]:hover{background:var(--raised)}
 .fill-seg{display:flex;width:100%}
 .fill-seg button{flex:1;padding:12px 10px;font-size:15px}
+/* Zlecenie: dodatkowe prace */
+.wo-extras{margin-top:10px;display:flex;flex-direction:column;gap:6px}
+.wo-ex-list{display:flex;flex-wrap:wrap;gap:4px 14px}
+.wo-ex-list .check{font-size:13.5px}
+#dlg-body .wo-sum{grid-template-columns:minmax(0,1fr);padding:4px 0 0}
+#dlg-body .wo-sum>div{border:1px solid var(--line);border-radius:12px;padding:12px 14px}

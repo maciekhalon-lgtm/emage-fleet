@@ -8,6 +8,22 @@
 'use strict';
 const WO_SOON_DAYS = 30, WO_SOON_KM = 2000, WO_OWN = 'EMAGE SERWIS';   // własny warsztat – domyślny na zleceniu
 const WO_KIND = {usterka: 'usterka', olej: 'wymiana oleju', rozrzad: 'wymiana rozrządu', inne: 'informacja serwisowa'};
+/* Dodatkowe prace do zaznaczenia przy zleceniu i przy zakończeniu naprawy */
+const WO_EXTRAS = [['olej', 'Wymiana oleju i filtra oleju'], ['inne', 'Filtr powietrza'], ['inne', 'Filtr paliwa'], ['inne', 'Filtr kabinowy'], ['inne', 'Klocki hamulcowe przód'], ['inne', 'Klocki hamulcowe tył'],
+  ['inne', 'Tarcze hamulcowe'], ['inne', 'Płyn hamulcowy'], ['inne', 'Płyn chłodniczy'], ['inne', 'Pasek osprzętu'], ['inne', 'Akumulator'], ['inne', 'Geometria kół']];
+/* checkboxy dodatkowych prac dla auta (pomija to, co już jest na zleceniu) */
+function woExtrasHtml(pre, vid, have){
+  const has = t => have.some(h => normTxt(h)===normTxt(t)) || (t.startsWith('Wymiana oleju') && have.some(h => /olej/i.test(h)));
+  return `<div class="wo-extras"><span class="label">${pre==='wm' ? 'Dodatkowo do wykonania' : 'Wykonano dodatkowo'}</span><div class="wo-ex-list">${WO_EXTRAS.map(([k, t], i) => has(t) ? '' :
+    `<label class="check small"><input type="checkbox" data-wo-ex="${pre}-${esc(vid)}" data-kind="${k}" value="${esc(t)}"> ${esc(t)}</label>`).join('')}</div>
+    <input data-wo-ex-txt="${pre}-${esc(vid)}" placeholder="Inne – wpisz, np. wymiana amortyzatorów (kilka po przecinku)"></div>`;
+}
+function woExtrasOf(pre, vid){
+  const xs = [...document.querySelectorAll(`[data-wo-ex="${pre}-${vid}"]:checked`)].map(i => ({kind: i.dataset.kind, title: i.value}));
+  const txt = ($(`[data-wo-ex-txt="${pre}-${vid}"]`) || {}).value || '';
+  txt.split(/[,;]+/).map(s => s.trim()).filter(Boolean).forEach(t => xs.push({kind: /olej/i.test(t) ? 'olej' : 'inne', title: t.slice(0, 200)}));
+  return xs;
+}
 const SVC_TYPES = [['rozrzad', 'Wymiana rozrządu'], ['olej', 'Wymiana oleju'], ['inne', 'Inne (wpisz)']];
 const woOn = () => typeof optOn==='function' && optOn('workOrders') && optOn('woItems') && (P().manage || P().service);
 const woStaff = () => !!(P().manage || P().service);
@@ -104,7 +120,8 @@ function openWoMake(keys){
     try {
       const id = newId();
       const {error} = await sb.from('work_orders').insert({id, workshop_id: wsObj ? wsObj.id : null, workshop: wsName, date, note: note || null}); if (error) throw dbErr(error);
-      const rows = xs.map(x => ({order_id: id, vehicle_id: x.vid, issue_id: x.issue ? x.issue.id : null, deadline_id: x.deadline ? x.deadline.id : null, kind: x.kind, title: String(x.title).slice(0, 200)}));
+      const rows = xs.map(x => ({order_id: id, vehicle_id: x.vid, issue_id: x.issue ? x.issue.id : null, deadline_id: x.deadline ? x.deadline.id : null, kind: x.kind, title: String(x.title).slice(0, 200), status: 'zlecone'}));
+      Object.keys(byV).forEach(vid => woExtrasOf('wm', vid).forEach(e => rows.push({order_id: id, vehicle_id: vid, issue_id: null, deadline_id: null, kind: e.kind, title: e.title, status: 'zlecone'})));
       const r2 = await sb.from('work_order_items').insert(rows); if (r2.error) throw dbErr(r2.error);
       xs.forEach(x => woPicked.delete(x.key));
       await Promise.all(['workOrders', 'woItems', 'issues'].map(c => refresh(c)));
@@ -120,7 +137,7 @@ function openWoMake(keys){
     <div class="field"><label for="wo-date">Data oddania auta *</label><input id="wo-date" type="date" value="${addDays(today(), 1)}"></div>
     <div class="field full"><label for="wo-note">Uwagi do warsztatu</label><textarea id="wo-note" placeholder="np. proszę o kontakt przed wymianą części powyżej 1000 zł"></textarea></div>
     <div class="field full"><span class="label">Na zleceniu (${xs.length} ${isPlural(xs.length, 'pozycja', 'pozycje', 'pozycji')}, ${Object.keys(byV).length} ${isPlural(Object.keys(byV).length, 'auto', 'auta', 'aut')})</span>
-      <div class="wo-sum">${Object.entries(byV).map(([vid, ys]) => `<div>${vPlate(vid)}<ul>${ys.map(x => `<li><b>${esc(x.title)}</b>${woItemInfo({kind: x.kind, issueId: x.issue && x.issue.id, deadlineId: x.deadline && x.deadline.id}).map(t => `<span class="sub pre">${esc(t)}</span>`).join('')}</li>`).join('')}</ul></div>`).join('')}</div></div>
+      <div class="wo-sum">${Object.entries(byV).map(([vid, ys]) => `<div>${vPlate(vid)}<ul>${ys.map(x => `<li><b>${esc(x.title)}</b>${woItemInfo({kind: x.kind, issueId: x.issue && x.issue.id, deadlineId: x.deadline && x.deadline.id}).map(t => `<span class="sub pre">${esc(t)}</span>`).join('')}</li>`).join('')}</ul>${woExtrasHtml('wm', vid, ys.map(x => x.title))}</div>`).join('')}</div></div>
     <p class="muted small field full">Po zapisaniu otworzy się wydruk (albo zapis do PDF) – każde auto na osobnej kartce.</p>
     <div class="warnline" id="dlg-warn" hidden></div>`;
   $('#wo-ws').addEventListener('change', e => { $('#wo-ws-txt').hidden = !!e.target.value; });
@@ -162,7 +179,7 @@ function woItemInfo(x){
     const sk = d.kmDue ? svcKm(d.vehicleId) : null;
     out.push([WO_KIND[x.kind] || '', d.kmDue ? 'termin przy ' + km(d.kmDue) + (sk && sk.km ? ` (teraz ${km(sk.km)})` : '') : '', d.date ? 'do ' + fdate(d.date) : '', d.lastDoneKm ? 'ostatnio przy ' + km(d.lastDoneKm) : ''].filter(Boolean).join(' · '));
     if (d.note) out.push(d.note);
-  } else out.push(WO_KIND[x.kind] || '');
+  } else out.push(x.kind==='olej' ? 'wymiana oleju' : x.kind==='rozrzad' ? WO_KIND.rozrzad : 'dodatkowa praca');
   return out.filter(Boolean);
 }
 
@@ -207,21 +224,24 @@ function openWoFinish(id){
       const plateV = (byId('vehicles', vid) || {}).plate || '';
       if (done.length && !(kmV > 0)){ w.textContent = `${plateV}: wpisz przebieg przy naprawie.`; w.hidden = false; $(`#wf-km-${vid}`).focus(); return; }
       if (isNaN(cost) || cost < 0){ w.textContent = `${plateV}: koszt musi być liczbą.`; w.hidden = false; return; }
-      plan.push({vid, done, rest: byV[vid].filter(x => !done.includes(x)), km: kmV, cost, extra: $(`#wf-desc-${vid}`).value.trim(), file: ($(`#wf-file-${vid}`).files || [])[0] || null});
+      const ex = woExtrasOf('wf', vid);
+      if (ex.length && !(kmV > 0)){ w.textContent = `${plateV}: wpisz przebieg przy naprawie.`; w.hidden = false; $(`#wf-km-${vid}`).focus(); return; }
+      plan.push({vid, done, ex, rest: byV[vid].filter(x => !done.includes(x)), km: kmV, cost, extra: $(`#wf-desc-${vid}`).value.trim(), file: ($(`#wf-file-${vid}`).files || [])[0] || null});
     }
     const btn = $('#dlg-save'); btn.disabled = true;
     try {
       for (const p of plan){
         let entryId = null;
-        if (p.done.length){
+        if (p.done.length || p.ex.length){
           const row = {vehicle_id: p.vid, date, km: p.km, workshop: o.workshop || null, cost: p.cost || null,
-            description: (p.done.map(x => x.title).join('; ') + (p.extra ? ' – ' + p.extra : '')).slice(0, 500), note: o.no ? 'Zlecenie ' + o.no : null,
-            oil_change: p.done.some(x => x.kind==='olej'), timing_change: p.done.some(x => x.kind==='rozrzad'),
+            description: ([...p.done, ...p.ex].map(x => x.title).join('; ') + (p.extra ? ' – ' + p.extra : '')).slice(0, 500), note: o.no ? 'Zlecenie ' + o.no : null,
+            oil_change: [...p.done, ...p.ex].some(x => x.kind==='olej'), timing_change: p.done.some(x => x.kind==='rozrzad'),
             issue_ids: p.done.map(x => x.issueId).filter(Boolean)};
           if (p.file){ const up = await uploadDocFile(p.file); Object.assign(row, {storage_path: up.id, file_name: p.file.name, content_type: up.contentType}); }
           const r = await sb.from('service_entries').insert(row).select('id').single(); if (r.error) throw dbErr(r.error);
           entryId = r.data.id;
-          const u = await sb.from('work_order_items').update({status: 'zrobione', service_entry_id: entryId}).in('id', p.done.map(x => x.id)); if (u.error) throw dbErr(u.error);
+          if (p.done.length){ const u = await sb.from('work_order_items').update({status: 'zrobione', service_entry_id: entryId}).in('id', p.done.map(x => x.id)); if (u.error) throw dbErr(u.error); }
+          if (p.ex.length){ const u = await sb.from('work_order_items').insert(p.ex.map(e => ({order_id: id, vehicle_id: p.vid, kind: e.kind, title: e.title, status: 'zrobione', service_entry_id: entryId}))); if (u.error) throw dbErr(u.error); }
         }
         if (p.rest.length){ const u = await sb.from('work_order_items').update({status: 'niezrobione'}).in('id', p.rest.map(x => x.id)); if (u.error) throw dbErr(u.error); }
       }
@@ -237,11 +257,12 @@ function openWoFinish(id){
     ${vids.map(vid => { const v = byId('vehicles', vid) || {}, sk = svcKm(vid);
       return `<fieldset class="field full wf-veh"><legend>${plate(v.plate || '?')} <span class="muted small">${esc([v.make, v.model].filter(Boolean).join(' '))}</span></legend>
         <div class="wf-items">${byV[vid].map(x => `<label class="check"><input type="checkbox" id="wf-x-${esc(x.id)}" checked> <span><b>${esc(x.title)}</b>${woItemInfo(x).map(t => `<span class="sub pre">${esc(t)}</span>`).join('')}</span></label>`).join('')}</div>
+        ${woExtrasHtml('wf', vid, byV[vid].map(x => x.title))}
         <div class="wf-grid"><div><label for="wf-km-${esc(vid)}">Przebieg (km) *</label><input id="wf-km-${esc(vid)}" type="text" inputmode="numeric" value="${sk.km ? Math.round(sk.km) : ''}"></div>
           <div><label for="wf-cost-${esc(vid)}">Koszt netto (zł)</label><input id="wf-cost-${esc(vid)}" type="text" inputmode="decimal" placeholder="np. 1 850"></div>
           <div class="wf-wide"><label for="wf-desc-${esc(vid)}">Co jeszcze zrobiono / części</label><input id="wf-desc-${esc(vid)}" placeholder="opcjonalnie"></div>
           <div class="wf-wide"><label for="wf-file-${esc(vid)}">Faktura (PDF albo zdjęcie)</label><input id="wf-file-${esc(vid)}" type="file" accept="${DOC_TYPES.join(',')}"></div></div></fieldset>`; }).join('')}
-    <p class="muted small field full">Odznacz to, czego nie zrobiono – wróci do Zgłoszeń. Zrobione usterki zamkną się same, a wymiana oleju i rozrządu ustawi kolejny termin od wpisanego przebiegu.</p>
+    <p class="muted small field full">Odznacz to, czego nie zrobiono – wróci do Zgłoszeń. Zrobione usterki zamkną się same, a wymiana oleju (także zaznaczona dodatkowo) i rozrządu ustawi kolejny termin od wpisanego przebiegu.</p>
     <div class="warnline" id="dlg-warn" hidden></div>`;
   $('#dlg-save').textContent = 'Zakończ naprawę'; $('#dlg-del').hidden = true; $('#scrim').hidden = false;
 }
