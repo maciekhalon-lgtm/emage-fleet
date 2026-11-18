@@ -13,9 +13,9 @@ const GROUPS = {
 };
 /* Zakładki „w środku” innej zakładki: przełącznik na górze strony zamiast osobnej pozycji w menu */
 const INNER = {
-  pojazdy:  [['pojazdy','Lista aut', () => true], ['ranking','Ranking', () => !!P().manage], ['terminy','Terminy', () => !!(P().manage || P().service)]],
+  pojazdy:  [['pojazdy','Lista aut', () => true], ['ranking','Ranking aut', () => !!P().manage], ['terminy','Terminy', () => !!(P().manage || P().service)]],
   rentownosc: [['rentownosc','Cała firma', () => true], ['trasy-zysk','Trasy', () => true]],
-  kierowcy: [['kierowcy','Lista kierowców', () => true]],
+  kierowcy: [['kierowcy','Lista kierowców', () => true], ['ranking-kierowcy','Ranking kierowców', () => !!P().manage]],
   spalanie: [['spalanie','Spalanie i przebiegi', () => true], ['srednie','Średnie miesięczne', () => !!P().manage], ['liczniki','Kontrola liczników', () => true]],
   raporty:  [['raporty','Raporty', () => true], ['porownanie','Porównanie miesięcy', () => !!P().manage]],
 };

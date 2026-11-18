@@ -3,7 +3,7 @@
    Spalanie: tankowania wpisane w aplikacji – litry tankowania / km od poprzedniego tankowania tego auta,
    odcinek należy do kierowcy, który tankował. Karty paliwowe tylko sprawdzają wpisy (powiadomienia „karta”). */
 'use strict';
-let rkView = 'drv', rkPer = '30', rkSort = {drv: ['rate', 1], veh: ['km', -1]};
+let rkView = 'veh', rkPer = '30', rkSort = {drv: ['rate', 1], veh: ['rate', 1]};
 const rkOn = () => !!P().manage;
 function rkRange(){
   const t = today();
@@ -51,15 +51,19 @@ function rkData(){
       if (p && r && r.at >= from && r.at <= to && Number(r.km) > Number(p.km) && Number(r.km) - Number(p.km) < 20000){ km += Number(r.km) - Number(p.km); crewOf(b).forEach(x => who.add(x)); } });
     const lg = legs.filter(x => x.vid===v.id), lkm = lg.reduce((a, x) => a + x.km, 0), ll = lg.reduce((a, x) => a + x.l, 0);
     const rate = lkm >= 300 ? ll / lkm * 100 : null;
-    return {v, km, days: days.size, rate, diff: rate!=null && fleetRate ? (rate - fleetRate) / fleetRate * 100 : null, who: who.size, card: cardEv.filter(e => e.vehicleId===v.id).length};
+    const cost = S.costs.filter(c => c.vehicleId===v.id && c.date >= from && c.date <= to).reduce((a, c) => a + Number(c.amount || 0), 0);
+    return {v, km, days: days.size, rate, diff: rate!=null && fleetRate ? (rate - fleetRate) / fleetRate * 100 : null, who: who.size, card: cardEv.filter(e => e.vehicleId===v.id).length,
+      cost, costKm: km >= 100 ? cost / km : null};
   });
   return {from, to, fleetRate, drv, veh};
 }
-function viewRankingFleet(){
+function viewRankingDrivers(){ rkView = 'drv'; return viewRankingFleet(true); }
+function viewRankingFleet(drvTab){
+  if (!drvTab) rkView = 'veh';
   if (!rkOn()) return `<div class="bar"><h2>Ranking</h2></div><div class="panel empty"><p>Ranking widzi kierownik floty.</p></div>`;
   const R = rkData(), nf = new Intl.NumberFormat('pl-PL'), f1 = x => x.toFixed(1).replace('.', ',');
   const pers = [['30', '30 dni'], ['90', '90 dni'], ['mies', 'Ten miesiąc']];
-  const head = `<div class="bar"><h2>Ranking</h2><div class="tools"><div class="seg">${[['drv', 'Kierowcy'], ['veh', 'Auta']].map(([k, l]) => `<button type="button" class="${rkView===k ? 'on' : ''}" data-rk-view="${k}">${l}</button>`).join('')}</div>
+  const head = `<div class="bar"><h2>${rkView==='drv' ? 'Ranking kierowców' : 'Ranking aut'}</h2><div class="tools">
     <div class="seg">${pers.map(([k, l]) => `<button type="button" class="${rkPer===k ? 'on' : ''}" data-rk-per="${k}">${l}</button>`).join('')}</div></div></div>
     <p class="muted small" style="margin:0 0 12px">Z wpisów kierowców w aplikacji (${fdate(R.from)} – ${fdate(R.to)}): km z przejęć i zdań auta, spalanie z tankowań. Średnia floty: <b>${R.fleetRate!=null ? f1(R.fleetRate) + ' l/100 km' : 'za mało danych'}</b>. Karty paliwowe tylko sprawdzają wpisy – niezgodności przychodzą jako powiadomienia.</p>`;
   const [sk, dir] = rkSort[rkView];
@@ -76,15 +80,21 @@ function viewRankingFleet(){
         <td class="r">${rateCell(x)}</td><td class="r">${diffCell(x)}</td><td class="r">${x.card ? `<span class="pill bad">${x.card}</span>` : '<span class="muted">0</span>'}</td></tr>`).join('') || '<tr><td colspan="8" class="muted">Brak wpisów kierowców w tym okresie – ranking pojawi się, gdy kierowcy zaczną przejmować auta i wpisywać tankowania.</td></tr>'}</tbody></table></div>
       <p class="muted small">Kliknij kierowcę – historia jego tankowań, przejęć i zdań. Spalanie pokazujemy od 300 km z wpisanymi tankowaniami.</p>`;
   }
-  const xs = R.veh.map(x => ({...x, name: x.v.plate})).sort(cmp);
-  return head + `<div class="panel tablewrap"><table class="rk2-tbl"><thead><tr>${th('name', 'Auto')}${th('km', 'Km', 1)}${th('days', 'Dni w grafiku', 1)}${th('rate', 'Spalanie l/100', 1)}${th('diff', 'vs średnia', 1)}${th('who', 'Kierowców', 1)}${th('card', 'Niezgodne z kartą', 1)}</tr></thead><tbody>
-    ${xs.map(x => `<tr class="click" data-card-go="${esc(x.v.id)}" data-ctab-go="paliwo"><td>${plate(x.v.plate)}<span class="sub">${esc([x.v.make, x.v.model].filter(Boolean).join(' '))}</span></td>
-      <td class="r num">${x.km ? nf.format(x.km) : '—'}</td><td class="r num">${x.days || '—'}</td><td class="r">${rateCell(x)}</td><td class="r">${diffCell(x)}</td><td class="r num">${x.who || '—'}</td>
-      <td class="r">${x.card ? `<span class="pill bad">${x.card}</span>` : '<span class="muted">0</span>'}</td></tr>`).join('')}</tbody></table></div>`;
+  const xs = R.veh.map(x => ({...x, name: x.v.plate})).sort(cmp), withV = xs.filter(x => x[sk]!=null && sk!=='name');
+  const top = new Set(['rate', 'costKm'].includes(sk) && dir > 0 ? withV.slice(0, 3).map(x => x.v.id) : []), low = new Set(['rate', 'costKm'].includes(sk) && dir > 0 && withV.length > 5 ? withV.slice(-3).map(x => x.v.id) : []);
+  const zl2 = x => new Intl.NumberFormat('pl-PL', {minimumFractionDigits: 2, maximumFractionDigits: 2}).format(x);
+  return head + `<div class="seg" style="margin:0 0 10px">${[['rate', 'Wg spalania'], ['costKm', 'Wg kosztu / km'], ['km', 'Wg km']].map(([k, l]) => `<button type="button" class="small ${sk===k ? 'on' : ''}" data-rk-sort-set="${k}">${l}</button>`).join('')}</div>
+    <div class="panel tablewrap"><table class="rk2-tbl"><thead><tr><th>#</th>${th('name', 'Auto')}${th('rate', 'Spalanie l/100', 1)}${th('diff', 'vs średnia', 1)}${th('costKm', 'Koszt / km', 1)}${th('cost', 'Koszty', 1)}${th('km', 'Km', 1)}${th('days', 'Dni w grafiku', 1)}${th('card', 'Niezgodne z kartą', 1)}</tr></thead><tbody>
+    ${xs.map((x, i) => `<tr class="click ${top.has(x.v.id) ? 'rk-top' : low.has(x.v.id) ? 'rk-low' : ''}" data-card-go="${esc(x.v.id)}" data-ctab-go="paliwo"><td class="num">${i + 1}</td><td>${plate(x.v.plate)}<span class="sub">${esc([x.v.make, x.v.model].filter(Boolean).join(' '))}</span></td>
+      <td class="r">${rateCell(x)}</td><td class="r">${diffCell(x)}</td><td class="r num">${x.costKm!=null ? `<b>${zl2(x.costKm)}</b> <span class="muted small">zł</span>` : '<span class="muted">—</span>'}</td>
+      <td class="r num">${x.cost ? zl(x.cost) : '—'}</td><td class="r num">${x.km ? nf.format(x.km) : '—'}</td><td class="r num">${x.days || '—'}</td>
+      <td class="r">${x.card ? `<span class="pill bad">${x.card}</span>` : '<span class="muted">0</span>'}</td></tr>`).join('')}</tbody></table></div>
+    <p class="muted small">Koszt / km = wszystkie koszty auta w okresie (paliwo, naprawy, opłaty…) podzielone przez km z przejęć i zdań. Kliknij auto – karta auta, zakładka „Paliwo i koszty”.</p>`;
 }
 document.addEventListener('click', e => {
   const v = e.target.closest('[data-rk-view]'); if (v){ rkView = v.dataset.rkView; render(); return; }
   const p = e.target.closest('[data-rk-per]'); if (p){ rkPer = p.dataset.rkPer; render(); return; }
+  const ss = e.target.closest('[data-rk-sort-set]'); if (ss){ const k = ss.dataset.rkSortSet; rkSort[rkView] = [k, k==='km' ? -1 : 1]; render(); return; }
   const s = e.target.closest('[data-rk-sort]'); if (s){ const k = s.dataset.rkSort, cur = rkSort[rkView];
-    rkSort[rkView] = [k, cur[0]===k ? -cur[1] : (k==='rate' || k==='name' || k==='card' || k==='diff' ? 1 : -1)]; render(); }
+    rkSort[rkView] = [k, cur[0]===k ? -cur[1] : (k==='rate' || k==='name' || k==='card' || k==='diff' || k==='costKm' ? 1 : -1)]; render(); }
 });
