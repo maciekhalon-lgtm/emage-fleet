@@ -61,7 +61,7 @@ function attentionItems(serviceOnly){
     const s = dlState(d);
     if (s.cls!=='bad' && s.cls!=='warn') return;
     if (BLOCK_TYPES.includes(d.type) && d.date < today()) return;   // pokazane wyżej jako blokada auta
-    out.push({w: s.cls==='bad' ? 0 : 2, html: attRow(s.cls, d.vehicleId, esc(d.type), `${fdate(d.date)} · ${esc(s.txt.toLowerCase())}`,
+    out.push({w: s.cls==='bad' ? 0 : 2, html: attRow(s.cls, d.vehicleId, esc(d.type), `${d.date ? fdate(d.date) : d.kmDue ? 'przy ' + km(d.kmDue) : '—'} · ${esc(s.txt.toLowerCase())}`,
       canDl(d) ? `<button class="small" data-renew="${esc(d.id)}">Wykonane</button>` : '')});
   });
   openIssues().forEach(i => {
@@ -156,7 +156,7 @@ function serviceCarsCard(){
 }
 function deadlinesCard(){
   const list = S.deadlines.map(d => ({d, s: dlState(d)})).filter(x => x.s.d <= 30).sort((a, b) => a.s.d - b.s.d).slice(0, 8);
-  return card('Terminy – 30 dni', '', list.length ? `<div class="fl">${list.map(({d, s}) => `<div class="fl-row" ${canEditDoc('deadlines', d) ? `data-edit="deadlines" data-id="${esc(d.id)}" tabindex="0"` : ''}>${vPlate(d.vehicleId)}<div class="att-t"><b>${esc(d.type)}</b><span class="sub">${fdate(d.date)}</span></div><span class="pill ${s.cls}">${esc(s.txt)}</span></div>`).join('')}</div>
+  return card('Terminy – 30 dni', '', list.length ? `<div class="fl">${list.map(({d, s}) => `<div class="fl-row" ${canEditDoc('deadlines', d) ? `data-edit="deadlines" data-id="${esc(d.id)}" tabindex="0"` : ''}>${vPlate(d.vehicleId)}<div class="att-t"><b>${esc(d.type)}</b><span class="sub">${d.date ? fdate(d.date) : d.kmDue ? 'przy ' + km(d.kmDue) : '—'}</span></div><span class="pill ${s.cls}">${esc(s.txt)}</span></div>`).join('')}</div>
     <p class="muted small more"><button class="link" data-go="terminy">Wszystkie terminy</button></p>` : '<p class="muted sec-empty">Brak terminów w najbliższych 30 dniach.</p>');
 }
 

@@ -72,8 +72,8 @@ function myCarState(v){
   const iss = S.issues.filter(i => i.vehicleId===v.id && i.status!=='naprawione').sort((a, b) => a.date < b.date ? 1 : -1);
   const t = today();
   const dls = (S.deadlines || []).filter(d => d.vehicleId===v.id && DRV_DL.includes(d.type)).map(d => {
-    const days = d.date ? diffDays(t, d.date) : null, left = d.kmDue && v.km ? Number(d.kmDue) - Number(v.km) : null;
-    const cls = (days!=null && days < 0) || (left!=null && left <= 0) ? 'bad' : (days!=null && days <= 14) || (left!=null && left <= 1500) ? 'warn' : 'ok';
+    const cur = svcKm(v.id).km, days = d.date ? diffDays(t, d.date) : null, left = d.kmDue && cur ? Number(d.kmDue) - Number(cur) : null;
+    const cls = (days!=null && days < 0) || (left!=null && left <= 0) ? 'bad' : (days!=null && days <= 14) || (left!=null && left <= Math.max(1500, Number(d.remindKm) || 0)) ? 'warn' : 'ok';
     const txt = [d.date ? fdate(d.date) : '', left!=null ? (left <= 0 ? `przekroczony o ${km(-left)}` : `za ${km(left)}`) : ''].filter(Boolean).join(' · ');
     return {d, cls, txt, k: Math.min(days==null ? 999 : days, left==null ? 999 : left / 100)};
   }).sort((a, b) => a.k - b.k).slice(0, 4);
@@ -386,10 +386,11 @@ function myDueNote(v){
   const t = today();
   const xs = (S.deadlines || []).filter(d => d.vehicleId===v.id && DRV_DL.includes(d.type)).map(d => {
     const days = d.date ? Math.round((parse(d.date) - parse(t)) / 864e5) : null;
-    const left = d.kmDue && v.km ? Number(d.kmDue) - Number(v.km) : null;
-    const hot = (days != null && days <= 14) || (left != null && left <= 1500);
+    const cur = svcKm(v.id).km, warnKm = Math.max(1500, Number(d.remindKm) || 0);
+    const left = d.kmDue && cur ? Number(d.kmDue) - Number(cur) : null;
+    const hot = (days != null && days <= 14) || (left != null && left <= warnKm);
     const over = (days != null && days < 0) || (left != null && left <= 0);
-    const txt = [left != null && left <= 1500 ? (left <= 0 ? `przekroczony o ${km(-left)}` : `za ${km(left)}`) : '', days != null && days <= 14 ? (days < 0 ? `po terminie (${fdate(d.date)})` : days===0 ? 'dziś' : `za ${days} ${isPlural(days,'dzień','dni','dni')}`) : ''].filter(Boolean).join(' / ');
+    const txt = [left != null && left <= warnKm ? (left <= 0 ? `przekroczony o ${km(-left)}` : `za ${km(left)}`) : '', days != null && days <= 14 ? (days < 0 ? `po terminie (${fdate(d.date)})` : days===0 ? 'dziś' : `za ${days} ${isPlural(days,'dzień','dni','dni')}`) : ''].filter(Boolean).join(' / ');
     return {d, hot, over, txt, k: Math.min(days == null ? 999 : days, left == null ? 999 : left / 100)};
   }).filter(x => x.hot).sort((a, b) => a.k - b.k);
   if (!xs.length) return '';

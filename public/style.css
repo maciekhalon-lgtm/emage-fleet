@@ -1790,3 +1790,8 @@ html[data-env="test"] body{padding-top:20px}
   .cd-left b{font-size:20px}
   .cd-act{grid-column:1 / -1;flex-direction:row;justify-content:space-between;align-items:center}
 }
+
+/* Telefon: większe pola wyboru (łatwiej trafić palcem) */
+@media (pointer:coarse), (max-width:640px){
+  input[type=checkbox], input[type=radio], .check input[type="checkbox"]{width:24px;height:24px;min-width:24px;flex:0 0 24px}
+}

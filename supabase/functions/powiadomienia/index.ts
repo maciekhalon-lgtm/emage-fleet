@@ -155,13 +155,16 @@ export function weekly(d: Data, today: string, costs: Row[]){
   const fills = costs.filter(c => c.date >= w0 && c.date < today && c.category === 'Paliwo').length
     + (d.cardRows || []).filter(r => r.kind !== 'other' && r.tx_date >= w0 && r.tx_date < today && !r.cost_id).length;
   const newIss = d.issues.filter(i => i.date >= w0).length;
-  const soon = d.deadlines.filter(t => { const v = d.vehicles.find(x => x.id === t.vehicle_id); return v && v.status !== 'wycofany' && diffDays(today, t.date) <= 14; }).length;
+  const soon = d.deadlines.filter(t => { const v = d.vehicles.find(x => x.id === t.vehicle_id); if (!v || v.status === 'wycofany') return false;
+    if (t.date && diffDays(today, t.date) <= 14) return true;
+    const cur = v.km_svc ?? v.km;   // olej, rozrząd, przegląd gwarancyjny – tylko na km
+    return !!(t.km_due && cur && t.km_due - cur <= Number(t.remind_km || 1000)); }).length;
   const ch = prev ? Math.round((now - prev) / prev * 100) : null;
   const lines = [
     `• Koszty: ${zl(now)}${ch !== null ? ` (${ch > 0 ? '+' : ''}${ch}% wobec poprzedniego tygodnia)` : ''}`,
     `• Tankowania: ${fills}`,
     `• Nowe usterki: ${newIss}`,
-    `• Terminy w ciągu 14 dni (lub po terminie): ${soon}`,
+    `• Terminy w ciągu 14 dni lub blisko przebiegu (albo po terminie): ${soon}`,
   ];
   // moduły z migracji 027–029 (gdy tabel nie ma – listy są puste i linie się nie pokazują)
   const active = (vid: string) => { const v = d.vehicles.find(x => x.id === vid); return v && v.status !== 'wycofany'; };
