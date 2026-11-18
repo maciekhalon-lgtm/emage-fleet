@@ -116,7 +116,7 @@ function bookingDayIssue(b, d){
 function viewSchedule(){
   const days = Array.from({length:7}, (_, i) => addDays(calStart, i)), t = today(), end = days[6];
   const nav = `<div class="cal-nav"><button class="small" data-cal="-7" aria-label="Poprzedni tydzień">‹</button><button class="small" data-cal="0">Ten tydzień</button><button class="small" data-cal="7" aria-label="Następny tydzień">›</button><span class="label num">${fdate(calStart)} – ${fdate(end)}</span>
-    <span class="cal-r">${canCreate('bookings') && P().bookings==='rw' ? `<button class="small" data-action="copy-week">Kopiuj poprzedni tydzień</button>` : ''}<button class="small ghost no-print" data-day-plan>${ic('users')}Plan dnia do wysłania</button><button class="small ghost no-print" data-print-week>${ic('clip')}Drukuj</button></span></div>`;
+</div>`;
   const drivers = S.drivers.filter(d => d.active!==false).sort((a, b) => a.name.localeCompare(b.name, 'pl'));
   if (!drivers.length) return nav + '<div class="panel empty"><p>Dodaj kierowców, aby układać grafik.</p></div>';
   const conf = conflicts();
@@ -147,11 +147,20 @@ function viewSchedule(){
   // wiersz „Wolne auta”: sprawne auta bez przydziału danego dnia
   const okVeh = S.vehicles.filter(v => v.status==='aktywny' && vehicleState(v).cls!=='bad');
   const freeRow = `<tr class="sch-free"><td class="sch-name"><b>Wolne auta</b></td>${days.map(d => { const fr = okVeh.filter(v => !S.bookings.some(b => b.vehicleId===v.id && b.from<=d && b.to>=d && !(b.returned && b.returned.at && b.returned.at.slice(0, 10) < d)));
-    return `<td class="sch-cell ${d===t?'today':''}" title="${esc(fr.map(v => v.plate).join(', '))}"><b class="num">${fr.length}</b>${fr.length ? `<i>${esc(fr.slice(0, 3).map(v => v.plate).join(', '))}${fr.length > 3 ? '…' : ''}</i>` : ''}</td>`; }).join('')}</tr>`;
+    return `<td class="sch-cell sch-freec ${d===t?'today':''}" ${fr.length ? `data-free-day="${d}" title="${esc(fr.map(v => v.plate).join(', '))}"` : ''}><b class="num">${fr.length}</b>${fr.length ? ' <span class="muted small">pokaż</span>' : ''}</td>`; }).join('')}</tr>`;
   return nav + `<div class="panel tablewrap sch"><table><thead>${head}</thead><tbody>${rows}${freeRow}</tbody></table></div>
-    <div class="sch-legend muted small"><span>Puste pole – <b>nowy przydział</b></span><span>Przeciągnij – <b>przenieś</b></span>
-      <span><i class="lg out"></i>w trasie</span><span><i class="lg back"></i>zwrócone</span><span><i class="lg bad"></i>konflikt</span><span><i class="lg issue"></i>nieważne dokumenty</span><span>${ic('box')} załadunek</span></div>`;
+    <div class="sch-legend muted small"><span><i class="lg out"></i>w trasie</span><span><i class="lg back"></i>zwrócone</span><span><i class="lg bad"></i>konflikt</span><span><i class="lg issue"></i>nieważne dokumenty</span><span>${ic('box')} załadunek</span></div>`;
 }
+/* Wolne auta danego dnia (klik w wiersz „Wolne auta”) */
+function openFreeDay(d){
+  const okVeh = S.vehicles.filter(v => v.status==='aktywny' && vehicleState(v).cls!=='bad');
+  const fr = okVeh.filter(v => !S.bookings.some(b => b.vehicleId===v.id && b.from<=d && b.to>=d && !(b.returned && b.returned.at && b.returned.at.slice(0, 10) < d))).sort((a, b) => a.plate.localeCompare(b.plate));
+  editing = {col: 'free-day', id: null, base: {}, special: () => closeForm()};
+  $('#dlg-title').textContent = `Wolne auta – ${fdate(d)} (${fr.length})`;
+  $('#dlg-body').innerHTML = `<div class="field full dl">${fr.map(v => `<div class="mini">${plate(v.plate)}<span><span class="sub">${esc([v.make, v.model].filter(Boolean).join(' '))}</span></span></div>`).join('') || '<p class="muted">Brak wolnych aut.</p>'}</div>`;
+  $('#dlg-save').textContent = 'Zamknij'; $('#dlg-del').hidden = true; $('#scrim').hidden = false;
+}
+document.addEventListener('click', e => { const f = e.target.closest('[data-free-day]'); if (f){ e.preventDefault(); openFreeDay(f.dataset.freeDay); } });
 function copyWeekAsk(){
   const from = addDays(calStart, -7), to = addDays(calStart, -1);
   const src = S.bookings.filter(b => b.from>=from && b.from<=to);

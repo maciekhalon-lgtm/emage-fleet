@@ -48,14 +48,13 @@ function viewRoutes(){
     return `<tr ${canEditDoc('routes', r) ? `class="click" data-edit="routes" data-id="${esc(r.id)}" tabindex="0"` : ''} ${r.active===false ? 'style="opacity:.6"' : ''}>
       <td><b class="num">${esc(r.code)}</b></td>
       <td><b>${esc(r.name)}</b>${r.note ? `<span class="sub">${esc(r.note)}</span>` : ''}</td>
-      <td>${r.tacho ? '<span class="pill info">tachograf</span>' : '<span class="muted">—</span>'}</td>
-      <td>${r.loading ? '<span class="pill soon">załadunkowa</span>' : '<span class="muted">—</span>'}</td>
-      <td>${r.active===false ? '<span class="pill off">nieaktywna</span>' : '<span class="pill ok">aktywna</span>'}</td>
+      <td class="r num">${Number(r.km) > 0 ? new Intl.NumberFormat('pl-PL').format(Number(r.km)) + ' km' : r.active===false ? '<span class="muted">—</span>' : '<span class="pill bad">wpisz km</span>'}</td>
+      <td>${[r.active===false ? '<span class="pill off">nieaktywna</span>' : '', r.tacho ? '<span class="pill info">tachograf</span>' : '', r.loading ? '<span class="pill soon">załadunkowa</span>' : ''].filter(Boolean).join(' ') || '<span class="muted">—</span>'}</td>
       <td>${on.length ? on.map(b => `${vPlate(b.vehicleId)} <span class="sub">${esc(crewName(b))}</span>`).join('') : '<span class="muted">—</span>'}</td>
       ${P().manage && modOn('przystanki') ? `<td><button class="small" data-stops="${esc(r.id)}">${(n => n ? `${n} ${isPlural(n,'przystanek','przystanki','przystanków')}` : `${ic('plus')}Przystanki`)(stopsOf(r.id).length)}</button></td>` : ''}</tr>`;
   }).join('');
-  return `<div class="section">${head}<div class="panel tablewrap"><table><thead><tr><th>Kod</th><th>Nazwa</th><th>Tachograf</th><th>Załadunek</th><th>Status</th><th>Teraz w trasie</th>${P().manage && modOn('przystanki') ? '<th>Przystanki (klienci)</th>' : ''}</tr></thead><tbody>${rows}</tbody></table></div>
-    <p class="muted small" style="margin:0;max-width:90ch">Trasę przypisujesz w grafiku (Grafik → pole kierowcy w danym dniu → Trasa). Tankowania i koszty z tych dni dostają trasę automatycznie. Tachograf to tylko informacja – nie blokuje przydziału.</p></div>`;
+  return `<div class="section">${head}<div class="panel tablewrap"><table><thead><tr><th>Kod</th><th>Nazwa</th><th class="r">Km (do faktury)</th><th>Uwagi</th><th>Teraz w trasie</th>${P().manage && modOn('przystanki') ? '<th>Przystanki (klienci)</th>' : ''}</tr></thead><tbody>${rows}</tbody></table></div>
+    <p class="muted small" style="margin:0;max-width:90ch">Trasę przypisujesz w grafiku. Km do faktury to stałe km trasy – wpisz je w trasie (kliknij wiersz).</p></div>`;
 }
 
 /* Raport tras w okresie [a, b]: dni pracy i km z dni pracy, koszty i paliwo z kosztów przypisanych do trasy */

@@ -1801,3 +1801,6 @@ html[data-env="test"] body{padding-top:20px}
 .rk2-tbl th.click{cursor:pointer;user-select:none;white-space:nowrap}
 .rk2-tbl tr.rk-top td:first-child{box-shadow:inset 3px 0 0 var(--ok)}
 .rk2-tbl tr.rk-low td:first-child{box-shadow:inset 3px 0 0 var(--bad)}
+
+.sch-free .sch-freec[data-free-day]{cursor:pointer}
+.sch-free .sch-freec[data-free-day]:hover{background:var(--raised)}
