@@ -462,14 +462,15 @@ td .sub{display:block;color:var(--muted);font-size:12.5px}
 .auth-msg{border-radius:10px;padding:10px 12px;background:var(--info-soft);color:var(--ink);font-size:14px}
 .auth-msg.err{background:var(--bad-soft)}
 @media (max-width:820px){
-  .auth{padding:0}
+  .auth{padding:0;position:static;inset:auto;display:block;overflow:visible;min-height:100vh;min-height:100dvh}   /* telefon: przewija się cała strona – iOS sam przesuwa pole nad klawiaturę */
   .auth-card{grid-template-columns:minmax(0,1fr);border-radius:0;border:0;min-height:100vh;box-shadow:none;margin:0;align-content:start;align-self:flex-start;flex-shrink:0}   /* bez rozciągania do wysokości ekranu – inaczej formularz był ucinany i nie dało się przewinąć */
-  .auth-brand{padding:max(28px,env(safe-area-inset-top,0px)) 24px 28px;min-height:300px}
-  .scene{height:150px}
+  .auth-brand{padding:max(22px,env(safe-area-inset-top,0px)) 24px 104px;min-height:0}
+  .auth-brand p{margin-top:8px;font-size:14px}
+  .scene{height:96px}
   .routes{display:none}
   .auth-brand .wordmark{font-size:34px}
-  .road{height:90px}.road i:first-child{bottom:34px}.road i:last-child{bottom:18px}
-  .auth-side{padding:28px 20px 40px;align-items:flex-start}
+  .road{height:64px}.road i:first-child{bottom:24px}.road i:last-child{bottom:12px}
+  .auth-side{padding:22px 20px max(40px,env(safe-area-inset-bottom,0px));align-items:flex-start}
   .auth-theme{top:auto;bottom:auto;right:12px;margin-top:-6px}
 }
 .wait{padding-block:56px}

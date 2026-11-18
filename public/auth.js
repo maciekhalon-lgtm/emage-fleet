@@ -125,6 +125,13 @@ async function logout(){
 }
 
 $('#auth-form').addEventListener('submit', onAuthSubmit);
+/* Telefon: pole, w które się klika, zawsze nad klawiaturą (klawiatura pojawia się z opóźnieniem) */
+$('#auth-form').addEventListener('focusin', e => {
+  if (!e.target.matches('input') || innerWidth > 820) return;
+  const go = () => e.target.scrollIntoView({block: 'center', behavior: 'smooth'});
+  setTimeout(go, 320);
+  if (window.visualViewport){ const vv = window.visualViewport, h = () => { vv.removeEventListener('resize', h); go(); }; vv.addEventListener('resize', h); setTimeout(() => vv.removeEventListener('resize', h), 1500); }
+});
 sb.auth.onAuthStateChange((event, session) => {
   // wywołania bazy poza tym callbackiem (zalecenie Supabase)
   setTimeout(() => {
