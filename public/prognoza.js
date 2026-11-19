@@ -19,7 +19,7 @@ function forecast(){
   // raty z umów aktywnych w miesiącu (bez ręcznie wpisywanego „Leasing” – ten jest w średnich, ale je wykluczamy)
   if (typeof contractsOn==='function' && optOn('contracts')) months.forEach(m => vs.forEach(v => {
     const c = S.contracts.find(x => x.vehicleId===v.id && x.kind!=='wlasne' && (!x.startDate || x.startDate.slice(0, 7) <= m) && (!x.endDate || x.endDate.slice(0, 7) >= m));
-    if (c){ const r = at(m); r.lease += monthlyOf(c); } }));
+    if (c){ const r = at(m); r.lease += typeof monthlyPln==='function' ? monthlyPln(c, m) : monthlyOf(c); } }));
   // koszt terminu: średnia z historii tej kategorii dla podobnych wpisów (notatka/typ), inaczej stawka orientacyjna
   const histCost = type => { const xs = all.filter(c => c.category===FC_CAT(type) && new RegExp(type.split(' ')[0], 'i').test(c.note || '')).map(c => Number(c.amount)).filter(x => x > 0);
     return xs.length >= 2 ? xs.reduce((s, x) => s + x, 0) / xs.length : (FC_RATES[type] || 500); };

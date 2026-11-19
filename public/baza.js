@@ -54,7 +54,7 @@ const WRITABLE = {
   fleetCosts: ['id','date','category','amount','note'],
   workshops: ['id','name','phone','address','kind','note'],
   visits: ['id','vehicle_id','workshop_id','date','time','reason','deadline_id','issue_id','status','note'],
-  contracts: ['id','vehicle_id','kind','provider','contract_no','start_date','end_date','monthly_net','monthly_gross','km_limit','km_start','km_excess_rate','buyout','insurance_in','service_in','note'],
+  contracts: ['id','vehicle_id','kind','provider','contract_no','start_date','end_date','monthly_net','monthly_gross','km_limit','km_start','km_excess_rate','buyout','insurance_in','service_in','note','currency'],
   equipment: ['id','vehicle_id','item','ok','valid_until','checked_at','note'],
   tires: ['id','vehicle_id','season','size','brand','dot','tread_mm','location','storage','mounted_at','mounted_km','note'],
   loadingReports: ['id','driver_id','weight_kg','photo'],
