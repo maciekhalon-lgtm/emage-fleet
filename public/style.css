@@ -1821,3 +1821,6 @@ html[data-env="test"] body{padding-top:20px}
 .sp-tbl .pos{color:var(--ok)}
 .sp-sort{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 10px}
 .sp-kpi .sub{display:block;font-size:12px;color:var(--muted)}
+.sch-chip .sch-t{font-style:normal;font-size:11px;font-variant-numeric:tabular-nums;color:var(--muted)}
+.sch-chip .sch-t.p::before{content:'↗ '}
+.sch-chip .sch-t.r::before{content:'↘ '}
