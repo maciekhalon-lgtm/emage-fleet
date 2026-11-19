@@ -3,7 +3,7 @@
    Spalanie: tankowania wpisane w aplikacji – litry tankowania / km od poprzedniego tankowania tego auta,
    odcinek należy do kierowcy, który tankował. Karty paliwowe tylko sprawdzają wpisy (powiadomienia „karta”). */
 'use strict';
-let rkView = 'veh', rkPer = '30', rkSort = {drv: ['rate', 1], veh: ['rate', 1]};
+let rkView = 'veh', rkPer = '30', rkSort = {drv: ['diff', 1], veh: ['diff', 1]};   // domyślnie: najoszczędniejsi względem średniej swojej klasy na górze
 const rkOn = () => !!P().manage;
 function rkRange(){
   const t = today();
@@ -48,6 +48,10 @@ function rkData(){
   const [from, to] = rkRange(), legs = rkLegs(from, to);
   const fleetKm = legs.reduce((a, x) => a + x.km, 0), fleetL = legs.reduce((a, x) => a + x.l, 0);
   const fleetRate = fleetKm >= 300 ? fleetL / fleetKm * 100 : null;
+  // średnia klasy (do 2,5 t / powyżej) – auta i kierowców porównujemy z autami tej samej klasy
+  const clsOf = vid => wcls(byId('vehicles', vid)), clsRate = {};
+  WCLS.forEach(([k]) => { const xs = legs.filter(x => clsOf(x.vid)===k), km = xs.reduce((a, x) => a + x.km, 0), l = xs.reduce((a, x) => a + x.l, 0);
+    clsRate[k] = km >= 300 ? l / km * 100 : null; });
   const cardEv = (S.events || []).filter(e => e.kind==='karta' && String(e.at).slice(0, 10) >= from);
   const drv = S.drivers.filter(d => d.active!==false).map(d => {
     let km = 0; const days = new Set(), veh = new Set();
@@ -58,7 +62,9 @@ function rkData(){
     const fills = appFuel().filter(c => (fillDriver(c) || c.driverId)===d.id && c.date >= from && c.date <= to);
     const lg = legs.filter(x => x.drv===d.id), lkm = lg.reduce((a, x) => a + x.km, 0), ll = lg.reduce((a, x) => a + x.l, 0);
     const rate = lkm >= 300 ? ll / lkm * 100 : null;
-    return {d, name: d.name, km: Math.round(km), days: days.size, fills: fills.length, liters: fills.reduce((a, c) => a + Number(c.liters || 0), 0), rate, diff: rate!=null && fleetRate ? (rate - fleetRate) / fleetRate * 100 : null,
+    // ile by spalił „przeciętny” kierowca na tych samych odcinkach (średnia klasy każdego auta) → różnica w %
+    const expL = lg.reduce((a, x) => a + x.km * (clsRate[clsOf(x.vid)] || fleetRate || 0) / 100, 0);
+    return {d, name: d.name, km: Math.round(km), days: days.size, fills: fills.length, liters: fills.reduce((a, c) => a + Number(c.liters || 0), 0), rate, diff: rate!=null && expL > 0 ? (ll - expL) / expL * 100 : null,
       card: cardEv.filter(e => e.driverId===d.id).length, veh: veh.size};
   }).filter(x => x.km || x.fills || x.days);
   const veh = S.vehicles.filter(v => v.status!=='wycofany').map(v => {
@@ -70,10 +76,11 @@ function rkData(){
     const lg = legs.filter(x => x.vid===v.id), lkm = lg.reduce((a, x) => a + x.km, 0), ll = lg.reduce((a, x) => a + x.l, 0);
     const rate = lkm >= 300 ? ll / lkm * 100 : null;
     const cost = S.costs.filter(c => c.vehicleId===v.id && c.date >= from && c.date <= to).reduce((a, c) => a + Number(c.amount || 0), 0);
-    return {v, km, days: days.size, rate, diff: rate!=null && fleetRate ? (rate - fleetRate) / fleetRate * 100 : null, who: who.size, card: cardEv.filter(e => e.vehicleId===v.id).length,
+    const cr = clsRate[wcls(v)];
+    return {v, cls: wcls(v), km, days: days.size, rate, diff: rate!=null && cr ? (rate - cr) / cr * 100 : null, who: who.size, card: cardEv.filter(e => e.vehicleId===v.id).length,
       cost, costKm: km >= 100 ? cost / km : null};
   });
-  return {from, to, fleetRate, drv, veh};
+  return {from, to, fleetRate, clsRate, drv, veh};
 }
 function viewRankingDrivers(){ rkView = 'drv'; return viewRankingFleet(true); }
 function viewRankingFleet(drvTab){
@@ -83,7 +90,7 @@ function viewRankingFleet(drvTab){
   const pers = [['30', '30 dni'], ['90', '90 dni'], ['mies', 'Ten miesiąc']];
   const head = `<div class="bar"><h2>${rkView==='drv' ? 'Ranking kierowców' : 'Ranking aut'}</h2><div class="tools">
     <div class="seg">${pers.map(([k, l]) => `<button type="button" class="${rkPer===k ? 'on' : ''}" data-rk-per="${k}">${l}</button>`).join('')}</div></div></div>
-    <p class="muted small" style="margin:0 0 12px">Z wpisów kierowców w aplikacji (${fdate(R.from)} – ${fdate(R.to)}): km z przejęć i zdań auta, spalanie z tankowań. Średnia floty: <b>${R.fleetRate!=null ? f1(R.fleetRate) + ' l/100 km' : 'za mało danych'}</b>. Karty paliwowe tylko sprawdzają wpisy – niezgodności przychodzą jako powiadomienia.</p>`;
+    <p class="muted small" style="margin:0 0 12px">Z wpisów kierowców w aplikacji (${fdate(R.from)} – ${fdate(R.to)}): km z przejęć i zdań auta, spalanie z tankowań. Średnia: ${WCLS.map(([k, l]) => `${l.toLowerCase()} <b>${R.clsRate[k]!=null ? f1(R.clsRate[k]) + ' l/100 km' : '—'}</b>`).join(' · ')} – „vs średnia” porównuje z autami tej samej klasy. Karty paliwowe tylko sprawdzają wpisy – niezgodności przychodzą jako powiadomienia.</p>`;
   const [sk, dir] = rkSort[rkView];
   const cmp = (a, b) => { const x = a[sk], y = b[sk]; if (x==null && y==null) return 0; if (x==null) return 1; if (y==null) return -1; return (x > y ? 1 : x < y ? -1 : 0) * dir; };
   const th = (k, l, r) => `<th class="${r ? 'r' : ''} click" data-rk-sort="${k}">${l}${sk===k ? (dir > 0 ? ' ▲' : ' ▼') : ''}</th>`;
@@ -91,19 +98,19 @@ function viewRankingFleet(drvTab){
   const rateCell = x => x.rate==null ? '<span class="muted">—</span>' : `<b class="num ${x.rate > THEFT_RATE ? 'neg' : ''}">${f1(x.rate)}</b>`;
   if (rkView==='drv'){
     const xs = R.drv.slice().sort(cmp), withRate = xs.filter(x => x.rate!=null);
-    const top = new Set(sk==='rate' ? withRate.slice(0, 3).map(x => x.d.id) : []), low = new Set(sk==='rate' && withRate.length > 5 ? withRate.slice(-3).map(x => x.d.id) : []);
-    return head + `<div class="panel tablewrap"><table class="rk2-tbl"><thead><tr><th>#</th>${th('name', 'Kierowca')}${th('km', 'Km', 1)}${th('days', 'Dni pracy', 1)}${th('fills', 'Tankowania', 1)}${th('rate', 'Spalanie l/100', 1)}${th('diff', 'vs średnia', 1)}${th('card', 'Niezgodne z kartą', 1)}</tr></thead><tbody>
+    const top = new Set(['rate', 'diff'].includes(sk) ? withRate.slice(0, 3).map(x => x.d.id) : []), low = new Set(['rate', 'diff'].includes(sk) && withRate.length > 5 ? withRate.slice(-3).map(x => x.d.id) : []);
+    return head + `<div class="panel tablewrap"><table class="rk2-tbl"><thead><tr><th>#</th>${th('name', 'Kierowca')}${th('km', 'Km', 1)}${th('days', 'Dni pracy', 1)}${th('fills', 'Tankowania', 1)}${th('rate', 'Spalanie l/100', 1)}${th('diff', 'vs średnia klasy', 1)}${th('card', 'Niezgodne z kartą', 1)}</tr></thead><tbody>
       ${xs.map((x, i) => `<tr class="click ${top.has(x.d.id) ? 'rk-top' : low.has(x.d.id) ? 'rk-low' : ''}" data-drv-hist="${esc(x.d.id)}"><td class="num">${i + 1}</td><td><b>${esc(x.d.name)}</b>${x.veh ? `<span class="sub">${x.veh} ${isPlural(x.veh, 'auto', 'auta', 'aut')}</span>` : ''}</td>
         <td class="r num">${x.km ? nf.format(x.km) : '—'}</td><td class="r num">${x.days || '—'}</td><td class="r num">${x.fills ? `${x.fills} <span class="muted small">· ${nf.format(Math.round(x.liters))} l</span>` : '—'}</td>
         <td class="r">${rateCell(x)}</td><td class="r">${diffCell(x)}</td><td class="r">${x.card ? `<span class="pill bad">${x.card}</span>` : '<span class="muted">0</span>'}</td></tr>`).join('') || '<tr><td colspan="8" class="muted">Brak wpisów kierowców w tym okresie – ranking pojawi się, gdy kierowcy zaczną przejmować auta i wpisywać tankowania.</td></tr>'}</tbody></table></div>
       <p class="muted small">Kliknij kierowcę – historia jego tankowań, przejęć i zdań. Spalanie pokazujemy od 300 km z wpisanymi tankowaniami.</p>`;
   }
   const xs = R.veh.map(x => ({...x, name: x.v.plate})).sort(cmp), withV = xs.filter(x => x[sk]!=null && sk!=='name');
-  const top = new Set(['rate', 'costKm'].includes(sk) && dir > 0 ? withV.slice(0, 3).map(x => x.v.id) : []), low = new Set(['rate', 'costKm'].includes(sk) && dir > 0 && withV.length > 5 ? withV.slice(-3).map(x => x.v.id) : []);
+  const top = new Set(['rate', 'diff', 'costKm'].includes(sk) && dir > 0 ? withV.slice(0, 3).map(x => x.v.id) : []), low = new Set(['rate', 'diff', 'costKm'].includes(sk) && dir > 0 && withV.length > 5 ? withV.slice(-3).map(x => x.v.id) : []);
   const zl2 = x => new Intl.NumberFormat('pl-PL', {minimumFractionDigits: 2, maximumFractionDigits: 2}).format(x);
-  return head + `<div class="seg" style="margin:0 0 10px">${[['rate', 'Wg spalania'], ['costKm', 'Wg kosztu / km'], ['km', 'Wg km']].map(([k, l]) => `<button type="button" class="small ${sk===k ? 'on' : ''}" data-rk-sort-set="${k}">${l}</button>`).join('')}</div>
-    <div class="panel tablewrap"><table class="rk2-tbl"><thead><tr><th>#</th>${th('name', 'Auto')}${th('rate', 'Spalanie l/100', 1)}${th('diff', 'vs średnia', 1)}${th('costKm', 'Koszt / km', 1)}${th('cost', 'Koszty', 1)}${th('km', 'Km', 1)}${th('days', 'Dni w grafiku', 1)}${th('card', 'Niezgodne z kartą', 1)}</tr></thead><tbody>
-    ${xs.map((x, i) => `<tr class="click ${top.has(x.v.id) ? 'rk-top' : low.has(x.v.id) ? 'rk-low' : ''}" data-rk-veh="${esc(x.v.id)}"><td class="num">${i + 1}</td><td>${plate(x.v.plate)}<span class="sub">${esc([x.v.make, x.v.model].filter(Boolean).join(' '))}</span></td>
+  return head + `<div class="seg" style="margin:0 0 10px">${[['diff', 'Wg spalania (vs klasa)'], ['rate', 'Wg l/100'], ['costKm', 'Wg kosztu / km'], ['km', 'Wg km']].map(([k, l]) => `<button type="button" class="small ${sk===k ? 'on' : ''}" data-rk-sort-set="${k}">${l}</button>`).join('')}</div>
+    <div class="panel tablewrap"><table class="rk2-tbl"><thead><tr><th>#</th>${th('name', 'Auto')}${th('rate', 'Spalanie l/100', 1)}${th('diff', 'vs średnia klasy', 1)}${th('costKm', 'Koszt / km', 1)}${th('cost', 'Koszty', 1)}${th('km', 'Km', 1)}${th('days', 'Dni w grafiku', 1)}${th('card', 'Niezgodne z kartą', 1)}</tr></thead><tbody>
+    ${xs.map((x, i) => `<tr class="click ${top.has(x.v.id) ? 'rk-top' : low.has(x.v.id) ? 'rk-low' : ''}" data-rk-veh="${esc(x.v.id)}"><td class="num">${i + 1}</td><td>${plate(x.v.plate)}<span class="sub">${esc([x.v.make, x.v.model].filter(Boolean).join(' '))} · ${wclsName(x.cls).toLowerCase()}</span></td>
       <td class="r">${rateCell(x)}</td><td class="r">${diffCell(x)}</td><td class="r num">${x.costKm!=null ? `<b>${zl2(x.costKm)}</b> <span class="muted small">zł</span>` : '<span class="muted">—</span>'}</td>
       <td class="r num">${x.cost ? zl(x.cost) : '—'}</td><td class="r num">${x.km ? nf.format(x.km) : '—'}</td><td class="r num">${x.days || '—'}</td>
       <td class="r">${x.card ? `<span class="pill bad">${x.card}</span>` : '<span class="muted">0</span>'}</td></tr>`).join('')}</tbody></table></div>

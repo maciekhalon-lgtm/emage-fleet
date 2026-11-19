@@ -25,7 +25,7 @@ function rtKmCost(m){
   const [a] = setlRange(ms[2]), [, b] = setlRange(ms[0]);
   (S.fuelCardRows || []).forEach(r => { if (r.kind!=='other' && r.txDate >= a && r.txDate <= b && (!r.currency || r.currency==='PLN') && Number(r.liters) > 0 && Number(r.amount) > 0){ fuelZl += fcNet(r); fuelL += Number(r.liters); } });
   let ck = 0, cl = 0; S.vehicles.filter(v => v.status!=='wycofany').forEach(v => { const c = consRange(v.id, a, b); if (c && c.rate!=null && !c.unsure){ ck += c.km; cl += c.l; } });
-  const lp100 = ck ? cl / ck * 100 : 10, price = fuelL ? fuelZl / fuelL : 6.5 / 1.23;   // netto z plików kart (trasy fakturujemy netto)
+  const lp100 = ck ? cl / ck * 100 : 10, price = fuelL ? fuelZl / fuelL : 6.5 / (1 + fuelVat(today()) / 100);   // netto z plików kart (trasy fakturujemy netto)
   const fuelKm = lp100 / 100 * price, otherKm = km_ ? other / km_ : 0;
   return {lp100, price, fuelKm, otherKm, total: fuelKm + otherKm, from: a, to: b};
 }

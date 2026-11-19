@@ -16,32 +16,49 @@ function spPrevRange(){
   const p = prevMonth(from.slice(0, 7)); return [p + '-01', addDays(from, -1)];
 }
 const spRate = lg => { const km = lg.reduce((a, x) => a + x.km, 0), l = lg.reduce((a, x) => a + x.l, 0); return {km, l, rate: km >= 300 ? l / km * 100 : null}; };
+let spSort = ['diff', -1];   // domyślnie: najbardziej powyżej średniej swojej klasy na górze
+const SP_SORTS = [['diff', 'vs średnia klasy'], ['own', 'vs własna średnia'], ['rate', 'Spalanie'], ['km', 'Km']];
 function spData(){
-  const [from, to] = spRange(), legs = rkLegs(from, to), [pf, pt] = spPrevRange(), prev = rkLegs(pf, pt);
+  const [from, to] = spRange(), legs = rkLegs(from, to), [pf, pt] = spPrevRange(), prev = rkLegs(pf, pt), ownFrom = addDays(to, -179);
   const rows = S.vehicles.filter(v => v.status!=='wycofany').map(v => {
     const {km, l, rate} = spRate(legs.filter(x => x.vid===v.id)), pr = spRate(prev.filter(x => x.vid===v.id)).rate;
-    return {v, km, l, rate, prev: pr, chg: rate!=null && pr!=null ? rate - pr : null};
+    const own = spRate(rkVehLegs(v.id).filter(x => x.date >= ownFrom && x.date <= to)).rate;   // średnia auta z ostatnich 6 miesięcy
+    return {v, cls: wcls(v), km, l, rate, prev: pr, chg: rate!=null && pr!=null ? rate - pr : null, own, vsOwn: rate!=null && own!=null ? rate - own : null};
   });
   const ok = rows.filter(r => r.rate!=null), fKm = ok.reduce((a, r) => a + r.km, 0), fL = ok.reduce((a, r) => a + r.l, 0);
-  const avg = fKm ? fL / fKm * 100 : null;
-  ok.forEach(r => r.diff = avg ? (r.rate - avg) / avg * 100 : null);
-  return {from, to, avg, km: fKm, l: fL, ok: ok.sort((a, b) => b.rate - a.rate), none: rows.filter(r => r.rate==null)};
+  const cls = {};
+  WCLS.forEach(([k]) => { const xs = ok.filter(r => r.cls===k), km = xs.reduce((a, r) => a + r.km, 0), l = xs.reduce((a, r) => a + r.l, 0);
+    cls[k] = {avg: km ? l / km * 100 : null, km, l, n: xs.length}; });
+  ok.forEach(r => { const a = cls[r.cls].avg; r.diff = a ? (r.rate - a) / a * 100 : null; });
+  return {from, to, avg: fKm ? fL / fKm * 100 : null, km: fKm, l: fL, cls, ok, none: rows.filter(r => r.rate==null)};
 }
 function viewFuelSimple(){
   const D = spData(), nf = new Intl.NumberFormat('pl-PL'), f1 = x => x.toFixed(1).replace('.', ',');
   const head = `<div class="bar"><h2>Spalanie</h2><div class="tools"><div class="seg">${[['mies', 'Ten miesiąc'], ['prev', 'Poprzedni'], ['3m', '3 miesiące']].map(([k, l]) => `<button type="button" class="${spPer===k ? 'on' : ''}" data-sp-per="${k}">${l}</button>`).join('')}</div></div></div>`;
-  const kpi = `<div class="panel sp-kpi"><div><span class="label">Średnie spalanie floty</span><b class="num">${D.avg!=null ? f1(D.avg) + ' l/100 km' : '—'}</b></div>
+  const kpi = `<div class="panel sp-kpi">${WCLS.filter(([k]) => D.cls[k].n).map(([k, l]) => `<div><span class="label">Średnia – ${l.toLowerCase()}</span><b class="num">${f1(D.cls[k].avg)} l/100 km</b><span class="sub">${D.cls[k].n} ${isPlural(D.cls[k].n, 'auto', 'auta', 'aut')}</span></div>`).join('')
+    || `<div><span class="label">Średnie spalanie</span><b class="num">—</b></div>`}
     <div><span class="label">Km</span><b class="num">${nf.format(Math.round(D.km))}</b></div><div><span class="label">Litry</span><b class="num">${nf.format(Math.round(D.l))}</b></div></div>`;
+  const [sk, dir] = spSort;
+  const val = r => sk==='own' ? r.vsOwn : r[sk];
+  const cmp = (a, b) => { const x = val(a), y = val(b); if (x==null && y==null) return b.rate - a.rate; if (x==null) return 1; if (y==null) return -1; return (x - y) * dir || b.rate - a.rate; };
+  const sorts = `<div class="sp-sort"><span class="muted small">Sortuj:</span><div class="seg">${SP_SORTS.map(([k, l]) => `<button type="button" class="small ${sk===k ? 'on' : ''}" data-sp-sort="${k}">${l}${sk===k ? (dir < 0 ? ' ▼' : ' ▲') : ''}</button>`).join('')}</div></div>`;
+  const delta = (x, title) => x==null ? '<span class="muted">—</span>' : `<span class="num ${x > 0.5 ? 'neg' : x < -0.5 ? 'pos' : 'muted'}" title="${esc(title)}">${x > 0 ? '+' : x < 0 ? '−' : ''}${f1(Math.abs(x))}</span>`;
   const row = r => `<tr class="click" data-sp-veh="${esc(r.v.id)}"><td>${plate(r.v.plate)}<span class="sub">${esc([r.v.make, r.v.model].filter(Boolean).join(' '))}</span></td>
     <td class="r"><b class="num ${r.rate > THEFT_RATE ? 'neg' : ''}">${f1(r.rate)}</b></td>
     <td class="r">${r.diff==null ? '' : `<span class="pill ${r.diff > 15 ? 'bad' : r.diff > 5 ? 'warn' : r.diff < -5 ? 'ok' : 'off'}">${r.diff > 0 ? '+' : ''}${Math.round(r.diff)}%</span>`}</td>
-    <td class="r">${r.chg==null ? '<span class="muted">—</span>' : `<span class="num ${r.chg > 0.5 ? 'neg' : r.chg < -0.5 ? 'pos' : 'muted'}" title="poprzednio ${f1(r.prev)} l/100 km">${r.chg > 0 ? '+' : r.chg < 0 ? '−' : ''}${f1(Math.abs(r.chg))}</span>`}</td>
+    <td class="r">${r.own!=null ? `<span class="num">${f1(r.own)}</span> ${delta(r.vsOwn, 'teraz względem własnej średniej auta')}` : '<span class="muted">—</span>'}</td>
+    <td class="r">${delta(r.chg, r.prev!=null ? 'poprzednio ' + f1(r.prev) + ' l/100 km' : '')}</td>
     <td class="r num">${nf.format(Math.round(r.km))}</td><td class="r num">${nf.format(Math.round(r.l))}</td></tr>`;
-  const tbl = D.ok.length ? `<div class="panel tablewrap"><table class="sp-tbl"><thead><tr><th>Auto</th><th class="r">Spalanie l/100</th><th class="r">vs średnia</th><th class="r">${spPer==='3m' ? 'Zmiana do 3 mies. wcześniej' : 'Zmiana do poprz. miesiąca'}</th><th class="r">Km</th><th class="r">Litry</th></tr></thead><tbody>${D.ok.map(row).join('')}</tbody></table></div>`
+  const thead = `<thead><tr><th>Auto</th><th class="r">Spalanie l/100</th><th class="r">vs średnia klasy</th><th class="r">Średnia auta (6 mies.)</th><th class="r">${spPer==='3m' ? 'Zmiana do 3 mies. wcześniej' : 'Zmiana do poprz. miesiąca'}</th><th class="r">Km</th><th class="r">Litry</th></tr></thead>`;
+  const sections = WCLS.map(([k, l]) => { const xs = D.ok.filter(r => r.cls===k).sort(cmp); if (!xs.length) return '';
+    return `<div class="panel tablewrap"><div class="sec-head"><h3>${l}</h3><span class="muted small">średnia klasy <b>${f1(D.cls[k].avg)} l/100 km</b> · ${nf.format(Math.round(D.cls[k].km))} km</span></div>
+      <table class="sp-tbl">${thead}<tbody>${xs.map(row).join('')}</tbody></table></div>`; }).join('');
+  const tbl = D.ok.length ? sorts + sections
     : `<div class="panel empty"><p>Brak tankowań z licznikiem w tym okresie – spalanie policzy się, gdy kierowcy wpiszą co najmniej 2 tankowania auta (min. 300 km).</p></div>`;
   const none = D.none.length ? `<details class="panel fold"><summary class="sec-head"><h3>Bez danych</h3><span class="count">${D.none.length} ${isPlural(D.none.length, 'auto', 'auta', 'aut')}</span></summary>
     <p class="muted small" style="margin:0 0 8px">Za mało tankowań z licznikiem w tym okresie.</p><div class="sp-none">${D.none.map(r => `<span data-sp-veh="${esc(r.v.id)}" class="click">${plate(r.v.plate)}</span>`).join('')}</div></details>` : '';
-  return head + kpi + tbl + none;
+  const note = D.ok.length ? `<p class="muted small">Auta porównujemy w obrębie klasy (do 2,5 t / powyżej 2,5 t – ustawiasz w danych auta). „Średnia auta” – jego spalanie z ostatnich 6 miesięcy; obok różnica: ile teraz pali więcej (+) albo mniej (−) niż zwykle.</p>` : '';
+  return head + kpi + tbl + none + note;
 }
 function openSpVehicle(vid){
   const v = byId('vehicles', vid); if (!v) return;
@@ -63,5 +80,6 @@ function openSpVehicle(vid){
 }
 document.addEventListener('click', e => {
   const p = e.target.closest('[data-sp-per]'); if (p){ spPer = p.dataset.spPer; render(); return; }
+  const o = e.target.closest('[data-sp-sort]'); if (o){ const k = o.dataset.spSort; spSort = [k, spSort[0]===k ? -spSort[1] : (k==='rate' || k==='km' || k==='diff' || k==='own' ? -1 : 1)]; render(); return; }
   const r = e.target.closest('[data-sp-veh]'); if (r){ openSpVehicle(r.dataset.spVeh); return; }
 });

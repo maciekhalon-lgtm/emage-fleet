@@ -1819,3 +1819,5 @@ html[data-env="test"] body{padding-top:20px}
 .sp-none{display:flex;flex-wrap:wrap;gap:8px}
 .sp-tbl .neg{color:var(--bad)}
 .sp-tbl .pos{color:var(--ok)}
+.sp-sort{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 10px}
+.sp-kpi .sub{display:block;font-size:12px;color:var(--muted)}

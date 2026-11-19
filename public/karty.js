@@ -58,8 +58,8 @@ function fcCur(v){
 const fcSettings = () => S.settings.find(x => x.id==='fuelcard') || {};
 
 /* ---------- porównanie z wpisami kierowców ---------- */
-/* netto wiersza karty: z pliku (kwota netto / stawka VAT), a bez nich brutto / 1,23 */
-const fcNet = r => Number(r.amountNet) > 0 ? Number(r.amountNet) : Number(r.amount) / (1 + (r.vatRate!=null ? Number(r.vatRate) : 23) / 100);
+/* netto wiersza karty: z pliku (kwota netto / stawka VAT), a bez nich – VAT wg daty tankowania (8% w okresie obniżki, inaczej 23%) */
+const fcNet = r => Number(r.amountNet) > 0 ? Number(r.amountNet) : Number(r.amount) / (1 + (r.vatRate!=null ? Number(r.vatRate) : fuelVat(r.txDate)) / 100);
 const appFuel = () => S.costs.filter(c => FUEL_CATS.includes(c.category) && c.vehicleId);
 function fcCompare(rows){
   const used = new Set(), out = [];

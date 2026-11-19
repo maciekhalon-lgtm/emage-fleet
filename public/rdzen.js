@@ -162,3 +162,12 @@ const prevMonth = m => { const d = parse(m + '-01'); d.setMonth(d.getMonth() - 1
 const r1 = n => n==null ? '—' : n.toFixed(1).replace('.', ',');
 const monthsBack = n => { const out = []; let m = today().slice(0, 7); for (let i = 0; i < n; i++){ out.unshift(m); m = prevMonth(m); } return out; };
 const odoOk = o => { const x = Number(o); return x > 1000 && !(typeof fakeOdo==='function' && fakeOdo(x)); };
+
+/* VAT na paliwo wg daty tankowania – gdy plik z karty nie podaje stawki.
+   Obniżka do 8%: 17–31.08.2026 i 3.10–31.12.2026 (ta sama zasada w bazie: private.fuel_vat, migracja 049). */
+const FUEL_VAT_8 = [['2026-08-17', '2026-08-31'], ['2026-10-03', '2026-12-31']];
+const fuelVat = d => FUEL_VAT_8.some(([a, b]) => String(d || '') >= a && String(d || '') <= b) ? 8 : 23;
+/* klasa auta: do 2,5 t / powyżej 2,5 t – spalanie porównujemy w obrębie klasy */
+const WCLS = [['pow25', 'Powyżej 2,5 t'], ['do25', 'Do 2,5 t']];
+const wcls = v => v && v.weightClass==='do25' ? 'do25' : 'pow25';
+const wclsName = k => (WCLS.find(x => x[0]===k) || WCLS[0])[1];
