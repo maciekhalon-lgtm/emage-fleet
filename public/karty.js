@@ -235,23 +235,37 @@ function fcGpsAt(vid, d){
   const xs = (S.gpsOdometer || []).filter(g => g.vehicleId===vid && Number(g.km) > 0 && g.day <= d).sort((a, b) => b.day.localeCompare(a.day));
   return xs[0] && diffDays(xs[0].day, d) <= 3 ? Number(xs[0].km) : null;
 }
+/* km z GPS w chwili transakcji z karty (Geotab, tabela odo_gps) – a bez niego odczyt z końca dnia (mniej dokładny) */
+function fcRowGps(r){
+  const g = (S.odoGps || []).find(x => x.source==='karta' && x.refId===r.id && Number(x.gpsKm) > 0);
+  if (g) return {km: Number(g.gpsKm), exact: true};
+  const k = fcGpsAt(r.vehicleId, r.txDate); return k!=null ? {km: k, exact: false} : null;
+}
 function fcCardCons(vid, from, to){
   const fs = S.fuelCardRows.filter(r => r.vehicleId===vid && r.kind!=='other' && Number(r.liters) > 0 && r.txDate >= from && r.txDate <= to)
     .sort((a, b) => (a.txDate + (a.txTime || '')).localeCompare(b.txDate + (b.txTime || '')));
   const L = fs.reduce((a, r) => a + Number(r.liters), 0);
   const net = fs.filter(r => !r.currency || r.currency==='PLN').reduce((a, r) => a + fcNet(r), 0);
-  if (fs.length < 2) return {n: fs.length, L, net, l: null, km: null, rate: null};
-  const k0 = fcGpsAt(vid, fs[0].txDate), k1 = fcGpsAt(vid, fs[fs.length - 1].txDate), l = L - Number(fs[0].liters);
-  const km_ = k0!=null && k1!=null && k1 > k0 ? k1 - k0 : null;
+  const empty = {n: fs.length, L, net, l: null, km: null, rate: null};
+  if (fs.length < 2) return empty;
+  // pierwsze i ostatnie tankowanie z odczytem GPS; litry = tankowania po pierwszym aż do ostatniego włącznie
+  const g = fs.map(fcRowGps), exact = g.filter(x => x && x.exact).length;
+  const pick = g.some(x => x && x.exact) ? (x => x && x.exact) : (x => !!x);   // gdy są dokładne odczyty – tylko one
+  const i0 = g.findIndex(pick), i1 = g.length - 1 - g.slice().reverse().findIndex(pick);
+  if (i0 < 0 || i1 <= i0) return empty;
+  const km_ = g[i1].km - g[i0].km, l = fs.slice(i0 + 1, i1 + 1).reduce((a, r) => a + Number(r.liters), 0);
+  if (!(km_ > 0)) return empty;
   const rate = km_ >= 300 ? l / km_ * 100 : null;
-  return {n: fs.length, L, net, l, km: km_, rate: rate!=null && rate >= 3 && rate <= 40 ? rate : null, odd: rate!=null && (rate < 3 || rate > 40)};
+  return {n: fs.length, L, net, l, km: km_, exact: exact===fs.length, approx: !g[i0].exact || !g[i1].exact,
+    rate: rate!=null && rate >= 3 && rate <= 40 ? rate : null, odd: rate!=null && (rate < 3 || rate > 25)};
 }
 function fcConsData(from, to){
   const vs = S.vehicles.filter(v => v.status!=='wycofany' && S.fuelCardRows.some(r => r.vehicleId===v.id && r.kind!=='other' && r.txDate >= from && r.txDate <= to));
   const rows = vs.map(v => { const c = fcCardCons(v.id, from, to), o = fcCardCons(v.id, addDays(to, -179), to);
     return {v, cls: wcls(v), ...c, own: o.rate, vsOwn: c.rate!=null && o.rate!=null ? c.rate - o.rate : null}; });
   const ok = rows.filter(r => r.rate!=null), cls = {};
-  WCLS.forEach(([k]) => { const xs = ok.filter(r => r.cls===k), km_ = xs.reduce((a, r) => a + r.km, 0), l = xs.reduce((a, r) => a + r.l, 0);
+  // do średniej klasy nie wliczamy aut z nierealnym wynikiem (> 25 l/100 – błąd GPS albo cudze tankowania)
+  WCLS.forEach(([k]) => { const xs = ok.filter(r => r.cls===k && !r.odd), km_ = xs.reduce((a, r) => a + r.km, 0), l = xs.reduce((a, r) => a + r.l, 0);
     cls[k] = {avg: km_ ? l / km_ * 100 : null, km: km_, l, n: xs.length}; });
   ok.forEach(r => { const a = cls[r.cls].avg; r.diff = a ? (r.rate - a) / a * 100 : null; });
   return {rows, ok, cls, none: rows.filter(r => r.rate==null)};
@@ -264,7 +278,7 @@ function fcConsPanel(imp){
   const cmp = (a, b) => { const x = val(a), y = val(b); if (x==null && y==null) return b.rate - a.rate; if (x==null) return 1; if (y==null) return -1; return (x - y) * dir || b.rate - a.rate; };
   const delta = x => x==null ? '<span class="muted">—</span>' : `<span class="num ${x > 0.5 ? 'neg' : x < -0.5 ? 'pos' : 'muted'}">${x > 0 ? '+' : x < 0 ? '−' : ''}${f1(Math.abs(x))}</span>`;
   const row = r => `<tr><td>${plate(r.v.plate)}<span class="sub">${esc([r.v.make, r.v.model].filter(Boolean).join(' '))} · ${r.n} ${isPlural(r.n, 'tankowanie', 'tankowania', 'tankowań')}</span></td>
-    <td class="r"><b class="num ${r.rate > THEFT_RATE ? 'neg' : ''}">${f1(r.rate)}</b></td>
+    <td class="r"><b class="num ${r.rate > THEFT_RATE ? 'neg' : ''}">${f1(r.rate)}</b>${r.odd ? '<span class="sub"><span class="pill bad">sprawdź GPS / kartę</span></span>' : r.approx ? '<span class="sub muted">GPS z końca dnia</span>' : ''}</td>
     <td class="r">${r.diff==null ? '' : `<span class="pill ${r.diff > 15 ? 'bad' : r.diff > 5 ? 'warn' : r.diff < -5 ? 'ok' : 'off'}">${r.diff > 0 ? '+' : ''}${Math.round(r.diff)}%</span>`}</td>
     <td class="r">${r.own!=null ? `<span class="num">${f1(r.own)}</span> ${delta(r.vsOwn)}` : '<span class="muted">—</span>'}</td>
     <td class="r num">${nf.format(Math.round(r.km))}</td><td class="r num">${nf.format(Math.round(r.L))}</td><td class="r num">${zl(r.net)}</td></tr>`;
@@ -272,13 +286,13 @@ function fcConsPanel(imp){
   const secs = WCLS.map(([k, l]) => { const xs = D.ok.filter(r => r.cls===k).sort(cmp); if (!xs.length) return '';
     return `<div class="sec-head"><h3>${l}</h3><span class="muted small">średnia klasy <b>${f1(D.cls[k].avg)} l/100 km</b> · ${nf.format(Math.round(D.cls[k].km))} km</span></div>
       <div class="tablewrap"><table class="sp-tbl">${thead}<tbody>${xs.map(row).join('')}</tbody></table></div>`; }).join('');
-  const why = r => r.n < 2 ? 'jedno tankowanie' : r.odd ? 'GPS nie pasuje do litrów' : r.km==null ? 'brak km z GPS' : 'mniej niż 300 km';
+  const why = r => r.n < 2 ? 'jedno tankowanie' : r.km==null ? 'brak km z GPS' : r.km < 300 ? 'mniej niż 300 km' : 'GPS nie pasuje do litrów';
   const none = D.none.length ? `<details class="fold" style="margin-top:8px"><summary class="sec-head"><h3>Bez wyniku</h3><span class="count">${D.none.length}</span></summary><div class="sp-none">${D.none.map(r => `<span title="${esc(why(r))}">${plate(r.v.plate)} <span class="muted small">${esc(why(r))}</span></span>`).join('')}</div></details>` : '';
   const sorts = `<div class="sp-sort"><span class="muted small">Sortuj:</span><div class="seg">${SP_SORTS.map(([k, l]) => `<button type="button" class="small ${sk===k ? 'on' : ''}" data-fccs-sort="${k}">${l}${sk===k ? (dir < 0 ? ' ▼' : ' ▲') : ''}</button>`).join('')}</div></div>`;
   return `<details class="panel fold" open><summary class="sec-head"><h3>Spalanie z karty</h3><span class="muted small">${fdate(imp.periodFrom)} – ${fdate(imp.periodTo)} · litry z karty, km z GPS</span></summary>
     <div class="sp-kpi" style="margin:4px 0 10px">${WCLS.filter(([k]) => D.cls[k].n).map(([k, l]) => `<div><span class="label">Średnia – ${l.toLowerCase()}</span><b class="num">${f1(D.cls[k].avg)} l/100 km</b><span class="sub">${D.cls[k].n} ${isPlural(D.cls[k].n, 'auto', 'auta', 'aut')}</span></div>`).join('') || '<div><span class="label">Średnia</span><b class="num">—</b></div>'}</div>
     ${D.ok.length ? sorts + secs : '<p class="muted">Za mało danych (potrzebne min. 2 tankowania z karty i km z GPS).</p>'}${none}
-    <p class="muted small" style="margin:8px 0 0">Liczone od pierwszego do ostatniego tankowania z karty w okresie: litry bez pierwszego tankowania / km z GPS między tymi dniami. „Średnia auta z kart” – z ostatnich 6 miesięcy. Ranking kierowców dalej liczy się z ich wpisów (Paliwo → Spalanie).</p></details>`;
+    <p class="muted small" style="margin:8px 0 0">Liczone od pierwszego do ostatniego tankowania z karty w okresie: litry bez pierwszego tankowania / km z GPS (Geotab) odczytane w chwili tych tankowań – bez takiego odczytu bierzemy stan z końca dnia (oznaczone). „Średnia auta z kart” – z ostatnich 6 miesięcy. Ranking kierowców dalej liczy się z ich wpisów (Paliwo → Spalanie).</p></details>`;
 }
 document.addEventListener('change', e => { if (e.target.id==='fc-imp'){ fcImportId = e.target.value; render(); } });
 document.addEventListener('click', e => { const o = e.target.closest('[data-fccs-sort]'); if (!o) return; const k = o.dataset.fccsSort;
