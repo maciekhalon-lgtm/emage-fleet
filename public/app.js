@@ -2,7 +2,7 @@
 'use strict';
 /* ---------- routing ---------- */
 const DRIVER_VIEWS = ['moje','wybierz','moje-dane','moj-grafik','moja-historia'];
-const TABS = ['moje','wybierz','moje-dane','moj-grafik','moja-historia','pulpit','pojazdy','trasy','terminy','usterki','ksiazka','przydzial','koszty','karty','oplaty','opony','wyposazenie','umowy','plan','zlecenia','serwis-terminy','ranking','ranking-kierowcy','spalanie','liczniki','raporty','rozliczenie','rentownosc','trasy-zysk','historia','kierowcy','uzytkownicy','ustawienia'];
+const TABS = ['moje','wybierz','moje-dane','moj-grafik','moja-historia','pulpit','pojazdy','trasy','terminy','usterki','ksiazka','przydzial','koszty','karty','oplaty','opony','wyposazenie','umowy','plan','zlecenia','serwis-terminy','ranking','ranking-kierowcy','spalanie','liczniki','raporty','rozliczenie','historia','kierowcy','uzytkownicy','ustawienia'];
 const homeTab = () => P().mycar ? 'moje' : 'pulpit';
 let pendingCard = null;
 let tab = 'pulpit', q = '', costMonth = today().slice(0,7), dlFilter = 'urgent';
@@ -71,8 +71,7 @@ function render(){
   else if (tab==='karty') v.innerHTML = viewFuelCards();
   else if (tab==='spalanie') v.innerHTML = viewFuelSimple();
   else if (tab==='liczniki') v.innerHTML = viewOdoControl();
-  else if (tab==='rentownosc') v.innerHTML = viewProfit();
-  else if (tab==='trasy-zysk') v.innerHTML = viewRouteProfit();
+  // Rentowność (Cała firma, Trasy) – ukryta do czasu nowej wersji; kod w rentownosc.js i trasy-zysk.js, ustawienia zostają w bazie
   else if (tab==='oplaty') v.innerHTML = viewTolls();
   else if (tab==='opony') v.innerHTML = viewTires();
   else if (tab==='wyposazenie') v.innerHTML = viewEquipment();

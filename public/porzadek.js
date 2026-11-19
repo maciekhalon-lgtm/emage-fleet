@@ -7,14 +7,13 @@ const GROUPS = {
   rezerwacje: [['przydzial','Grafik', () => !serviceOnly()], ['trasy','Trasy', () => !!P().manage]],
   serwis:     [['usterki','Zgłoszenia', () => true], ['serwis-terminy','Terminy', () => typeof cdOn==='function' && cdOn()], ['zlecenia','Zlecenia', () => typeof woOn==='function' && woOn()], ['ksiazka','Historia napraw', () => !!P().service], ['plan','Plan serwisu', () => planOn() && !(typeof woOn==='function' && woOn())], ['opony','Opony', () => tiresOn()]],
   paliwo:     [['karty','Karty', () => !!P().manage], ['spalanie','Spalanie', () => !!P().manage], ['oplaty','Opłaty drogowe', () => !!P().manage]],
-  koszty:     [['koszty','Koszty', () => true], ['rozliczenie','Rozliczenie aut', () => !!P().manage], ['rentownosc','Rentowność', () => !!P().manage], ['raporty','Raporty', () => !!P().reports], ['umowy','Leasing i umowy', () => contractsOn()]],
+  koszty:     [['koszty','Koszty', () => true], ['rozliczenie','Rozliczenie aut', () => !!P().manage], ['raporty','Raporty', () => !!P().reports], ['umowy','Leasing i umowy', () => contractsOn()]],
   ludzie:     [['kierowcy','Kierowcy', () => !serviceOnly()], ['uzytkownicy','Użytkownicy', () => !!P().manage]],
   ustawienia: [['ustawienia','Ustawienia', () => !!P().manage], ['historia','Historia zmian', () => !!P().history]],
 };
 /* Zakładki „w środku” innej zakładki: przełącznik na górze strony zamiast osobnej pozycji w menu */
 const INNER = {
   pojazdy:  [['pojazdy','Lista aut', () => true], ['ranking','Ranking aut', () => !!P().manage], ['terminy','Terminy', () => !!(P().manage || P().service)]],
-  rentownosc: [['rentownosc','Cała firma', () => true], ['trasy-zysk','Trasy', () => true]],
   kierowcy: [['kierowcy','Lista kierowców', () => true], ['ranking-kierowcy','Ranking kierowców', () => !!P().manage]],
 };
 const innerParent = t => Object.keys(INNER).find(p => INNER[p].some(([k]) => k===t && k!==p)) || '';
