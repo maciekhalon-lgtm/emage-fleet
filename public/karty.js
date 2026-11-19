@@ -188,6 +188,7 @@ function viewFuelCards(){
   const tiles = `<div class="fc-tiles">${tile('all','wszystkie', pairs.length, '')}${tile('ok','zgodne', ok.length, 'ok')}${tile('diff','różnice', dif.length, 'warn')}${tile('miss','brak wpisu kierowcy', miss.length, 'bad')}${tile('nocard','wpisy bez karty', noCard.length, 'info')}</div>`;
   const meta = `<div class="panel fc-meta"><div><span class="label">Dostawca</span><b>${esc(imp.provider || '—')}</b></div><div><span class="label">Okres</span><b>${imp.periodFrom ? fdate(imp.periodFrom) + ' – ' + fdate(imp.periodTo) : '—'}</b></div>
     <div><span class="label">Karta (nasze auta)</span><b>${fl(cardL)} · ${fm(cardA)}</b><span class="sub">netto ${fm(sum(rows.filter(r => !r.currency || r.currency==='PLN'), fcNet))}</span></div><div><span class="label">Wpisy kierowców</span><b>${fl(appL)} · ${fm(appA)}</b></div>
+    ${(xs => xs.length ? `<div><span class="label">Wykluczone (nie flota)</span><b>${xs.length} · ${fm(sum(xs.filter(r => !r.currency || r.currency==='PLN'), r => r.amount))}</b></div>` : '')(S.fuelCardRowsAll.filter(r => r.excluded && r.importId===imp.id))}
     <div><span class="label">Różnica</span><b class="${Math.abs(cardA - appA) > 1 ? 'neg' : ''}">${fm(cardA - appA)}</b></div>
     <div class="fc-meta-act">${imp.invoicePath ? `<a class="btn small" data-file="${esc(imp.invoicePath)}" href="#" target="_blank" rel="noopener">Faktura${imp.invoiceNo ? ' ' + esc(imp.invoiceNo) : ''}</a>` : ''}<button class="small" data-fc-inv="${esc(imp.id)}">${imp.invoicePath ? 'Zmień fakturę' : 'Dodaj fakturę'}</button><button class="small ghost" data-fc-del="${esc(imp.id)}">Usuń zestawienie</button></div></div>`;
   const perV = [...vids].map(vid => { const r = rows.filter(x => x.vehicleId===vid), a = appRows.filter(c => c.vehicleId===vid);
@@ -207,7 +208,11 @@ function viewFuelCards(){
     return `<tr><td class="num"><b>${fdate(r.txDate)}</b>${r.txTime ? `<span class="sub">${esc(r.txTime)}</span>` : ''}</td><td>${esc(fcDriver(r, c)) || '<span class="muted">—</span>'}</td>
       <td class="num">${fl(r.liters)} · <b>${fm(r.amount, r.currency)}</b><span class="sub">${r.odometer ? km(r.odometer) : 'bez licznika'}${badOdo.has(r.id) ? ' <span class="pill off">licznik podejrzany</span>' : ''}${r.station ? ' · ' + esc(r.station) : ''}${r.product ? ' · ' + esc(r.product) : ''}</span></td>
       <td class="num ${c ? 'click' : ''}" ${c ? `data-edit="costs" data-id="${esc(c.id)}"` : ''}>${c ? `${fl(c.liters)} · <b>${fm(c.currency && c.currency!=='PLN' ? c.amountOrig : c.amount, c.currency)}</b><span class="sub">${c.odometer ? km(c.odometer) : 'bez licznika'}${badOdo.has(c.id) ? ' <span class="pill off">licznik podejrzany</span>' : ''} · ${fdate(c.date)}</span>${photoStrip(c.photos)}` : '<span class="muted">—</span>'}</td>
-      <td>${!c ? '<span class="pill bad">brak wpisu</span>' : p.issues.length ? p.issues.map(x => `<span class="pill warn">${esc(x)}</span>`).join(' ') : '<span class="pill ok">zgodne</span>'}</td></tr>`; };
+      <td>${!c ? '<span class="pill bad">brak wpisu</span>' : p.issues.length ? p.issues.map(x => `<span class="pill warn">${esc(x)}</span>`).join(' ') : '<span class="pill ok">zgodne</span>'} <button class="small ghost" data-fc-excl="${esc(r.id)}" title="Wyklucz z kosztów floty">Nie flota</button></td></tr>`; };
+  const exRow = r => `<tr class="fc-excl"><td class="num"><b>${fdate(r.txDate)}</b>${r.txTime ? `<span class="sub">${esc(r.txTime)}</span>` : ''}</td><td class="muted">—</td>
+      <td class="num">${r.liters ? fl(r.liters) + ' · ' : ''}<b>${fm(r.amount, r.currency)}</b><span class="sub">${esc([r.product, r.station].filter(Boolean).join(' · '))}</span></td>
+      <td class="muted">wykluczone${r.excludedNote ? ': ' + esc(r.excludedNote) : ''}</td><td><span class="pill off">nie flota</span> <button class="small ghost" data-fc-incl="${esc(r.id)}">Przywróć</button></td></tr>`;
+  const excl = S.fuelCardRowsAll.filter(r => r.excluded && r.importId===imp.id && r.kind!=='other');
   const ncRow = c => `<tr><td class="num"><b>${fdate(c.date)}</b></td><td>${esc(dName(fillDriver(c) || c.driverId) || '') || '<span class="muted">—</span>'}</td><td class="muted">nie ma na karcie</td>
       <td class="num click" data-edit="costs" data-id="${esc(c.id)}">${fl(c.liters)} · <b>${fm(c.amount)}</b><span class="sub">${c.odometer ? km(c.odometer) : 'bez licznika'}</span>${photoStrip(c.photos)}</td><td><span class="pill info">bez karty</span></td></tr>`;
   // filtr kafelków: które pozycje pokazujemy w rozwinięciu auta
@@ -216,7 +221,7 @@ function viewFuelCards(){
   const vRows = perV.filter(x => fcFilter==='all' || shown.some(y => y.vid===x.vid)).map(x => {
     const vp = pairs.filter(p => p.row.vehicleId===x.vid), nd = vp.filter(p => p.cost && p.issues.length).length, nm = vp.filter(p => !p.cost).length, nc = noCard.filter(c => c.vehicleId===x.vid).length;
     const open = fcOpen.has(x.vid);
-    const det = open ? `<tr class="fc-det"><td colspan="5"><table><thead><tr><th>Data</th><th>Kierowca</th><th>Karta</th><th>Wpisał kierowca</th><th>Wynik</th></tr></thead><tbody>${shown.filter(y => y.vid===x.vid).sort((a, b) => a.key.localeCompare(b.key)).map(y => y.html).join('') || '<tr><td colspan="5" class="muted">Brak pozycji dla tego filtra.</td></tr>'}</tbody></table></td></tr>` : '';
+    const det = open ? `<tr class="fc-det"><td colspan="5"><table><thead><tr><th>Data</th><th>Kierowca</th><th>Karta</th><th>Wpisał kierowca</th><th>Wynik</th></tr></thead><tbody>${shown.filter(y => y.vid===x.vid).sort((a, b) => a.key.localeCompare(b.key)).map(y => y.html).join('') + excl.filter(r => r.vehicleId===x.vid).map(exRow).join('') || '<tr><td colspan="5" class="muted">Brak pozycji dla tego filtra.</td></tr>'}</tbody></table></td></tr>` : '';
     return `<tr class="click fc-vrow ${open ? 'open' : ''}" data-fcv="${esc(x.vid)}" aria-expanded="${open}"><td>${ic('chev', 'fc-chev')} ${vPlate(x.vid)}<span class="sub">${vp.length} ${isPlural(vp.length,'tankowanie','tankowania','tankowań')}</span></td>
       <td class="r num">${fl(x.cl)}<span class="sub">${fm(x.ca)}</span></td><td class="r num">${fl(x.al)}<span class="sub">${fm(x.aa)}</span></td>
       <td class="r num ${Math.abs(x.ca - x.aa) > 1 ? 'neg' : ''}">${fl(x.cl - x.al)}<span class="sub">${fm(x.ca - x.aa)}</span></td>
@@ -446,7 +451,7 @@ function fcRenderMap(keepScroll){
       const o = everyRow.find(p => !p.skip && !neg(p) && p.vehicle.id===n.vehicle.id && near(p.amount, n.amount) && near(p.liters, n.liters) && dd(p.txDate, n.txDate) <= 3);
       if (o){ o.skip = n.skip = 'storno'; return; }
       n.skip = 'minus';
-      n.old = S.fuelCardRows.find(p => p.vehicleId===n.vehicle.id && Number(p.amount) > 0 && near(p.amount, n.amount) && near(p.liters, n.liters) && dd(p.txDate, n.txDate) <= 3) || null;
+      n.old = S.fuelCardRowsAll.find(p => p.vehicleId===n.vehicle.id && Number(p.amount) > 0 && near(p.amount, n.amount) && near(p.liters, n.liters) && dd(p.txDate, n.txDate) <= 3) || null;
     });
     everyRow.forEach(r => { if (r.currency==='-') r.skip = 'waluta'; });
     per.forEach(x => { x.skipped = x.ours.filter(r => r.skip); x.ours = x.ours.filter(r => !r.skip); });
@@ -488,7 +493,7 @@ async function fcSave(){
   if (!fcParsed.per) return warn('Wskaż wszystkie wymagane kolumny.');
   if ((fcParsed.unk || []).length) return warn('Wybierz, co oznacza nieznana waluta w pliku (albo pomiń te pozycje).');
   const key = (vid, r) => [vid, r.txDate, r.txTime || '', Number(r.liters), Number(r.amount), r.product || ''].join('|');
-  const exist = new Set(S.fuelCardRows.map(r => key(r.vehicleId, r)));
+  const exist = new Set(S.fuelCardRowsAll.map(r => key(r.vehicleId, r)));   // też wykluczone – ponowny import ich nie przywróci
   const jobs = fcParsed.per.map(x => { const fresh = x.ours.filter(r => { const k = key(r.vehicle.id, r); if (exist.has(k)) return false; exist.add(k); return true; }); return {...x, fresh}; }).filter(x => x.fresh.length);
   const allOurs = fcParsed.per.reduce((s, x) => s + x.ours.length, 0);
   if (!allOurs) return warn('W plikach nie ma pozycji aut z systemu.');
@@ -563,7 +568,9 @@ function viewTolls(){
     const det = open ? `<tr class="fc-det"><td colspan="3"><table><thead><tr><th>Data</th><th>Pozycja</th><th>Kierowca</th><th class="r">Kwota</th><th></th></tr></thead><tbody>${list.map(r => `<tr>
         <td class="num"><b>${fdate(r.txDate)}</b>${r.txTime ? `<span class="sub">${esc(r.txTime)}</span>` : ''}</td><td>${esc(r.product || 'inne')}<span class="sub">${esc(r.station || '')}</span></td>
         <td>${esc(fcDriver(r, null)) || '<span class="muted">—</span>'}</td><td class="r num"><b>${fm(r.amount, r.currency)}</b></td>
-        <td>${r.costId ? '<span class="pill ok">w kosztach</span>' : '<span class="pill warn">nie dopisano – dodaj ręcznie</span>'}</td></tr>`).join('')}</tbody></table></td></tr>` : '';
+        <td>${r.costId ? '<span class="pill ok">w kosztach</span>' : '<span class="pill warn">nie dopisano – dodaj ręcznie</span>'} <button class="small ghost" data-fc-excl="${esc(r.id)}" title="Wyklucz z kosztów floty">Nie flota</button></td></tr>`).join('')}
+        ${S.fuelCardRowsAll.filter(r => r.excluded && r.kind==='other' && r.importId===imp.id && r.vehicleId===vid).map(r => `<tr class="fc-excl"><td class="num"><b>${fdate(r.txDate)}</b></td><td>${esc(r.product || 'inne')}<span class="sub">${esc(r.station || '')}</span></td>
+          <td class="muted">wykluczone${r.excludedNote ? ': ' + esc(r.excludedNote) : ''}</td><td class="r num">${fm(r.amount, r.currency)}</td><td><span class="pill off">nie flota</span> <button class="small ghost" data-fc-incl="${esc(r.id)}">Przywróć</button></td></tr>`).join('')}</tbody></table></td></tr>` : '';
     return `<tr class="click fc-vrow ${open ? 'open' : ''}" data-tlv="${esc(vid)}" aria-expanded="${open}"><td>${ic('chev', 'fc-chev')} ${vPlate(vid)}<span class="sub">${list.length} ${isPlural(list.length,'pozycja','pozycje','pozycji')}</span></td>
       <td class="r num"><b>${fm(sum(list))}</b></td><td class="muted small">${esc([...new Set(list.map(r => r.product).filter(Boolean))].slice(0, 4).join(', '))}</td></tr>${det}`;
   }).join('');
@@ -584,3 +591,32 @@ function fcImportDue(){
   (S.fuelCardImports || []).forEach(i => { const p = (i.provider || 'karty').trim(); if (i.periodTo && (!last[p] || i.periodTo > last[p])) last[p] = i.periodTo; });
   return Object.entries(last).filter(([, d]) => diffDays(d, today()) > 20).map(([provider, d]) => ({provider, last: d, from: addDays(d, 1)}));
 }
+
+/* ---- „Nie flota”: wykluczenie pozycji z karty z kosztów floty (migracja 050) ---- */
+function fcExclOpen(id){
+  const r = S.fuelCardRowsAll.find(x => x.id===id); if (!r) return;
+  editing = {col: 'fc-excl', id, base: {}, special: fcExclSave};
+  $('#dialog').classList.remove('dlg-wide');
+  $('#dlg-title').textContent = 'Wyklucz z kosztów floty';
+  $('#dlg-body').innerHTML = `<p class="field full" style="margin:0;display:block"><b>${esc(vPlateTxt(r.vehicleId))}</b> · ${fdate(r.txDate)}${r.txTime ? ' ' + esc(r.txTime) : ''} · ${r.liters ? fl(r.liters) + ' · ' : ''}<b>${fm(r.amount, r.currency)}</b>${r.product ? ' · ' + esc(r.product) : ''}</p>
+    <div class="field full"><label for="fc-excl-note">Powód (opcjonalnie)</label><input id="fc-excl-note" maxlength="200" placeholder="np. prywatne, inne auto firmy, kanister"></div>
+    <p class="muted small field full" style="margin:0;display:block">Pozycja zostanie w zestawieniu (na szaro), ale nie liczy się do kosztów, spalania ani porównania z kierowcą. ${r.kind==='other' ? 'Jej koszt zniknie z kosztów auta. ' : 'Powiadomienia o niej znikną. '}Możesz ją przywrócić.</p>`;
+  $('#dlg-save').textContent = 'Wyklucz'; $('#dlg-del').hidden = true; $('#scrim').hidden = false;
+  setTimeout(() => { const i = $('#fc-excl-note'); if (i) i.focus(); }, 30);
+}
+const vPlateTxt = vid => (byId('vehicles', vid) || {}).plate || '';
+async function fcExclSet(id, on, note){
+  const {error} = await sb.from('fuel_card_rows').update(on ? {excluded: true, excluded_note: note || null} : {excluded: false}).eq('id', id);
+  if (error){ toast('Nie udało się zapisać: ' + error.message); return false; }
+  await refresh('fuelCardRows'); await refresh('costs'); if (typeof refresh==='function') refresh('events');
+  return true;
+}
+async function fcExclSave(){
+  const id = editing && editing.id, note = ($('#fc-excl-note') || {}).value || '';
+  if (!id) return closeForm();
+  if (await fcExclSet(id, true, note.trim())){ closeForm(); toast('Wykluczono z kosztów floty'); render(); }
+}
+document.addEventListener('click', async e => {
+  const x = e.target.closest('[data-fc-excl]'); if (x){ e.stopPropagation(); fcExclOpen(x.dataset.fcExcl); return; }
+  const y = e.target.closest('[data-fc-incl]'); if (y){ e.stopPropagation(); y.disabled = true; if (await fcExclSet(y.dataset.fcIncl, false)){ toast('Przywrócono do kosztów floty'); render(); } }
+});

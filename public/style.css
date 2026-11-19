@@ -1824,3 +1824,5 @@ html[data-env="test"] body{padding-top:20px}
 .sch-chip .sch-t{font-style:normal;font-size:11px;font-variant-numeric:tabular-nums;color:var(--muted)}
 .sch-chip .sch-t.p::before{content:'↗ '}
 .sch-chip .sch-t.r::before{content:'↘ '}
+.fc-excl td{opacity:.6}
+.fc-excl td:last-child{opacity:1}
