@@ -16,3 +16,8 @@ insert into costs (id, date, vehicle_id, category, amount, liters, odometer, ful
 insert into costs (id, date, vehicle_id, category, amount, liters, odometer, full_tank) values ('44444444-0000-0000-0000-000000000712', current_date, '22222222-0000-0000-0000-000000000702','Paliwo',375,50.44,122865,true);
 select not exists (select 1 from unnest(flags) x where x like 'Możliwy duplikat%' or x like 'Za dużo%') as ok_pierwszy_czysty from costs where id='44444444-0000-0000-0000-000000000711';
 select exists (select 1 from unnest(flags) x where x like 'Możliwy duplikat%') and exists (select 1 from unnest(flags) x where x like 'Za dużo litrów%') as ok_drugi_flagi from costs where id='44444444-0000-0000-0000-000000000712';
+\echo '4 przejęcie (bak nie do końca pełny) i zaraz tankowanie 80 l -> bez „za dużo litrów”'
+insert into vehicles (id, plate, make, model, km, tank_l) values ('22222222-0000-0000-0000-000000000703','DW 703','FIAT','DUCATO',212000,105);
+insert into bookings (id, vehicle_id, driver_id, date_from, date_to, pickup_at, pickup_km) values ('33333333-0000-0000-0000-000000000703','22222222-0000-0000-0000-000000000703','11111111-0000-0000-0000-000000000004',current_date,current_date,current_date,212205);
+insert into costs (id, date, vehicle_id, category, amount, liters, odometer, full_tank) values ('44444444-0000-0000-0000-000000000720', current_date, '22222222-0000-0000-0000-000000000703','Paliwo',630,84.81,212206,true);
+select not exists (select 1 from unnest(flags) x where x like 'Za dużo%') as ok_po_przejeciu from costs where id='44444444-0000-0000-0000-000000000720';
