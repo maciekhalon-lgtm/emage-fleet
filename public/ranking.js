@@ -23,10 +23,11 @@ function rkVehLegs(vid){
 }
 var rkStamp = 0;   // podbijane przy każdym render() – wyniki liczone raz na odświeżenie ekranu
 function rkVehLegsRaw(vid){
+  // licznik z GPS w chwili wpisu (literówka kierowcy nie psuje odcinka), bez GPS – wpis kierowcy w skali GPS
   const fills = appFuel().filter(c => c.vehicleId===vid && Number(c.liters) > 0 && Number(c.odometer) > 0 && !String(c.note || '').startsWith('Karta:'))
-    .map(c => ({t: 'f', odo: Number(c.odometer), c, date: c.date}));
+    .map(c => ({t: 'f', odo: odoAt('tankowanie', c.id, vid, c.odometer), c, date: c.date}));
   const picks = S.bookings.filter(b => b.vehicleId===vid && b.pickup && Number(b.pickup.km) > 0 && (b.pickup.fuel==null || b.pickup.fuel==='' || Number(b.pickup.fuel)===100))
-    .map(b => ({t: 'p', odo: Number(b.pickup.km), date: String(b.pickup.at || b.from).slice(0, 10)}));
+    .map(b => ({t: 'p', odo: odoAt('przejecie', b.id, vid, b.pickup.km), date: String(b.pickup.at || b.from).slice(0, 10)}));
   const ev = [...fills, ...picks].sort((a, b) => a.odo - b.odo || (a.t==='f' ? -1 : 1) || String(a.date).localeCompare(b.date));
   let anchor = null, aDate = null, acc = 0; const out = [];
   ev.forEach(e => {
@@ -58,7 +59,7 @@ function rkData(){
     S.bookings.forEach(b => { const crew = crewOf(b); if (!crew.includes(d.id)) return;
       bkDays(b, from, to).forEach(x => days.add(x));
       const p = b.pickup, r = b.returned;
-      if (p && r && r.at >= from && r.at <= to && Number(r.km) > Number(p.km)){ const k = Number(r.km) - Number(p.km); if (k < 20000){ km += k / crew.length; veh.add(b.vehicleId); } } });
+      if (p && r && r.at >= from && r.at <= to && bkKm(b) > 0){ const k = bkKm(b); if (k < 20000){ km += k / crew.length; veh.add(b.vehicleId); } } });
     const fills = appFuel().filter(c => (fillDriver(c) || c.driverId)===d.id && c.date >= from && c.date <= to);
     const lg = legs.filter(x => x.drv===d.id), lkm = lg.reduce((a, x) => a + x.km, 0), ll = lg.reduce((a, x) => a + x.l, 0);
     const rate = lkm >= 300 ? ll / lkm * 100 : null;
@@ -72,7 +73,7 @@ function rkData(){
     S.bookings.forEach(b => { if (b.vehicleId!==v.id) return;
       bkDays(b, from, to).forEach(x => days.add(x));
       const p = b.pickup, r = b.returned;
-      if (p && r && r.at >= from && r.at <= to && Number(r.km) > Number(p.km) && Number(r.km) - Number(p.km) < 20000){ km += Number(r.km) - Number(p.km); crewOf(b).forEach(x => who.add(x)); } });
+      if (p && r && r.at >= from && r.at <= to && bkKm(b) > 0 && bkKm(b) < 20000){ km += bkKm(b); crewOf(b).forEach(x => who.add(x)); } });
     const lg = legs.filter(x => x.vid===v.id), lkm = lg.reduce((a, x) => a + x.km, 0), ll = lg.reduce((a, x) => a + x.l, 0);
     const rate = lkm >= 300 ? ll / lkm * 100 : null;
     const cost = S.costs.filter(c => c.vehicleId===v.id && c.date >= from && c.date <= to).reduce((a, c) => a + Number(c.amount || 0), 0);
@@ -126,7 +127,7 @@ function openRkVehicle(vid){
   S.bookings.forEach(b => { if (b.vehicleId!==vid) return; const crew = crewOf(b);
     crew.forEach(id => { const o = g(id); bkDays(b, from, to).forEach(x => o.days.add(x)); });
     const p = b.pickup, r = b.returned;
-    if (p && r && r.at >= from && r.at <= to && Number(r.km) > Number(p.km) && Number(r.km) - Number(p.km) < 20000) crew.forEach(id => g(id).km += (Number(r.km) - Number(p.km)) / crew.length); });
+    if (p && r && r.at >= from && r.at <= to && bkKm(b) > 0 && bkKm(b) < 20000) crew.forEach(id => g(id).km += bkKm(b) / crew.length); });
   appFuel().filter(c => c.vehicleId===vid && c.date >= from && c.date <= to && !String(c.note || '').startsWith('Karta:')).forEach(c => { const id = fillDriver(c) || c.driverId; if (!id) return; const o = g(id); o.fills++; o.l += Number(c.liters || 0); });
   legs.forEach(x => { if (!x.drv) return; const o = g(x.drv); o.lkm += x.km; o.ll += x.l; });
   const rows = Object.values(m).filter(o => byId('drivers', o.id) && (o.km || o.fills || o.days.size)).map(o => {

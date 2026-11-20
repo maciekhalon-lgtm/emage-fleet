@@ -32,9 +32,18 @@ const canEditDoc = (col, doc) => canWrite && !(doc && doc.virtual) && (P()[col]=
 let cardFuelMemo = {k: '', v: []};
 function cardFuelCosts(){
   const rows = S.fuelCardRows || [];
-  const k = rows.length + '|' + (rows[0] || {}).id + '|' + S.costs.length;
+  const k = rows.length + '|' + (rows[0] || {}).id + '|' + S.costs.length + '|' + (S.costs[0] || {}).id;
   if (cardFuelMemo.k===k) return cardFuelMemo.v;
-  const v = rows.filter(r => r.kind!=='other' && r.vehicleId && !r.costId && Number(r.amount) > 0 && (!r.currency || r.currency==='PLN'))
+  // tankowanie z karty, które kierowca wpisał (to samo auto, ±1 dzień, litry ±3 l / 5%) – liczy się raz, z wpisu kierowcy
+  const fills = S.costs.filter(c => (c.category==='Paliwo' || c.category==='Ładowanie') && c.vehicleId && !String(c.note || '').startsWith('Karta:'));
+  const used = new Set(), matched = new Set();
+  rows.filter(r => r.kind!=='other' && r.vehicleId && Number(r.liters) > 0).sort((a, b) => String(a.txDate).localeCompare(b.txDate)).forEach(r => {
+    const L = Number(r.liters), tol = Math.max(3, L * 0.05);
+    const c = fills.filter(c => !used.has(c.id) && c.vehicleId===r.vehicleId && Math.abs(diffDays(c.date, r.txDate)) <= 1 && Math.abs((Number(c.liters) || 0) - L) <= tol)
+      .sort((a, b) => Math.abs((Number(a.liters) || 0) - L) - Math.abs((Number(b.liters) || 0) - L))[0];
+    if (c){ used.add(c.id); matched.add(r.id); }
+  });
+  const v = rows.filter(r => r.kind!=='other' && r.vehicleId && !r.costId && !matched.has(r.id) && Number(r.amount) > 0 && (!r.currency || r.currency==='PLN'))
     .map(r => ({id: 'fc_' + r.id, virtual: true, vehicleId: r.vehicleId, date: r.txDate, category: 'Paliwo', amount: Number(r.amount), liters: Number(r.liters) || null,
       odometer: Number(r.odometer) || null, station: r.station || '', currency: 'PLN', note: 'karta paliwowa' + (r.cardNo ? ' ' + r.cardNo : ''), full: false}));
   cardFuelMemo = {k, v};

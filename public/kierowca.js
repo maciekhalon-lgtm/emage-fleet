@@ -92,7 +92,7 @@ function myMonth(ym){
   const days = new Set(); let dist = 0;
   const trips = S.bookings.filter(b => crewOf(b).includes(me_) && b.from <= B && b.to >= A);
   trips.forEach(b => { if (!b.pickup) return; bkDays(b, A, B < today() ? B : today()).forEach(x => days.add(x));
-    if (b.returned && b.returned.km > b.pickup.km) dist += b.returned.km - b.pickup.km; });
+    if (bkKm(b) > 0 && bkKm(b) < 20000) dist += bkKm(b); });
   const fuel = S.costs.filter(c => isFuel(c) && (c.driverId===me_ || c.createdBy===myId) && c.date >= A && c.date <= B);
   return {A, B, days: days.size, dist, trips: trips.filter(b => b.pickup).sort((a, b) => a.from < b.from ? 1 : -1), fuel: fuel.sort((a, b) => a.date < b.date ? 1 : -1),
     liters: fuel.reduce((s, c) => s + Number(c.liters || 0), 0), amount: fuel.reduce((s, c) => s + Number(c.amount || 0), 0)};

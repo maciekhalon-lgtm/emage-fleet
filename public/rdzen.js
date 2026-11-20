@@ -192,3 +192,29 @@ function bkDays(b, from, to){
 /* auto przejęte i niezdane „po czasie”: od przejęcia minęło ponad 20 h (nocna zmiana trwa do rana – to nie zaległość);
    bez godziny przejęcia – przydział skończył się przedwczoraj albo wcześniej */
 const bkOverdue = b => !!(b && b.pickup && !b.returned) && (b.pickupTs ? Date.now() - new Date(b.pickupTs).getTime() > 20 * 36e5 && b.to < today() : b.to < addDays(today(), -1));
+
+/* ---- licznik z GPS w chwili wpisu (Geotab, tabela odo_gps) ----
+   Spalanie i km kierowców liczymy z GPS: literówka w liczniku nie psuje wyniku. Wpis bez odczytu GPS – licznik kierowcy
+   przesunięty o typową różnicę GPS↔licznik auta (np. GPS auta jest stale ~70 km za licznikiem), więc odcinki się nie rozjeżdżają. */
+let gpsAtMemo = {k: '', m: new Map(), off: new Map()};
+function gpsAtIdx(){
+  const xs = S.odoGps || [], k = xs.length + '|' + (xs[0] || {}).id + '|' + S.costs.length + '|' + S.bookings.length;
+  if (gpsAtMemo.k===k) return gpsAtMemo;
+  const m = new Map(); xs.forEach(g => { if (Number(g.gpsKm) > 0) m.set(g.source + '|' + g.refId, Number(g.gpsKm)); });
+  // typowa różnica wpis − GPS dla auta (mediana; tylko różnice do 300 km – większe to pomyłki)
+  const dif = new Map(), add = (vid, typed, gps) => { if (!(typed > 0) || !(gps > 0)) return; const d = typed - gps; if (Math.abs(d) > 300) return; (dif.get(vid) || dif.set(vid, []).get(vid)).push(d); };
+  S.costs.forEach(c => { if (c.odometer) add(c.vehicleId, Number(c.odometer), m.get('tankowanie|' + c.id)); });
+  S.bookings.forEach(b => { if (b.pickup && b.pickup.km) add(b.vehicleId, Number(b.pickup.km), m.get('przejecie|' + b.id)); if (b.returned && b.returned.km) add(b.vehicleId, Number(b.returned.km), m.get('zdanie|' + b.id)); });
+  const off = new Map(); dif.forEach((ds, vid) => { ds.sort((a, b) => a - b); off.set(vid, ds.length >= 2 ? ds[Math.floor(ds.length / 2)] : 0); });
+  gpsAtMemo = {k, m, off};
+  return gpsAtMemo;
+}
+/* km w skali GPS dla wpisu: source 'tankowanie' | 'przejecie' | 'zdanie'; typed – licznik wpisany przez kierowcę */
+function odoAt(source, refId, vid, typed){
+  const I = gpsAtIdx(), g = I.m.get(source + '|' + refId);
+  if (g) return g;
+  const t = Number(typed); if (!(t > 0)) return null;
+  return t - (I.off.get(vid) || 0);
+}
+/* km przejechane w przydziale (przejęcie → zdanie) – z GPS, gdy jest */
+const bkKm = b => { if (!b.pickup || !b.returned) return null; const a = odoAt('przejecie', b.id, b.vehicleId, b.pickup.km), z = odoAt('zdanie', b.id, b.vehicleId, b.returned.km); return a!=null && z!=null ? z - a : null; };
