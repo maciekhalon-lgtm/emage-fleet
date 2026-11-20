@@ -33,7 +33,7 @@ function tabCount(t){
   if (t==='uzytkownicy' && P().manage){ const n = pendingUsers().length + pendingRequests().length + openDisputes().length; return {n, bad: n > 0}; }
   if (t==='liczniki' && P().manage){ const n = odoAllCount(); return {n, bad: n > 0}; }
   if (t==='karty' && P().manage){ const n = suspTodoCount(); return {n, bad: n > 0}; }
-  if (t==='spalanie' && P().manage && typeof spData==='function'){ const n = spData().ok.filter(r => r.rate > THEFT_RATE).length; return {n, bad: n > 0}; }
+  if (t==='spalanie' && P().manage && typeof spData==='function'){ const n = spData().ok.filter(r => r.rate > theftOf(r.v.id)).length; return {n, bad: n > 0}; }
   if (t==='opony' && typeof tiresOn==='function' && tiresOn()){ const n = tireProblems().filter(x => x.t.location==='na_aucie').length; return {n, bad: tireProblems().some(x => x.t.location==='na_aucie' && x.w.some(([c]) => c==='bad'))}; }
   if (t==='wyposazenie' && typeof eqOn==='function' && eqOn()){ const p = eqProblems(); return {n: p.length, bad: p.some(x => x.s.cls==='bad')}; }
   if (t==='umowy' && typeof contractsOn==='function' && contractsOn()){ const p = contractProblems(); return {n: p.length, bad: p.some(x => x.i.warn.some(([c]) => c==='bad'))}; }

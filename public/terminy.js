@@ -3,9 +3,10 @@
 function viewDeadlines(){
   if (dlFilter==='soon' || dlFilter==='later') dlFilter = 'urgent';
   const chips = [['urgent','Pilne'],['over','Po terminie'],['plan','Plan 8 tygodni'],['all','Pokaż wszystkie']];
-  const moreBtns = (canCreate('deadlines') && typeof stdMissing==='function' && stdMissing().length ? `<button data-action="std-bulk" title="Przegląd, OC i olej dla aut, które ich nie mają">${ic('plus')}Terminy floty (${stdMissing().length})</button>` : '')
-    + (P().manage ? `<button data-action="cal-open" title="Terminy w kalendarzu Google lub iPhone">${ic('cal')}W kalendarzu</button>` : '');
-  const head = `<div class="bar ${barOpen()}"><h2>Terminy i przypomnienia</h2><div class="tools"><div class="seg" role="group" aria-label="Pokaż">${chips.map(([k,l])=>`<button class="small ${dlFilter===k?'on':''}" aria-pressed="${dlFilter===k}" data-dlf="${k}">${l}</button>`).join('')}</div>${moreMenu(moreBtns)}${canCreate('deadlines')?'<button class="primary" data-new="deadlines">+ Dodaj termin</button>':''}</div></div>`;
+  const moreBtns = (P().manage ? `<button data-action="cal-open" title="Terminy w kalendarzu Google lub iPhone">${ic('cal')}W kalendarzu</button>` : '');
+  const bulkN = typeof bulkMissing==='function' ? bulkMissing().length : 0;
+  const bulkBtn = canCreate('deadlines') && typeof openStdBulk==='function' ? `<button class="${bulkN ? 'warn' : ''}" data-action="std-bulk" title="Przegląd, OC, olej i rozrząd wszystkich aut w jednej tabeli">${ic('plus')}Uzupełnij terminy${bulkN ? ` (${bulkN} ${isPlural(bulkN, 'auto', 'auta', 'aut')} z brakami)` : ''}</button>` : '';
+  const head = `<div class="bar ${barOpen()}"><h2>Terminy i przypomnienia</h2><div class="tools"><div class="seg" role="group" aria-label="Pokaż">${chips.map(([k,l])=>`<button class="small ${dlFilter===k?'on':''}" aria-pressed="${dlFilter===k}" data-dlf="${k}">${l}</button>`).join('')}</div>${moreMenu(moreBtns)}${bulkBtn}${canCreate('deadlines')?'<button class="primary" data-new="deadlines">+ Dodaj termin</button>':''}</div></div>`;
   if (!S.deadlines.length) return head + loadingOr('deadlines', emptyBlock('Brak zapisanych terminów','Zapisz daty przeglądów technicznych, końca polis OC/AC, serwisów i wymiany opon. Strona podświetli to, co zbliża się w ciągu 30 dni.', '<button class="primary" data-new="deadlines">+ Dodaj termin</button>', '', 'deadlines'));
   const kmNote = `<p class="muted small" style="margin:0 0 10px">Olej, rozrząd i przegląd gwarancyjny (liczone w km) są w <a href="#serwis-terminy">Serwis → Terminy</a>.</p>`;
   if (dlFilter==='plan') return head + kmNote + deadlinePlan();
@@ -33,7 +34,7 @@ function viewDeadlines(){
   return head + kmNote + `<div class="panel dl">${html || `<div class="empty"><p>${dlFilter==='urgent' ? 'Nic pilnego – wszystkie terminy są dalej niż 60 dni.' : 'Brak terminów w tym filtrze.'}</p></div>`}</div>` + more;
 }
 /* domyślne cykle: [miesiące, km] */
-const DL_INTERVALS = {'Przegląd techniczny':[12,null],'Ubezpieczenie OC':[12,null],'Ubezpieczenie AC':[12,null],'Serwis olejowy':[null,15000],'Wymiana rozrządu':[null,80000],'Wymiana opon':[6,null],'Przegląd gwarancyjny':[null,30000],'Koniec gwarancji':[null,null],'Legalizacja tachografu':[24,null],'Leasing – koniec umowy':[null,null],'Inne':[null,null]};
+const DL_INTERVALS = {'Przegląd techniczny':[12,null],'Ubezpieczenie OC':[12,null],'Ubezpieczenie AC':[12,null],'Serwis olejowy':[null,12000],'Wymiana rozrządu':[null,80000],'Wymiana opon':[6,null],'Przegląd gwarancyjny':[null,30000],'Koniec gwarancji':[null,null],'Legalizacja tachografu':[24,null],'Leasing – koniec umowy':[null,null],'Inne':[null,null]};
 function renew(id){
   const d = byId('deadlines', id); if (!d) return;
   if (typeof openWarrantyDone==='function' && d.type==='Przegląd gwarancyjny' && canCreate('serviceEntries')) return openWarrantyDone(d.vehicleId);

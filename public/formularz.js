@@ -409,6 +409,14 @@ $('#dialog').addEventListener('submit', async e => {
     if (data.consGood && data.consOk && data.consGood >= data.consOk){ const w = $('#dlg-warn'); w.textContent = 'Próg „bardzo dobre” musi być niższy niż próg „dobre”.'; w.hidden = false; return; }
   }
   const asDriver = col==='costs' && (P().costs==='own' || !!base.mode);
+  // możliwy duplikat tankowania: ten sam licznik (±2 km) co inne tankowanie tego auta z dnia obok – pytamy raz
+  if (col==='costs' && !id && data.category==='Paliwo' && data.odometer && data.vehicleId && !editing.dupOk){
+    const d0 = data.date || today();
+    const dup = S.costs.find(c => c.vehicleId===data.vehicleId && c.category==='Paliwo' && c.odometer && Math.abs(Number(c.odometer) - Number(data.odometer)) <= 2 && Math.abs(diffDays(c.date, d0)) <= 1);
+    if (dup){ editing.dupOk = true; const w = $('#dlg-warn');
+      w.textContent = `To tankowanie już jest: ${fdate(dup.date)} · ${String(dup.liters || '').replace('.', ',')} l · licznik ${new Intl.NumberFormat('pl-PL').format(dup.odometer)}. Jeśli to naprawdę drugie tankowanie, kliknij Zapisz jeszcze raz.`;
+      w.hidden = false; return; }
+  }
   if (col==='costs'){
     data.station = data.stationSel==='Inna' ? (data.stationOther || 'Inna') : (data.stationSel || null);
     delete data.stationSel; delete data.stationOther; delete data.fxPrev; delete data.abroad;

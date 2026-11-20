@@ -7,7 +7,25 @@
 let notifSeen = null, notifFilter = 'all', notifSeenLoaded = false;
 const notifOn = () => !!(P().manage || P().service) && typeof optOn==='function' && optOn('events');
 const NOTIF_KIND = {zdanie: ['Zdanie auta', 'truck'], tankowanie: ['Tankowanie', 'fuel'], usterka: ['Usterka', 'alert'], karta: ['Kontrola karty paliwowej', 'fuel'], zmiana: ['Zmiana auta', 'truck']};
-const notifList = () => (S.events || []).filter(e => P().manage || e.kind==='usterka').slice().sort((a, b) => String(b.at).localeCompare(String(a.at)));
+/* „Tankowanie z karty bez wpisu kierowcy” z jednego dnia → jeden wiersz (po imporcie bywa ich kilkadziesiąt) */
+const NT_NOFILL = 'Tankowanie z karty bez wpisu';
+function notifGroup(xs){
+  const out = [], grp = new Map();
+  xs.forEach(e => {
+    if (e.kind!=='karta' || !String(e.title || '').startsWith(NT_NOFILL)){ out.push(e); return; }
+    const day = new Intl.DateTimeFormat('sv-SE', {timeZone: 'Europe/Warsaw'}).format(new Date(e.at));
+    let g = grp.get(day);
+    if (!g){ g = {id: 'g-' + day, kind: 'karta', at: e.at, alert: false, group: [], plates: new Set()}; grp.set(day, g); out.push(g); }
+    g.group.push(e); if (String(e.at) > String(g.at)) g.at = e.at; g.alert = g.alert || e.alert;
+    const pl = (String(e.title).split(':')[1] || '').trim(); if (pl) g.plates.add(pl);
+  });
+  grp.forEach(g => { const n = g.group.length;
+    g.title = n===1 ? g.group[0].title : `Karta paliwowa: ${n} ${isPlural(n, 'tankowanie', 'tankowania', 'tankowań')} bez wpisu kierowcy`;
+    g.body = n===1 ? g.group[0].body : [...g.plates].slice(0, 8).join(', ') + (g.plates.size > 8 ? ` i ${g.plates.size - 8} więcej` : '');
+    if (n===1) Object.assign(g, {vehicleId: g.group[0].vehicleId, refId: g.group[0].refId}); else g.go = 'karty'; });
+  return out.sort((a, b) => String(b.at).localeCompare(String(a.at)));
+}
+const notifList = () => notifGroup((S.events || []).filter(e => P().manage || e.kind==='usterka'));
 async function notifLoadSeen(){
   if (notifSeenLoaded || !sb || !myId) return; notifSeenLoaded = true;
   try { const {data} = await sb.from('event_reads').select('seen_at').eq('user_id', myId).maybeSingle(); const row = Array.isArray(data) ? data[0] : data; notifSeen = row && row.seen_at ? row.seen_at : '1970-01-01T00:00:00Z'; render(); } catch(_){ notifSeen = '1970-01-01T00:00:00Z'; }
@@ -19,6 +37,7 @@ async function notifMarkRead(){
   try { await sb.from('event_reads').upsert({user_id: myId, seen_at: at}); } catch(_){}
 }
 function notifRowGo(e){
+  if (e.go) return `data-go="${esc(e.go)}"`;
   if (e.kind==='usterka' && e.refId && byId('issues', e.refId)) return `data-edit="issues" data-id="${esc(e.refId)}"`;
   if (e.kind==='tankowanie' && e.refId && byId('costs', e.refId)) return `data-edit="costs" data-id="${esc(e.refId)}"`;
   return e.vehicleId ? `data-card-go="${esc(e.vehicleId)}"` : '';
@@ -84,6 +103,7 @@ document.addEventListener('click', e => {
   const h = e.target.closest('[data-drv-hist]'); if (h){ e.preventDefault(); dhKind = 'all'; return openDrvHistory(h.dataset.drvHist); }
   const r = e.target.closest('#dialog .nt-row'); if (r){
     if (r.dataset.edit){ const col = r.dataset.edit, id = r.dataset.id; closeForm(); return openForm(col, id); }
+    if (r.dataset.go){ closeForm(); location.hash = r.dataset.go; return; }
     if (r.dataset.cardGo){ const v = r.dataset.cardGo; closeForm(); cardTab = 'dane'; if (location.hash==='#pojazdy'){ tab = 'pojazdy'; cardId = v; render(); } else { pendingCard = v; location.hash = 'pojazdy'; } }
   }
 });

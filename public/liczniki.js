@@ -6,7 +6,10 @@
    Gdy auto ma lokalizator GPS: licznik spoza przedziału [GPS koniec dnia poprzedniego, GPS koniec tego dnia] ± 100 km = „niezgodny z GPS”.
    Zmyślone nie liczą się do „Do sprawdzenia” – mają własny filtr; do sprawdzenia zostają literówki i cofnięte liczniki. */
 'use strict';
-const THEFT_RATE = 13;   // l/100 km – powyżej: podejrzane spalanie, możliwa kradzież paliwa
+const THEFT_RATE = 15;   // l/100 km – ogólny próg „możliwa kradzież paliwa” (auta powyżej 2,5 t; dla kierowców)
+/* próg alarmu wg klasy auta: powyżej 2,5 t – 15, do 2,5 t – 10 l/100 km (średnia z kart +25–35%) */
+const THEFT_CLS = {pow25: 15, do25: 10};
+const theftOf = vid => THEFT_CLS[wcls(byId('vehicles', vid))] || THEFT_RATE;
 let odoFilter = 'todo', odoVeh = '', odoMonth = '';
 /* Zmyślone liczniki (1, 444, 555555…) nie wymagają sprawdzania – poprawić się ich nie da; liczą się osobno */
 const odoIsFake = x => x.kind==='zmyślony';
@@ -111,10 +114,10 @@ function odoInputCheck(odo, last){
 }
 
 /* ---------- alarm spalania ---------- */
-const theftRate = c => c && c.rate!=null && !c.unsure && c.rate > THEFT_RATE;
+const theftRate = (c, vid) => c && c.rate!=null && !c.unsure && c.rate > (vid ? theftOf(vid) : THEFT_RATE);
 function theftVehicles(){
   if (!P().manage || typeof fleetConsumption!=='function') return [];
-  return S.vehicles.filter(v => v.status!=='wycofany').map(v => ({v, c: fleetConsumption(v.id)})).filter(x => theftRate(x.c)).sort((a, b) => b.c.rate - a.c.rate);
+  return S.vehicles.filter(v => v.status!=='wycofany').map(v => ({v, c: fleetConsumption(v.id)})).filter(x => theftRate(x.c, x.v.id)).sort((a, b) => b.c.rate - a.c.rate);
 }
 
 /* Ostatni wiarygodny licznik auta do dnia `date` (bez zmyślonych i niepasujących) – do sprawdzania nowego wpisu */

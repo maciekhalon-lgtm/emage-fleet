@@ -266,7 +266,8 @@ function fcCardCons(vid, from, to){
 }
 function fcConsData(from, to){
   const vs = S.vehicles.filter(v => v.status!=='wycofany' && S.fuelCardRows.some(r => r.vehicleId===v.id && r.kind!=='other' && r.txDate >= from && r.txDate <= to));
-  const rows = vs.map(v => { const c = fcCardCons(v.id, from, to), o = fcCardCons(v.id, addDays(to, -179), to);
+  const hist = vid => S.fuelCardRows.some(r => r.vehicleId===vid && r.kind!=='other' && r.txDate < from && r.txDate >= addDays(to, -179));
+  const rows = vs.map(v => { const c = fcCardCons(v.id, from, to), o = hist(v.id) ? fcCardCons(v.id, addDays(to, -179), to) : {rate: null};
     return {v, cls: wcls(v), ...c, own: o.rate, vsOwn: c.rate!=null && o.rate!=null ? c.rate - o.rate : null}; });
   const ok = rows.filter(r => r.rate!=null), cls = {};
   // do średniej klasy nie wliczamy aut z nierealnym wynikiem (> 25 l/100 – błąd GPS albo cudze tankowania)
@@ -283,7 +284,7 @@ function fcConsPanel(imp){
   const cmp = (a, b) => { const x = val(a), y = val(b); if (x==null && y==null) return b.rate - a.rate; if (x==null) return 1; if (y==null) return -1; return (x - y) * dir || b.rate - a.rate; };
   const delta = x => x==null ? '<span class="muted">—</span>' : `<span class="num ${x > 0.5 ? 'neg' : x < -0.5 ? 'pos' : 'muted'}">${x > 0 ? '+' : x < 0 ? '−' : ''}${f1(Math.abs(x))}</span>`;
   const row = r => `<tr><td>${plate(r.v.plate)}<span class="sub">${esc([r.v.make, r.v.model].filter(Boolean).join(' '))} · ${r.n} ${isPlural(r.n, 'tankowanie', 'tankowania', 'tankowań')}</span></td>
-    <td class="r"><b class="num ${r.rate > THEFT_RATE ? 'neg' : ''}">${f1(r.rate)}</b>${r.odd ? '<span class="sub"><span class="pill bad">sprawdź GPS / kartę</span></span>' : r.approx ? '<span class="sub muted">GPS z końca dnia</span>' : ''}</td>
+    <td class="r"><b class="num ${r.rate > theftOf(r.v.id) ? 'neg' : ''}">${f1(r.rate)}</b>${r.odd ? '<span class="sub"><span class="pill bad">sprawdź GPS / kartę</span></span>' : r.approx ? '<span class="sub muted">GPS z końca dnia</span>' : ''}</td>
     <td class="r">${r.diff==null ? '' : `<span class="pill ${r.diff > 15 ? 'bad' : r.diff > 5 ? 'warn' : r.diff < -5 ? 'ok' : 'off'}">${r.diff > 0 ? '+' : ''}${Math.round(r.diff)}%</span>`}</td>
     <td class="r">${r.own!=null ? `<span class="num">${f1(r.own)}</span> ${delta(r.vsOwn)}` : '<span class="muted">—</span>'}</td>
     <td class="r num">${nf.format(Math.round(r.km))}</td><td class="r num">${nf.format(Math.round(r.L))}</td><td class="r num">${zl(r.net)}</td></tr>`;

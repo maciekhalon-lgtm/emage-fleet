@@ -95,7 +95,7 @@ function viewRankingFleet(drvTab){
   const cmp = (a, b) => { const x = a[sk], y = b[sk]; if (x==null && y==null) return 0; if (x==null) return 1; if (y==null) return -1; return (x > y ? 1 : x < y ? -1 : 0) * dir; };
   const th = (k, l, r) => `<th class="${r ? 'r' : ''} click" data-rk-sort="${k}">${l}${sk===k ? (dir > 0 ? ' ▲' : ' ▼') : ''}</th>`;
   const diffCell = x => x.diff==null ? '<span class="muted">—</span>' : `<span class="pill ${x.diff > 15 ? 'bad' : x.diff > 5 ? 'warn' : x.diff < -5 ? 'ok' : 'off'}">${x.diff > 0 ? '+' : ''}${Math.round(x.diff)}%</span>`;
-  const rateCell = x => x.rate==null ? '<span class="muted">—</span>' : `<b class="num ${x.rate > THEFT_RATE ? 'neg' : ''}">${f1(x.rate)}</b>`;
+  const rateCell = x => x.rate==null ? '<span class="muted">—</span>' : `<b class="num ${x.rate > (x.v ? theftOf(x.v.id) : THEFT_RATE) ? 'neg' : ''}">${f1(x.rate)}</b>`;
   if (rkView==='drv'){
     const xs = R.drv.slice().sort(cmp), withRate = xs.filter(x => x.rate!=null);
     const top = new Set(['rate', 'diff'].includes(sk) ? withRate.slice(0, 3).map(x => x.d.id) : []), low = new Set(['rate', 'diff'].includes(sk) && withRate.length > 5 ? withRate.slice(-3).map(x => x.d.id) : []);

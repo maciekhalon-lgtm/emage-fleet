@@ -88,14 +88,14 @@ function viewCard(){
       ${typeof warrantyPanel==='function' ? warrantyPanel(v) : ''}${sec('Terminy', add('deadlines','+ Termin'), dlHtml, 'Brak zapisanych terminów.')}
       ${sec('Usterki', add('issues','+ Zgłoś'), iss.length ? `<div class="dl">${iss.map(i => issueRow(i, false)).join('')}</div>` : '', 'Brak zgłoszonych usterek.')}</div>
     <div class="section">${P().service ? sec('Historia napraw', add('serviceEntries','+ Wpis serwisowy'), svcHtml, 'Brak wpisów – zapisuj tu naprawy i wymiany: co zrobiono, przy jakim przebiegu, gdzie i za ile.') : ''}</div></div>`;
-  else if (cardTab==='paliwo') body = (fc && fc.rate!=null && !fc.unsure && fc.rate > THEFT_RATE ? `<div class="notice err"><span><b>Podejrzane spalanie: ${fc.rate.toFixed(1).replace('.', ',')} l/100 km</b> – powyżej ${THEFT_RATE} l/100 km dla busa to możliwa kradzież paliwa (albo tankowanie kartą innego auta). Sprawdź odcinki z najwyższym spalaniem poniżej.</span></div>` : '') + `<div class="facts">
+  else if (cardTab==='paliwo') body = (fc && fc.rate!=null && !fc.unsure && fc.rate > theftOf(v.id) ? `<div class="notice err"><span><b>Podejrzane spalanie: ${fc.rate.toFixed(1).replace('.', ',')} l/100 km</b> – powyżej ${THEFT_RATE} l/100 km dla busa to możliwa kradzież paliwa (albo tankowanie kartą innego auta). Sprawdź odcinki z najwyższym spalaniem poniżej.</span></div>` : '') + `<div class="facts">
       <div><span class="label">Średnie spalanie</span><span class="fv">${fc && fc.rate!=null ? `<b>${fc.rate.toFixed(1).replace('.', ',')} l/100 km</b> ${fc.unsure ? '<span class="pill off">niepewne</span>' : levelPill(levelFor(v.id, fc.rate))}` : '—'}</span></div>
       <div><span class="label">Policzone km</span><span class="fv">${fc && fc.km ? new Intl.NumberFormat('pl-PL').format(fc.km) + ' km' : '—'}</span></div>
       <div><span class="label">Źródło</span><span class="fv">${fc && fc.src ? 'wpisy kierowców (do pełna – do pełna)' : '—'}</span></div>
       <div><span class="label">${P().costs==='own' ? 'Moje koszty ' + yr : 'Koszty ' + yr}</span><span class="fv">${zl(yearCost)}</span></div></div>
     ${P().manage || P().reports ? sec('Koszt utrzymania – ostatnie 12 miesięcy', '', tcoHtml(v, VC), '') : ''}
     ${P().manage && typeof vehMonthsHtml==='function' ? sec('Km i koszty miesięcznie', `<a class="btn small ghost" href="#rozliczenie">Rozliczenie floty</a>`, vehMonthsHtml(v), '') : ''}
-    ${P().manage && fc && fc.parts && fc.parts.length ? sec('Odcinki z najwyższym spalaniem', '', topLegsHtml(fc), '') : ''}
+    ${P().manage && fc && fc.parts && fc.parts.length ? sec('Odcinki z najwyższym spalaniem', '', topLegsHtml(fc, v.id), '') : ''}
     ${P().manage && typeof fcSuspicious==='function' ? (sp => sp.length ? sec(`Niemożliwe tankowania z kart (${sp.length})`, `<button class="small" data-go="karty">Wszystkie</button>`, sp.slice(0, 8).map(({row: r, why}) => `<div class="mini"><span class="num">${fdate(r.txDate)}${r.txTime ? ' ' + esc(r.txTime) : ''}</span><span>${fl(r.liters)} · ${fm(r.amount, r.currency)}<span class="sub">${esc(fcDriver(r, null) || 'kierowca nieustalony')}${r.station ? ' · ' + esc(r.station) : ''}</span></span><span class="mini-r">${why.map(w => `<span class="pill warn">${esc(w)}</span>`).join(' ')}</span></div>`).join(''), '') : '')(fcSuspicious().filter(x => x.row.vehicleId===v.id && x.lvl==='bad' && !fcCheckedIds().has(x.row.id))) : ''}
     <div class="grid2"><div class="section">${P().manage ? sec('Tankowania z kart (ostatnie 30)', '', fuelHtml, 'Brak tankowań z kart paliwowych.') : ''}</div>
     <div class="section">${sec('Koszty (ostatnie 40)', add('costs','+ Koszt'), costRows, 'Brak kosztów.')}</div></div>`;
@@ -137,11 +137,11 @@ function policyHtml(v){
 }
 
 /* 10 odcinków (między tankowaniami) z najwyższym spalaniem – kto zatankował na końcu odcinka */
-function topLegsHtml(fc){
+function topLegsHtml(fc, vid){
   const legs = fc.parts.filter(p => p.km >= 100).map(p => ({...p, r: p.l / p.km * 100})).sort((a, b) => b.r - a.r).slice(0, 10);
   return legs.map(p => `<div class="mini"><span class="num">${fdate(p.d0)} – ${fdate(p.d1)}</span>
     <span>${new Intl.NumberFormat('pl-PL').format(p.km)} km · ${fl(p.l)}<span class="sub">${esc(p.drv ? dName(p.drv) : 'kierowca nieustalony')}</span></span>
-    <span class="mini-r"><b class="${p.r > THEFT_RATE ? 'neg' : ''}">${p.r.toFixed(1).replace('.', ',')} l/100</b></span></div>`).join('');
+    <span class="mini-r"><b class="${p.r > (vid ? theftOf(vid) : THEFT_RATE) ? 'neg' : ''}">${p.r.toFixed(1).replace('.', ',')} l/100</b></span></div>`).join('');
 }
 
 /* Koszt utrzymania auta: 12 miesięcy w słupkach (paliwo / serwis / reszta), suma, koszt na km */
@@ -171,9 +171,9 @@ function openStdDeadlines(vid){
   const miss = STD_DL.filter(t => !S.deadlines.some(d => d.vehicleId===vid && d.type===t));
   editing = {col:'std-dl', id: vid, base:{}, special: saveStdDeadlines};
   $('#dlg-title').textContent = `Podstawowe terminy · ${v.plate || ''}`;
-  $('#dlg-body').innerHTML = `<div class="field full"><span class="muted small">Wpisz daty z dowodu rejestracyjnego, polisy i ostatniej książki serwisowej. Puste pola pominiemy. Kolejne terminy po „Wykonane” ustawią się same (przegląd i OC co 12 mies., olej co 15 000 km – tylko według przebiegu).</span></div>
+  $('#dlg-body').innerHTML = `<div class="field full"><span class="muted small">Wpisz daty z dowodu rejestracyjnego, polisy i ostatniej książki serwisowej. Puste pola pominiemy. Kolejne terminy po „Wykonane” ustawią się same (przegląd i OC co 12 mies., olej co 12 000 km – tylko według przebiegu).</span></div>
     ${miss.map((t, i) => t==='Serwis olejowy'
-      ? `<div class="field"><label for="std-km">Serwis olejowy – przy przebiegu (km)</label><input id="std-km" type="number" inputmode="numeric" placeholder="${v.km ? 'np. ' + (Math.ceil((Number(v.km) + 15000) / 1000) * 1000) : ''}"></div><div class="field"></div>`
+      ? `<div class="field"><label for="std-km">Serwis olejowy – przy przebiegu (km)</label><input id="std-km" type="number" inputmode="numeric" placeholder="${v.km ? 'np. ' + (Math.ceil((Number(v.km) + 12000) / 1000) * 1000) : ''}"></div><div class="field"></div>`
       : `<div class="field"><label for="std-${i}">${t} – do kiedy</label><input id="std-${i}" type="date" data-std-type="${esc(t)}" ${t==='Ubezpieczenie OC' && v.policyUntil ? `value="${v.policyUntil}"` : ''}></div><div class="field"></div>`).join('')}
     <div class="warnline" id="dlg-warn" hidden></div>`;
   $('#dlg-save').textContent = 'Zapisz terminy'; $('#dlg-del').hidden = true; $('#scrim').hidden = false;
@@ -191,38 +191,75 @@ async function saveStdDeadlines(){
 }
 document.addEventListener('click', e => { const t = e.target.closest('[data-std-dl]'); if (!t) return; e.preventDefault(); openStdDeadlines(t.dataset.stdDl); });
 
-/* Podstawowe terminy całej floty w jednej tabeli: każde auto bez przeglądu, OC albo oleju w jednym wierszu */
+/* Terminy całej floty w jednej tabeli: przegląd, OC (daty), olej i rozrząd (przy km) – wszystkie auta, wpisywanie hurtem
+   albo wklejenie z Excela (kolumny: rejestracja, przegląd, OC, olej km, rozrząd km). Istniejące terminy można poprawić. */
+const BULK_DL = ['Przegląd techniczny', 'Ubezpieczenie OC', 'Serwis olejowy', 'Wymiana rozrządu'];
+const BULK_KM = t => t==='Serwis olejowy' || t==='Wymiana rozrządu';
 const stdMissing = () => S.vehicles.filter(v => v.status!=='wycofany').map(v => ({v, miss: STD_DL.filter(t => !S.deadlines.some(d => d.vehicleId===v.id && d.type===t))})).filter(x => x.miss.length)
   .sort((a, b) => String(a.v.plate).localeCompare(b.v.plate));
+const bulkMissing = () => S.vehicles.filter(v => v.status!=='wycofany' && BULK_DL.some(t => !S.deadlines.some(d => d.vehicleId===v.id && d.type===t)));
 function openStdBulk(){
-  const list = stdMissing(); if (!list.length) return toast('Wszystkie auta mają podstawowe terminy');
+  const vs = S.vehicles.filter(v => v.status!=='wycofany');
+  if (!vs.length) return toast('Brak aut');
+  const has = (v, t) => S.deadlines.filter(d => d.vehicleId===v.id && d.type===t).sort((a, b) => (BULK_KM(t) ? (Number(a.kmDue) || 1e12) - (Number(b.kmDue) || 1e12) : String(a.date || '9').localeCompare(String(b.date || '9'))))[0];
+  const miss = v => BULK_DL.filter(t => !has(v, t)).length;
+  const list = vs.slice().sort((a, b) => (miss(b) > 0) - (miss(a) > 0) || String(a.plate).localeCompare(b.plate));
   editing = {col:'std-bulk', id: null, base:{}, special: saveStdBulk};
-  const has = (v, t) => S.deadlines.find(d => d.vehicleId===v.id && d.type===t);
-  const cell = (v, t) => { const d = has(v, t); if (d) return `<td class="muted small">${d.date ? fdate(d.date) : d.kmDue ? km(d.kmDue) : '—'}</td>`;
-    if (t==='Serwis olejowy') return `<td><input type="number" inputmode="numeric" data-sb-km="${esc(v.id)}" aria-label="${esc(v.plate)} – olej przy km" placeholder="${v.km ? Math.ceil((Number(v.km) + 15000) / 1000) * 1000 : 'km'}" style="width:110px"></td>`;
-    return `<td><input type="date" data-sb-veh="${esc(v.id)}" data-sb-type="${esc(t)}" aria-label="${esc(v.plate)} – ${esc(t)}" ${t==='Ubezpieczenie OC' && v.policyUntil ? `value="${v.policyUntil}"` : ''}></td>`; };
-  $('#dlg-title').textContent = `Podstawowe terminy floty · ${list.length} ${isPlural(list.length,'auto','auta','aut')}`;
-  $('#dlg-body').innerHTML = `<p class="muted small field full" style="margin:0">Wpisz daty z dowodów rejestracyjnych, polis i książek serwisowych. Puste pola pominiemy – możesz uzupełniać na raty. Kolejne terminy po „Wykonane” ustawią się same.</p>
-    <div class="field full tablewrap sb-wrap"><table class="sb-tbl"><thead><tr><th>Auto</th><th>Przegląd techniczny</th><th>Ubezpieczenie OC</th><th>Serwis olejowy – przy km</th></tr></thead><tbody>
-    ${list.map(({v}) => `<tr><td>${plate(v.plate)}<span class="sub">${v.km ? km(v.km) : ''}</span></td>${STD_DL.map(t => cell(v, t)).join('')}</tr>`).join('')}
+  const cell = (v, t) => { const d = has(v, t), val = d ? (BULK_KM(t) ? (d.kmDue || '') : (d.date || '')) : (t==='Ubezpieczenie OC' && v.policyUntil ? v.policyUntil : '');
+    const attrs = `data-sb-veh="${esc(v.id)}" data-sb-type="${esc(t)}" data-sb-id="${d ? esc(d.id) : ''}" data-sb-orig="${d ? esc(String(val)) : ''}" aria-label="${esc(v.plate)} – ${esc(t)}"`;
+    return `<td class="${d ? '' : 'sb-miss'}">${BULK_KM(t)
+      ? `<input type="number" inputmode="numeric" ${attrs} value="${esc(String(val))}" placeholder="${v.km ? Math.ceil((Number(v.km) + (DL_INTERVALS[t] || [])[1]) / 1000) * 1000 : 'km'}" style="width:110px">`
+      : `<input type="date" ${attrs} value="${esc(String(val))}">`}</td>`; };
+  const nMiss = list.filter(v => miss(v) > 0).length;
+  $('#dlg-title').textContent = `Terminy floty · ${vs.length} aut${nMiss ? ` · ${nMiss} z brakami` : ''}`;
+  $('#dlg-body').innerHTML = `<p class="muted small field full" style="margin:0">Daty z dowodów rejestracyjnych i polis, olej i rozrząd – przebieg następnej wymiany. Na żółto brakujące. Puste pola pomijamy, wpisane już terminy możesz poprawić. Kolejne terminy po „Wykonane” ustawią się same (przegląd i OC co 12 mies., olej co ${new Intl.NumberFormat('pl-PL').format(DL_INTERVALS['Serwis olejowy'][1])} km, rozrząd co ${new Intl.NumberFormat('pl-PL').format(DL_INTERVALS['Wymiana rozrządu'][1])} km).</p>
+    <details class="field full sb-paste"><summary>Wklej z Excela</summary>
+      <p class="muted small" style="margin:6px 0">Skopiuj z Excela kolumny w tej kolejności: <b>rejestracja · przegląd do · OC do · olej przy km · rozrząd przy km</b> (puste komórki pomijamy). Wklej i kliknij „Wstaw do tabeli” – sprawdzisz przed zapisem.</p>
+      <textarea id="sb-paste" rows="4" placeholder="DW 4VS52	15.03.2027	10.05.2027	125000	550000"></textarea>
+      <button type="button" class="small" data-sb-fill>Wstaw do tabeli</button> <span class="muted small" id="sb-fill-msg"></span></details>
+    <div class="field full tablewrap sb-wrap"><table class="sb-tbl"><thead><tr><th>Auto</th><th>Przegląd techniczny</th><th>Ubezpieczenie OC</th><th>Olej – przy km</th><th>Rozrząd – przy km</th></tr></thead><tbody>
+    ${list.map(v => `<tr><td>${plate(v.plate)}<span class="sub">${esc([v.make, v.model].filter(Boolean).join(' '))}${v.km ? ' · ' + km(v.km) : ''}</span></td>${BULK_DL.map(t => cell(v, t)).join('')}</tr>`).join('')}
     </tbody></table></div><div class="warnline" id="dlg-warn" hidden></div>`;
   $('#dlg-save').textContent = 'Zapisz terminy'; $('#dlg-del').hidden = true; $('#scrim').hidden = false;
   $('#dialog')?.classList.add('dlg-wide');
 }
+/* wklejka z Excela → pola tabeli (bez zapisu) */
+function sbParseDate(x){
+  x = String(x || '').trim(); if (!x) return '';
+  let m = x.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/); if (m) return `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}`;
+  m = x.match(/^(\d{1,2})[.\-/](\d{1,2})[.\-/](\d{2,4})$/); if (m) return `${m[3].length===2 ? '20' + m[3] : m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+  if (/^\d{5}$/.test(x)){ const d = new Date(Math.round((Number(x) - 25569) * 864e5)); return d.toISOString().slice(0, 10); }
+  return null;
+}
+function sbFill(){
+  const txt = ($('#sb-paste') || {}).value || '', np = p => String(p || '').toUpperCase().replace(/[\s-]+/g, '');
+  let ok = 0; const bad = [];
+  txt.split(/\r?\n/).map(l => l.trim()).filter(Boolean).forEach(l => {
+    const c = l.split(/\t|;/).map(x => x.trim()), v = S.vehicles.find(x => np(x.plate)===np(c[0]));
+    if (!v){ bad.push(c[0]); return; }
+    BULK_DL.forEach((t, i) => { const raw = c[i + 1]; if (raw==null || raw==='') return;
+      const inp = document.querySelector(`[data-sb-veh="${v.id}"][data-sb-type="${t}"]`); if (!inp) return;
+      const val = BULK_KM(t) ? String(Math.round(Number(String(raw).replace(/[\s\u00a0]/g, '').replace(/km$/i, '').replace(',', '.'))) || '') : sbParseDate(raw);
+      if (val){ inp.value = val; inp.closest('td').classList.add('sb-new'); } });
+    ok++;
+  });
+  $('#sb-fill-msg').textContent = `Wstawiono ${ok} ${isPlural(ok, 'auto', 'auta', 'aut')}` + (bad.length ? ` · nie znaleziono: ${bad.join(', ')}` : '') + ' – sprawdź i kliknij „Zapisz terminy”.';
+}
 async function saveStdBulk(){
-  const items = [...document.querySelectorAll('[data-sb-type]')].filter(i => i.value).map(i => ({vid: i.dataset.sbVeh, type: i.dataset.sbType, date: i.value}));
-  const kmOf = vid => Number((document.querySelector(`[data-sb-km="${vid}"]`) || {}).value) || null;
-  // olej tylko według przebiegu (bez daty)
-  document.querySelectorAll('[data-sb-km]').forEach(i => { if (Number(i.value) > 0) items.push({vid: i.dataset.sbKm, type:'Serwis olejowy', date: null}); });
-  if (!items.length){ const w = $('#dlg-warn'); w.textContent = 'Wpisz co najmniej jedną datę albo przebieg oleju.'; w.hidden = false; return; }
+  const ins = [...document.querySelectorAll('[data-sb-type]')].filter(i => String(i.value).trim()!=='' && String(i.value).trim()!==i.dataset.sbOrig);
+  if (!ins.length){ const w = $('#dlg-warn'); w.textContent = 'Nic się nie zmieniło – wpisz datę albo przebieg.'; w.hidden = false; return; }
   const btn = $('#dlg-save'); btn.disabled = true; let n = 0;
   try {
-    for (const it of items){ const def = DL_INTERVALS[it.type] || [12, null], oil = it.type==='Serwis olejowy', kd = oil ? kmOf(it.vid) : null;
-      await db.collection('deadlines').doc().set({vehicleId: it.vid, type: it.type, date: oil ? null : it.date, intervalMonths: oil ? null : def[0], intervalKm: oil ? def[1] : null, kmDue: kd, remindKm: oil ? 2000 : null}); n++; }
-    closeForm(); toast(`Dodano ${n} ${isPlural(n,'termin','terminy','terminów')}`);
-  } catch(err){ handleWriteErr(err); if (n) toast(`Zapisano ${n} z ${items.length} – reszta nie przeszła`); }
+    for (const i of ins){ const t = i.dataset.sbType, vid = i.dataset.sbVeh, kmT = BULK_KM(t), val = kmT ? Number(i.value) || null : i.value, def = DL_INTERVALS[t] || [12, null];
+      if (i.dataset.sbId) await db.collection('deadlines').doc(i.dataset.sbId).update(kmT ? {kmDue: val} : {date: val});
+      else await db.collection('deadlines').doc().set({vehicleId: vid, type: t, date: kmT ? null : val, intervalMonths: kmT ? null : def[0], intervalKm: kmT ? def[1] : null, kmDue: kmT ? val : null,
+        remindKm: t==='Serwis olejowy' ? 2000 : t==='Wymiana rozrządu' ? 5000 : null});
+      n++; }
+    closeForm(); toast(`Zapisano ${n} ${isPlural(n,'termin','terminy','terminów')}`);
+  } catch(err){ handleWriteErr(err); if (n) toast(`Zapisano ${n} z ${ins.length} – reszta nie przeszła`); }
   finally { btn.disabled = false; }
 }
+document.addEventListener('click', e => { if (e.target.closest('[data-sb-fill]')){ e.preventDefault(); sbFill(); } });
 document.addEventListener('click', e => { if (e.target.closest('[data-action="std-bulk"]')){ e.preventDefault(); openStdBulk(); } });
 
 /* Kto jeździł tym autem w ostatnich 90 dniach (dni z grafiku) */

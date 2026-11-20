@@ -45,7 +45,7 @@ function flagRow(c, compact, noAct){
   const fx = typeof fxNote==='function' && fxNote(c) ? ' · ' + fxNote(c) : '';
   const act = noAct ? '' : P().manage ? (c.flagState==='explain'
       ? `<span class="pill info">czeka na kierowcę</span><button class="small ghost" data-flag-ok="${esc(c.id)}">OK</button>`
-      : `<button class="small" data-flag-ok="${esc(c.id)}">${ic('check')}OK</button><button class="small" data-flag-ask="${esc(c.id)}">Wyjaśnij</button>`) : '';
+      : `<button class="small" data-flag-ok="${esc(c.id)}">${ic('check')}OK</button><button class="small" data-flag-ask="${esc(c.id)}">Wyjaśnij</button>${(c.flags || []).some(f => f.startsWith('Możliwy duplikat')) ? `<button class="small ghost" data-flag-dup="${esc(c.id)}">Usuń duplikat</button>` : ''}`) : '';
   return `<div class="att-row flag-row"><i class="stripe ${c.flagState==='explain' ? 'info' : 'warn'}"></i>${vPlate(c.vehicleId)}
     <div class="att-t"><b>${fdate(c.date)} · ${String(c.liters || '').replace('.', ',')} l · ${zl2(c.amount)}${fx}</b><span class="sub">${esc(who)}${c.station ? ' · ' + esc(c.station) : ''}</span>
       <span class="sub flag-list">${(c.flags || []).map(f => `<span class="pill warn">${esc(f)}</span>`).join('')}</span>
@@ -206,8 +206,9 @@ async function copyWeek(src){
 }
 
 document.addEventListener('click', e => {
-  const t = e.target.closest('[data-override],[data-flag-ok],[data-flag-ask],[data-explain],[data-sched],[data-action="copy-week"]');
+  const t = e.target.closest('[data-override],[data-flag-ok],[data-flag-ask],[data-flag-dup],[data-explain],[data-sched],[data-action="copy-week"]');
   if (!t || t.closest('#dialog')) return;
+  if (t.dataset.flagDup) return flagDupDel(t, t.dataset.flagDup);
   if (t.dataset.override) return openOverride(t.dataset.override);
   if (t.dataset.flagOk) return flagOk(t.dataset.flagOk);
   if (t.dataset.flagAsk) return openFlagAsk(t.dataset.flagAsk);
@@ -274,3 +275,10 @@ document.addEventListener('drop', async e => {
   try { await db.collection('bookings').doc(b.id).update(upd); toast(`Przeniesiono: ${dName(upd.driverId || upd.coDriverId || dr)} · ${fdate(d)}`); }
   catch(err){ handleWriteErr(err); }
 });
+
+/* „Usuń duplikat”: pierwszy klik pyta (przycisk zmienia się na „Na pewno usunąć?”), drugi usuwa wpis tankowania */
+async function flagDupDel(btn, id){
+  if (btn.dataset.sure!=='1'){ btn.dataset.sure = '1'; btn.textContent = 'Na pewno usunąć?'; btn.classList.add('danger'); setTimeout(() => { if (btn.isConnected){ btn.dataset.sure = ''; btn.textContent = 'Usuń duplikat'; btn.classList.remove('danger'); } }, 5000); return; }
+  btn.disabled = true;
+  try { await db.collection('costs').doc(id).delete(); toast('Usunięto zdublowane tankowanie'); render(); } catch(err){ handleWriteErr(err); btn.disabled = false; }
+}

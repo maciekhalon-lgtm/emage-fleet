@@ -1830,3 +1830,8 @@ html[data-env="test"] body{padding-top:20px}
 .sw-why{display:flex;flex-direction:column;gap:6px;align-items:flex-start}
 .sw-why label{display:flex;gap:8px;align-items:center;font-weight:500}
 .sch-chip .sch-self{font-style:normal;font-size:11px;color:var(--muted)}
+.d-main.ghost{background:transparent;color:inherit;border:2px solid var(--line,#ccc);box-shadow:none;margin-top:8px}
+.sb-tbl td.sb-miss input{background:color-mix(in srgb,var(--warn,#f59e0b) 14%,transparent)}
+.sb-tbl td.sb-new input{outline:2px solid var(--accent)}
+.sb-paste textarea{width:100%;font-family:inherit}
+button.warn{background:var(--warn-soft);color:var(--warn);border-color:color-mix(in srgb,var(--warn) 40%,transparent)}

@@ -22,7 +22,9 @@ function spData(){
   const [from, to] = spRange(), legs = rkLegs(from, to), [pf, pt] = spPrevRange(), prev = rkLegs(pf, pt), ownFrom = addDays(to, -179);
   const rows = S.vehicles.filter(v => v.status!=='wycofany').map(v => {
     const {km, l, rate} = spRate(legs.filter(x => x.vid===v.id)), pr = spRate(prev.filter(x => x.vid===v.id)).rate;
-    const own = spRate(rkVehLegs(v.id).filter(x => x.date >= ownFrom && x.date <= to)).rate;   // średnia auta z ostatnich 6 miesięcy
+    const ownL = rkVehLegs(v.id).filter(x => x.date >= ownFrom && x.date <= to);
+    // średnia auta z ostatnich 6 miesięcy – dopiero gdy są dane sprzed bieżącego okresu (z min. 2 miesięcy), inaczej to ta sama liczba
+    const own = ownL.some(x => x.date < from) && ownL.length && diffDays(ownL[0].date, to) >= 55 ? spRate(ownL).rate : null;
     return {v, cls: wcls(v), km, l, rate, prev: pr, chg: rate!=null && pr!=null ? rate - pr : null, own, vsOwn: rate!=null && own!=null ? rate - own : null};
   });
   const ok = rows.filter(r => r.rate!=null), fKm = ok.reduce((a, r) => a + r.km, 0), fL = ok.reduce((a, r) => a + r.l, 0);
@@ -44,7 +46,7 @@ function viewFuelSimple(){
   const sorts = `<div class="sp-sort"><span class="muted small">Sortuj:</span><div class="seg">${SP_SORTS.map(([k, l]) => `<button type="button" class="small ${sk===k ? 'on' : ''}" data-sp-sort="${k}">${l}${sk===k ? (dir < 0 ? ' ▼' : ' ▲') : ''}</button>`).join('')}</div></div>`;
   const delta = (x, title) => x==null ? '<span class="muted">—</span>' : `<span class="num ${x > 0.5 ? 'neg' : x < -0.5 ? 'pos' : 'muted'}" title="${esc(title)}">${x > 0 ? '+' : x < 0 ? '−' : ''}${f1(Math.abs(x))}</span>`;
   const row = r => `<tr class="click" data-sp-veh="${esc(r.v.id)}"><td>${plate(r.v.plate)}<span class="sub">${esc([r.v.make, r.v.model].filter(Boolean).join(' '))}</span></td>
-    <td class="r"><b class="num ${r.rate > THEFT_RATE ? 'neg' : ''}">${f1(r.rate)}</b></td>
+    <td class="r"><b class="num ${r.rate > theftOf(r.v.id) ? 'neg' : ''}">${f1(r.rate)}</b></td>
     <td class="r">${r.diff==null ? '' : `<span class="pill ${r.diff > 15 ? 'bad' : r.diff > 5 ? 'warn' : r.diff < -5 ? 'ok' : 'off'}">${r.diff > 0 ? '+' : ''}${Math.round(r.diff)}%</span>`}</td>
     <td class="r">${r.own!=null ? `<span class="num">${f1(r.own)}</span> ${delta(r.vsOwn, 'teraz względem własnej średniej auta')}` : '<span class="muted">—</span>'}</td>
     <td class="r">${delta(r.chg, r.prev!=null ? 'poprzednio ' + f1(r.prev) + ' l/100 km' : '')}</td>
@@ -74,7 +76,7 @@ function openSpVehicle(vid){
     <div class="field full tablewrap"><table class="sp-tbl"><thead><tr><th>Data</th><th>Kierowca</th><th class="r">Litry</th><th class="r">Licznik</th><th class="r">Odcinek (km / l)</th><th class="r">l/100</th><th></th></tr></thead><tbody>
     ${rows.map(x => `<tr ${canEditDoc('costs', x.c) ? `class="click" data-edit="costs" data-id="${esc(x.c.id)}"` : ''}><td>${fdate(x.c.date)}</td><td>${esc(dName(fillDriver(x.c) || x.c.driverId) || '—')}</td>
       <td class="r num">${f1(Number(x.c.liters))}</td><td class="r num">${x.c.odometer ? nf.format(x.c.odometer) : '—'}</td><td class="r num">${x.km ? `${nf.format(x.km)} km / ${f1(x.l)} l` : '—'}</td>
-      <td class="r">${x.rate!=null ? `<b class="num ${x.rate > THEFT_RATE ? 'neg' : ''}">${f1(x.rate)}</b>` : '—'}</td><td>${x.c.full===false ? '<span class="pill off">dotankowanie</span>' : ''}${(x.c.flags || []).length ? ' <span class="pill bad">uwaga</span>' : ''}</td></tr>`).join('')
+      <td class="r">${x.rate!=null ? `<b class="num ${x.rate > theftOf(vid) ? 'neg' : ''}">${f1(x.rate)}</b>` : '—'}</td><td>${x.c.full===false ? '<span class="pill off">dotankowanie</span>' : ''}${(x.c.flags || []).length ? ' <span class="pill bad">uwaga</span>' : ''}</td></tr>`).join('')
       || '<tr><td colspan="7" class="muted">Brak tankowań w tym okresie.</td></tr>'}</tbody></table></div>`;
   $('#dlg-save').textContent = 'Zamknij'; $('#dlg-del').hidden = true; $('#scrim').hidden = false;
 }

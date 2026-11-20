@@ -133,7 +133,9 @@ function viewMyCar(){
       ${active.coDriverId ? `<div class="d-note">${ic('users')}<span>Jedziesz z: <b>${esc(dName(partnerOf(active)))}</b>${!active.pickupConfirmedAt ? ' · przejęcie czeka na potwierdzenie' : ''}</span></div>` : ''}
       ${active.purpose ? `<div class="d-note">${ic('clip')}<span>${esc(active.purpose)}</span></div>` : ''}
       ${myDueNote(v)}
-      <button class="d-main" data-ho="return" data-id="${esc(active.id)}">${ic('key')}Zdaj auto</button>
+      ${active.to < t ? `<div class="d-state warn">${ic('alert')}<span>Przydział był do <b>${fdate(active.to)}</b>, a auta nie zdałeś. Jedziesz dalej tym autem? Jeśli nie – zdaj je teraz.</span></div>
+      <button class="d-main" data-continue="${esc(active.id)}">${ic('check')}Jadę dalej</button>` : ''}
+      <button class="${active.to < t ? 'd-main ghost' : 'd-main'}" data-ho="return" data-id="${esc(active.id)}">${ic('key')}Zdaj auto</button>
     </section>`;
     const hasDocs = (S.docs || []).some(d => d.vehicleId===v.id);
     quick = [qa(`data-fuel="${esc(v.id)}"`, 'fuel', 'Zatankuj', 'litry i licznik', 'hot'),
@@ -452,3 +454,8 @@ async function saveSwap(bid, vid){
   finally { btn.disabled = false; }
 }
 document.addEventListener('click', e => { const s = e.target.closest('[data-swap]'); if (!s) return; e.stopPropagation(); openSwap(s.dataset.swapB, s.dataset.swap); });
+
+/* „Jadę dalej”: przydział, który skończył się wcześniej, przedłuża się do dziś (migracja 053) */
+document.addEventListener('click', async e => { const c = e.target.closest('[data-continue]'); if (!c) return; e.stopPropagation(); c.disabled = true;
+  try { const {error} = await sb.rpc('driver_continue', {p_booking: c.dataset.continue}); if (error) throw error; await refresh('bookings'); toast('Przydział przedłużony do dziś – szerokiej drogi!'); render(); }
+  catch(err){ toast('Nie udało się: ' + (err.message || err)); c.disabled = false; } });
