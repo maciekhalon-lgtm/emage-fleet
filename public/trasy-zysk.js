@@ -32,7 +32,7 @@ function rtKmCost(m){
 /* Kursy z grafiku: dni w miesiącu, w których trasa była przydzielona (1 dzień = 1 kurs, niezależnie od obsady) */
 function rtGrafikTrips(rid, m){
   const [a, b] = setlRange(m), days = new Set();
-  S.bookings.filter(x => x.routeId===rid && x.from <= b && x.to >= a).forEach(x => { for (let d = x.from > a ? x.from : a; d <= (x.to < b ? x.to : b); d = addDays(d, 1)) days.add(x.vehicleId + d); });
+  S.bookings.filter(x => x.routeId===rid && x.from <= b && x.to >= a).forEach(x => bkDays(x, a, b).forEach(d => days.add(x.vehicleId + d)));
   return days.size;
 }
 function rtCalc(m){

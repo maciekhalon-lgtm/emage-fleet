@@ -94,7 +94,7 @@ function bookingState(b){
   if (b.returned && b.coDriverId && !b.returnConfirmedAt) return {cls:'warn', txt:'Zdanie czeka na potwierdzenie', key:0};
   if (b.returned) return {cls:'off', txt:'Zwrócona', key:2};
   if (b.pickup && b.coDriverId && !b.pickupConfirmedAt) return {cls:'warn', txt:'Przejęcie czeka na potwierdzenie', key:0};
-  if (b.pickup) return b.to < t ? {cls:'bad', txt:'Nie zwrócono', key:0} : {cls:'info', txt:'W trasie', key:0};
+  if (b.pickup) return bkOverdue(b) ? {cls:'bad', txt:'Nie zwrócono', key:0} : {cls:'info', txt:'W trasie', key:0};
   if (b.to < t) return {cls:'off', txt:'Zakończona', key:2};
   if (b.from <= t) return {cls:'info', txt:'Trwa', key:0};
   return {cls:'soon', txt:'Zaplanowana', key:1};
@@ -171,3 +171,24 @@ const fuelVat = d => FUEL_VAT_8.some(([a, b]) => String(d || '') >= a && String(
 const WCLS = [['pow25', 'Powyżej 2,5 t'], ['do25', 'Do 2,5 t']];
 const wcls = v => v && v.weightClass==='do25' ? 'do25' : 'pow25';
 const wclsName = k => (WCLS.find(x => x[0]===k) || WCLS[0])[1];
+
+/* ---- dzień pracy = zmiana, nie data w kalendarzu ----
+   Nocna zmiana (np. wtorek 23:00 → środa 10:00) to 1 dzień pracy. Zmiana zaczęta przed 6:00 należy do poprzedniego dnia.
+   Przejęte auto z godziną: liczba dni = czas od przejęcia do zdania (bez 2 h zapasu) / 24 h, w górę, min. 1.
+   Bez godziny przejęcia (zaplanowane, stare wpisy) – dni z dat przydziału, jak dotąd. */
+const BK_DAY_MS = 864e5;
+const bkWarsawDay = ms => new Date(ms).toLocaleDateString('sv-SE', {timeZone: 'Europe/Warsaw'});
+function bkDays(b, from, to){
+  const out = [];
+  if (b.pickupTs){
+    const s = new Date(b.pickupTs).getTime(), e = b.returnTs ? new Date(b.returnTs).getTime() : (b.returned ? s : Math.min(Date.now(), s + 30 * BK_DAY_MS));
+    const n = Math.max(1, Math.ceil((e - s - 2 * 36e5) / BK_DAY_MS)), d0 = bkWarsawDay(s - 6 * 36e5);
+    for (let i = 0; i < n; i++){ const d = addDays(d0, i); if ((!from || d >= from) && (!to || d <= to)) out.push(d); }
+    return out;
+  }
+  for (let x = from && b.from < from ? from : b.from; x <= (to && b.to > to ? to : b.to); x = addDays(x, 1)) out.push(x);
+  return out;
+}
+/* auto przejęte i niezdane „po czasie”: od przejęcia minęło ponad 20 h (nocna zmiana trwa do rana – to nie zaległość);
+   bez godziny przejęcia – przydział skończył się przedwczoraj albo wcześniej */
+const bkOverdue = b => !!(b && b.pickup && !b.returned) && (b.pickupTs ? Date.now() - new Date(b.pickupTs).getTime() > 20 * 36e5 && b.to < today() : b.to < addDays(today(), -1));

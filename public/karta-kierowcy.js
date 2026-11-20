@@ -8,7 +8,7 @@ function drvCardStats(id, from, to){
   const d = byId('drivers', id) || {}, name = d.name || '';
   const days = new Set();
   S.bookings.forEach(b => { if (!crewOf(b).includes(id)) return;
-    for (let x = b.from > from ? b.from : from; x <= (b.to < to ? b.to : to); x = addDays(x, 1)) days.add(x); });
+    bkDays(b, from, to).forEach(x => days.add(x)); });   // nocna zmiana = 1 dzień
   const fuel = appFuel().filter(c => (fillDriver(c) || c.driverId)===id && c.date>=from && c.date<=to).sort((a, b) => a.date<b.date ? 1 : -1);
   // spalanie kierowcy = to samo co w Rankingu kierowców (jego tankowania do pełna)
   let km_ = 0, l = 0; const veh = new Set();

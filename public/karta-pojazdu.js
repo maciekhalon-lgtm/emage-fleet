@@ -266,7 +266,7 @@ document.addEventListener('click', e => { if (e.target.closest('[data-action="st
 function whoDroveHtml(vid){
   const t = today(), from = addDays(t, -89), cnt = {};
   S.bookings.filter(b => b.vehicleId===vid && b.to>=from && b.from<=t).forEach(b => {
-    for (let d = b.from > from ? b.from : from; d <= (b.to < t ? b.to : t); d = addDays(d, 1)) crewOf(b).forEach(x => { cnt[x] = (cnt[x] || 0) + 1; }); });
+    bkDays(b, from, t).forEach(() => crewOf(b).forEach(x => { cnt[x] = (cnt[x] || 0) + 1; })); });
   const xs = Object.entries(cnt).sort((a, b) => b[1] - a[1]); if (!xs.length) return '';
   const max = xs[0][1];
   return `<div class="panel"><div class="sec-head"><h3>Kto jeździł – 90 dni</h3></div>${xs.slice(0, 8).map(([id, n]) => `<div class="mini"><span>${esc(dName(id))}</span><span class="wd-bar"><i style="width:${Math.round(n / max * 100)}%"></i></span><span class="mini-r num">${n} ${isPlural(n,'dzień','dni','dni')}</span></div>`).join('')}</div>`;

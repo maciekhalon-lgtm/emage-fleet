@@ -12,3 +12,7 @@ select date_to = current_date as ok_przedluzone from bookings where id='33333333
 \echo '2 przypomnienie: tylko kierowcy z kontem (Zenek bez konta -> pomijany), funkcja działa'
 update bookings set date_to = current_date - 1 where id='33333333-0000-0000-0000-000000000801';
 select private.remind_unreturned() >= 0 as ok_przypomnienie;
+\echo '3 nocna zmiana (przejęcie wczoraj 23:00, teraz rano) -> bez przypomnienia'
+update bookings set pickup_ts = date_trunc('day', now()) - interval '1 hour', date_to = current_date - 1, date_from = current_date - 1 where id='33333333-0000-0000-0000-000000000801';
+select not exists (select 1 from bookings b where b.id='33333333-0000-0000-0000-000000000801'
+  and (case when b.pickup_ts is not null then b.pickup_ts < now() - interval '20 hours' else b.date_to < current_date - 1 end)) or extract(hour from now()) >= 19 as ok_nocna_bez_przypomnienia;

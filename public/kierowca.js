@@ -91,7 +91,7 @@ function myMonth(ym){
   const A = ym + '-01', B = ym + '-' + pad(new Date(y, m, 0).getDate());
   const days = new Set(); let dist = 0;
   const trips = S.bookings.filter(b => crewOf(b).includes(me_) && b.from <= B && b.to >= A);
-  trips.forEach(b => { if (!b.pickup) return; for (let x = b.from > A ? b.from : A; x <= (b.to < B ? b.to : B) && x <= today(); x = addDays(x, 1)) days.add(x);
+  trips.forEach(b => { if (!b.pickup) return; bkDays(b, A, B < today() ? B : today()).forEach(x => days.add(x));
     if (b.returned && b.returned.km > b.pickup.km) dist += b.returned.km - b.pickup.km; });
   const fuel = S.costs.filter(c => isFuel(c) && (c.driverId===me_ || c.createdBy===myId) && c.date >= A && c.date <= B);
   return {A, B, days: days.size, dist, trips: trips.filter(b => b.pickup).sort((a, b) => a.from < b.from ? 1 : -1), fuel: fuel.sort((a, b) => a.date < b.date ? 1 : -1),
@@ -133,9 +133,9 @@ function viewMyCar(){
       ${active.coDriverId ? `<div class="d-note">${ic('users')}<span>Jedziesz z: <b>${esc(dName(partnerOf(active)))}</b>${!active.pickupConfirmedAt ? ' · przejęcie czeka na potwierdzenie' : ''}</span></div>` : ''}
       ${active.purpose ? `<div class="d-note">${ic('clip')}<span>${esc(active.purpose)}</span></div>` : ''}
       ${myDueNote(v)}
-      ${active.to < t ? `<div class="d-state warn">${ic('alert')}<span>Przydział był do <b>${fdate(active.to)}</b>, a auta nie zdałeś. Jedziesz dalej tym autem? Jeśli nie – zdaj je teraz.</span></div>
+      ${bkOverdue(active) ? `<div class="d-state warn">${ic('alert')}<span>Masz to auto od <b>${active.pickupTs ? new Date(active.pickupTs).toLocaleString('pl-PL', {timeZone: 'Europe/Warsaw', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'}) : fdate(active.from)}</b> i go nie zdałeś. Jedziesz dalej tym autem? Jeśli nie – zdaj je teraz.</span></div>
       <button class="d-main" data-continue="${esc(active.id)}">${ic('check')}Jadę dalej</button>` : ''}
-      <button class="${active.to < t ? 'd-main ghost' : 'd-main'}" data-ho="return" data-id="${esc(active.id)}">${ic('key')}Zdaj auto</button>
+      <button class="${bkOverdue(active) ? 'd-main ghost' : 'd-main'}" data-ho="return" data-id="${esc(active.id)}">${ic('key')}Zdaj auto</button>
     </section>`;
     const hasDocs = (S.docs || []).some(d => d.vehicleId===v.id);
     quick = [qa(`data-fuel="${esc(v.id)}"`, 'fuel', 'Zatankuj', 'litry i licznik', 'hot'),
