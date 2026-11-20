@@ -157,7 +157,11 @@ function viewMyCar(){
       ${rt ? `<div class="d-note">${ic('route')}<span><b>${esc(rt.code)}</b> ${esc(rt.name)}</span></div>` : ''}
       ${b && b.purpose ? `<div class="d-note">${ic('clip')}<span>${esc(b.purpose)}</span></div>` : ''}
       <button class="d-main" ${b ? `data-ho="pickup" data-id="${esc(b.id)}"` : `data-take="${esc(v.id)}"`}>${ic('key')}Przyjmij auto</button>
-      <p class="d-hero-hint">Sprawdzisz checklistę, wpiszesz licznik i paliwo.</p></section>`
+      <p class="d-hero-hint">Sprawdzisz checklistę, wpiszesz licznik i paliwo.${b ? ' <a href="#wybierz">Nie możesz jechać tym autem? Zmień auto</a>' : ''}</p></section>`
+      : asg && asg.booking && asg.vehicle ? `<section class="d-hero empty"><div class="d-hero-top"><span class="d-state-chip warn">Dziś jedziesz</span></div>
+      <div class="d-car">${plate(asg.vehicle.plate)}<span>${esc(asg.vehicle.make || '')} ${esc(asg.vehicle.model || '')}</span></div>
+      <div class="d-state warn">${ic('alert')}<span>Tego auta nie da się dziś przejąć: <b>${esc((takeState(asg.vehicle) || {}).why || 'niedostępne')}</b>. Wybierz inne – grafik zmieni się sam, a kierownik dostanie informację.</span></div>
+      <a class="d-main" href="#wybierz">${ic('key')}Wybierz inne auto</a></section>`
       : `<section class="d-hero empty"><div class="d-hero-top"><span class="d-state-chip">Dziś</span></div><h3>Nie masz przydzielonego auta</h3>
       <p class="muted">Wybierz wolne auto z listy – zobaczysz, które są sprawne i nikt ich nie ma.</p>
       <a class="d-main" href="#wybierz">${ic('key')}Wybierz auto</a></section>`;
@@ -261,6 +265,8 @@ function viewPickCar(){
   if (meDriver() && meDriver().active===false) return `<div class="section driver">${backBtn()}${inactiveNote()}</div>`;
   const asg = myAssigned();
   const asgOk = asg && asg.vehicle && takeState(asg.vehicle) && takeState(asg.vehicle).ok;
+  const swapB = asg && asg.booking ? asg.booking : null;   // przydział z grafiku – inne auto = zmiana przydziału
+  const asgBad = swapB && !asgOk ? `<div class="panel notice warn"><span>${ic('alert')} Auto z grafiku ${plate(asg.vehicle ? asg.vehicle.plate : '')} – nie da się go dziś przejąć (${esc(asg.vehicle && takeState(asg.vehicle) ? takeState(asg.vehicle).why : 'niedostępne')}). Wybierz inne auto poniżej – grafik zmieni się sam, a kierownik dostanie informację.</span></div>` : '';
   const asgHtml = asgOk ? `<div class="panel mycar assigned">
       <span class="label">${asg.booking ? 'Kierownik przydzielił Ci na dziś' : 'Twój bus – jesteś za niego odpowiedzialny'}</span>
       <div class="mycar-head">${plate(asg.vehicle.plate)}<div><h2>${esc(asg.vehicle.make)} ${esc(asg.vehicle.model)}${asg.vehicle.hasTacho ? ' <span class="pill off">tachograf</span>' : ''}</h2><span class="muted">Ostatni stan licznika: ${km(lastKm(asg.vehicle.id))}${asg.booking && asg.booking.routeId ? ' · trasa '+esc(rLabel(asg.booking.routeId)) : ''}${asg.booking && asg.booking.purpose ? ' · '+esc(asg.booking.purpose) : ''}</span></div></div>
@@ -271,11 +277,12 @@ function viewPickCar(){
     .sort((a, b) => (b.st.ok - a.st.ok) || (respOf(b.v).includes(myDriverId()) - respOf(a.v).includes(myDriverId())) || String(a.v.plate).localeCompare(b.v.plate));
   const rows = list.map(({v, st}) => `<div class="pick ${st.ok?'':'off'}">
       <div class="pick-car">${plate(v.plate)}<div><b>${esc(v.make)} ${esc(v.model)}${respOf(v).includes(myDriverId()) ? ' <span class="pill soon">Twój bus</span>' : ''}</b><span class="sub">${esc(v.fuel||'')} · ${km(lastKm(v.id))}${v.hasTacho ? ' · tachograf' : ''}</span></div></div>
-      ${st.ok ? `<button class="primary" data-take="${esc(v.id)}">Wybierz</button>` : `<span class="muted small">${esc(st.why)}</span>`}</div>`).join('');
+      ${st.ok ? (swapB ? `<button class="primary" data-swap="${esc(v.id)}" data-swap-b="${esc(swapB.id)}">Wybierz</button>` : `<button class="primary" data-take="${esc(v.id)}">Wybierz</button>`) : `<span class="muted small">${esc(st.why)}</span>`}</div>`).join('');
   return `<div class="section driver">${backBtn()}
     <header class="d-pagehead"><h2>Wybierz auto</h2><p class="muted">Najpierw wolne i sprawne auta. Szare są zajęte albo niesprawne – obok widać dlaczego.</p></header>
-    ${asgHtml}
-    <div class="panel"><div class="sec-head"><h3>${asgHtml ? 'Albo wybierz inne wolne auto' : 'Wolne auta'}</h3><span class="muted small">${list.filter(x => x.st.ok).length} wolnych</span></div>
+    ${asgBad}${asgHtml}
+    ${swapB && asgOk ? '<p class="muted small" style="margin:0 2px">Nie możesz jechać autem z grafiku? Wybierz inne poniżej – grafik zmieni się sam, a kierownik dostanie informację.</p>' : ''}
+    <div class="panel"><div class="sec-head"><h3>${asgHtml || asgBad ? 'Albo wybierz inne wolne auto' : 'Wolne auta'}</h3><span class="muted small">${list.filter(x => x.st.ok).length} wolnych</span></div>
       ${rows ? `<div class="picks">${rows}</div>` : '<p class="muted sec-empty">Brak aut w ewidencji.</p>'}</div>
     ${driverBar()}</div>`;
 }
@@ -408,3 +415,40 @@ function openMyDocs(vid){
   hydrateFiles($('#dlg-body'));
 }
 document.addEventListener('click', e => { const t = e.target.closest('[data-mydocs]'); if (!t) return; e.preventDefault(); openMyDocs(t.dataset.mydocs); });
+
+/* ---------- zmiana auta z grafiku przez kierowcę (migracja 051) ----------
+   Przydział w grafiku zmienia się na nowe auto (trasa, drugi kierowca i uwagi zostają), kierownik dostaje powiadomienie.
+   Przy powodzie „usterka” od razu zgłoszenie usterki starego auta – serwis o nim wie. */
+const SWAP_WHY = [['usterka', 'Usterka / uszkodzenie'], ['zajete', 'Auto zajęte albo go nie ma'], ['inny', 'Inny powód']];
+function openSwap(bid, vid){
+  const b = byId('bookings', bid), v = byId('vehicles', vid); if (!b || !v) return;
+  const old = byId('vehicles', b.vehicleId) || {};
+  editing = {col: 'swap', id: bid, base: {}, special: () => saveSwap(bid, vid)};
+  $('#dialog').classList.remove('dlg-wide');
+  $('#dlg-title').textContent = 'Zmiana auta';
+  $('#dlg-body').innerHTML = `<p class="field full" style="margin:0;display:block">${plate(old.plate || '')} → ${plate(v.plate)} <span class="muted">${esc(v.make || '')} ${esc(v.model || '')}</span></p>
+    <div class="field full"><span class="label">Dlaczego nie jedziesz autem z grafiku? *</span><div class="seg sw-why">${SWAP_WHY.map(([k, l]) => `<label><input type="radio" name="sw-why" value="${k}"> ${l}</label>`).join('')}</div></div>
+    <div class="field full"><label for="sw-note">Krótko, co się stało</label><textarea id="sw-note" rows="2" maxlength="180" placeholder="np. nie odpala, pęknięta szyba, auto stoi u mechanika"></textarea>
+      <span class="muted small" id="sw-hint">Przy usterce opis trafi też do serwisu jako zgłoszenie usterki ${esc(old.plate || '')}.</span></div>
+    <p class="muted small field full" style="margin:0;display:block">Grafik zmieni się sam (trasa i drugi kierowca zostają), kierownik dostanie informację. Potem przejmujesz nowe auto jak zwykle.</p>`;
+  $('#dlg-save').textContent = 'Zmień i przejmij'; $('#dlg-del').hidden = true; $('#scrim').hidden = false;
+}
+async function saveSwap(bid, vid){
+  const warn = msg => { const w = $('#dlg-warn'); if (w){ w.textContent = msg; w.hidden = false; } else toast(msg); };
+  const why = (document.querySelector('input[name="sw-why"]:checked') || {}).value, note = ($('#sw-note').value || '').trim();
+  if (!why) return warn('Wybierz powód.');
+  if ((why==='usterka' || why==='inny') && !note){ $('#sw-note').focus(); return warn('Opisz krótko, co się stało.'); }
+  const b = byId('bookings', bid), oldVid = b && b.vehicleId;
+  const reason = (SWAP_WHY.find(x => x[0]===why) || [])[1] + (note ? ': ' + note : '');
+  const btn = $('#dlg-save'); btn.disabled = true;
+  try {
+    const {error} = await sb.rpc('driver_swap_vehicle', {p_booking: bid, p_vehicle: vid, p_reason: reason});
+    if (error) throw error;
+    if (why==='usterka' && oldVid) await db.collection('issues').doc().set({vehicleId: oldVid, status: 'nowe', date: today(), severity: 'istotna', title: note.slice(0, 120), description: 'Zgłoszone przy zmianie auta z grafiku: ' + note});
+    await refresh('bookings'); if (why==='usterka') await refresh('issues');
+    closeForm(); toast('Auto zmienione – przejmij je teraz');
+    setTimeout(() => openHandover(bid, 'pickup'), 50);
+  } catch(err){ warn('Nie udało się zmienić auta: ' + (err.message || err)); }
+  finally { btn.disabled = false; }
+}
+document.addEventListener('click', e => { const s = e.target.closest('[data-swap]'); if (!s) return; e.stopPropagation(); openSwap(s.dataset.swapB, s.dataset.swap); });
