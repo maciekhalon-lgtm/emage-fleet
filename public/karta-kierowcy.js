@@ -10,15 +10,15 @@ function drvCardStats(id, from, to){
   S.bookings.forEach(b => { if (!crewOf(b).includes(id)) return;
     bkDays(b, from, to).forEach(x => days.add(x)); });   // nocna zmiana = 1 dzień
   const fuel = appFuel().filter(c => (fillDriver(c) || c.driverId)===id && c.date>=from && c.date<=to).sort((a, b) => a.date<b.date ? 1 : -1);
-  // spalanie kierowcy = to samo co w Rankingu kierowców (jego tankowania do pełna)
+  // spalanie kierowcy = to samo co w Rankingu kierowców (jego km na odcinkach auta × spalanie odcinka)
   let km_ = 0, l = 0; const veh = new Set();
-  rkLegs(from, to).forEach(p => { if (p.drv===id){ km_ += p.km; l += p.l; veh.add(p.vid); } });
+  rkDrvParts(from, to).forEach(p => { if (p.drv===id){ km_ += p.km; l += p.l; veh.add(p.vid); } });
   const bad = name ? badOdometers().filter(x => x.d>=from && x.d<=to && String(x.who || '').includes(name)) : [];
   const flagged = flaggedCosts().filter(c => (fillDriver(c) || c.driverId)===id);
   const susp = typeof fcSuspicious==='function' && name ? fcSuspicious().filter(x => x.lvl==='bad' && x.row.txDate>=from && x.row.txDate<=to && String(fcDriver(x.row, null) || '').includes(name)) : [];
   // usterki i szkody z dni, w których jechał tym autem (wg grafiku)
   const iss = S.issues.filter(i => i.date>=from && i.date<=to && S.bookings.some(b => b.vehicleId===i.vehicleId && crewOf(b).includes(id) && b.from<=i.date && b.to>=i.date)).sort((a, b) => a.date<b.date ? 1 : -1);
-  return {days: days.size, fuel, km: km_, l, rate: km_ >= 300 ? l / km_ * 100 : null, veh, bad, flagged, susp, iss, acc: iss.filter(i => typeof isAccident==='function' && isAccident(i))};
+  return {days: days.size, fuel, km: km_, l, rate: km_ >= RK_DRV_MIN_KM ? l / km_ * 100 : null, veh, bad, flagged, susp, iss, acc: iss.filter(i => typeof isAccident==='function' && isAccident(i))};
 }
 
 function openDriverCard(id){

@@ -43,10 +43,14 @@ function cardFuelCosts(){
       .sort((a, b) => Math.abs((Number(a.liters) || 0) - L) - Math.abs((Number(b.liters) || 0) - L))[0];
     if (c){ used.add(c.id); matched.add(r.id); }
   });
-  const v = rows.filter(r => r.kind!=='other' && r.vehicleId && !r.costId && !matched.has(r.id) && Number(r.amount) > 0 && (!r.currency || r.currency==='PLN'))
-    .map(r => ({id: 'fc_' + r.id, virtual: true, vehicleId: r.vehicleId, date: r.txDate, category: 'Paliwo', amount: Number(r.amount), liters: Number(r.liters) || null,
+  // karta w EUR/CZK (np. UTA za granicą): przeliczamy po kursie NBP z dnia tankowania (pobierany w tle; do tego czasu pomijamy)
+  const pln = r => { const cur = r.currency || 'PLN'; if (cur==='PLN') return Number(r.amount);
+    const x = typeof ctRate==='function' ? ctRate(cur, r.txDate) : null; return x && !x.approx ? Number(r.amount) * x.rate : null; };
+  let waiting = false;
+  const v = rows.filter(r => r.kind!=='other' && r.vehicleId && !r.costId && !matched.has(r.id) && Number(r.amount) > 0 && (pln(r)!=null || !(waiting = true)))
+    .map(r => ({id: 'fc_' + r.id, virtual: true, vehicleId: r.vehicleId, date: r.txDate, category: 'Paliwo', amount: Math.round(pln(r) * 100) / 100, amountOrig: r.currency && r.currency!=='PLN' ? Number(r.amount) : null, liters: Number(r.liters) || null,
       odometer: Number(r.odometer) || null, station: r.station || '', currency: 'PLN', note: 'karta paliwowa' + (r.cardNo ? ' ' + r.cardNo : ''), full: false}));
-  cardFuelMemo = {k, v};
+  if (!waiting) cardFuelMemo = {k, v};   // gdy czekamy na kurs NBP – liczymy jeszcze raz przy następnym odświeżeniu
   return v;
 }
 const visibleCosts = () => P().costs==='own' ? S.costs : S.costs.concat(cardFuelCosts());   // kierowca: baza zwraca tylko jego wpisy

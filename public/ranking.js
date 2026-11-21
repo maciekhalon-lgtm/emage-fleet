@@ -23,10 +23,13 @@ function rkVehLegs(vid){
 }
 var rkStamp = 0;   // podbijane przy każdym render() – wyniki liczone raz na odświeżenie ekranu
 function rkVehLegsRaw(vid){
-  // licznik z GPS w chwili wpisu (literówka kierowcy nie psuje odcinka), bez GPS – wpis kierowcy w skali GPS
-  const fills = appFuel().filter(c => c.vehicleId===vid && Number(c.liters) > 0 && Number(c.odometer) > 0 && !String(c.note || '').startsWith('Karta:'))
+  // licznik z GPS w chwili wpisu (literówka kierowcy nie psuje odcinka), bez GPS – wpis kierowcy w skali GPS.
+  // Odcinek: od tankowania do pełna do tankowania do pełna (dotankowania po drodze wliczone). Przejęcie auta nie jest
+  // „pełnym bakiem” – nikt tego nie sprawdza. Tankowanie z otwartą flagą „Możliwy duplikat” pomijamy, dopóki nie zatwierdzisz.
+  const dup = c => (c.flags || []).some(f => String(f).startsWith('Możliwy duplikat')) && c.flagState!=='ok';
+  const fills = appFuel().filter(c => c.vehicleId===vid && Number(c.liters) > 0 && Number(c.odometer) > 0 && !String(c.note || '').startsWith('Karta:') && !dup(c))
     .map(c => ({t: 'f', odo: odoAt('tankowanie', c.id, vid, c.odometer), c, date: c.date}));
-  const picks = S.bookings.filter(b => b.vehicleId===vid && b.pickup && Number(b.pickup.km) > 0 && (b.pickup.fuel==null || b.pickup.fuel==='' || Number(b.pickup.fuel)===100))
+  const picks = S.bookings.filter(b => b.vehicleId===vid && b.pickup && Number(b.pickup.km) > 0 && Number(b.pickup.fuel)===100)
     .map(b => ({t: 'p', odo: odoAt('przejecie', b.id, vid, b.pickup.km), date: String(b.pickup.at || b.from).slice(0, 10)}));
   const ev = [...fills, ...picks].sort((a, b) => a.odo - b.odo || (a.t==='f' ? -1 : 1) || String(a.date).localeCompare(b.date));
   let anchor = null, aDate = null, acc = 0; const out = [];
@@ -35,7 +38,7 @@ function rkVehLegsRaw(vid){
     acc += Number(e.c.liters);
     if (e.c.full===false) return;
     if (anchor!=null){ const km = e.odo - anchor, rate = km > 0 ? acc / km * 100 : null;
-      if (km >= 50 && km <= 5000 && rate >= 3 && rate <= 40) out.push({vid, drv: fillDriver(e.c) || e.c.driverId || '', km, l: acc, date: e.c.date, d0: aDate || e.c.date, c: e.c, rate}); }
+      if (km >= 50 && km <= 5000 && rate >= 3 && rate <= 40) out.push({vid, drv: fillDriver(e.c) || e.c.driverId || '', km, l: acc, date: e.c.date, d0: aDate || e.c.date, c: e.c, rate, a: anchor, z: e.odo}); }
     anchor = e.odo; aDate = e.c.date; acc = 0;
   });
   return out;
@@ -45,8 +48,29 @@ function rkLegs(from, to){
   S.vehicles.forEach(v => rkVehLegs(v.id).forEach(x => { if (x.date >= from && x.date <= to) out.push(x); }));
   return out;
 }
+/* Spalanie kierowców: każdy odcinek auta dzielimy między kierowców według km, które faktycznie przejechali
+   (przejęcie → zdanie, z GPS). Kierowca dostaje swoje km i litry wg spalania auta na odcinku – nie zależy od tego,
+   kto akurat tankował. Km odcinka bez przydziału (np. luka w danych) – na kierowcę, który zamknął bak. */
+const RK_DRV_MIN_KM = 1000;   // wynik kierowcy pokazujemy od 1000 km – pojedyncze tankowanie „do pełna” waha się o ±5–10 l
+function rkDrvParts(from, to){
+  const out = [];
+  rkLegs(from, to).forEach(L => {
+    if (L.a==null || L.z==null || !(L.z > L.a)){ if (L.drv) out.push({vid: L.vid, drv: L.drv, km: L.km, l: L.l, date: L.date}); return; }
+    const bs = S.bookings.filter(b => b.vehicleId===L.vid && b.pickup), seg = new Map(); let done = 0;
+    bs.forEach(b => {
+      const s = odoAt('przejecie', b.id, b.vehicleId, b.pickup.km), e = b.returned ? odoAt('zdanie', b.id, b.vehicleId, b.returned.km) : L.z;
+      if (s==null || e==null) return;
+      const ov = Math.min(e, L.z) - Math.max(s, L.a); if (!(ov > 0)) return;
+      const crew = crewOf(b); crew.forEach(id => seg.set(id, (seg.get(id) || 0) + ov / crew.length)); done += ov;
+    });
+    const rest = Math.max(0, (L.z - L.a) - done); if (rest > 0 && L.drv) seg.set(L.drv, (seg.get(L.drv) || 0) + rest);
+    const tot = [...seg.values()].reduce((a, x) => a + x, 0) || 1;
+    seg.forEach((k, id) => out.push({vid: L.vid, drv: id, km: L.km * k / tot, l: L.l * k / tot, date: L.date}));
+  });
+  return out;
+}
 function rkData(){
-  const [from, to] = rkRange(), legs = rkLegs(from, to);
+  const [from, to] = rkRange(), legs = rkLegs(from, to), dparts = rkDrvParts(from, to);
   const fleetKm = legs.reduce((a, x) => a + x.km, 0), fleetL = legs.reduce((a, x) => a + x.l, 0);
   const fleetRate = fleetKm >= 300 ? fleetL / fleetKm * 100 : null;
   // średnia klasy (do 2,5 t / powyżej) – auta i kierowców porównujemy z autami tej samej klasy
@@ -61,8 +85,8 @@ function rkData(){
       const p = b.pickup, r = b.returned;
       if (p && r && r.at >= from && r.at <= to && bkKm(b) > 0){ const k = bkKm(b); if (k < 20000){ km += k / crew.length; veh.add(b.vehicleId); } } });
     const fills = appFuel().filter(c => (fillDriver(c) || c.driverId)===d.id && c.date >= from && c.date <= to);
-    const lg = legs.filter(x => x.drv===d.id), lkm = lg.reduce((a, x) => a + x.km, 0), ll = lg.reduce((a, x) => a + x.l, 0);
-    const rate = lkm >= 300 ? ll / lkm * 100 : null;
+    const lg = dparts.filter(x => x.drv===d.id), lkm = lg.reduce((a, x) => a + x.km, 0), ll = lg.reduce((a, x) => a + x.l, 0);
+    const rate = lkm >= RK_DRV_MIN_KM ? ll / lkm * 100 : null;
     // ile by spalił „przeciętny” kierowca na tych samych odcinkach (średnia klasy każdego auta) → różnica w %
     const expL = lg.reduce((a, x) => a + x.km * (clsRate[clsOf(x.vid)] || fleetRate || 0) / 100, 0);
     return {d, name: d.name, km: Math.round(km), days: days.size, fills: fills.length, liters: fills.reduce((a, c) => a + Number(c.liters || 0), 0), rate, diff: rate!=null && expL > 0 ? (ll - expL) / expL * 100 : null,
@@ -104,7 +128,7 @@ function viewRankingFleet(drvTab){
       ${xs.map((x, i) => `<tr class="click ${top.has(x.d.id) ? 'rk-top' : low.has(x.d.id) ? 'rk-low' : ''}" data-drv-hist="${esc(x.d.id)}"><td class="num">${i + 1}</td><td><b>${esc(x.d.name)}</b>${x.veh ? `<span class="sub">${x.veh} ${isPlural(x.veh, 'auto', 'auta', 'aut')}</span>` : ''}</td>
         <td class="r num">${x.km ? nf.format(x.km) : '—'}</td><td class="r num">${x.days || '—'}</td><td class="r num">${x.fills ? `${x.fills} <span class="muted small">· ${nf.format(Math.round(x.liters))} l</span>` : '—'}</td>
         <td class="r">${rateCell(x)}</td><td class="r">${diffCell(x)}</td><td class="r">${x.card ? `<span class="pill bad">${x.card}</span>` : '<span class="muted">0</span>'}</td></tr>`).join('') || '<tr><td colspan="8" class="muted">Brak wpisów kierowców w tym okresie – ranking pojawi się, gdy kierowcy zaczną przejmować auta i wpisywać tankowania.</td></tr>'}</tbody></table></div>
-      <p class="muted small">Kliknij kierowcę – historia jego tankowań, przejęć i zdań. Spalanie pokazujemy od 300 km z wpisanymi tankowaniami.</p>`;
+      <p class="muted small">Kliknij kierowcę – historia jego tankowań, przejęć i zdań. Spalanie kierowcy: jego km (przejęcie → zdanie, GPS) × spalanie auta na odcinkach między tankowaniami do pełna – pokazujemy od 1000 km.</p>`;
   }
   const xs = R.veh.map(x => ({...x, name: x.v.plate})).sort(cmp), withV = xs.filter(x => x[sk]!=null && sk!=='name');
   const top = new Set(['rate', 'diff', 'costKm'].includes(sk) && dir > 0 ? withV.slice(0, 3).map(x => x.v.id) : []), low = new Set(['rate', 'diff', 'costKm'].includes(sk) && dir > 0 && withV.length > 5 ? withV.slice(-3).map(x => x.v.id) : []);
@@ -129,9 +153,9 @@ function openRkVehicle(vid){
     const p = b.pickup, r = b.returned;
     if (p && r && r.at >= from && r.at <= to && bkKm(b) > 0 && bkKm(b) < 20000) crew.forEach(id => g(id).km += bkKm(b) / crew.length); });
   appFuel().filter(c => c.vehicleId===vid && c.date >= from && c.date <= to && !String(c.note || '').startsWith('Karta:')).forEach(c => { const id = fillDriver(c) || c.driverId; if (!id) return; const o = g(id); o.fills++; o.l += Number(c.liters || 0); });
-  legs.forEach(x => { if (!x.drv) return; const o = g(x.drv); o.lkm += x.km; o.ll += x.l; });
+  rkDrvParts(from, to).filter(x => x.vid===vid).forEach(x => { const o = g(x.drv); o.lkm += x.km; o.ll += x.l; });
   const rows = Object.values(m).filter(o => byId('drivers', o.id) && (o.km || o.fills || o.days.size)).map(o => {
-    const rate = o.lkm >= 150 ? o.ll / o.lkm * 100 : null;
+    const rate = o.lkm >= 300 ? o.ll / o.lkm * 100 : null;
     return {...o, name: dName(o.id), rate, diff: rate!=null && vRate ? (rate - vRate) / vRate * 100 : null, card: cardEv.filter(e => e.driverId===o.id).length};
   }).sort((a, b) => (a.rate==null) - (b.rate==null) || (a.rate || 0) - (b.rate || 0) || b.km - a.km);
   editing = {col: 'rk-veh', id: vid, base: {}, special: () => closeForm()};
