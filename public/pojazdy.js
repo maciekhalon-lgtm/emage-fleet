@@ -10,14 +10,15 @@ function viewVehicles(){
   const fuelAlarm = v => theftIds.has(v.id) || spBy[v.id] > 0;
   const F = {
     all:  ['Wszystkie', v => v.status!=='wycofany'],
-    out:  ['W trasie', v => vehicleState(v).cls==='info'],
+    out:  ['W trasie', v => vehicleState(v).cls==='info' || vehicleState(v).txt.startsWith('Zdawanie')],   // jak „Flota teraz” na pulpicie: przejęte, łącznie ze zdaniem czekającym na potwierdzenie
+    plan: ['Przydzielone', v => vehicleState(v).cls==='plan'],
     free: ['Wolne', v => vehicleState(v).cls==='ok'],
     att:  ['Wymaga uwagi', v => v.status!=='wycofany' && (['bad','warn'].includes(vehicleState(v).cls) || urgentDl(v) || fuelAlarm(v))],
     off:  ['Wycofane', v => v.status==='wycofany'],
   };
   if (!F[vehFilter]) vehFilter = 'all';
   const base = S.vehicles.filter(v => !ql || [v.plate,v.make,v.model,v.vin,respNames(v)].join(' ').toLowerCase().includes(ql));
-  const chips = `<div class="pb-quick" style="margin-top:4px">${Object.entries(F).filter(([k, [, fn]]) => k!=='off' || base.some(fn)).map(([k, [l, fn]]) => { const n = base.filter(fn).length;
+  const chips = `<div class="pb-quick" style="margin-top:4px">${Object.entries(F).filter(([k, [, fn]]) => (k!=='off' && k!=='plan') || base.some(fn)).map(([k, [l, fn]]) => { const n = base.filter(fn).length;
     return `<button class="small ${vehFilter===k ? 'primary' : ''}" data-vf="${k}">${l} <span class="count ${k==='att' && n ? 'bad' : ''}">${n}</span></button>`; }).join('')}</div>`;
   const list = base.filter(F[vehFilter][1]).sort((a,b) => String(a.plate).localeCompare(b.plate));
   const rows = list.map(v => {

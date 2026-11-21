@@ -1855,3 +1855,6 @@ button.warn{background:var(--warn-soft);color:var(--warn);border-color:color-mix
 .rk-how p{margin:8px 0 0;max-width:75ch}
 .rk-sum + .panel, .rk2-sect + .panel, .panel.rk2-sect, .panel.rk-none{margin-top:14px}
 @media (max-width:640px){.rk-sum{grid-template-columns:1fr 1fr;gap:8px}.rk-sum>div:last-child{grid-column:1/-1}.rk-sum b{font-size:21px}}
+
+/* auto przydzielone na dziś, jeszcze nieprzejęte */
+.pill.plan{background:transparent;color:var(--info);box-shadow:inset 0 0 0 1px var(--info)}

@@ -70,7 +70,7 @@ function attentionItems(serviceOnly){
     const b = soonB(i.vehicleId);
     out.push({w: stop ? 0 : 1, html: attRow(stop ? 'bad' : 'warn', i.vehicleId, (stop ? 'Niesprawne: ' : 'Usterka: ') + esc(i.title),
       `${i.status==='naprawa' ? 'w naprawie · ' : ''}zgłosił(a) ${esc(i.createdBy ? pName(i.createdBy) : '—')} · ${fdate(i.date)}` + bkTxt(b),
-      bkBtn(b) + (canIs && i.status==='nowe' ? `<button class="small" data-issue-st="naprawa" data-id="${esc(i.id)}">Do naprawy</button>` : `<button class="small ghost" data-go="usterki">Szczegóły</button>`))});
+      bkBtn(b) + (canIs && i.status==='nowe' ? `<button class="small" data-issue-st="naprawa" data-id="${esc(i.id)}">Do naprawy</button>` : `<button class="small ghost" data-go="usterki">Otwórz usterki</button>`))});
   });
   if (!serviceOnly && P().manage){
     theftVehicles().forEach(({v, c}) => out.push({w: 1, html: attRow('bad', v.id, `Podejrzane spalanie: ${c.rate.toFixed(1).replace('.', ',')} l/100 km`, `powyżej ${theftOf(v.id)} l/100 km – możliwa kradzież paliwa · ${new Intl.NumberFormat('pl-PL').format(Math.round(c.km))} km`, `<button class="small" data-card-go="${esc(v.id)}" data-ctab-go="paliwo">Sprawdź</button>`)}));
@@ -167,7 +167,7 @@ function viewDashboard(){
   const n = active.length || 1;
   const st = active.map(v => vehicleState(v).cls);
   const inUse = st.filter(c => c==='info').length + active.filter(v => vehicleState(v).txt.startsWith('Zdawanie')).length;
-  const free = st.filter(c => c==='ok').length;
+  const free = st.filter(c => c==='ok').length, planned = st.filter(c => c==='plan').length;
   const svc = active.filter(v => v.status==='serwis').length, stop = active.filter(v => v.status!=='serwis' && stopIssue(v.id)).length;
   const dls = S.deadlines.map(dlState);
   const over = dls.filter(s => s.d <= 0).length, soon30 = dls.filter(s => s.d <= 30).length;
@@ -195,7 +195,7 @@ function viewDashboard(){
   const mc = sumOf(inM), fb = Number(budget().monthly) || 0;
   const att = attentionItems(false).filter(x => x.k!=='data').length;
   const kp = [
-    kpi({label:'W trasie', icon:'truck', cls:'info', value: inUse, small: '/' + active.length, bar:[[pct(inUse, n), 'info']], foot: `${free} wolnych · ${svc + stop} w serwisie`, go:'przydzial'}),
+    kpi({label:'W trasie', icon:'truck', cls:'info', value: inUse, small: '/' + active.length, bar:[[pct(inUse, n), 'info']], foot: `${planned ? `${planned} ${isPlural(planned,'czeka','czekają','czeka')} na przejęcie · ` : ''}${free} wolnych · ${svc + stop} w serwisie`, go:'przydzial'}),
     kpi({label:'Wymaga uwagi', icon:'alert', cls: att ? 'bad' : 'ok', value: att, bar:[], foot: att ? 'blokady, terminy, usterki, tankowania' : 'wszystko w porządku', go:'pulpit'}),
     kpi({label:'Koszty – ' + MONTHS_FULL[Number(m.slice(5)) - 1], icon:'fuel', cls:'acc', value: zl(mc).replace(/\s?zł/, ''), small:' zł', bar: fb ? [[pct(mc, fb), mc > fb ? 'bad' : 'acc']] : [], foot: fb ? `${Math.round(mc / fb * 100)}% budżetu ${zl(fb)}` : 'brutto, wszystkie auta', go:'koszty'}),
   ].join('');

@@ -116,7 +116,8 @@ function vehicleState(v){
   if (typeof stopIssue==='function' && stopIssue(v.id)) return {cls:'bad', txt:'Niesprawny – usterka'};
   const b = activeBooking(v.id);
   if (b && b.returned) return {cls:'warn', txt:'Zdawanie – czeka na potwierdzenie'};
-  if (b) return {cls:'info', txt:'W użyciu – '+crewName(b)};
+  if (b && !b.pickup) return {cls:'plan', txt:'Przydzielone – czeka na przejęcie ('+crewName(b)+')'};   // w grafiku na dziś, jeszcze nie przejęte – nie liczy się jako „w trasie”
+  if (b) return {cls:'info', txt:'W trasie – '+crewName(b)};
   const bl = typeof vehicleBlock==='function' ? vehicleBlock(v) : null;
   if (bl && !bl.override) return {cls:'bad', txt:'Zablokowane – '+bl.reason};
   const hm = homeOf(v.id);
