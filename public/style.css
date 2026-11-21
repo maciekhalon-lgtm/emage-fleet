@@ -1840,3 +1840,18 @@ button.warn{background:var(--warn-soft);color:var(--warn);border-color:color-mix
 .ho-fb{display:flex;width:100%}
 .ho-fb button{flex:1;padding:12px 10px;font-size:15px}
 .nt-act{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+
+/* ranking: pasek średnich, bez wyniku, jak liczymy */
+.rk-sum{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin:0 0 14px}
+.rk-sum>div{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:2px}
+.rk-sum span{font-size:13px;color:var(--muted)}
+.rk-sum b{font-size:24px;font-variant-numeric:tabular-nums;line-height:1.15}
+.rk-sum b.rk-per{font-size:16px;padding-top:4px}
+.rk-sum em{font-style:normal;font-size:12px;color:var(--muted)}
+.rk-none .rk-none-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 14px;border-top:1px solid var(--line);flex-wrap:wrap}
+.rk-none .rk-none-row:hover{background:var(--sunk)}
+.rk-how{margin:6px 0 18px}
+.rk-how summary{cursor:pointer;color:var(--muted);font-size:13px}
+.rk-how p{margin:8px 0 0;max-width:75ch}
+.rk-sum + .panel, .rk2-sect + .panel, .panel.rk2-sect, .panel.rk-none{margin-top:14px}
+@media (max-width:640px){.rk-sum{grid-template-columns:1fr 1fr;gap:8px}.rk-sum>div:last-child{grid-column:1/-1}.rk-sum b{font-size:21px}}
