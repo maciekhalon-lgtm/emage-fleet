@@ -24,14 +24,18 @@ function rkVehLegs(vid){
 var rkStamp = 0;   // podbijane przy każdym render() – wyniki liczone raz na odświeżenie ekranu
 function rkVehLegsRaw(vid){
   // licznik z GPS w chwili wpisu (literówka kierowcy nie psuje odcinka), bez GPS – wpis kierowcy w skali GPS.
-  // Odcinek: od tankowania do pełna do tankowania do pełna (dotankowania po drodze wliczone). Przejęcie auta nie jest
-  // „pełnym bakiem” – nikt tego nie sprawdza. Tankowanie z otwartą flagą „Możliwy duplikat” pomijamy, dopóki nie zatwierdzisz.
+  // Odcinek: od tankowania do pełna do tankowania do pełna (dotankowania po drodze wliczone). Przejęcie auta jest
+  // początkiem odcinka tylko z zaznaczonym pełnym bakiem (bez wątpliwości). Tankowanie z otwartą flagą „Możliwy duplikat” pomijamy, dopóki nie zatwierdzisz.
   const dup = c => (c.flags || []).some(f => String(f).startsWith('Możliwy duplikat')) && c.flagState!=='ok';
   const fills = appFuel().filter(c => c.vehicleId===vid && Number(c.liters) > 0 && Number(c.odometer) > 0 && !String(c.note || '').startsWith('Karta:') && !dup(c))
     .map(c => ({t: 'f', odo: odoAt('tankowanie', c.id, vid, c.odometer), c, date: c.date}));
   const picks = S.bookings.filter(b => b.vehicleId===vid && b.pickup && Number(b.pickup.km) > 0 && Number(b.pickup.fuel)===100 && !b.pickupFuelDoubt)
     .map(b => ({t: 'p', odo: odoAt('przejecie', b.id, vid, b.pickup.km), date: String(b.pickup.at || b.from).slice(0, 10)}));
-  const ev = [...fills, ...picks].sort((a, b) => a.odo - b.odo || (a.t==='f' ? -1 : 1) || String(a.date).localeCompare(b.date));
+  // ten sam km z GPS (auto stało, kierowca wpisał dwa tankowania po kolei) – kolejność wg licznika z wpisu, dotankowanie przed „do pełna”
+  const typed = e => e.t==='f' ? Number(e.c.odometer) || 0 : 0;
+  const ev = [...fills, ...picks].sort((a, b) => a.odo - b.odo || (a.t===b.t ? 0 : a.t==='f' ? -1 : 1) || typed(a) - typed(b)
+    || (a.t==='f' && b.t==='f' ? (a.c.full===false ? 0 : 1) - (b.c.full===false ? 0 : 1) : 0) || String(a.date).localeCompare(b.date)
+    || String(a.c && a.c.createdAt || '').localeCompare(String(b.c && b.c.createdAt || '')));
   let anchor = null, aDate = null, acc = 0; const out = [];
   ev.forEach(e => {
     if (e.t==='p'){ anchor = e.odo; aDate = e.date; acc = 0; return; }
