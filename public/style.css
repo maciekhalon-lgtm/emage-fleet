@@ -1890,3 +1890,7 @@ button.warn{background:var(--warn-soft);color:var(--warn);border-color:color-mix
 .mt-pop{font:14px system-ui;color:#14263a}.mt-pop-a{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
 .mt-results{display:flex;flex-direction:column;gap:4px}.mt-res{text-align:left}
 @media (max-width:900px){.mt-wrap{display:flex;flex-direction:column-reverse;height:auto}.mt-mapwrap{height:55dvh}.mt-panel{overflow:visible}}
+
+.mt-via{display:block;width:18px;height:18px;border-radius:50%;background:#fff;border:3px solid #16334d;box-shadow:0 1px 5px #0007;cursor:grab}
+.mt-via.drag{border-color:#c0263d}
+.leaflet-interactive.mt-grab{cursor:grab}

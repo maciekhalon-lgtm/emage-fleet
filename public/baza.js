@@ -46,7 +46,7 @@ const WRITABLE = {
   vehicles:  ['id','plate','make','model','year','vin','fuel','km','driver_id','status','monthly_limit','notes','cons_good','cons_ok','policy_no','insurer','policy_until','assistance_phone','has_tacho','tank_l','weight_class','tires','responsible','tire_size'],
   drivers:   ['id','full_name','phone','categories','license_expiry','medical_expiry','psych_expiry','active'],
   crewChanges: [],
-  routes:    ['id','code','name','tacho','loading','active','note','km','color','start_client_id','end_client_id'],
+  routes:    ['id','code','name','tacho','loading','active','note','km','color','start_client_id','end_client_id','via'],
   clients:   ['id','name','address','lat','lng','phone','note'],
   blockOverrides: ['id','vehicle_id','date','reason'],
   deadlines: ['id','vehicle_id','type','date','km_due','interval_months','interval_km','remind_km','note','last_done_km','last_done_date'],
@@ -109,6 +109,7 @@ function toDb(col, o){
   for (const k of Object.keys(out)) if (!WRITABLE[col].includes(k)) delete out[k];
   if (col==='vehicles' && !tireSizeOn()) delete out.tire_size;   // przed migracją 032 kolumny nie ma
   if ((col==='routes' || col==='routeStops') && !optOn('clients')){ delete out.color; delete out.start_client_id; delete out.end_client_id; delete out.client_id; }   // przed migracją 059 (mapa tras) tych kolumn nie ma
+  if (col==='routes' && !(S.routes[0] && 'via' in S.routes[0])) delete out.via;   // przed migracją 060
   return out;
 }
 
