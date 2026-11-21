@@ -71,7 +71,7 @@ async function saveStops(){
     const keep = new Set(L.filter(s => s.id).map(s => s.id));
     for (const s of stopsOf(stopsDraft.rid)) if (!keep.has(s.id)) await db.collection('routeStops').doc(s.id).delete();
     for (let i = 0; i < L.length; i++){
-      const s = L[i], data = {routeId: stopsDraft.rid, pos: i + 1, client: s.client, address: (s.address || '').trim() || null, timeFrom: (s.timeFrom || '').trim() || null, phone: (s.phone || '').trim() || null, note: (s.note || '').trim() || null};
+      const s = L[i], data = {routeId: stopsDraft.rid, pos: i + 1, client: s.client, address: (s.address || '').trim() || null, timeFrom: (s.timeFrom || '').trim() || null, phone: (s.phone || '').trim() || null, note: (s.note || '').trim() || null, ...(s.clientId ? {clientId: s.clientId} : {})};
       await (s.id ? db.collection('routeStops').doc(s.id) : db.collection('routeStops').doc()).set(data);
     }
     closeForm(); stopsDraft = null;

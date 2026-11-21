@@ -5,7 +5,7 @@ const sb = supabase.createClient(CONFIG.supabaseUrl, CONFIG.supabaseKey, {
 });
 
 /* nazwa w aplikacji → tabela w bazie */
-const TABLES = {gpsOdometer:'gps_odometer', odoGps:'odo_gps', events:'events', workOrders:'work_orders', woItems:'work_order_items', vehicles:'vehicles', drivers:'drivers', deadlines:'deadlines', bookings:'bookings', costs:'costs', issues:'issues', docs:'documents', settings:'settings', routeStops:'route_stops', fleetCosts:'fleet_costs', tires:'tires', contracts:'vehicle_contracts', equipment:'equipment', workshops:'workshops', visits:'service_visits', requests:'data_change_requests', crewChanges:'crew_changes', routes:'routes', serviceEntries:'service_entries', blockOverrides:'block_overrides', loadings:'loadings', loadingReports:'loading_reports', fuelCardImports:'fuel_card_imports', fuelCardRows:'fuel_card_rows', members:'profiles'};
+const TABLES = {gpsOdometer:'gps_odometer', odoGps:'odo_gps', events:'events', workOrders:'work_orders', woItems:'work_order_items', vehicles:'vehicles', drivers:'drivers', deadlines:'deadlines', bookings:'bookings', costs:'costs', issues:'issues', docs:'documents', settings:'settings', routeStops:'route_stops', fleetCosts:'fleet_costs', tires:'tires', contracts:'vehicle_contracts', equipment:'equipment', workshops:'workshops', visits:'service_visits', requests:'data_change_requests', crewChanges:'crew_changes', routes:'routes', serviceEntries:'service_entries', blockOverrides:'block_overrides', loadings:'loadings', loadingReports:'loading_reports', fuelCardImports:'fuel_card_imports', fuelCardRows:'fuel_card_rows', clients:'clients', members:'profiles'};
 const COL_OF = Object.fromEntries(Object.entries(TABLES).map(([a, b]) => [b, a]));
 
 /* pole w aplikacji → kolumna w bazie */
@@ -18,7 +18,8 @@ const FIELDS = {
   deadlines: {vehicleId:'vehicle_id', kmDue:'km_due', intervalMonths:'interval_months', intervalKm:'interval_km', remindKm:'remind_km', lastDoneKm:'last_done_km', lastDoneDate:'last_done_date'},
   serviceEntries: {vehicleId:'vehicle_id', tiresSet:'tires_set', oilChange:'oil_change', timingChange:'timing_change', deadlineId:'deadline_id', issueIds:'issue_ids', costId:'cost_id', assetId:'storage_path', fileName:'file_name', contentType:'content_type'},
   loadings:  {routeId:'route_id', driverId:'driver_id', loadDate:'load_date', forDate:'for_date'},
-  routeStops: {routeId:'route_id', timeFrom:'time_from'},
+  routeStops: {routeId:'route_id', timeFrom:'time_from', clientId:'client_id'},
+  routes:    {startClientId:'start_client_id', endClientId:'end_client_id'},
   fleetCosts: {},
   workshops: {},
   visits: {vehicleId:'vehicle_id', workshopId:'workshop_id', deadlineId:'deadline_id', issueId:'issue_id'},
@@ -45,12 +46,13 @@ const WRITABLE = {
   vehicles:  ['id','plate','make','model','year','vin','fuel','km','driver_id','status','monthly_limit','notes','cons_good','cons_ok','policy_no','insurer','policy_until','assistance_phone','has_tacho','tank_l','weight_class','tires','responsible','tire_size'],
   drivers:   ['id','full_name','phone','categories','license_expiry','medical_expiry','psych_expiry','active'],
   crewChanges: [],
-  routes:    ['id','code','name','tacho','loading','active','note','km'],
+  routes:    ['id','code','name','tacho','loading','active','note','km','color','start_client_id','end_client_id'],
+  clients:   ['id','name','address','lat','lng','phone','note'],
   blockOverrides: ['id','vehicle_id','date','reason'],
   deadlines: ['id','vehicle_id','type','date','km_due','interval_months','interval_km','remind_km','note','last_done_km','last_done_date'],
   serviceEntries: ['id','vehicle_id','date','km','workshop','description','cost','oil_change','deadline_id','issue_ids','note','storage_path','file_name','content_type','tires_set','timing_change'],
   loadings:  ['id','route_id','driver_id'],
-  routeStops: ['id','route_id','pos','client','address','time_from','phone','note'],
+  routeStops: ['id','route_id','pos','client','address','time_from','phone','note','client_id'],
   fleetCosts: ['id','date','category','amount','note'],
   workshops: ['id','name','phone','address','kind','note'],
   visits: ['id','vehicle_id','workshop_id','date','time','reason','deadline_id','issue_id','status','note'],
@@ -106,6 +108,7 @@ function toDb(col, o){
   }
   for (const k of Object.keys(out)) if (!WRITABLE[col].includes(k)) delete out[k];
   if (col==='vehicles' && !tireSizeOn()) delete out.tire_size;   // przed migracją 032 kolumny nie ma
+  if ((col==='routes' || col==='routeStops') && !optOn('clients')){ delete out.color; delete out.start_client_id; delete out.end_client_id; delete out.client_id; }   // przed migracją 059 (mapa tras) tych kolumn nie ma
   return out;
 }
 
@@ -233,7 +236,7 @@ function queueRefresh(col){
 let channel = null, stopsChannel = null, stopsReady = false, fcChannel = null, fleetCostsReady = false;
 /* Tabele z nowszych migracji (027 opony, 028 wyposażenie, 029 umowy, 030 warsztaty): dopóki SQL nie jest uruchomiony, moduł jest ukryty,
    a reszta aplikacji działa normalnie. OPT[col] = true, gdy tabela istnieje i dane się wczytały. */
-const OPT = {tires: false, contracts: false, equipment: false, workshops: false, visits: false, gpsOdometer: false, odoGps: false, workOrders: false, woItems: false, events: false}, optChannels = {};
+const OPT = {clients: false, tires: false, contracts: false, equipment: false, workshops: false, visits: false, gpsOdometer: false, odoGps: false, workOrders: false, woItems: false, events: false}, optChannels = {};
 const optOn = col => !!OPT[col];
 async function loadAll(){
   db = dbApi;
