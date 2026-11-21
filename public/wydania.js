@@ -1,8 +1,8 @@
 /* Emage FLEET — wydania: przejęcie auta (checklista, przebieg, paliwo) i zdanie pojazdu */
 'use strict';
-const FUEL_LV = [['0','Rezerwa'],['25','1/4'],['50','1/2'],['75','3/4'],['100','Pełny']];
+const FUEL_LV = [['0','niepełny'],['25','1/4'],['50','1/2'],['75','3/4'],['100','pełny']];   // kierowca wybiera: pełny (100) / niepełny (0)
 const fuelLabel = v => (FUEL_LV.find(x => x[0]===String(v)) || [,'—'])[1];
-const fuelTxt = v => v===null || v===undefined || v==='' ? '' : ` · paliwo ${fuelLabel(v)}`;
+const fuelTxt = v => v===null || v===undefined || v==='' ? '' : ` · bak ${fuelLabel(v)}`;
 const DEFAULT_CHECKLIST = ['Opony (stan, ciśnienie)', 'Światła i kierunkowskazy', 'Płyny (olej, chłodzący, spryskiwacze)', 'Szyby i wycieraczki', 'Nadwozie bez nowych uszkodzeń', 'Czystość wnętrza', 'Dokumenty (dowód rejestracyjny, OC)', 'Gaśnica', 'Trójkąt ostrzegawczy', 'Apteczka', 'Kamizelka odblaskowa'];
 const checklistItems = () => { const s = S.settings.find(x => x.id==='checklist'); return (s && Array.isArray(s.items) && s.items.length) ? s.items : DEFAULT_CHECKLIST; };
 
@@ -31,7 +31,7 @@ function handoverInfo(b){
   const p = b.pickup, r = b.returned;
   if (!p) return '';
   const dist = r && r.km && p.km ? r.km - p.km : null;
-  return `<span class="sub num">Przejęto ${fdate(p.at)} · ${km(p.km)}${fuelTxt(p.fuel)}${r?` → zdano ${fdate(r.at)} · ${km(r.km)}${fuelTxt(r.fuel)}${dist!==null?` · <b>${new Intl.NumberFormat('pl-PL').format(dist)} km</b>`:''}`:''}</span>`
+  return `<span class="sub num">Przejęto ${fdate(p.at)} · ${km(p.km)}${fuelTxt(p.fuel)}${b.pickupFuelDoubt ? ' <span class="pill warn">bak do wyjaśnienia</span>' : ''}${r?` → zdano ${fdate(r.at)} · ${km(r.km)}${fuelTxt(r.fuel)}${dist!==null?` · <b>${new Intl.NumberFormat('pl-PL').format(dist)} km</b>`:''}`:''}</span>`
     + checklistSummary(p.checklist)
     + (r && r.note ? `<span class="sub">Uwagi przy zdaniu: ${esc(r.note)}</span>` : p.note ? `<span class="sub">Uwagi przy przejęciu: ${esc(p.note)}</span>` : '')
     + photoStrip([...(p.photos||[]), ...((r&&r.photos)||[])]);
@@ -63,6 +63,10 @@ function openHandover(id, kind, vehicleId){
     <div class="field"><label for="ho-km">Stan licznika (km) *</label><input id="ho-km" type="number" inputmode="numeric" min="${minKm}" placeholder="${minKm ? 'co najmniej '+new Intl.NumberFormat('pl-PL').format(minKm) : ''}" required><span class="muted small">Ostatni zapis: ${km(minKm)}</span></div>
     ${kind==='pickup' && S.routes.some(r => r.active!==false) ? `<div class="field full"><label for="ho-route">Trasa</label>${routeSelect('ho-route', b && b.routeId)}${b && b.routeId ? '<span class="muted small">Podpowiedziana przez kierownika – możesz zmienić.</span>' : ''}</div>` : ''}
     ${kind==='pickup' ? (modOn('obsada') ? crewField(b ? b.driverId : myDriverId(), b && b.coDriverId) : '') : (b && b.coDriverId ? `<div class="field full"><span class="pill info">Podwójna obsada: ${esc(crewName(b))}</span><span class="muted small">Zdanie musi potwierdzić drugi kierowca – do tego czasu auto czeka.</span></div>` : '')}
+    ${ev ? '' : `<div class="field full ho-fuel"><span class="label">Bak ${kind==='pickup' ? 'przy przejęciu' : 'przy zdaniu'} *</span>
+      <div class="seg ho-fb"><button type="button" data-ho-fuel="100">${ic('fuel')} Pełny</button><button type="button" data-ho-fuel="0">Niepełny</button></div>
+      <input type="hidden" id="ho-fuel" value="">
+      <span class="muted small">${kind==='pickup' ? 'Pełny bak to początek liczenia spalania. Zaznacz uczciwie – sprawdzamy to z tankowaniami.' : 'Możesz zdać auto z niepełnym bakiem i zatankować później – spalanie podzielimy według przejechanych km.'}</span></div>`}
     ${check}
     <div class="field full"><label for="ho-note">${kind==='pickup' ? 'Inne uwagi o stanie auta' : 'Uwagi po dniu pracy'}</label><textarea id="ho-note" placeholder="${kind==='pickup'?'np. rysa na tylnym zderzaku – już była':'np. kontrolka oleju, stuki z zawieszenia'}"></textarea></div>
     ${kind==='return' ? `<div class="field full"><label class="check"><input id="ho-issue" type="checkbox"> Zgłoś usterkę na podstawie uwag</label>
@@ -84,6 +88,13 @@ document.addEventListener('click', e => {
   let tag = $('#ho-where-tag'); if (!tag){ tag = document.createElement('div'); tag.id = 'ho-where-tag'; tag.className = 'field full'; $('.ho-rest').prepend(tag); }
   tag.innerHTML = `<span class="pill ${editing.home ? 'info' : 'ok'}">${editing.home ? 'Pod domem' : 'Na bazę'}</span> <button type="button" class="small ghost" data-ho-replace>zmień</button>`;
   setTimeout(() => $('#ho-km')?.focus(), 20);
+});
+/* stan baku: pełny / niepełny (obowiązkowe) */
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-ho-fuel]'); if (!t || !editing || editing.col!=='handover') return;
+  $('#ho-fuel').value = t.dataset.hoFuel;
+  document.querySelectorAll('[data-ho-fuel]').forEach(b => b.classList.toggle('on', b===t));
+  const w = $('#dlg-warn'); if (w && /bak/i.test(w.textContent)) w.hidden = true;
 });
 document.addEventListener('change', e => {
   const r = e.target.closest('.ck input[type=radio]'); if (!r) return;
@@ -119,6 +130,7 @@ async function saveHandover({id, kind, vehicleId, minKm, items}){
   { const chk = odoInputCheck(kmV, minKm); if (chk && chk.hard){ $('#ho-km').focus(); return warn(chk.hard); } }
   if (kmV < minKm) return warn(`Stan licznika nie może być niższy niż ostatni zapis (${km(minKm)}). Sprawdź licznik.`);
   if (kmV - minKm > 2000 && minKm) { if (!w.dataset.big){ w.dataset.big = '1'; return warn(`To ${new Intl.NumberFormat('pl-PL').format(kmV - minKm)} km więcej niż ostatni zapis. Jeśli to prawda, kliknij jeszcze raz.`); } }
+  if ($('#ho-fuel') && $('#ho-fuel').value===''){ $('.ho-fb')?.scrollIntoView({block:'center'}); return warn(`Zaznacz, czy bak ${kind==='pickup' ? 'przy przejęciu' : 'przy zdaniu'} jest pełny, czy niepełny.`); }
   let checklist = [];
   if (kind==='pickup'){
     checklist = items.map((item, i) => ({item, ok: (document.querySelector(`input[name="ck-${i}"]:checked`) || {}).value !== 'bad', note: ($('#ck-note-'+i) || {}).value?.trim() || ''}));

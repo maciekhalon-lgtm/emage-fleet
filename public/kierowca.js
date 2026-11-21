@@ -359,8 +359,8 @@ function toConfirmPanel(){
   const item = x => {
     const key = x.kind + ':' + (x.b ? x.b.id : x.c.id);
     let what;
-    if (x.kind==='pickup'){ const p = x.b.pickup; what = `<b>Przejęcie auta</b> ${vPlate(x.b.vehicleId)} przez ${esc(dName(x.b.driverId))}<span class="sub">Licznik ${km(p.km)} · paliwo ${fuelLabel(p.fuel)}</span>${checklistSummary(p.checklist)}`; }
-    else if (x.kind==='return'){ const r = x.b.returned; what = `<b>Zdanie pojazdu</b> ${vPlate(x.b.vehicleId)}<span class="sub">Licznik ${km(r.km)} · paliwo ${fuelLabel(r.fuel)}${x.b.pickup ? ' · przejechane '+km(r.km - x.b.pickup.km) : ''}</span>${r.note ? `<span class="sub">Uwagi: ${esc(r.note)}</span>` : ''}`; }
+    if (x.kind==='pickup'){ const p = x.b.pickup; what = `<b>Przejęcie auta</b> ${vPlate(x.b.vehicleId)} przez ${esc(dName(x.b.driverId))}<span class="sub">Licznik ${km(p.km)} · bak ${fuelLabel(p.fuel)}</span>${checklistSummary(p.checklist)}`; }
+    else if (x.kind==='return'){ const r = x.b.returned; what = `<b>Zdanie pojazdu</b> ${vPlate(x.b.vehicleId)}<span class="sub">Licznik ${km(r.km)} · bak ${fuelLabel(r.fuel)}${x.b.pickup ? ' · przejechane '+km(r.km - x.b.pickup.km) : ''}</span>${r.note ? `<span class="sub">Uwagi: ${esc(r.note)}</span>` : ''}`; }
     else { const c = x.c; what = `<b>Tankowanie</b> ${vPlate(c.vehicleId)} – wpisał(a) ${esc(dName(c.driverId))}<span class="sub">${fdate(c.date)} · ${String(c.liters).replace('.',',')} ${c.category==='Ładowanie'?'kWh':'l'} · ${zl2(c.amount)} · licznik ${km(c.odometer)}${c.full?' · do pełna':''}</span>`; }
     const acts = disputeOpen===key
       ? `<span class="disp"><input id="disp-note" type="text" placeholder="Co się nie zgadza? np. było 62 l" maxlength="300"><button class="small danger" data-disp-send="${esc(key)}">Wyślij do kierownika</button><button class="small ghost" data-disp-cancel="1">Anuluj</button></span>`

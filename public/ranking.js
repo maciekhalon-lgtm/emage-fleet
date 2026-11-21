@@ -29,7 +29,7 @@ function rkVehLegsRaw(vid){
   const dup = c => (c.flags || []).some(f => String(f).startsWith('Możliwy duplikat')) && c.flagState!=='ok';
   const fills = appFuel().filter(c => c.vehicleId===vid && Number(c.liters) > 0 && Number(c.odometer) > 0 && !String(c.note || '').startsWith('Karta:') && !dup(c))
     .map(c => ({t: 'f', odo: odoAt('tankowanie', c.id, vid, c.odometer), c, date: c.date}));
-  const picks = S.bookings.filter(b => b.vehicleId===vid && b.pickup && Number(b.pickup.km) > 0 && Number(b.pickup.fuel)===100)
+  const picks = S.bookings.filter(b => b.vehicleId===vid && b.pickup && Number(b.pickup.km) > 0 && Number(b.pickup.fuel)===100 && !b.pickupFuelDoubt)
     .map(b => ({t: 'p', odo: odoAt('przejecie', b.id, vid, b.pickup.km), date: String(b.pickup.at || b.from).slice(0, 10)}));
   const ev = [...fills, ...picks].sort((a, b) => a.odo - b.odo || (a.t==='f' ? -1 : 1) || String(a.date).localeCompare(b.date));
   let anchor = null, aDate = null, acc = 0; const out = [];

@@ -1835,3 +1835,8 @@ html[data-env="test"] body{padding-top:20px}
 .sb-tbl td.sb-new input{outline:2px solid var(--accent)}
 .sb-paste textarea{width:100%;font-family:inherit}
 button.warn{background:var(--warn-soft);color:var(--warn);border-color:color-mix(in srgb,var(--warn) 40%,transparent)}
+
+/* stan baku przy przejęciu/zdaniu */
+.ho-fb{display:flex;width:100%}
+.ho-fb button{flex:1;padding:12px 10px;font-size:15px}
+.nt-act{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}

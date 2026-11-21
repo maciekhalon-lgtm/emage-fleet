@@ -6,7 +6,7 @@
 'use strict';
 let notifSeen = null, notifFilter = 'all', notifSeenLoaded = false;
 const notifOn = () => !!(P().manage || P().service) && typeof optOn==='function' && optOn('events');
-const NOTIF_KIND = {zdanie: ['Zdanie auta', 'truck'], tankowanie: ['Tankowanie', 'fuel'], usterka: ['Usterka', 'alert'], karta: ['Kontrola karty paliwowej', 'fuel'], zmiana: ['Zmiana auta', 'truck']};
+const NOTIF_KIND = {zdanie: ['Zdanie auta', 'truck'], tankowanie: ['Tankowanie', 'fuel'], usterka: ['Usterka', 'alert'], karta: ['Kontrola karty paliwowej', 'fuel'], zmiana: ['Zmiana auta', 'truck'], bak: ['Bak do wyjaśnienia', 'fuel']};
 /* „Tankowanie z karty bez wpisu kierowcy” z jednego dnia → jeden wiersz (po imporcie bywa ich kilkadziesiąt) */
 const NT_NOFILL = 'Tankowanie z karty bez wpisu';
 function notifGroup(xs){
@@ -45,7 +45,7 @@ function notifRowGo(e){
 function notifHtml(){
   const all = notifList(), seen = String(notifSeen || '');
   const xs = all.filter(e => notifFilter==='all' || e.kind===notifFilter);
-  const kinds = P().manage ? [['all', 'Wszystkie'], ['zdanie', 'Zdania aut'], ['tankowanie', 'Tankowania'], ['karta', 'Karty paliwowe'], ['zmiana', 'Zmiany aut'], ['usterka', 'Usterki']] : [['usterka', 'Usterki']];
+  const kinds = P().manage ? [['all', 'Wszystkie'], ['zdanie', 'Zdania aut'], ['tankowanie', 'Tankowania'], ['karta', 'Karty paliwowe'], ['zmiana', 'Zmiany aut'], ['bak', 'Bak'], ['usterka', 'Usterki']] : [['usterka', 'Usterki']];
   const tm = ts => { const d = new Date(ts), day = new Intl.DateTimeFormat('sv-SE', {timeZone: 'Europe/Warsaw'}).format(d);
     return (day===today() ? 'dziś' : day===addDays(today(), -1) ? 'wczoraj' : fdate(day)) + ' ' + d.toLocaleTimeString('pl-PL', {hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Warsaw'}); };
   return `<div class="field full nt-head"><div class="seg">${kinds.map(([k, l]) => `<button type="button" class="small ${notifFilter===k || kinds.length===1 ? 'on' : ''}" data-nt-f="${k}">${l}</button>`).join('')}</div>
@@ -53,8 +53,30 @@ function notifHtml(){
     <div class="field full nt-list">${xs.slice(0, 200).map(e => { const [l, i] = NOTIF_KIND[e.kind] || ['', 'bell'], nw = String(e.at) > seen;
       return `<div class="nt-row ${nw ? 'new' : ''} ${e.alert ? 'alert' : ''}" ${notifRowGo(e)} tabindex="0"><span class="nt-ic">${ic(i)}</span>
         <span class="nt-t"><b>${esc(e.title)}</b>${e.body ? `<span class="sub">${esc(e.body)}</span>` : ''}<span class="sub">${esc(l)} · ${tm(e.at)}</span></span>
-        ${e.alert ? '<span class="pill bad">uwaga</span>' : nw ? '<span class="pill info">nowe</span>' : ''}</div>`; }).join('') || '<p class="muted sec-empty">Brak powiadomień z ostatnich 60 dni.</p>'}</div>`;
+        ${notifFuelBtns(e) || (e.alert ? '<span class="pill bad">uwaga</span>' : nw ? '<span class="pill info">nowe</span>' : '')}</div>`; }).join('') || '<p class="muted sec-empty">Brak powiadomień z ostatnich 60 dni.</p>'}</div>`;
 }
+/* przejęcie z „pełnym bakiem” do wyjaśnienia – kierownik rozstrzyga jednym kliknięciem */
+function notifFuelBtns(e){
+  if (e.kind!=='bak' || !e.refId) return '';
+  const b = byId('bookings', e.refId);
+  if (!b) return '';
+  if (!b.pickupFuelDoubt) return `<span class="pill ok">wyjaśnione · bak ${fuelLabel(b.pickup && b.pickup.fuel)}</span>`;
+  return `<span class="nt-act"><button type="button" class="small" data-fuel-res="${esc(b.id)}" data-full="1">Był pełny</button><button type="button" class="small" data-fuel-res="${esc(b.id)}" data-full="0">Był niepełny</button></span>`;
+}
+document.addEventListener('click', async e => {
+  const t = e.target.closest('[data-fuel-res]'); if (!t) return;
+  e.preventDefault(); e.stopPropagation();
+  if (!P().manage) return;
+  t.disabled = true;
+  try {
+    const {error} = await sb.rpc('resolve_pickup_fuel', {p_booking: t.dataset.fuelRes, p_full: t.dataset.full==='1'});
+    if (error) throw error;
+    await refresh('bookings'); await refresh('costs');
+    if (editing && editing.col==='notif') $('#dlg-body').innerHTML = notifHtml();
+    render();
+    toast(t.dataset.full==='1' ? 'Zapisano: bak był pełny – od przejęcia liczymy spalanie' : 'Zapisano: bak był niepełny – spalanie od następnego tankowania do pełna');
+  } catch(err){ t.disabled = false; handleWriteErr(err); }
+}, true);
 function openNotif(){
   if (!P().manage) notifFilter = 'usterka';
   editing = {col: 'notif', base: {}, special: () => closeForm()};
