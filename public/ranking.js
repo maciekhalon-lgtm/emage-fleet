@@ -51,7 +51,7 @@ function rkLegs(from, to){
 /* Spalanie kierowców: każdy odcinek auta dzielimy między kierowców według km, które faktycznie przejechali
    (przejęcie → zdanie, z GPS). Kierowca dostaje swoje km i litry wg spalania auta na odcinku – nie zależy od tego,
    kto akurat tankował. Km odcinka bez przydziału (np. luka w danych) – na kierowcę, który zamknął bak. */
-const RK_DRV_MIN_KM = 1000;   // wynik kierowcy pokazujemy od 1000 km – pojedyncze tankowanie „do pełna” waha się o ±5–10 l
+const RK_DRV_MIN_KM = 500;    // wynik kierowcy pokazujemy od 500 km – pojedyncze tankowanie „do pełna” waha się o ±5–10 l
 function rkDrvParts(from, to){
   const out = [];
   rkLegs(from, to).forEach(L => {
@@ -128,7 +128,7 @@ function viewRankingFleet(drvTab){
       ${xs.map((x, i) => `<tr class="click ${top.has(x.d.id) ? 'rk-top' : low.has(x.d.id) ? 'rk-low' : ''}" data-drv-hist="${esc(x.d.id)}"><td class="num">${i + 1}</td><td><b>${esc(x.d.name)}</b>${x.veh ? `<span class="sub">${x.veh} ${isPlural(x.veh, 'auto', 'auta', 'aut')}</span>` : ''}</td>
         <td class="r num">${x.km ? nf.format(x.km) : '—'}</td><td class="r num">${x.days || '—'}</td><td class="r num">${x.fills ? `${x.fills} <span class="muted small">· ${nf.format(Math.round(x.liters))} l</span>` : '—'}</td>
         <td class="r">${rateCell(x)}</td><td class="r">${diffCell(x)}</td><td class="r">${x.card ? `<span class="pill bad">${x.card}</span>` : '<span class="muted">0</span>'}</td></tr>`).join('') || '<tr><td colspan="8" class="muted">Brak wpisów kierowców w tym okresie – ranking pojawi się, gdy kierowcy zaczną przejmować auta i wpisywać tankowania.</td></tr>'}</tbody></table></div>
-      <p class="muted small">Kliknij kierowcę – historia jego tankowań, przejęć i zdań. Spalanie kierowcy: jego km (przejęcie → zdanie, GPS) × spalanie auta na odcinkach między tankowaniami do pełna – pokazujemy od 1000 km.</p>`;
+      <p class="muted small">Kliknij kierowcę – historia jego tankowań, przejęć i zdań. Spalanie kierowcy: jego km (przejęcie → zdanie, GPS) × spalanie auta na odcinkach między tankowaniami do pełna – pokazujemy od 500 km.</p>`;
   }
   const xs = R.veh.map(x => ({...x, name: x.v.plate})).sort(cmp), withV = xs.filter(x => x[sk]!=null && sk!=='name');
   const top = new Set(['rate', 'diff', 'costKm'].includes(sk) && dir > 0 ? withV.slice(0, 3).map(x => x.v.id) : []), low = new Set(['rate', 'diff', 'costKm'].includes(sk) && dir > 0 && withV.length > 5 ? withV.slice(-3).map(x => x.v.id) : []);
