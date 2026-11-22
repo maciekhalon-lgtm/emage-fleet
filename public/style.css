@@ -1902,7 +1902,9 @@ button.warn{background:var(--warn-soft);color:var(--warn);border-color:color-mix
 .mt-h{margin:10px 0 2px;font-size:13px;color:var(--muted)}
 .mt-f{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:13px}
 .mt-f>span:first-child{flex:1;min-width:0}
-.mt-f select{max-width:150px}
+.mt-f select{max-width:170px}
+.mt-fuel{margin:-2px 0 8px;padding:6px 8px;border-radius:8px;background:var(--surface-2,rgba(127,127,127,.08));line-height:1.4}
+.mt-fuel.bad{color:var(--bad,#c0392b)}
 .mt-fi{display:flex;align-items:center;gap:4px;width:170px;flex:none}.mt-fi input{width:100%;text-align:right}.mt-fi em{font-style:normal;font-size:12px;color:var(--muted);min-width:42px}
 .mt-calc{background:var(--sunk);border-radius:12px;padding:10px 12px;margin-top:8px;display:flex;flex-direction:column;gap:4px}
 .mt-cr{display:flex;justify-content:space-between;gap:8px;font-size:14px}.mt-cr b{font-variant-numeric:tabular-nums}
