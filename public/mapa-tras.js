@@ -7,6 +7,8 @@
 'use strict';
 const MT_COLORS = ['#245dcc', '#137e64', '#9d3bb5', '#b65616', '#c0263d', '#0f7d8c', '#6b5b00', '#4b3fb0'];
 let mtSub = 'trasa';
+let plMode = 'mapa';   // tryb planera: mapa / koszty / wycena
+const plCfg = () => { const s = (S.settings || []).find(x => x.id==='planner') || {}; return {drvMult: Number(s.drvMult) > 0 ? Number(s.drvMult) : 1.6, margin: s.margin!=null && s.margin!=='' ? Number(s.margin) : 20}; };
 let mtBases = null, plBase = 'map', plPanel = true, plQ = '', plPrev = 'pulpit', plMe = null, plTmp = null;
 try { plBase = localStorage.getItem('ef-pl-base')==='sat' ? 'sat' : 'map'; } catch(_){}   // zakładka w szczegółach planu: trasa / koszty / czas
 let mtLineDrag = null, mtDragEnd = 0, mtMovePin = null;
@@ -27,7 +29,7 @@ const mtRStops = rid => (S.routeStops || []).filter(s => s.routeId===rid).sort((
 async function mtSavePlan(r, patch){
   await db.collection('routePlans').doc(r.id).update(patch);
   const np = {...r, ...patch};
-  if (np.routeId && ('stops' in patch || 'routeId' in patch)) await mtSyncRoute(np);
+  if (np.routeId && ('stops' in patch || ('routeId' in patch && (mtStops(np).length || np.startClientId)))) await mtSyncRoute(np);
 }
 async function mtSyncRoute(r){
   const rid = r.routeId; if (!rid) return;
@@ -240,11 +242,12 @@ function viewRouteMap(){
       <button type="button" class="pl-back" data-pl-back title="Wróć do aplikacji">${ic('back')}<span>Emage FLEET</span></button>
       <div class="pl-search">${ic('search')}<input id="pl-q" type="search" autocomplete="off" placeholder="Szukaj adresu, miejscowości albo klienta" value="${esc(plQ)}" aria-label="Szukaj na mapie"><div class="pl-res" id="pl-res" data-morph-keep hidden></div></div>
     </div>
-    <aside class="pl-panel ${plPanel ? '' : 'shut'}" id="mt-panel">
+    <aside class="pl-panel ${plPanel ? '' : 'shut'} ${plMode!=='mapa' ? 'wide' : ''}" id="mt-panel">
       <button type="button" class="pl-fold" data-pl-fold aria-label="${plPanel ? 'Zwiń panel' : 'Rozwiń panel'}" title="${plPanel ? 'Zwiń panel' : 'Rozwiń panel'}"><span class="pl-handle"></span>${ic('chev')}</button>
       <div class="pl-body">
-        <div class="seg mt-tabs"><button type="button" class="${mtTab==='routes' ? 'on' : ''}" data-mt-tab="routes">Trasy · ${nR}</button><button type="button" class="${mtTab==='clients' ? 'on' : ''}" data-mt-tab="clients">Klienci · ${nC}</button></div>
-        ${mtTab==='routes' ? mtRoutesPanel() : mtClientsPanel()}
+        <div class="seg pl-modes">${[['mapa', 'Mapa'], ['koszty', 'Koszty'], ['wycena', 'Wycena']].map(([k, l]) => `<button type="button" class="${plMode===k ? 'on' : ''}" data-pl-mode="${k}">${l}</button>`).join('')}</div>
+        ${plMode==='koszty' ? plCostsMode() : plMode==='wycena' ? plQuoteMode() : `<div class="seg mt-tabs"><button type="button" class="${mtTab==='routes' ? 'on' : ''}" data-mt-tab="routes">Trasy · ${nR}</button><button type="button" class="${mtTab==='clients' ? 'on' : ''}" data-mt-tab="clients">Klienci · ${nC}</button></div>
+        ${mtTab==='routes' ? mtRoutesPanel() : mtClientsPanel()}`}
       </div>
     </aside>
     <div class="pl-tools">
@@ -317,11 +320,12 @@ function mtRoutesPanel(){
   if (!sel) return head + list;
   const st = mtStops(sel), cs = (S.clients || []).slice().sort((a, b) => a.name.localeCompare(b.name, 'pl')), rt = mtLinked(sel);
   const opt = v => `<option value="">— nie ustawiony —</option>${cs.map(c => `<option value="${esc(c.id)}" ${c.id===v ? 'selected' : ''}>${esc(c.name)}${c.address ? ' · ' + esc(c.address) : ''}</option>`).join('')}`;
+  if (mtSub==='koszty') mtSub = 'trasa';
   if (mtSub!=='trasa') return head + list + `<section class="mt-detail"><div class="mt-row"><b>${esc(sel.name)}</b><button type="button" class="small" data-mt-plan-edit="${esc(sel.id)}">Ustawienia</button></div>
-    <div class="seg mt-sub">${[['trasa', 'Trasa'], ['koszty', 'Koszty i zysk'], ['czas', 'Czas i godziny']].map(([k, l]) => `<button type="button" class="${mtSub===k ? 'on' : ''}" data-mt-sub="${k}">${l}</button>`).join('')}</div>
-    ${mtSub==='koszty' ? mtCostPanel(sel) : mtTimePanel(sel)}</section>`;
+    <div class="seg mt-sub">${[['trasa', 'Trasa'], ['czas', 'Czas i godziny']].map(([k, l]) => `<button type="button" class="${mtSub===k ? 'on' : ''}" data-mt-sub="${k}">${l}</button>`).join('')}</div>
+    ${mtTimePanel(sel)}</section>`;
   return head + list + `<section class="mt-detail"><div class="mt-row"><b>${esc(sel.name)}</b><span><input type="color" class="mt-color" data-mt-color="${esc(sel.id)}" value="${esc(mtColor(sel))}" aria-label="Kolor trasy na mapie"> <button type="button" class="small" data-mt-plan-edit="${esc(sel.id)}">Ustawienia</button></span></div>
-    <div class="seg mt-sub">${[['trasa', 'Trasa'], ['koszty', 'Koszty i zysk'], ['czas', 'Czas i godziny']].map(([k, l]) => `<button type="button" class="${mtSub===k ? 'on' : ''}" data-mt-sub="${k}">${l}</button>`).join('')}</div>
+    <div class="seg mt-sub">${[['trasa', 'Trasa'], ['czas', 'Czas i godziny']].map(([k, l]) => `<button type="button" class="${mtSub===k ? 'on' : ''}" data-mt-sub="${k}">${l}</button>`).join('')}</div>
     <div class="mt-assign">${rt ? `Przypisana do trasy <b>${esc(rt.code)} ${esc(rt.name)}</b>. Przystanki z planu widzi kierowca tej trasy.` : 'Szkic – nieprzypisany do trasy. <button type="button" class="link" data-mt-plan-edit="' + esc(sel.id) + '">Przypisz albo utwórz trasę</button>'}</div>
     <label class="mt-lbl">Start<select data-mt-start="${esc(sel.id)}">${opt(sel.startClientId)}</select></label>
     <label class="mt-lbl">Koniec<select data-mt-end="${esc(sel.id)}">${opt(sel.endClientId)}</select></label>
@@ -590,7 +594,7 @@ function mtCalcData(r){
   const def = {
     lp100: clsRate[cls] ?? (kc ? kc.lp100 : 11), price: kc ? kc.price : 5.3, otherKm: kc ? kc.otherKm : 0,
     km: kmMap, invKm: rt && Number(rt.km) > 0 ? Number(rt.km) : kmMap, revMode: rc.mode==='km' ? 'km' : 'kurs', revRate: Number(rc.rate) || null,
-    drvMode: 'kurs', drvRate: Number(rc.driver) || null, drivers: 1, tolls: Number(rc.cost) || null, extraKm: Number(rc.extraKm) || 0,
+    drvMode: 'kurs', drvRate: Number(rc.driver) ? Math.round(Number(rc.driver) / plCfg().drvMult) : null, drivers: 1, tolls: Number(rc.cost) || null, extraKm: Number(rc.extraKm) || 0,
     trips: rt ? rtGrafikTrips(rt.id, prevMonth(today().slice(0, 7))) : null, stopMin: 30, dep: '06:00'
   };
   const v = k => c[k]!=null && c[k]!=='' ? c[k] : def[k];
@@ -601,12 +605,17 @@ function mtCalcData(r){
   const car = kmAll * (Number(v('otherKm')) || 0);
   const drvRate = Number(v('drvRate')) || 0, drivers = Number(v('drivers')) || 1, mode = v('drvMode');
   const days = hours ? Math.max(1, Math.ceil((hours - 2) / 24)) : 1;
-  const drv = drivers * (mode==='godz' ? drvRate * (hours || 0) : mode==='dzien' ? drvRate * days : drvRate);
+  const mult = plCfg().drvMult, drvNet = drivers * (mode==='godz' ? drvRate * (hours || 0) : mode==='dzien' ? drvRate * days : drvRate), drv = drvNet * mult;
   const tolls = Number(v('tolls')) || 0, other = Number(v('other')) || 0;
   const cost = fuel + car + drv + tolls + other;
   const rev = v('revRate') ? (v('revMode')==='km' ? (Number(v('invKm')) || 0) * Number(v('revRate')) : Number(v('revRate'))) : null;
   const profit = rev!=null ? rev - cost : null, trips = Number(v('trips')) || 0;
-  return {c, def, v, rt, kc, km, kmAll, hours, fuel, car, drv, tolls, other, cost, rev, profit, trips, perKm: kmAll ? cost / kmAll : null, margin: rev ? profit / rev : null};
+  // wycena: cena z marży (od ceny) albo z zysku na kurs
+  const qMargin = c.qProfit!=null && c.qProfit!=='' ? null : (c.margin!=null && c.margin!=='' ? Number(c.margin) : plCfg().margin);
+  const qPrice = cost > 0 ? (qMargin==null ? cost + Number(c.qProfit) : (qMargin < 100 ? cost / (1 - qMargin / 100) : null)) : null;
+  const invKm = Number(v('invKm')) || km || 0;
+  return {c, def, v, rt, kc, km, kmAll, hours, fuel, car, drv, drvNet, mult, tolls, other, cost, rev, profit, trips, invKm, qMargin, qPrice,
+    qPerKm: qPrice!=null && invKm ? qPrice / invKm : null, perKm: kmAll ? cost / kmAll : null, margin: rev ? profit / rev : null};
 }
 function mtCostPanel(r){
   const x = mtCalcData(r), nf = n => n==null ? '—' : new Intl.NumberFormat('pl-PL', {maximumFractionDigits: 2}).format(n);
@@ -617,11 +626,12 @@ function mtCostPanel(r){
   return `<p class="muted small">Szare liczby w polach to wartości z danych systemu (spalanie klasy z rankingu, cena litra z kart paliwowych netto, koszty aut na km z 3 ostatnich miesięcy${x.rt ? ', stawki z Koszty → Rentowność tras' : ''}). Wpisz własne, żeby je zastąpić – puste pole wraca do domyślnych.</p>
     <h5 class="mt-h">Auto i paliwo</h5>
     ${sel('cls', 'Klasa auta', WCLS.map(([k, l]) => [k, l]))}
-    ${inp('km', 'Km kursu', 'km', 'z mapy')}${inp('extraKm', 'Dodatkowe km (np. dojazd do domu)', 'km', '0')}
+    ${inp('km', 'Km kursu', 'km', 'wpisz')}${inp('extraKm', 'Dodatkowe km (np. dojazd do domu)', 'km', '0')}
     ${inp('lp100', 'Spalanie', 'l/100', '')}${inp('price', 'Cena paliwa netto', 'zł/l', '')}${inp('otherKm', 'Pozostałe koszty auta (leasing, OC, serwis)', 'zł/km', '')}
     <h5 class="mt-h">Kierowca i opłaty</h5>
     ${sel('drvMode', 'Kierowcy płacę', [['kurs', 'za kurs'], ['dzien', 'za dzień'], ['godz', 'za godzinę']])}
-    ${inp('drvRate', 'Stawka kierowcy', x.v('drvMode')==='godz' ? 'zł/h' : x.v('drvMode')==='dzien' ? 'zł/dzień' : 'zł/kurs', 'wpisz')}${sel('drivers', 'Obsada', [['1', '1 kierowca'], ['2', '2 kierowców']])}
+    ${inp('drvRate', 'Kierowca dostaje na rękę', x.v('drvMode')==='godz' ? 'zł/h' : x.v('drvMode')==='dzien' ? 'zł/dzień' : 'zł/kurs', 'wpisz')}
+    <label class="mt-f"><span>Przelicznik kosztów pracodawcy <span class="muted small">(dla wszystkich tras)</span></span><span class="mt-fi"><input type="text" inputmode="decimal" data-pl-cfg="drvMult" value="${esc(rtShow(plCfg().drvMult))}"><em>×</em></span></label>${sel('drivers', 'Obsada', [['1', '1 kierowca'], ['2', '2 kierowców']])}
     ${inp('tolls', 'Opłaty drogowe, winiety, parkingi', 'zł/kurs', '0')}${inp('other', 'Inne koszty kursu', 'zł/kurs', '0')}
     <h5 class="mt-h">Przychód</h5>
     ${sel('revMode', 'Fakturuję', [['km', 'za km'], ['kurs', 'za kurs']])}
@@ -633,7 +643,7 @@ function mtCostResults(x){
   const nf = n => n==null ? '—' : new Intl.NumberFormat('pl-PL', {maximumFractionDigits: 2}).format(n);
   const row = (l, n, cls = '') => `<div class="mt-cr ${cls}"><span>${l}</span><b>${n==null ? '—' : zl(Math.round(n))}</b></div>`;
   return `
-      ${row(`Paliwo (${nf(x.kmAll)} km)`, x.fuel)}${row('Auto – pozostałe koszty', x.car)}${row(`Kierowca${x.hours ? ` (${nf(Math.round(x.hours * 10) / 10)} h)` : ''}`, x.drv)}${row('Opłaty i inne', x.tolls + x.other)}
+      ${row(`Paliwo (${nf(x.kmAll)} km)`, x.fuel)}${row('Auto – pozostałe koszty', x.car)}${row(`Kierowca – na rękę${x.hours ? ` (${nf(Math.round(x.hours * 10) / 10)} h)` : ''}`, x.drvNet, 'sub')}${row(`Kierowca – koszt łączny (× ${nf(x.mult)})`, x.drv)}${row('Opłaty i inne', x.tolls + x.other)}
       ${row('Koszt kursu', x.cost, 'sum')}<div class="mt-cr"><span>Koszt na km</span><b>${x.perKm!=null ? nf(Math.round(x.perKm * 100) / 100) + ' zł' : '—'}</b></div>
       ${row('Przychód z kursu', x.rev)}
       ${x.profit!=null ? `${row('Zysk z kursu', x.profit, x.profit >= 0 ? 'ok' : 'bad')}<div class="mt-cr"><span>Marża</span><b>${Math.round(x.margin * 100)}%</b></div>` : '<p class="muted small">Wpisz stawkę w „Przychód”, żeby zobaczyć zysk.</p>'}
@@ -692,6 +702,7 @@ document.addEventListener('input', e => {
   const tmp = {...r, calc}, x = mtCalcData(tmp);
   const c = document.getElementById('mt-calc-res'); if (c) c.innerHTML = mtCostResults(x);
   const tr = document.getElementById('mt-time-res'); if (tr) tr.innerHTML = mtTimeResults(tmp, x);
+  const qr = document.getElementById('pl-quote-res'); if (qr) qr.innerHTML = plQuoteResults(x);
 });
 
 /* kolejność przystanków: złap wiersz myszką i upuść w nowym miejscu (strzałki zostają – np. na telefonie) */
@@ -713,3 +724,136 @@ document.addEventListener('drop', e => { if (!mtDragId) return; const row = e.ta
   if (rest.map(x => x.id).join()===list.map(x => x.id).join()) return;
   mtWrite(() => mtSavePlan(r, {stops: rest})); });
 document.addEventListener('dragend', () => { mtDragId = null; document.querySelectorAll('.mt-stop').forEach(x => x.classList.remove('drop-before', 'drop-after', 'dragging')); });
+
+/* ---------- tryby planera: Koszty i Wycena ---------- */
+const plFmt = n => n==null || isNaN(n) ? '—' : new Intl.NumberFormat('pl-PL', {maximumFractionDigits: 2}).format(n);
+const QSTAT = [['szkic', 'Szkic', 'off'], ['wyslana', 'Wysłana', 'info'], ['przyjeta', 'Przyjęta', 'ok'], ['odrzucona', 'Odrzucona', 'bad']];
+function plPicker(newBtn){
+  const R = mtRoutes(), sel = mtPlan(mtActive);
+  return `<div class="mt-row"><label class="mt-lbl pl-pick">Trasa<select data-pl-pick>${R.map(r => `<option value="${esc(r.id)}" ${sel && r.id===sel.id ? 'selected' : ''}>${esc(r.name)}${mtLinked(r) ? ' · ' + esc(mtLinked(r).code) : ''}</option>`).join('') || '<option value="">— brak tras —</option>'}</select></label>
+    ${newBtn || ''}</div>`;
+}
+function plCostsMode(){
+  const R = mtRoutes(), sel = mtPlan(mtActive);
+  if (!R.length) return `<p class="muted">Nie ma jeszcze tras. Zaplanuj trasę w trybie „Mapa” albo dodaj wycenę bez mapy w trybie „Wycena”.</p>`;
+  const rows = R.map(r => ({r, x: mtCalcData(r)}));
+  return plPicker() + (sel ? mtCostPanel(sel) : '') + `
+    <h5 class="mt-h">Porównanie tras</h5>
+    <div class="tablewrap"><table class="pl-cmp"><thead><tr><th>Trasa</th><th class="r">Km</th><th class="r">Koszt kursu</th><th class="r">zł/km</th><th class="r">Przychód</th><th class="r">Marża</th></tr></thead><tbody>
+    ${rows.map(({r, x}) => `<tr class="click ${r.id===mtActive ? 'sel' : ''}" data-pl-row="${esc(r.id)}"><td><b>${esc(r.name)}</b>${mtLinked(r) ? ` <span class="pill info">${esc(mtLinked(r).code)}</span>` : ''}</td><td class="r num">${plFmt(Math.round(x.kmAll))}</td><td class="r num">${x.cost ? zl(Math.round(x.cost)) : '—'}</td><td class="r num">${x.perKm!=null ? plFmt(Math.round(x.perKm * 100) / 100) : '—'}</td><td class="r num">${x.rev!=null ? zl(Math.round(x.rev)) : '—'}</td><td class="r">${x.margin!=null ? `<span class="pill ${x.margin < 0 ? 'bad' : x.margin < 0.1 ? 'warn' : 'ok'}">${Math.round(x.margin * 100)}%</span>` : '—'}</td></tr>`).join('')}</tbody></table></div>`;
+}
+function plQuoteMode(){
+  const sel = mtPlan(mtActive), nb = `<button type="button" class="small primary" data-pl-new-quote>${ic('plus')}Wycena bez mapy</button>`;
+  if (!sel) return plPicker(nb) + `<p class="muted">Wybierz trasę albo dodaj wycenę bez mapy – wpiszesz same km.</p>`;
+  const x = mtCalcData(sel), c = sel.calc || {}, st = QSTAT.find(q => q[0]===(c.qStatus || 'szkic')) || QSTAT[0];
+  const own = k => c[k]!=null && c[k]!=='';
+  const inp = (k, label, unit, ph) => `<label class="mt-f"><span>${label}${own(k) ? ' <button type="button" class="link" data-mt-calc-reset="' + k + '">domyślne</button>' : ''}</span><span class="mt-fi"><input type="text" inputmode="decimal" data-mt-calc="${k}" value="${own(k) ? esc(rtShow(c[k])) : ''}" placeholder="${esc(ph)}"><em>${unit}</em></span></label>`;
+  return plPicker(nb) + `
+    <div class="mt-assign">${x.rt ? `Przypisana do trasy <b>${esc(x.rt.code)} ${esc(x.rt.name)}</b>.` : 'Nieprzypisana do trasy.'} Koszty liczą się jak w trybie „Koszty” – tam zmienisz paliwo, kierowcę i opłaty.</div>
+    <label class="mt-f"><span>Klient</span><span class="mt-fi wide"><input type="text" data-mt-calc="qClient" value="${esc(c.qClient || '')}" placeholder="np. firma, dla której liczysz"><em></em></span></label>
+    <label class="mt-f"><span>Status</span><select data-mt-calc="qStatus">${QSTAT.map(([k, l]) => `<option value="${k}" ${k===st[0] ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+    <label class="mt-f"><span>Data wyceny</span><span class="mt-fi"><input type="date" data-mt-calc="qDate" value="${esc(c.qDate || today())}"><em></em></span></label>
+    ${!mtPoints(sel).length || own('km') ? inp('km', 'Km kursu', 'km', x.def.km ? plFmt(Math.round(x.def.km)) : 'wpisz') : ''}
+    ${inp('invKm', 'Km do faktury', 'km', x.invKm ? plFmt(Math.round(x.invKm)) : 'jak km kursu')}
+    ${inp('trips', 'Kursów w miesiącu', 'kursów', x.def.trips ? String(x.def.trips) : 'wpisz')}
+    <h5 class="mt-h">Ile wziąć za kurs (netto)</h5>
+    ${inp('margin', 'Marża', '%', String(plCfg().margin))}
+    ${inp('qProfit', 'albo zysk na kurs', 'zł', 'zamiast marży')}
+    <div class="mt-calc" id="pl-quote-res">${plQuoteResults(x)}</div>
+    <div class="mt-row"><button type="button" class="small" data-pl-set-rate ${x.qPrice ? '' : 'disabled'}>Ustaw jako stawkę</button><button type="button" class="small primary" data-pl-assign ${x.cost ? '' : 'disabled'}>Przypisz do trasy…</button></div>
+    <p class="muted small">„Ustaw jako stawkę” wpisuje cenę z wyceny jako przychód tej trasy w planerze. „Przypisz do trasy” przenosi km do faktury, stawkę, koszt kierowcy i opłaty do trasy z zakładki Trasy (np. 167K Drezno) – rentowność trasy liczy się wtedy z tych danych.</p>`;
+}
+function plQuoteResults(x){
+  const row = (l, n, cls = '') => `<div class="mt-cr ${cls}"><span>${l}</span><b>${n==null || isNaN(n) ? '—' : zl(Math.round(n))}</b></div>`;
+  if (!x.cost) return '<p class="muted small">Wpisz km kursu albo ustaw punkty trasy na mapie – wtedy policzę koszt i cenę.</p>';
+  return `${row('Koszt kursu = cena minimalna', x.cost)}
+    ${row(`Cena za kurs${x.qMargin!=null ? ` (marża ${plFmt(x.qMargin)}%)` : ''}`, x.qPrice, 'sum ok')}
+    <div class="mt-cr"><span>Cena za km${x.invKm ? ` (${plFmt(Math.round(x.invKm))} km do faktury)` : ''}</span><b>${x.qPerKm!=null ? plFmt(Math.round(x.qPerKm * 100) / 100) + ' zł' : '—'}</b></div>
+    ${row('Zysk na kursie', x.qPrice!=null ? x.qPrice - x.cost : null)}
+    ${x.trips ? row(`Przychód w miesiącu (${x.trips} ${isPlural(x.trips, 'kurs', 'kursy', 'kursów')})`, x.qPrice!=null ? x.qPrice * x.trips : null) + row('Zysk w miesiącu', x.qPrice!=null ? (x.qPrice - x.cost) * x.trips : null) : ''}
+    ${x.rev!=null ? `<div class="mt-cr"><span>Obecna stawka</span><b>${zl(Math.round(x.rev))} · marża ${Math.round(x.margin * 100)}%</b></div>` : ''}`;
+}
+/* przypisanie wyliczeń do trasy z zakładki Trasy – z podglądem „było / będzie” */
+function plAssignForm(r){
+  const x = mtCalcData(r), price = x.qPrice!=null ? x.qPrice : x.rev;
+  const free = S.routes.filter(t => t.active!==false && !(S.routePlans || []).some(p => p.routeId===t.id && p.id!==r.id)).sort((a, b) => String(a.code).localeCompare(String(b.code), 'pl', {numeric: true}));
+  editing = {col: 'pl-assign', id: r.id, base: {}, special: () => plAssignSave(r)};
+  $('#dlg-title').textContent = 'Przypisz wyliczenia do trasy';
+  $('#dlg-body').innerHTML = `<div class="field full"><label for="pl-a-route">Trasa</label><select id="pl-a-route"><option value="">— wybierz —</option>${free.map(t => `<option value="${esc(t.id)}" ${t.id===r.routeId ? 'selected' : ''}>${esc(t.code)} ${esc(t.name)}</option>`).join('')}</select></div>
+    <div class="field full"><span class="label">Co trafi do trasy</span><label class="check small"><input type="radio" name="pl-a-mode" value="kurs" checked> Stawka za kurs: <b>${price!=null ? zl(Math.round(price)) : '—'}</b></label>
+      <label class="check small"><input type="radio" name="pl-a-mode" value="km"> Stawka za km: <b>${price!=null && x.invKm ? plFmt(Math.round(price / x.invKm * 100) / 100) + ' zł' : '—'}</b> (${plFmt(Math.round(x.invKm))} km do faktury)</label>
+      ${mtStops(r).length ? `<label class="check small"><input type="checkbox" id="pl-a-stops" checked> Przenieś też przystanki z mapy (${mtStops(r).length}) – kierowca zobaczy je w telefonie</label>` : ''}</div>
+    <div class="field full" id="pl-a-diff"></div><div class="warnline" id="dlg-warn" hidden></div>`;
+  $('#dlg-save').textContent = 'Przypisz'; $('#dlg-del').hidden = true; $('#scrim').hidden = false;
+  editing.plX = x; editing.plPrice = price; plAssignDiff();
+}
+function plAssignVals(){
+  const x = editing.plX, mode = (document.querySelector('[name="pl-a-mode"]:checked') || {}).value || 'kurs';
+  const rate = editing.plPrice==null ? null : mode==='km' ? (x.invKm ? Math.round(editing.plPrice / x.invKm * 100) / 100 : null) : Math.round(editing.plPrice);
+  return {km: x.invKm ? Math.round(x.invKm) : null, mode, rate, driver: Math.round(x.drv), cost: Math.round(x.tolls + x.other), extraKm: Number(x.v('extraKm')) || 0};
+}
+function plAssignDiff(){
+  const rid = $('#pl-a-route') && $('#pl-a-route').value, box = $('#pl-a-diff'); if (!box) return;
+  if (!rid){ box.innerHTML = '<span class="muted small">Wybierz trasę, żeby zobaczyć, co się zmieni.</span>'; return; }
+  const t = byId('routes', rid), rc = rtCfg().routes[rid] || {}, n = plAssignVals();
+  const mm = m => m==='km' ? 'zł/km' : 'zł/kurs';
+  const line = (l, a, b) => `<tr${String(a)!==String(b) ? ' class="chg"' : ''}><td>${l}</td><td class="r">${a ?? '—'}</td><td class="r"><b>${b ?? '—'}</b></td></tr>`;
+  box.innerHTML = `<table class="pl-diff"><thead><tr><th></th><th class="r">Było</th><th class="r">Będzie</th></tr></thead><tbody>
+    ${line('Km do faktury', t.km ? plFmt(t.km) : null, n.km!=null ? plFmt(n.km) : null)}
+    ${line('Stawka', rc.rate ? plFmt(rc.rate) + ' ' + mm(rc.mode) : null, n.rate!=null ? plFmt(n.rate) + ' ' + mm(n.mode) : null)}
+    ${line('Koszt kierowcy na kurs (łącznie)', rc.driver ? plFmt(rc.driver) + ' zł' : null, plFmt(n.driver) + ' zł')}
+    ${line('Opłaty i inne na kurs', rc.cost ? plFmt(rc.cost) + ' zł' : null, plFmt(n.cost) + ' zł')}
+    ${line('Dodatkowe km na kurs', rc.extraKm ? plFmt(rc.extraKm) : null, n.extraKm ? plFmt(n.extraKm) : null)}</tbody></table>`;
+}
+document.addEventListener('change', e => { if (editing && editing.col==='pl-assign' && (e.target.id==='pl-a-route' || e.target.name==='pl-a-mode')) plAssignDiff(); });
+async function plAssignSave(r){
+  const rid = $('#pl-a-route').value, w = $('#dlg-warn');
+  if (!rid){ w.textContent = 'Wybierz trasę.'; w.hidden = false; return; }
+  const n = plAssignVals(), cfg = rtCfg(), stops = $('#pl-a-stops') ? $('#pl-a-stops').checked : false;
+  const btn = $('#dlg-save'); btn.disabled = true;
+  try {
+    if (n.km) await db.collection('routes').doc(rid).update({km: n.km});
+    const routes = {...cfg.routes, [rid]: {...(cfg.routes[rid] || {}), mode: n.mode, ...(n.rate!=null ? {rate: n.rate} : {}), driver: n.driver, cost: n.cost, extraKm: n.extraKm}};
+    await db.collection('settings').doc('route_fin').set({routes, months: cfg.months});
+    // plan przypięty do trasy (przystanki – tylko gdy zaznaczone)
+    await db.collection('routePlans').doc(r.id).update({routeId: rid});
+    if (stops) await mtSyncRoute({...r, routeId: rid});
+    closeForm(); toast(`Przypisano wyliczenia do trasy ${byId('routes', rid).code}`); render();
+  } catch(err){ handleWriteErr(err); }
+  finally { btn.disabled = false; }
+}
+/* nowa wycena bez mapy */
+function plNewQuote(){
+  editing = {col: 'pl-newq', id: null, base: {}, special: plNewQuoteSave};
+  $('#dlg-title').textContent = 'Nowa wycena (bez mapy)';
+  $('#dlg-body').innerHTML = `<div class="field full"><label for="pl-q-name">Nazwa *</label><input id="pl-q-name" maxlength="80" placeholder="np. Wrocław – Praga dla firmy X"></div>
+    <div class="field"><label for="pl-q-km">Km kursu *</label><input id="pl-q-km" type="text" inputmode="decimal" placeholder="np. 640"></div>
+    <div class="field"><label for="pl-q-client">Klient</label><input id="pl-q-client" maxlength="100"></div>
+    <div class="field full"><span class="muted small">Pozostałe dane (kierowca, opłaty, liczba kursów, marża) wpiszesz w wycenie. Punkty na mapie możesz dodać później w trybie „Mapa”.</span></div><div class="warnline" id="dlg-warn" hidden></div>`;
+  $('#dlg-save').textContent = 'Utwórz'; $('#dlg-del').hidden = true; $('#scrim').hidden = false;
+  setTimeout(() => $('#pl-q-name')?.focus(), 30);
+}
+async function plNewQuoteSave(){
+  const name = $('#pl-q-name').value.trim(), km = rtNum($('#pl-q-km').value), w = $('#dlg-warn');
+  if (!name){ w.textContent = 'Wpisz nazwę.'; w.hidden = false; return; }
+  if (!(km > 0)){ w.textContent = 'Wpisz km kursu.'; w.hidden = false; return; }
+  const ref = db.collection('routePlans').doc();
+  try { await ref.set({name, color: MT_COLORS[(S.routePlans || []).length % MT_COLORS.length], stops: [], via: [], routeId: null, calc: {km, qClient: $('#pl-q-client').value.trim() || undefined, qStatus: 'szkic', qDate: today()}});
+    mtActive = ref.id; plMode = 'wycena'; closeForm(); toast('Utworzono wycenę'); render(); } catch(err){ handleWriteErr(err); }
+}
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-pl-mode],[data-pl-row],[data-pl-new-quote],[data-pl-set-rate],[data-pl-assign]'); if (!t) return;
+  const d = t.dataset;
+  if (d.plMode){ plMode = d.plMode; render(); setTimeout(() => mtMap && mtMap.invalidateSize(), 260); return; }
+  if (d.plRow){ mtActive = d.plRow; render(); return; }
+  if ('plNewQuote' in d){ plNewQuote(); return; }
+  const r = mtPlan(mtActive); if (!r) return;
+  if ('plSetRate' in d){ const x = mtCalcData(r); if (x.qPrice==null) return; mtWrite(() => mtSavePlan(r, {calc: {...(r.calc || {}), revMode: 'kurs', revRate: Math.round(x.qPrice)}})).then(() => toast('Ustawiono stawkę ' + zl(Math.round(x.qPrice)) + ' za kurs')); return; }
+  if ('plAssign' in d){ plAssignForm(r); return; }
+});
+document.addEventListener('change', e => {
+  if (e.target.dataset && 'plPick' in e.target.dataset){ mtActive = e.target.value; render(); return; }
+  if (e.target.dataset && e.target.dataset.plCfg){ const k = e.target.dataset.plCfg, n = rtNum(e.target.value); const cur = plCfg();
+    if (n==null || isNaN(n) || n <= 0){ toast('Wpisz liczbę większą od zera, np. 1,6'); e.target.value = rtShow(cur[k]); return; }
+    mtWrite(() => db.collection('settings').doc('planner').set({...cur, [k]: n})).then(() => toast('Zapisano przelicznik ' + rtShow(n))); }
+});

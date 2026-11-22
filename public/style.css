@@ -1903,7 +1903,7 @@ button.warn{background:var(--warn-soft);color:var(--warn);border-color:color-mix
 .mt-f{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:13px}
 .mt-f>span:first-child{flex:1;min-width:0}
 .mt-f select{max-width:150px}
-.mt-fi{display:flex;align-items:center;gap:4px;width:150px;flex:none}.mt-fi input{width:100%;text-align:right}.mt-fi em{font-style:normal;font-size:12px;color:var(--muted);min-width:42px}
+.mt-fi{display:flex;align-items:center;gap:4px;width:170px;flex:none}.mt-fi input{width:100%;text-align:right}.mt-fi em{font-style:normal;font-size:12px;color:var(--muted);min-width:42px}
 .mt-calc{background:var(--sunk);border-radius:12px;padding:10px 12px;margin-top:8px;display:flex;flex-direction:column;gap:4px}
 .mt-cr{display:flex;justify-content:space-between;gap:8px;font-size:14px}.mt-cr b{font-variant-numeric:tabular-nums}
 .mt-cr.sum{border-top:1px solid var(--line);padding-top:6px;margin-top:2px}
@@ -1958,3 +1958,12 @@ button.warn{background:var(--warn-soft);color:var(--warn);border-color:color-mix
 body:has(#env-bar) .pl-top,body:has(#env-bar) .pl-tools{top:30px}
 body:has(#env-bar) .pl-panel{top:88px}
 @media (max-width:760px){body:has(#env-bar) .pl-tools{top:84px}body:has(#env-bar) .pl-panel{top:auto}}
+/* planer: tryby Koszty i Wycena */
+.pl-modes{display:flex}.pl-modes button{flex:1;font-weight:700}
+.pl-panel.wide{width:min(560px,calc(100vw - 24px))}
+.pl-pick{flex:1;min-width:0}.pl-pick select{width:100%}
+.mt-fi.wide{width:230px}.mt-fi.wide input{text-align:left}
+.mt-cr.sub{color:var(--muted);font-size:13px}
+.pl-cmp{width:100%;font-size:13px}.pl-cmp td,.pl-cmp th{padding:6px 8px}.pl-cmp tr.sel td{background:var(--info-soft)}
+.pl-diff{width:100%;font-size:13px;border-collapse:collapse}.pl-diff td,.pl-diff th{padding:6px 8px;border-bottom:1px solid var(--line)}.pl-diff tr.chg td{background:var(--warn-soft, rgba(255,190,0,.12))}
+@media (max-width:760px){.pl-panel.wide{width:auto}.mt-fi.wide{width:160px}}
