@@ -72,7 +72,7 @@ document.addEventListener('click', async e => {
     const {error} = await sb.rpc('resolve_pickup_fuel', {p_booking: t.dataset.fuelRes, p_full: t.dataset.full==='1'});
     if (error) throw error;
     await refresh('bookings'); await refresh('costs');
-    if (editing && editing.col==='notif') $('#dlg-body').innerHTML = notifHtml();
+    if (editing && editing.col==='notif') morph($('#dlg-body'), notifHtml());
     render();
     toast(t.dataset.full==='1' ? 'Zapisano: bak był pełny – od przejęcia liczymy spalanie' : 'Zapisano: bak był niepełny – spalanie od następnego tankowania do pełna');
   } catch(err){ t.disabled = false; handleWriteErr(err); }
@@ -119,7 +119,7 @@ function openDrvHistory(id){
 
 document.addEventListener('click', e => {
   const a = e.target.closest('[data-action="notif-open"]'); if (a){ e.preventDefault(); return openNotif(); }
-  const f = e.target.closest('[data-nt-f]'); if (f){ notifFilter = f.dataset.ntF; $('#dlg-body').innerHTML = notifHtml(); return; }
+  const f = e.target.closest('[data-nt-f]'); if (f){ notifFilter = f.dataset.ntF; morph($('#dlg-body'), notifHtml()); return; }
   const k = e.target.closest('[data-dh-k]'); if (k){ dhKind = k.dataset.dhK; return openDrvHistory(k.dataset.dhId); }
   const dd = e.target.closest('[data-dh-d]'); if (dd){ dhDays = Number(dd.dataset.dhD); return openDrvHistory(dd.dataset.dhId); }
   const h = e.target.closest('[data-drv-hist]'); if (h){ e.preventDefault(); dhKind = 'all'; return openDrvHistory(h.dataset.drvHist); }

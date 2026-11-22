@@ -29,7 +29,7 @@ function render(){
     if (!DRIVER_VIEWS.includes(tab)) tab = 'moje';
     renderNotices();
     const v = $('#view');
-    v.innerHTML = tab==='wybierz' ? viewPickCar() : tab==='moje-dane' ? viewMyData() : tab==='moj-grafik' ? viewMySchedule() : tab==='moja-historia' ? viewMyHistory() : viewMyCar();
+    morph(v, tab==='wybierz' ? viewPickCar() : tab==='moje-dane' ? viewMyData() : tab==='moj-grafik' ? viewMySchedule() : tab==='moja-historia' ? viewMyHistory() : viewMyCar());
     hydrateFiles(v);
     return;
   }
@@ -98,8 +98,8 @@ function renderWho(role){
   el.hidden = false;
   const name = me.full_name || me.email || '';
   const ini = name.split(/[\s@.]+/).filter(Boolean).slice(0,2).map(x => x[0].toUpperCase()).join('');
-  el.innerHTML = `<span class="ava">${esc(ini)}</span><div class="who-t"><b>${esc(name)}</b><span>${role?esc(ROLES[role].name):'Bez roli'}</span></div>
-    <div class="who-act">${role ? `<button type="button" class="ghost icon bell" data-action="${typeof notifOn==='function' && notifOn() ? 'notif-open' : 'push-open'}" title="Powiadomienia" aria-label="Powiadomienia">${ic('bell')}${typeof notifBadge==='function' ? notifBadge() : ''}</button>` : ''}<button type="button" class="ghost icon" data-action="logout" title="Wyloguj" aria-label="Wyloguj">${ic('out')}</button></div>`;
+  morph(el, `<span class="ava">${esc(ini)}</span><div class="who-t"><b>${esc(name)}</b><span>${role?esc(ROLES[role].name):'Bez roli'}</span></div>
+    <div class="who-act">${role ? `<button type="button" class="ghost icon bell" data-action="${typeof notifOn==='function' && notifOn() ? 'notif-open' : 'push-open'}" title="Powiadomienia" aria-label="Powiadomienia">${ic('bell')}${typeof notifBadge==='function' ? notifBadge() : ''}</button>` : ''}<button type="button" class="ghost icon" data-action="logout" title="Wyloguj" aria-label="Wyloguj">${ic('out')}</button></div>`);
 }
 /* Nagłówek na telefonie (i zawsze u kierowcy): motyw, powiadomienia, wylogowanie */
 function renderTop(role){
@@ -114,7 +114,7 @@ function renderNotices(){
   // nowe konto czeka na zatwierdzenie – widać na każdej stronie, aż kierownik je zatwierdzi albo odrzuci
   const pu = P().manage && typeof pendingUsers==='function' && tab!=='uzytkownicy' ? pendingUsers() : [];
   if (pu.length) h += `<div class="notice warn new-acc"><span>${ic('user')}<b>${pu.length===1 ? 'Nowe konto czeka na zatwierdzenie' : pu.length + ' nowe konta czekają na zatwierdzenie'}:</b> ${pu.slice(0, 3).map(p => esc(p.full_name || p.email)).join(', ')}${pu.length > 3 ? '…' : ''}</span><a class="btn small primary" href="#uzytkownicy">Zatwierdź</a></div>`;
-  $('#notices').innerHTML = h;
+  morph($('#notices'), h);
 }
 
 function emptyBlock(title, text, btn, extra='', col=''){
