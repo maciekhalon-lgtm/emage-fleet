@@ -3,5 +3,6 @@
 {
   "name": "emage-fleet-prod",
   "compatibility_date": "2026-11-13",
-  "assets": { "directory": "./public" }
+  "main": "worker/index.js",
+  "assets": { "directory": "./public", "binding": "ASSETS" }
 }
