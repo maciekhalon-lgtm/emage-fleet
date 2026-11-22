@@ -6,6 +6,7 @@
    Mapa jest jedna i żyje poza render() – przenosimy ją do strony po każdym odświeżeniu, żeby nie migała. */
 'use strict';
 const MT_COLORS = ['#245dcc', '#137e64', '#9d3bb5', '#b65616', '#c0263d', '#0f7d8c', '#6b5b00', '#4b3fb0'];
+let mtSub = 'trasa';   // zakładka w szczegółach planu: trasa / koszty / czas
 let mtLineDrag = null, mtDragEnd = 0, mtMovePin = null;
 let mtTab = 'routes', mtActive = null, mtFilter = '', mtPicking = null, mtMap = null, mtLayer = null, mtEl = null, mtLoad = null, mtFitted = false;
 const mtCalc = new Map();
@@ -236,7 +237,11 @@ function mtRoutesPanel(){
   if (!sel) return head + list;
   const st = mtStops(sel), cs = (S.clients || []).slice().sort((a, b) => a.name.localeCompare(b.name, 'pl')), rt = mtLinked(sel);
   const opt = v => `<option value="">— nie ustawiony —</option>${cs.map(c => `<option value="${esc(c.id)}" ${c.id===v ? 'selected' : ''}>${esc(c.name)}${c.address ? ' · ' + esc(c.address) : ''}</option>`).join('')}`;
+  if (mtSub!=='trasa') return head + list + `<section class="mt-detail"><div class="mt-row"><b>${esc(sel.name)}</b><button type="button" class="small" data-mt-plan-edit="${esc(sel.id)}">Ustawienia</button></div>
+    <div class="seg mt-sub">${[['trasa', 'Trasa'], ['koszty', 'Koszty i zysk'], ['czas', 'Czas i godziny']].map(([k, l]) => `<button type="button" class="${mtSub===k ? 'on' : ''}" data-mt-sub="${k}">${l}</button>`).join('')}</div>
+    ${mtSub==='koszty' ? mtCostPanel(sel) : mtTimePanel(sel)}</section>`;
   return head + list + `<section class="mt-detail"><div class="mt-row"><b>${esc(sel.name)}</b><span><input type="color" class="mt-color" data-mt-color="${esc(sel.id)}" value="${esc(mtColor(sel))}" aria-label="Kolor trasy na mapie"> <button type="button" class="small" data-mt-plan-edit="${esc(sel.id)}">Ustawienia</button></span></div>
+    <div class="seg mt-sub">${[['trasa', 'Trasa'], ['koszty', 'Koszty i zysk'], ['czas', 'Czas i godziny']].map(([k, l]) => `<button type="button" class="${mtSub===k ? 'on' : ''}" data-mt-sub="${k}">${l}</button>`).join('')}</div>
     <div class="mt-assign">${rt ? `Przypisana do trasy <b>${esc(rt.code)} ${esc(rt.name)}</b>. Przystanki z planu widzi kierowca tej trasy.` : 'Szkic – nieprzypisany do trasy. <button type="button" class="link" data-mt-plan-edit="' + esc(sel.id) + '">Przypisz albo utwórz trasę</button>'}</div>
     <label class="mt-lbl">Start<select data-mt-start="${esc(sel.id)}">${opt(sel.startClientId)}</select></label>
     <label class="mt-lbl">Koniec<select data-mt-end="${esc(sel.id)}">${opt(sel.endClientId)}</select></label>
@@ -407,9 +412,10 @@ async function mtAddStop(cid){
   toast(`Dodano przystanek do „${r.name}”`);
 }
 document.addEventListener('click', e => {
-  const t = e.target.closest('[data-mt-new-plan],[data-mt-plan-edit],[data-mt-plan-copy],[data-mt-via-clear],[data-mt-here],[data-mt-move-pin],[data-mt-via-del],[data-mt-tab],[data-mt-sel],[data-mt-fit],[data-mt-new-client],[data-mt-edit-client],[data-mt-locate],[data-mt-add],[data-mt-add-stop],[data-mt-up],[data-mt-down],[data-mt-del],[data-mt-retry],[data-mt-fix]');
+  const t = e.target.closest('[data-mt-sub],[data-mt-new-plan],[data-mt-plan-edit],[data-mt-plan-copy],[data-mt-via-clear],[data-mt-here],[data-mt-move-pin],[data-mt-via-del],[data-mt-tab],[data-mt-sel],[data-mt-fit],[data-mt-new-client],[data-mt-edit-client],[data-mt-locate],[data-mt-add],[data-mt-add-stop],[data-mt-up],[data-mt-down],[data-mt-del],[data-mt-retry],[data-mt-fix]');
   if (!t || t.closest('#dialog')) return;
   const d = t.dataset;
+  if (d.mtSub){ mtSub = d.mtSub; render(); return; }
   if ('mtNewPlan' in d){ mtPlanForm(); return; }
   if (d.mtPlanEdit){ const r = mtPlan(d.mtPlanEdit); if (r) mtPlanForm(r); return; }
   if (d.mtPlanCopy){ const r = mtPlan(d.mtPlanCopy); if (!r) return; const ref = db.collection('routePlans').doc();
@@ -439,6 +445,10 @@ document.addEventListener('click', e => {
 });
 document.addEventListener('change', e => {
   const t = e.target;
+  if (t.dataset.mtCalc){ const r = mtPlan(mtActive); if (!r) return; const calc = {...(r.calc || {})}, k = t.dataset.mtCalc;
+    const v = t.type==='number' || t.inputMode==='decimal' ? rtNum(t.value) : t.value;
+    if (v==null || v==='') delete calc[k]; else calc[k] = v;
+    return mtWrite(() => mtSavePlan(r, {calc})); }
   if (t.dataset.mtShow){ if (t.checked) mtHidden.delete(t.dataset.mtShow); else mtHidden.add(t.dataset.mtShow); mtSaveHidden(); mtDraw(); return; }
   const r = mtPlan(t.dataset.mtStart || t.dataset.mtEnd || t.dataset.mtColor); if (!r) return;
   if (t.dataset.mtStart) return mtWrite(() => mtSavePlan(r, {startClientId: t.value || null}));
@@ -454,4 +464,97 @@ document.addEventListener('input', e => {
 document.addEventListener('keydown', e => {
   if (e.key==='Escape' && mtPicking){ const d = mtPicking; mtPicking = null; mtNotice(''); mtDraw(); mtClientForm(d, d._link, d._addTo); }
   if (e.key==='Escape' && mtMovePin){ mtMovePin = null; mtNotice(''); mtDraw(); }
+});
+
+/* ---------- koszty i zysk kursu ---------- */
+/* domyślne wartości z danych systemu – każde pole można nadpisać (zapis w planie: calc) */
+function mtCalcData(r){
+  const c = r.calc || {}, rt = mtLinked(r), rc = rt ? (rtCfg().routes[rt.id] || {}) : {};
+  const road = mtRoad(r), kmMap = road.status==='ready' ? road.data.distance / 1000 : null, hDrive = road.status==='ready' ? road.data.duration / 3600 : null;
+  let kc = null; try { kc = rtKmCost(today().slice(0, 7)); } catch(_){}
+  let clsRate = {}; try { if (mtCalcData.k!==S.costs.length + '|' + S.bookings.length){ mtCalcData.k = S.costs.length + '|' + S.bookings.length; mtCalcData.cr = rkData().clsRate; } clsRate = mtCalcData.cr || {}; } catch(_){}
+  const cls = c.cls || 'pow25';
+  const def = {
+    lp100: clsRate[cls] ?? (kc ? kc.lp100 : 11), price: kc ? kc.price : 5.3, otherKm: kc ? kc.otherKm : 0,
+    km: kmMap, invKm: rt && Number(rt.km) > 0 ? Number(rt.km) : kmMap, revMode: rc.mode==='km' ? 'km' : 'kurs', revRate: Number(rc.rate) || null,
+    drvMode: 'kurs', drvRate: Number(rc.driver) || null, drivers: 1, tolls: Number(rc.cost) || null, extraKm: Number(rc.extraKm) || 0,
+    trips: rt ? rtGrafikTrips(rt.id, prevMonth(today().slice(0, 7))) : null, stopMin: 30, dep: '06:00'
+  };
+  const v = k => c[k]!=null && c[k]!=='' ? c[k] : def[k];
+  const km = Number(v('km')) || 0, extraKm = Number(v('extraKm')) || 0, kmAll = km + extraKm;
+  const t = mtTimes(r, v('dep'), Number(v('stopMin')) || 0);
+  const hours = t ? t.total / 60 : hDrive;
+  const fuel = kmAll * (Number(v('lp100')) || 0) / 100 * (Number(v('price')) || 0);
+  const car = kmAll * (Number(v('otherKm')) || 0);
+  const drvRate = Number(v('drvRate')) || 0, drivers = Number(v('drivers')) || 1, mode = v('drvMode');
+  const days = hours ? Math.max(1, Math.ceil((hours - 2) / 24)) : 1;
+  const drv = drivers * (mode==='godz' ? drvRate * (hours || 0) : mode==='dzien' ? drvRate * days : drvRate);
+  const tolls = Number(v('tolls')) || 0, other = Number(v('other')) || 0;
+  const cost = fuel + car + drv + tolls + other;
+  const rev = v('revRate') ? (v('revMode')==='km' ? (Number(v('invKm')) || 0) * Number(v('revRate')) : Number(v('revRate'))) : null;
+  const profit = rev!=null ? rev - cost : null, trips = Number(v('trips')) || 0;
+  return {c, def, v, rt, kc, km, kmAll, hours, fuel, car, drv, tolls, other, cost, rev, profit, trips, perKm: kmAll ? cost / kmAll : null, margin: rev ? profit / rev : null};
+}
+function mtCostPanel(r){
+  const x = mtCalcData(r), nf = n => n==null ? '—' : new Intl.NumberFormat('pl-PL', {maximumFractionDigits: 2}).format(n);
+  const inp = (k, label, unit, ph, step = 'any') => { const own = x.c[k]!=null && x.c[k]!==''; const d = x.def[k];
+    return `<label class="mt-f"><span>${label}${own ? ' <button type="button" class="link" data-mt-calc-reset="' + k + '">domyślne</button>' : ''}</span><span class="mt-fi"><input type="text" inputmode="decimal" data-mt-calc="${k}" value="${own ? esc(rtShow(x.c[k])) : ''}" placeholder="${d==null || d==='' ? ph || '' : esc(nf(d))}"><em>${unit}</em></span></label>`; };
+  const sel = (k, label, opts) => `<label class="mt-f"><span>${label}</span><select data-mt-calc="${k}">${opts.map(([val, l]) => `<option value="${val}" ${String(x.v(k))===val ? 'selected' : ''}>${l}</option>`).join('')}</select></label>`;
+  const row = (l, n, cls = '') => `<div class="mt-cr ${cls}"><span>${l}</span><b>${n==null ? '—' : zl(Math.round(n))}</b></div>`;
+  return `<p class="muted small">Szare liczby w polach to wartości z danych systemu (spalanie klasy z rankingu, cena litra z kart paliwowych netto, koszty aut na km z 3 ostatnich miesięcy${x.rt ? ', stawki z Koszty → Rentowność tras' : ''}). Wpisz własne, żeby je zastąpić – puste pole wraca do domyślnych.</p>
+    <h5 class="mt-h">Auto i paliwo</h5>
+    ${sel('cls', 'Klasa auta', WCLS.map(([k, l]) => [k, l]))}
+    ${inp('km', 'Km kursu', 'km', 'z mapy')}${inp('extraKm', 'Dodatkowe km (np. dojazd do domu)', 'km', '0')}
+    ${inp('lp100', 'Spalanie', 'l/100', '')}${inp('price', 'Cena paliwa netto', 'zł/l', '')}${inp('otherKm', 'Pozostałe koszty auta (leasing, OC, serwis)', 'zł/km', '')}
+    <h5 class="mt-h">Kierowca i opłaty</h5>
+    ${sel('drvMode', 'Kierowcy płacę', [['kurs', 'za kurs'], ['dzien', 'za dzień'], ['godz', 'za godzinę']])}
+    ${inp('drvRate', 'Stawka kierowcy', x.v('drvMode')==='godz' ? 'zł/h' : x.v('drvMode')==='dzien' ? 'zł/dzień' : 'zł/kurs', 'wpisz')}${sel('drivers', 'Obsada', [['1', '1 kierowca'], ['2', '2 kierowców']])}
+    ${inp('tolls', 'Opłaty drogowe, winiety, parkingi', 'zł/kurs', '0')}${inp('other', 'Inne koszty kursu', 'zł/kurs', '0')}
+    <h5 class="mt-h">Przychód</h5>
+    ${sel('revMode', 'Fakturuję', [['km', 'za km'], ['kurs', 'za kurs']])}
+    ${x.v('revMode')==='km' ? inp('invKm', 'Km do faktury', 'km', '') : ''}${inp('revRate', 'Stawka', x.v('revMode')==='km' ? 'zł/km' : 'zł/kurs', 'wpisz')}
+    ${inp('trips', 'Kursów w miesiącu', 'kursów', x.rt ? 'z grafiku' : 'wpisz')}
+    <div class="mt-calc">
+      ${row(`Paliwo (${nf(x.kmAll)} km)`, x.fuel)}${row('Auto – pozostałe koszty', x.car)}${row(`Kierowca${x.hours ? ` (${nf(Math.round(x.hours * 10) / 10)} h)` : ''}`, x.drv)}${row('Opłaty i inne', x.tolls + x.other)}
+      ${row('Koszt kursu', x.cost, 'sum')}<div class="mt-cr"><span>Koszt na km</span><b>${x.perKm!=null ? nf(Math.round(x.perKm * 100) / 100) + ' zł' : '—'}</b></div>
+      ${row('Przychód z kursu', x.rev)}
+      ${x.profit!=null ? `${row('Zysk z kursu', x.profit, x.profit >= 0 ? 'ok' : 'bad')}<div class="mt-cr"><span>Marża</span><b>${Math.round(x.margin * 100)}%</b></div>` : '<p class="muted small">Wpisz stawkę w „Przychód”, żeby zobaczyć zysk.</p>'}
+      ${x.trips && x.profit!=null ? row(`Zysk w miesiącu (${x.trips} ${isPlural(x.trips, 'kurs', 'kursy', 'kursów')})`, x.profit * x.trips, x.profit >= 0 ? 'ok sum' : 'bad sum') : ''}
+    </div>`;
+}
+
+/* ---------- czas kursu i godziny przyjazdu ---------- */
+/* odcinki z OSRM (między kolejnymi punktami), postój na przystanku, przerwa 45 min po 4,5 h jazdy */
+function mtTimes(r, dep, stopMin){
+  const road = mtRoad(r); if (road.status!=='ready' || !road.data.legs) return null;
+  const pts = mtPoints(r), legs = road.data.legs;
+  const [hh, mm] = String(dep || '06:00').split(':').map(Number);
+  let t = (hh || 0) * 60 + (mm || 0), drive = 0, sinceBreak = 0, breaks = 0;
+  const out = [{p: pts[0], at: t, km: 0}];
+  let km = 0;
+  legs.forEach((lg, i) => {
+    let d = lg.duration / 60;
+    while (sinceBreak + d > 270){ const part = 270 - sinceBreak; t += part; d -= part; drive += part; t += 45; breaks++; sinceBreak = 0; }
+    t += d; drive += d; sinceBreak += d; km += lg.distance / 1000;
+    const p = pts[i + 1]; if (!p) return;
+    if (!p.via){ out.push({p, at: t, km}); if (p.lab!=='K') t += stopMin; }
+  });
+  return {rows: out, total: t - ((hh || 0) * 60 + (mm || 0)), drive, breaks, end: t};
+}
+function mtTimePanel(r){
+  const x = mtCalcData(r), t = mtTimes(r, x.v('dep'), Number(x.v('stopMin')) || 0);
+  const hm = m => { const d = Math.floor(m / 1440), h = Math.floor((m % 1440) / 60), mi = Math.round(m % 60); return `${String(h).padStart(2, '0')}:${String(mi===60 ? 0 : mi).padStart(2, '0')}${d ? ` <span class="muted small">+${d} d</span>` : ''}`; };
+  const dur = m => `${Math.floor(m / 60)} h ${Math.round(m % 60)} min`;
+  const own = k => x.c[k]!=null && x.c[k]!=='';
+  return `<label class="mt-f"><span>Wyjazd</span><span class="mt-fi"><input type="time" data-mt-calc="dep" value="${esc(x.v('dep'))}"><em></em></span></label>
+    <label class="mt-f"><span>Postój na przystanku${own('stopMin') ? ' <button type="button" class="link" data-mt-calc-reset="stopMin">domyślne</button>' : ''}</span><span class="mt-fi"><input type="text" inputmode="decimal" data-mt-calc="stopMin" value="${own('stopMin') ? esc(x.c.stopMin) : ''}" placeholder="30"><em>min</em></span></label>
+    ${!t ? '<p class="muted small">Ustaw start, koniec albo przystanki – godziny policzę, gdy będzie wyznaczony przejazd.</p>' : `
+    <div class="mt-times">${t.rows.map(o => `<div class="mt-tr"><span class="mt-n">${esc(o.p.lab)}</span><span class="mt-lab"><b>${esc(o.p.c ? o.p.c.name : '')}</b><span class="sub">${new Intl.NumberFormat('pl-PL', {maximumFractionDigits: 0}).format(o.km)} km</span></span><b>${hm(o.at)}</b></div>`).join('')}</div>
+    <div class="mt-calc"><div class="mt-cr"><span>Jazda</span><b>${dur(t.drive)}</b></div><div class="mt-cr"><span>Przerwy (45 min po 4,5 h)</span><b>${t.breaks}</b></div><div class="mt-cr sum"><span>Cały kurs</span><b>${dur(t.total)}</b></div><div class="mt-cr"><span>Powrót / koniec</span><b>${hm(t.end)}</b></div></div>
+    <p class="muted small">Czas jazdy jak dla auta osobowego z mapy (OSRM) – bus zwykle jedzie wolniej, licz zapas.</p>`}`;
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-mt-calc-reset]'); if (!b) return;
+  const r = mtPlan(mtActive); if (!r) return; const calc = {...(r.calc || {})}; delete calc[b.dataset.mtCalcReset];
+  mtWrite(() => mtSavePlan(r, {calc}));
 });

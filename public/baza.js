@@ -49,7 +49,7 @@ const WRITABLE = {
   crewChanges: [],
   routes:    ['id','code','name','tacho','loading','active','note','km','color','start_client_id','end_client_id','via'],
   clients:   ['id','name','address','lat','lng','phone','note'],
-  routePlans: ['id','name','color','start_client_id','end_client_id','stops','via','route_id','note'],
+  routePlans: ['id','name','color','start_client_id','end_client_id','stops','via','route_id','note','calc'],
   blockOverrides: ['id','vehicle_id','date','reason'],
   deadlines: ['id','vehicle_id','type','date','km_due','interval_months','interval_km','remind_km','note','last_done_km','last_done_date'],
   serviceEntries: ['id','vehicle_id','date','km','workshop','description','cost','oil_change','deadline_id','issue_ids','note','storage_path','file_name','content_type','tires_set','timing_change'],
@@ -112,6 +112,7 @@ function toDb(col, o){
   if (col==='vehicles' && !tireSizeOn()) delete out.tire_size;   // przed migracją 032 kolumny nie ma
   if ((col==='routes' || col==='routeStops') && !optOn('clients')){ delete out.color; delete out.start_client_id; delete out.end_client_id; delete out.client_id; }   // przed migracją 059 (mapa tras) tych kolumn nie ma
   if (col==='routes' && !(S.routes[0] && 'via' in S.routes[0])) delete out.via;   // przed migracją 060
+  if (col==='routePlans' && S.routePlans[0] && !('calc' in S.routePlans[0])) delete out.calc;   // przed migracją 062
   return out;
 }
 

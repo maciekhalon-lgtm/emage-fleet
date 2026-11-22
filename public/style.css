@@ -1897,3 +1897,15 @@ button.warn{background:var(--warn-soft);color:var(--warn);border-color:color-mix
 
 .mt-assign{font-size:13px;color:var(--muted);background:var(--sunk);border-radius:10px;padding:8px 10px}
 .mt-mode{display:flex;flex-wrap:wrap}
+
+.mt-sub{display:flex;flex-wrap:wrap}.mt-sub button{flex:1}
+.mt-h{margin:10px 0 2px;font-size:13px;color:var(--muted)}
+.mt-f{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:13px}
+.mt-f>span:first-child{flex:1;min-width:0}
+.mt-f select{max-width:150px}
+.mt-fi{display:flex;align-items:center;gap:4px;width:150px;flex:none}.mt-fi input{width:100%;text-align:right}.mt-fi em{font-style:normal;font-size:12px;color:var(--muted);min-width:42px}
+.mt-calc{background:var(--sunk);border-radius:12px;padding:10px 12px;margin-top:8px;display:flex;flex-direction:column;gap:4px}
+.mt-cr{display:flex;justify-content:space-between;gap:8px;font-size:14px}.mt-cr b{font-variant-numeric:tabular-nums}
+.mt-cr.sum{border-top:1px solid var(--line);padding-top:6px;margin-top:2px}
+.mt-cr.ok b{color:var(--ok)}.mt-cr.bad b{color:var(--bad)}
+.mt-times{display:flex;flex-direction:column;gap:4px}.mt-tr{display:flex;align-items:center;gap:8px;background:var(--sunk);border-radius:10px;padding:6px 8px}
