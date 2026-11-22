@@ -48,6 +48,9 @@ function render(){
   document.querySelectorAll('#tabs a, #bottombar a').forEach(a => { if (a.dataset.tab===navTab || (a.dataset.group && a.dataset.group===navGroup)) a.setAttribute('aria-current','page'); else a.removeAttribute('aria-current'); });
   renderNotices();
   updateCounts();
+  // Planer tras: osobny widok na cały ekran (bez menu i nagłówka aplikacji)
+  $('#app').classList.toggle('planner', tab==='mapa-tras');
+  if (tab!=='mapa-tras' && typeof plPrev!=='undefined') plPrev = tab;
   const v = $('#view');
   const st = subTabs();
   let html = '';

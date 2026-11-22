@@ -6,7 +6,9 @@
    Mapa jest jedna i żyje poza render() – przenosimy ją do strony po każdym odświeżeniu, żeby nie migała. */
 'use strict';
 const MT_COLORS = ['#245dcc', '#137e64', '#9d3bb5', '#b65616', '#c0263d', '#0f7d8c', '#6b5b00', '#4b3fb0'];
-let mtSub = 'trasa';   // zakładka w szczegółach planu: trasa / koszty / czas
+let mtSub = 'trasa';
+let mtBases = null, plBase = 'map', plPanel = true, plQ = '', plPrev = 'pulpit', plMe = null, plTmp = null;
+try { plBase = localStorage.getItem('ef-pl-base')==='sat' ? 'sat' : 'map'; } catch(_){}   // zakładka w szczegółach planu: trasa / koszty / czas
 let mtLineDrag = null, mtDragEnd = 0, mtMovePin = null;
 let mtTab = 'routes', mtActive = null, mtFilter = '', mtPicking = null, mtMap = null, mtLayer = null, mtEl = null, mtLoad = null, mtFitted = false;
 const mtCalc = new Map();
@@ -85,7 +87,10 @@ function mtMount(){
     if (!mtMap){
       mtMap = L.map(mtEl, {zoomControl: false}).setView([52.1, 19.4], 6);
       L.control.zoom({position: 'bottomright'}).addTo(mtMap);
-      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · przejazd OSRM'}).addTo(mtMap);
+      mtBases = {
+        map: L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · przejazd OSRM'}),
+        sat: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {maxZoom: 19, attribution: 'Zdjęcia &copy; Esri, Maxar, Earthstar · przejazd OSRM'})};
+      mtBases[plBase].addTo(mtMap);
       mtLayer = L.layerGroup().addTo(mtMap);
       mtMap.on('click', ({latlng}) => {
         if (mtLineDrag || Date.now() - mtDragEnd < 400) return;
@@ -207,11 +212,11 @@ function mtLineDrop(ll){
   mtSaveVia(d.r, via);
 }
 /* klik w puste miejsce na mapie: nowy klient albo przystanek w tym miejscu */
-function mtMapMenu(ll){
+function mtMapMenu(ll, label){
   const act = mtPlan(mtActive);
-  L.popup().setLatLng(ll).setContent(`<div class="mt-pop"><b>To miejsce</b><br><span class="muted small" id="mt-rev">${ll.lat.toFixed(5)}, ${ll.lng.toFixed(5)}</span>
+  L.popup().setLatLng(ll).setContent(`<div class="mt-pop"><b>${label ? esc(label) : 'To miejsce'}</b><br><span class="muted small" id="mt-rev">${label ? '' : `${ll.lat.toFixed(5)}, ${ll.lng.toFixed(5)}`}</span>
     <div class="mt-pop-a"><button type="button" class="small" data-mt-here="${ll.lat.toFixed(6)},${ll.lng.toFixed(6)}">Dodaj klienta tutaj</button>${act ? `<button type="button" class="small primary" data-mt-here="${ll.lat.toFixed(6)},${ll.lng.toFixed(6)}" data-mt-here-route="${esc(act.id)}">Dodaj jako przystanek do „${esc(act.name)}”</button>` : ''}</div></div>`).openOn(mtMap);
-  mtReverse(ll.lat, ll.lng).then(a => { const el = document.getElementById('mt-rev'); if (el && a) el.textContent = a; });
+  if (!label) mtReverse(ll.lat, ll.lng).then(a => { const el = document.getElementById('mt-rev'); if (el && a) el.textContent = a; });
 }
 async function mtReverse(lat, lng){
   try {
@@ -225,15 +230,83 @@ async function mtReverse(lat, lng){
 
 /* ---------- strona ---------- */
 function viewRouteMap(){
-  if (!mtOn()) return `<div class="bar"><h2>Mapa tras</h2></div><div class="panel empty"><p>${P().manage ? 'Mapa tras wymaga jednorazowego uruchomienia migracji <b>059–061</b> w Supabase.' : 'Mapę tras widzi kierownik floty.'}</p></div>`;
+  if (!mtOn()) return `<div class="bar"><h2>Planer tras</h2></div><div class="panel empty"><p>${P().manage ? 'Planer tras wymaga jednorazowego uruchomienia migracji <b>059–062</b> w Supabase.' : 'Planer tras widzi kierownik floty.'}</p></div>`;
   if (!mtActive || !mtPlan(mtActive)) mtActive = (mtRoutes()[0] || {}).id || null;
   setTimeout(mtMount, 0);
   const nC = (S.clients || []).length, nR = mtRoutes().length;
-  return `<div class="mt-wrap"><aside class="mt-panel" id="mt-panel">
-      <div class="seg mt-tabs"><button type="button" class="${mtTab==='routes' ? 'on' : ''}" data-mt-tab="routes">Trasy · ${nR}</button><button type="button" class="${mtTab==='clients' ? 'on' : ''}" data-mt-tab="clients">Klienci · ${nC}</button></div>
-      ${mtTab==='routes' ? mtRoutesPanel() : mtClientsPanel()}
-    </aside><div class="mt-mapwrap"><div id="mt-slot"></div><div class="mt-tools"><button type="button" class="small" data-mt-fit>Pokaż wszystkie punkty</button></div><div id="mt-notice" class="mt-notice" role="status" data-morph-keep hidden></div></div></div>`;
+  return `<div class="pl">
+    <div class="pl-map"><div id="mt-slot"></div></div>
+    <div class="pl-top">
+      <button type="button" class="pl-back" data-pl-back title="Wróć do aplikacji">${ic('back')}<span>Emage FLEET</span></button>
+      <div class="pl-search">${ic('search')}<input id="pl-q" type="search" autocomplete="off" placeholder="Szukaj adresu, miejscowości albo klienta" value="${esc(plQ)}" aria-label="Szukaj na mapie"><div class="pl-res" id="pl-res" data-morph-keep hidden></div></div>
+    </div>
+    <aside class="pl-panel ${plPanel ? '' : 'shut'}" id="mt-panel">
+      <button type="button" class="pl-fold" data-pl-fold aria-label="${plPanel ? 'Zwiń panel' : 'Rozwiń panel'}" title="${plPanel ? 'Zwiń panel' : 'Rozwiń panel'}"><span class="pl-handle"></span>${ic('chev')}</button>
+      <div class="pl-body">
+        <div class="seg mt-tabs"><button type="button" class="${mtTab==='routes' ? 'on' : ''}" data-mt-tab="routes">Trasy · ${nR}</button><button type="button" class="${mtTab==='clients' ? 'on' : ''}" data-mt-tab="clients">Klienci · ${nC}</button></div>
+        ${mtTab==='routes' ? mtRoutesPanel() : mtClientsPanel()}
+      </div>
+    </aside>
+    <div class="pl-tools">
+      <button type="button" class="pl-tb" data-pl-base title="${plBase==='sat' ? 'Pokaż mapę' : 'Pokaż zdjęcia satelitarne'}">${plBase==='sat' ? 'Mapa' : 'Satelita'}</button>
+      <button type="button" class="pl-tb" data-pl-me title="Moja lokalizacja" aria-label="Moja lokalizacja">${ic('pin')}</button>
+      <button type="button" class="pl-tb" data-mt-fit title="Pokaż wszystkie punkty" aria-label="Pokaż wszystkie punkty">${ic('expand')}</button>
+    </div>
+    <div id="mt-notice" class="mt-notice pl-notice" role="status" data-morph-keep hidden></div>
+  </div>`;
 }
+/* wyszukiwarka na mapie: najpierw klienci z kartoteki (od razu), potem adresy (po chwili albo Enter) */
+let plTimer = null, plSeq = 0;
+function plShowRes(html){ const box = document.getElementById('pl-res'); if (!box) return; box.innerHTML = html; box.hidden = !html; }
+function plLocal(q){
+  const t = q.trim().toLocaleLowerCase('pl'); if (t.length < 2) return [];
+  return (S.clients || []).filter(c => (c.name + ' ' + (c.address || '')).toLocaleLowerCase('pl').includes(t)).slice(0, 5);
+}
+function plRender(q, addr, busy){
+  const cs = plLocal(q);
+  const h = cs.map(c => `<button type="button" class="pl-ri" data-pl-client="${esc(c.id)}">${ic('user')}<span><b>${esc(c.name)}</b><span class="sub">${esc(c.address || 'klient')}${mtHasXY(c) ? '' : ' · bez punktu'}</span></span></button>`).join('')
+    + (addr || []).map(r => `<button type="button" class="pl-ri" data-pl-addr="${r.lat},${r.lng}" data-pl-label="${esc(r.label)}">${ic('pin')}<span>${esc(r.label)}</span></button>`).join('')
+    + (busy ? '<div class="pl-rm muted small">Szukam adresu…</div>' : (!cs.length && addr && !addr.length ? '<div class="pl-rm muted small">Nie znaleziono. Sprawdź pisownię albo kliknij miejsce na mapie.</div>' : ''));
+  plShowRes(h);
+}
+async function plSearch(q){
+  const my = ++plSeq;
+  if (q.trim().length < 3){ plRender(q); return; }
+  plRender(q, null, true);
+  const {res} = await mtGeocode(q.trim());
+  if (my===plSeq) plRender(q, res.slice(0, 5));
+}
+document.addEventListener('input', e => {
+  if (e.target.id!=='pl-q') return;
+  plQ = e.target.value; clearTimeout(plTimer); plSeq++;
+  plRender(plQ);
+  if (plQ.trim().length >= 4) plTimer = setTimeout(() => plSearch(plQ), 700);
+});
+document.addEventListener('keydown', e => {
+  if (e.target.id==='pl-q' && e.key==='Enter'){ e.preventDefault(); clearTimeout(plTimer); plSearch(plQ); }
+  if (e.target.id==='pl-q' && e.key==='Escape'){ plShowRes(''); e.target.blur(); }
+});
+document.addEventListener('click', e => {
+  if (!e.target.closest('.pl-search')) plShowRes('');
+  const t = e.target.closest('[data-pl-client],[data-pl-addr],[data-pl-back],[data-pl-fold],[data-pl-base],[data-pl-me]'); if (!t) return;
+  const d = t.dataset;
+  if (d.plClient){ const c = mtClient(d.plClient); plShowRes(''); if (!c) return;
+    if (mtHasXY(c) && mtMap){ mtMap.setView([Number(c.lat), Number(c.lng)], 16); mtNotice(c.name + (c.address ? ' · ' + c.address : '')); } else mtClientForm(c); return; }
+  if (d.plAddr){ const [lat, lng] = d.plAddr.split(',').map(Number); plShowRes(''); if (!mtMap) return;
+    mtMap.setView([lat, lng], 17); if (plTmp) plTmp.remove();
+    plTmp = L.circleMarker([lat, lng], {radius: 9, color: '#c0263d', weight: 3, fillColor: '#fff', fillOpacity: 1}).addTo(mtMap);
+    setTimeout(() => mtMapMenu({lat, lng}, d.plLabel), 50); return; }
+  if ('plBack' in d){ location.hash = plPrev && plPrev!=='mapa-tras' ? plPrev : 'pulpit'; return; }
+  if ('plFold' in d){ plPanel = !plPanel; render(); setTimeout(() => mtMap && mtMap.invalidateSize(), 260); return; }
+  if ('plBase' in d){ if (!mtMap || !mtBases) return; mtMap.removeLayer(mtBases[plBase]); plBase = plBase==='sat' ? 'map' : 'sat'; mtBases[plBase].addTo(mtMap); try { localStorage.setItem('ef-pl-base', plBase); } catch(_){} render(); return; }
+  if ('plMe' in d){
+    if (!navigator.geolocation){ mtNotice('Ta przeglądarka nie udostępnia lokalizacji.'); return; }
+    mtNotice('Sprawdzam lokalizację…');
+    navigator.geolocation.getCurrentPosition(pos => { const ll = [pos.coords.latitude, pos.coords.longitude];
+      if (plMe) plMe.remove(); plMe = L.circleMarker(ll, {radius: 8, color: '#fff', weight: 3, fillColor: '#2260d5', fillOpacity: 1}).addTo(mtMap);
+      mtMap.setView(ll, 14); mtNotice(''); }, () => mtNotice('Brak zgody na lokalizację albo nie udało się jej ustalić.'), {timeout: 10000}); }
+});
+
 function mtRoutesPanel(){
   const R = mtRoutes(), sel = mtPlan(mtActive);
   const head = `<div class="mt-row"><h4>Zaplanowane trasy</h4><button type="button" class="small primary" data-mt-new-plan>${ic('plus')}Nowa trasa</button></div>`;
