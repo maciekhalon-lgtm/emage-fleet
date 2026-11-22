@@ -1863,7 +1863,7 @@ button.warn{background:var(--warn-soft);color:var(--warn);border-color:color-mix
 .mt-wrap{display:grid;grid-template-columns:370px 1fr;gap:14px;height:calc(100dvh - 190px);min-height:520px}
 .mt-panel{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px;overflow:auto;display:flex;flex-direction:column;gap:8px}
 .mt-tabs{display:flex}.mt-tabs button{flex:1}
-.mt-mapwrap{position:relative;border-radius:16px;overflow:hidden;border:1px solid var(--line);min-height:0;display:grid}
+.mt-mapwrap{position:relative;border-radius:16px;overflow:hidden;border:1px solid var(--line);min-height:0;display:grid;isolation:isolate;z-index:0}   /* warstwy mapy (z-index 400–1000) zostają w środku – okna aplikacji są nad mapą */
 #mt-slot,#mt-map{width:100%;height:100%;min-height:0}
 #mt-map{background:#e4e9e9}
 .mt-tools{position:absolute;z-index:500;top:12px;right:12px}
