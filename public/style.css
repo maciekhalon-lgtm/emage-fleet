@@ -1903,6 +1903,8 @@ button.warn{background:var(--warn-soft);color:var(--warn);border-color:color-mix
 .mt-f{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:13px}
 .mt-f>span:first-child{flex:1;min-width:0}
 .mt-f select{max-width:170px}
+.mt-lit{padding:4px 0 6px}
+.mt-hint{margin:-4px 0 8px}
 .mt-fuel{margin:-2px 0 8px;padding:6px 8px;border-radius:8px;background:var(--surface-2,rgba(127,127,127,.08));line-height:1.4}
 .mt-fuel.bad{color:var(--bad,#c0392b)}
 .mt-fi{display:flex;align-items:center;gap:4px;width:170px;flex:none}.mt-fi input{width:100%;text-align:right}.mt-fi em{font-style:normal;font-size:12px;color:var(--muted);min-width:42px}

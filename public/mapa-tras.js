@@ -616,6 +616,22 @@ function mtFuelAvg(k, n){
   let rows = f.rows.filter(r => r.d >= from); if (!rows.length) rows = f.rows.slice(0, 1);
   return {st: 'ok', avg: rows.reduce((a, r) => a + r.v, 0) / rows.length, n: rows.length, from: rows[rows.length - 1].d, to: rows[0].d};
 }
+/* km przejazdu w Niemczech – z linii trasy (OSRM) i uproszczonej granicy Niemiec (dokładność kilka km) */
+const DE_POLY = [[9.922,54.983],[9.94,54.597],[10.95,54.364],[10.939,54.009],[11.956,54.196],[12.518,54.47],[13.647,54.076],[14.12,53.757],[14.353,53.248],[14.075,52.981],[14.438,52.625],[14.685,52.09],[14.607,51.745],[15.017,51.107],[14.571,51.002],[14.307,51.117],[14.056,50.927],[13.338,50.733],[12.967,50.484],[12.24,50.266],[12.415,49.969],[12.521,49.547],[13.031,49.307],[13.596,48.877],[13.243,48.416],[12.884,48.289],[13.026,47.638],[12.933,47.468],[12.621,47.672],[12.141,47.703],[11.426,47.524],[10.545,47.566],[10.402,47.302],[9.896,47.58],[9.594,47.525],[8.523,47.831],[8.317,47.614],[7.467,47.621],[7.594,48.333],[8.099,49.018],[6.658,49.202],[6.186,49.464],[6.243,49.902],[6.043,50.128],[6.157,50.804],[5.989,51.852],[6.589,51.852],[6.843,52.228],[7.092,53.144],[6.905,53.482],[7.1,53.694],[7.936,53.748],[8.122,53.528],[8.801,54.021],[8.572,54.396],[8.526,54.963],[9.282,54.831],[9.922,54.983]];
+function mtInDe(lng, lat){
+  if (lng < 5.8 || lng > 15.1 || lat < 47.2 || lat > 55.1) return false;
+  let ins = false; for (let i = 0, j = DE_POLY.length - 1; i < DE_POLY.length; j = i++){ const [xi, yi] = DE_POLY[i], [xj, yj] = DE_POLY[j];
+    if ((yi > lat)!==(yj > lat) && lng < (xj - xi) * (lat - yi) / (yj - yi) + xi) ins = !ins; }
+  return ins;
+}
+function mtDeShare(road){
+  if (!road || road.status!=='ready' || !road.data.geometry) return 0;
+  if (road.deShare!=null) return road.deShare;
+  const c = road.data.geometry.coordinates || [], rad = Math.PI / 180; let all = 0, de = 0;
+  for (let i = 1; i < c.length; i++){ const [x1, y1] = c[i - 1], [x2, y2] = c[i];
+    const d = Math.hypot((x2 - x1) * Math.cos((y1 + y2) / 2 * rad), y2 - y1); all += d; if (mtInDe((x1 + x2) / 2, (y1 + y2) / 2)) de += d; }
+  return road.deShare = all ? de / all : 0;
+}
 /* kurs euro: wpisany w planie albo średni NBP z dziś (do czasu pobrania – ostatni znany, a na start 4,25) */
 function mtEur(c){
   if (Number(c.eurRate) > 0) return {rate: Number(c.eurRate), own: true};
@@ -643,7 +659,7 @@ function mtCalcData(r){
   };
   if (cur==='EUR'){ ['revRate', 'tolls'].forEach(k => { if (def[k]!=null) def[k] = Math.round(def[k] / R * 100) / 100; }); def.price = def.price!=null ? Math.round(def.price / R * 100) / 100 : null; }
   // cena paliwa: z kart (domyślnie), ORLEN / Niemcy (średnia z n dni) albo wpisana ręcznie (w walucie planu)
-  const priceSrc = FUEL_SRC[c.priceSrc] || c.priceSrc==='karty' || c.priceSrc==='reczna' ? c.priceSrc : (c.price!=null && c.price!=='' ? 'reczna' : 'karty');
+  const priceSrc = c.priceSrc==='orlen' || c.priceSrc==='karty' || c.priceSrc==='reczna' ? c.priceSrc : c.priceSrc==='de' ? 'karty' : (c.price!=null && c.price!=='' ? 'reczna' : 'karty');
   const priceDays = [7, 14, 21, 31].includes(Number(c.priceDays)) ? Number(c.priceDays) : 7;
   let fuelAvg = null, price, priceCur;
   if (priceSrc==='reczna'){ price = Number(c.price) || 0; priceCur = cur; }
@@ -656,7 +672,15 @@ function mtCalcData(r){
   const km = Number(v('km')) || 0, extraKm = Number(v('extraKm')) || 0, kmAll = km + extraKm;
   const t = mtTimes(r, v('dep'), Number(v('stopMin')) || 0);
   const hours = t ? t.total / 60 : hDrive;
-  const fuel = kmAll * (Number(v('lp100')) || 0) / 100 * pricePln;
+  // paliwo: litry na cały kurs, z czego część tankowana w Niemczech (domyślnie litry na km przejechane w Niemczech)
+  const lp = Number(v('lp100')) || 0, litres = kmAll * lp / 100, deKm = km * mtDeShare(road);
+  def.deL = Math.round(deKm * lp / 100);
+  const deL = Math.min(litres, Math.max(0, Number(v('deL')) || 0)), plL = litres - deL;
+  const deSrc = c.deSrc==='reczna' ? 'reczna' : 'de', eurR = cur==='EUR' ? R : mtEur(c).rate;
+  let deAvg = null, dePrice = null;
+  if (deL > 0){ if (deSrc==='reczna') dePrice = Number(c.dePrice) || 0; else { deAvg = mtFuelAvg('de', priceDays); dePrice = deAvg.st==='ok' ? deAvg.avg : null; } }
+  const fuelPl = plL * pricePln, fuelDe = deL > 0 ? (dePrice!=null ? deL * dePrice * eurR : deL * pricePln) : 0;
+  const fuel = fuelPl + fuelDe;
   const toPln = n => (Number(n) || 0) * R;
   const car = kmAll * (Number(v('otherKm')) || 0);
   const drvRate = Number(v('drvRate')) || 0, drivers = Number(v('drivers')) || 1, mode = v('drvMode');
@@ -674,7 +698,7 @@ function mtCalcData(r){
   const qMargin = c.qProfit!=null && c.qProfit!=='' ? null : (c.margin!=null && c.margin!=='' ? Number(c.margin) : plCfg().margin);
   const qPrice = cost > 0 ? (qMargin==null ? cost + Number(c.qProfit) : (qMargin < 100 ? cost / (1 - qMargin / 100) : null)) : null;
   const invKm = Number(v('invKm')) || km || 0;
-  return {c, def, v, rt, kc, cur, fx, R, priceSrc, priceDays, fuelAvg, price, priceCur, pricePln, km, kmAll, hours, fuel, car, drv, drvNet, mult, revBase, fee2, feeOther, drv2Cost, drivers, tolls, other, cost, rev, profit, trips, invKm, qMargin, qPrice,
+  return {c, def, v, rt, kc, cur, fx, R, litres, deKm, deL, plL, deSrc, deAvg, dePrice, eurR, fuelPl, fuelDe, priceSrc, priceDays, fuelAvg, price, priceCur, pricePln, km, kmAll, hours, fuel, car, drv, drvNet, mult, revBase, fee2, feeOther, drv2Cost, drivers, tolls, other, cost, rev, profit, trips, invKm, qMargin, qPrice,
     qPerKm: qPrice!=null && invKm ? qPrice / invKm : null, perKm: kmAll ? cost / kmAll : null, margin: rev ? profit / rev : null};
 }
 function mtCostPanel(r){
@@ -685,11 +709,13 @@ function mtCostPanel(r){
   const M = x.cur==='EUR' ? '€' : 'zł', d2 = n => new Intl.NumberFormat('pl-PL', {minimumFractionDigits: 2, maximumFractionDigits: 2}).format(n);
   const dm = s => s ? s.slice(8, 10) + '.' + s.slice(5, 7) : '';
   const fa = x.fuelAvg, srcName = FUEL_SRC[x.priceSrc];
-  const fuelInfo = !srcName ? '' : fa.st==='ok'
-    ? `<p class="mt-fuel small"><b>${d2(x.price)} ${x.priceCur==='EUR' ? '€' : 'zł'}/l netto</b> – średnia z ${fa.n} ${isPlural(fa.n, 'notowania', 'notowań', 'notowań')} (${dm(fa.from)}${fa.from!==fa.to ? '–' + dm(fa.to) : ''})${x.priceCur==='EUR' ? ` ≈ ${d2(x.pricePln)} zł/l` : ''}.${x.priceSrc==='de' ? ' Cena ze stacji bez 19% VAT.' : ' Hurt bez VAT – na stacji zwykle trochę drożej.'}</p>`
-    : fa.st==='err' ? `<p class="mt-fuel small bad">Nie udało się pobrać cen (${esc(fa.err || '')}) – liczę z kart paliwowych. <button type="button" class="link" data-mt-fuel-retry="${x.priceSrc}">Spróbuj ponownie</button></p>`
-    : `<p class="mt-fuel small muted">Pobieram ceny… do tego czasu liczę z kart paliwowych.</p>`;
-  const fx = x.fx || {};
+  const avgTxt = (a, unit, note, k, fb) => a.st==='ok'
+    ? `<p class="mt-fuel small"><b>${d2(a.avg)} ${unit}/l netto</b> – średnia z ${a.n} ${isPlural(a.n, 'notowania', 'notowań', 'notowań')} (${dm(a.from)}${a.from!==a.to ? '–' + dm(a.to) : ''})${unit==='€' ? ` ≈ ${d2(a.avg * x.eurR)} zł/l` : ''}. ${note}</p>`
+    : a.st==='err' ? `<p class="mt-fuel small bad">Nie udało się pobrać cen (${esc(a.err || '')}) – ${fb}. <button type="button" class="link" data-mt-fuel-retry="${k}">Spróbuj ponownie</button></p>`
+    : `<p class="mt-fuel small muted">Pobieram ceny… do tego czasu ${fb}.</p>`;
+  const fuelInfo = srcName ? avgTxt(fa, 'zł', 'Hurt bez VAT – na stacji zwykle trochę drożej.', 'orlen', 'liczę z kart paliwowych') : '';
+  const deInfo = x.deAvg ? avgTxt(x.deAvg, '€', 'Cena ze stacji bez 19% VAT.', 'de', 'liczę po polskiej cenie') : '';
+  const fx = x.fx || {}, fx2 = mtEur(x.c);
   return `<p class="muted small">Szare liczby w polach to wartości z danych systemu (spalanie klasy z rankingu, cena litra z kart paliwowych netto, koszty aut na km z 3 ostatnich miesięcy${x.rt ? ', stawki z Koszty → Rentowność tras' : ''}). Wpisz własne, żeby je zastąpić – puste pole wraca do domyślnych.</p>
     <h5 class="mt-h">Waluta</h5>
     ${sel('cur', 'Wycena w', [['PLN', 'złotych (zł)'], ['EUR', 'euro (€)']])}
@@ -698,9 +724,20 @@ function mtCostPanel(r){
     <h5 class="mt-h">Auto i paliwo</h5>
     ${sel('cls', 'Klasa auta', WCLS.map(([k, l]) => [k, l]))}
     ${inp('km', 'Km kursu', 'km', 'wpisz')}${inp('extraKm', 'Dodatkowe km (np. dojazd do domu)', 'km', '0')}
-    ${inp('lp100', 'Spalanie', 'l/100', '')}${sel('priceSrc', 'Cena paliwa netto', [['karty', 'z naszych kart paliwowych'], ['orlen', 'ORLEN – hurtowa (Ekodiesel)'], ['de', 'Niemcy – średnia ze stacji'], ['reczna', 'wpiszę ręcznie']])}
-    ${srcName ? sel('priceDays', 'Średnia z ostatnich', [['7', '7 dni'], ['14', '14 dni'], ['21', '21 dni'], ['31', '31 dni']]) + fuelInfo : ''}
-    ${x.priceSrc==='reczna' ? `<label class="mt-f"><span>Cena litra</span><span class="mt-fi"><input type="text" inputmode="decimal" data-mt-calc="price" value="${x.c.price!=null && x.c.price!=='' ? esc(rtShow(x.c.price)) : ''}" placeholder="${x.def.price!=null ? esc(nf(x.def.price)) : 'wpisz'}"><em>${M}/l</em></span></label>` : ''}${inp('otherKm', 'Pozostałe koszty auta (leasing, OC, serwis)', 'zł/km', '')}
+    ${inp('lp100', 'Spalanie', 'l/100', '')}
+    <div class="mt-cr mt-lit"><span>Paliwa na cały kurs</span><b id="mt-lit">${nf(Math.round(x.litres))} l</b></div>
+    ${inp('deL', 'Z tego tankowane w Niemczech', 'l', '0')}
+    ${x.deKm >= 1 ? `<p class="muted small mt-hint">Ok. ${nf(Math.round(x.deKm))} km trasy wypada w Niemczech – stąd domyślne ${nf(x.def.deL)} l. Jeśli kierowca tankuje do pełna w Polsce, wpisz mniej (albo 0).</p>` : ''}
+    <h5 class="mt-h">Cena paliwa – Polska${x.deL > 0 ? ` <span class="muted small">(${nf(Math.round(x.plL))} l)</span>` : ''}</h5>
+    ${sel('priceSrc', 'Cena netto', [['karty', 'z naszych kart paliwowych'], ['orlen', 'ORLEN – hurtowa (Ekodiesel)'], ['reczna', 'wpiszę ręcznie']])}
+    ${srcName || x.deL > 0 && x.deSrc==='de' ? sel('priceDays', 'Średnia z ostatnich', [['7', '7 dni'], ['14', '14 dni'], ['21', '21 dni'], ['31', '31 dni']]) : ''}${fuelInfo}
+    ${x.priceSrc==='reczna' ? `<label class="mt-f"><span>Cena litra</span><span class="mt-fi"><input type="text" inputmode="decimal" data-mt-calc="price" value="${x.c.price!=null && x.c.price!=='' ? esc(rtShow(x.c.price)) : ''}" placeholder="${x.def.price!=null ? esc(nf(x.def.price)) : 'wpisz'}"><em>${M}/l</em></span></label>` : ''}
+    ${x.deL > 0 ? `<h5 class="mt-h">Cena paliwa – Niemcy <span class="muted small">(${nf(Math.round(x.deL))} l)</span></h5>
+    ${sel('deSrc', 'Cena netto', [['de', 'średnia ze stacji (Komisja Europejska)'], ['reczna', 'wpiszę ręcznie']])}
+    ${x.deSrc==='reczna' ? `<label class="mt-f"><span>Cena litra w Niemczech</span><span class="mt-fi"><input type="text" inputmode="decimal" data-mt-calc="dePrice" value="${x.c.dePrice!=null && x.c.dePrice!=='' ? esc(rtShow(x.c.dePrice)) : ''}" placeholder="wpisz"><em>€/l</em></span></label>` : deInfo}
+    ${x.cur!=='EUR' ? `<p class="muted small">Kurs euro: ${esc(d2(x.eurR))} zł/€ (${fx2.own ? 'wpisany' : 'średni NBP'}).</p>` : ''}` : ''}
+    <h5 class="mt-h">Auto – pozostałe koszty</h5>
+    ${inp('otherKm', 'Pozostałe koszty auta (leasing, OC, serwis)', 'zł/km', '')}
     <h5 class="mt-h">Kierowca i opłaty</h5>
     ${sel('drvMode', 'Kierowcy płacę', [['kurs', 'za kurs'], ['dzien', 'za dzień'], ['godz', 'za godzinę']])}
     ${inp('drvRate', 'Kierowca dostaje na rękę', x.v('drvMode')==='godz' ? 'zł/h' : x.v('drvMode')==='dzien' ? 'zł/dzień' : 'zł/kurs', 'wpisz')}
@@ -719,7 +756,7 @@ function mtCostResults(x){
   const eu = n => x.cur==='EUR' && n!=null && x.R ? ` <span class="muted small">${new Intl.NumberFormat('pl-PL', {maximumFractionDigits: 0}).format(Math.round(n / x.R))} €</span>` : '';
   const row = (l, n, cls = '') => `<div class="mt-cr ${cls}"><span>${l}</span><b>${n==null ? '—' : zl(Math.round(n))}${eu(n)}</b></div>`;
   return `
-      ${row(`Paliwo (${nf(x.kmAll)} km)`, x.fuel)}${row('Auto – pozostałe koszty', x.car)}${row(`Kierowca – na rękę${x.hours ? ` (${nf(Math.round(x.hours * 10) / 10)} h)` : ''}`, x.drvNet, 'sub')}${row(`Kierowca – koszt łączny (× ${nf(x.mult)})`, x.drv)}${row('Opłaty i inne', x.tolls + x.other)}
+      ${x.deL > 0 ? row(`Paliwo – Polska (${nf(Math.round(x.plL))} l)`, x.fuelPl) + row(`Paliwo – Niemcy (${nf(Math.round(x.deL))} l)`, x.fuelDe) : row(`Paliwo (${nf(x.kmAll)} km, ${nf(Math.round(x.litres))} l)`, x.fuel)}${row('Auto – pozostałe koszty', x.car)}${row(`Kierowca – na rękę${x.hours ? ` (${nf(Math.round(x.hours * 10) / 10)} h)` : ''}`, x.drvNet, 'sub')}${row(`Kierowca – koszt łączny (× ${nf(x.mult)})`, x.drv)}${row('Opłaty i inne', x.tolls + x.other)}
       ${row('Koszt kursu', x.cost, 'sum')}<div class="mt-cr"><span>Koszt na km</span><b>${x.perKm!=null ? nf(Math.round(x.perKm * 100) / 100) + ' zł' + (x.cur==='EUR' && x.R ? ` <span class="muted small">${nf(Math.round(x.perKm / x.R * 100) / 100)} €</span>` : '') : '—'}</b></div>
       ${x.fee2 || x.feeOther ? `${row(x.v('revMode')==='km' ? 'Stawka za km × km do faktury' : 'Stawka za kurs', x.revBase, 'sub')}${x.fee2 ? row('Dopłata za 2. kierowcę', x.fee2, 'sub') : ''}${x.feeOther ? row('Inne dopłaty', x.feeOther, 'sub') : ''}` : ''}
       ${row(x.fee2 || x.feeOther ? 'Przychód łącznie' : 'Przychód z kursu', x.rev)}
@@ -781,6 +818,7 @@ document.addEventListener('input', e => {
   if (t.tagName==='SELECT') return;
   const tmp = {...r, calc}, x = mtCalcData(tmp);
   const c = document.getElementById('mt-calc-res'); if (c) c.innerHTML = mtCostResults(x);
+  const li = document.getElementById('mt-lit'); if (li) li.textContent = new Intl.NumberFormat('pl-PL').format(Math.round(x.litres)) + ' l';
   const tr = document.getElementById('mt-time-res'); if (tr) tr.innerHTML = mtTimeResults(tmp, x);
   const qr = document.getElementById('pl-quote-res'); if (qr) qr.innerHTML = plQuoteResults(x);
 });
