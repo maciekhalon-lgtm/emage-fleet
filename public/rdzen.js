@@ -219,3 +219,35 @@ function odoAt(source, refId, vid, typed){
 }
 /* km przejechane w przydziale (przejęcie → zdanie) – z GPS, gdy jest */
 const bkKm = b => { if (!b.pickup || !b.returned) return null; const a = odoAt('przejecie', b.id, b.vehicleId, b.pickup.km), z = odoAt('zdanie', b.id, b.vehicleId, b.returned.km); return a!=null && z!=null ? z - a : null; };
+
+/* Podmiana treści strony bez „przeładowania”: zamiast innerHTML porównujemy stary i nowy DOM i zmieniamy tylko to,
+   co się zmieniło. Zostaje przewinięcie, kursor w polu, otwarte <details>, mapa (#mt-slot) i wczytane zdjęcia. */
+function morph(el, html){
+  const tpl = document.createElement('template'); tpl.innerHTML = html;
+  morphKids(el, tpl.content);
+}
+function morphKids(a, b){
+  const an = [...a.childNodes], bn = [...b.childNodes];
+  for (let i = 0; i < bn.length; i++){
+    const x = an[i], y = bn[i];
+    if (!x){ a.appendChild(y); continue; }
+    if (x.nodeType!==y.nodeType || x.nodeName!==y.nodeName || (x.nodeType===1 && x.id!==y.id && (x.id || y.id))){ a.replaceChild(y, x); continue; }
+    if (x.nodeType===3 || x.nodeType===8){ if (x.nodeValue!==y.nodeValue) x.nodeValue = y.nodeValue; continue; }
+    if (x.nodeType!==1){ a.replaceChild(y, x); continue; }
+    morphAttrs(x, y);
+    if (x.id==='mt-slot' || x.hasAttribute('data-morph-keep')) continue;   // mapa i elementy zarządzane same
+    if (x.tagName==='TEXTAREA'){ if (document.activeElement!==x) x.value = y.value; continue; }
+    if (x.tagName==='SELECT'){ morphKids(x, y); if (document.activeElement!==x){ const o = [...y.options].findIndex(o => o.defaultSelected); if (o >= 0) x.selectedIndex = o; } continue; }
+    morphKids(x, y);
+  }
+  for (let i = an.length - 1; i >= bn.length; i--) a.removeChild(an[i]);
+}
+function morphAttrs(x, y){
+  const keepSrc = x.hasAttribute('data-file');
+  for (const at of [...x.attributes]) if (!y.hasAttribute(at.name) && !(keepSrc && (at.name==='src' || at.name==='href')) && !(x.tagName==='DETAILS' && at.name==='open')) x.removeAttribute(at.name);
+  for (const at of [...y.attributes]) if (x.getAttribute(at.name)!==at.value) x.setAttribute(at.name, at.value);
+  if (x.tagName==='INPUT' && document.activeElement!==x){
+    if (x.type==='checkbox' || x.type==='radio') x.checked = y.hasAttribute('checked');
+    else if (x.value!==(y.getAttribute('value') ?? '')) x.value = y.getAttribute('value') ?? '';
+  }
+}

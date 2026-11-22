@@ -471,7 +471,9 @@ document.addEventListener('keydown', e => {
 function mtCalcData(r){
   const c = r.calc || {}, rt = mtLinked(r), rc = rt ? (rtCfg().routes[rt.id] || {}) : {};
   const road = mtRoad(r), kmMap = road.status==='ready' ? road.data.distance / 1000 : null, hDrive = road.status==='ready' ? road.data.duration / 3600 : null;
-  let kc = null; try { kc = rtKmCost(today().slice(0, 7)); } catch(_){}
+  const mk = today() + '|' + S.costs.length + '|' + (S.fuelCardRows || []).length + '|' + (S.gpsOdometer || []).length;
+  if (mtCalcData.kk!==mk){ mtCalcData.kk = mk; try { mtCalcData.kc = rtKmCost(today().slice(0, 7)); } catch(_){ mtCalcData.kc = null; } }
+  const kc = mtCalcData.kc;
   let clsRate = {}; try { if (mtCalcData.k!==S.costs.length + '|' + S.bookings.length){ mtCalcData.k = S.costs.length + '|' + S.bookings.length; mtCalcData.cr = rkData().clsRate; } clsRate = mtCalcData.cr || {}; } catch(_){}
   const cls = c.cls || 'pow25';
   const def = {
@@ -514,13 +516,17 @@ function mtCostPanel(r){
     ${sel('revMode', 'Fakturuję', [['km', 'za km'], ['kurs', 'za kurs']])}
     ${x.v('revMode')==='km' ? inp('invKm', 'Km do faktury', 'km', '') : ''}${inp('revRate', 'Stawka', x.v('revMode')==='km' ? 'zł/km' : 'zł/kurs', 'wpisz')}
     ${inp('trips', 'Kursów w miesiącu', 'kursów', x.rt ? 'z grafiku' : 'wpisz')}
-    <div class="mt-calc">
+    <div class="mt-calc" id="mt-calc-res">${mtCostResults(x)}</div>`;
+}
+function mtCostResults(x){
+  const nf = n => n==null ? '—' : new Intl.NumberFormat('pl-PL', {maximumFractionDigits: 2}).format(n);
+  const row = (l, n, cls = '') => `<div class="mt-cr ${cls}"><span>${l}</span><b>${n==null ? '—' : zl(Math.round(n))}</b></div>`;
+  return `
       ${row(`Paliwo (${nf(x.kmAll)} km)`, x.fuel)}${row('Auto – pozostałe koszty', x.car)}${row(`Kierowca${x.hours ? ` (${nf(Math.round(x.hours * 10) / 10)} h)` : ''}`, x.drv)}${row('Opłaty i inne', x.tolls + x.other)}
       ${row('Koszt kursu', x.cost, 'sum')}<div class="mt-cr"><span>Koszt na km</span><b>${x.perKm!=null ? nf(Math.round(x.perKm * 100) / 100) + ' zł' : '—'}</b></div>
       ${row('Przychód z kursu', x.rev)}
       ${x.profit!=null ? `${row('Zysk z kursu', x.profit, x.profit >= 0 ? 'ok' : 'bad')}<div class="mt-cr"><span>Marża</span><b>${Math.round(x.margin * 100)}%</b></div>` : '<p class="muted small">Wpisz stawkę w „Przychód”, żeby zobaczyć zysk.</p>'}
-      ${x.trips && x.profit!=null ? row(`Zysk w miesiącu (${x.trips} ${isPlural(x.trips, 'kurs', 'kursy', 'kursów')})`, x.profit * x.trips, x.profit >= 0 ? 'ok sum' : 'bad sum') : ''}
-    </div>`;
+      ${x.trips && x.profit!=null ? row(`Zysk w miesiącu (${x.trips} ${isPlural(x.trips, 'kurs', 'kursy', 'kursów')})`, x.profit * x.trips, x.profit >= 0 ? 'ok sum' : 'bad sum') : ''}`;
 }
 
 /* ---------- czas kursu i godziny przyjazdu ---------- */
@@ -548,7 +554,13 @@ function mtTimePanel(r){
   const own = k => x.c[k]!=null && x.c[k]!=='';
   return `<label class="mt-f"><span>Wyjazd</span><span class="mt-fi"><input type="time" data-mt-calc="dep" value="${esc(x.v('dep'))}"><em></em></span></label>
     <label class="mt-f"><span>Postój na przystanku${own('stopMin') ? ' <button type="button" class="link" data-mt-calc-reset="stopMin">domyślne</button>' : ''}</span><span class="mt-fi"><input type="text" inputmode="decimal" data-mt-calc="stopMin" value="${own('stopMin') ? esc(x.c.stopMin) : ''}" placeholder="30"><em>min</em></span></label>
-    ${!t ? '<p class="muted small">Ustaw start, koniec albo przystanki – godziny policzę, gdy będzie wyznaczony przejazd.</p>' : `
+    <div id="mt-time-res">${mtTimeResults(r, x)}</div>`;
+}
+function mtTimeResults(r, x){
+  const t = mtTimes(r, x.v('dep'), Number(x.v('stopMin')) || 0);
+  const hm = m => { const d = Math.floor(m / 1440), h = Math.floor((m % 1440) / 60), mi = Math.round(m % 60); return `${String(h).padStart(2, '0')}:${String(mi===60 ? 0 : mi).padStart(2, '0')}${d ? ` <span class="muted small">+${d} d</span>` : ''}`; };
+  const dur = m => `${Math.floor(m / 60)} h ${Math.round(m % 60)} min`;
+  return `${!t ? '<p class="muted small">Ustaw start, koniec albo przystanki – godziny policzę, gdy będzie wyznaczony przejazd.</p>' : `
     <div class="mt-times">${t.rows.map(o => `<div class="mt-tr"><span class="mt-n">${esc(o.p.lab)}</span><span class="mt-lab"><b>${esc(o.p.c ? o.p.c.name : '')}</b><span class="sub">${new Intl.NumberFormat('pl-PL', {maximumFractionDigits: 0}).format(o.km)} km</span></span><b>${hm(o.at)}</b></div>`).join('')}</div>
     <div class="mt-calc"><div class="mt-cr"><span>Jazda</span><b>${dur(t.drive)}</b></div><div class="mt-cr"><span>Przerwy (45 min po 4,5 h)</span><b>${t.breaks}</b></div><div class="mt-cr sum"><span>Cały kurs</span><b>${dur(t.total)}</b></div><div class="mt-cr"><span>Powrót / koniec</span><b>${hm(t.end)}</b></div></div>
     <p class="muted small">Czas jazdy jak dla auta osobowego z mapy (OSRM) – bus zwykle jedzie wolniej, licz zapas.</p>`}`;
@@ -557,4 +569,16 @@ document.addEventListener('click', e => {
   const b = e.target.closest('[data-mt-calc-reset]'); if (!b) return;
   const r = mtPlan(mtActive); if (!r) return; const calc = {...(r.calc || {})}; delete calc[b.dataset.mtCalcReset];
   mtWrite(() => mtSavePlan(r, {calc}));
+});
+
+/* wynik od razu przy wpisywaniu – zapis dopiero po wyjściu z pola (change) */
+document.addEventListener('input', e => {
+  const t = e.target; if (!t.dataset || !t.dataset.mtCalc) return;
+  const r = mtPlan(mtActive); if (!r) return;
+  const calc = {...(r.calc || {})}, k = t.dataset.mtCalc;
+  const v = t.type==='time' ? t.value : rtNum(t.value);
+  if (v==null || v==='' || (typeof v==='number' && isNaN(v))) delete calc[k]; else calc[k] = v;
+  const tmp = {...r, calc}, x = mtCalcData(tmp);
+  const c = document.getElementById('mt-calc-res'); if (c) c.innerHTML = mtCostResults(x);
+  const tr = document.getElementById('mt-time-res'); if (tr) tr.innerHTML = mtTimeResults(tmp, x);
 });
