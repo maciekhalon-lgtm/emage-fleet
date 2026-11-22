@@ -1,6 +1,8 @@
-/* Emage FLEET — Grafik → Mapa tras: klienci (punkty ze współrzędnymi) i trasy na mapie.
-   Trasa = punkt startu → przystanki (route_stops, kolejność) → punkt końca; przejazd po drogach z OSRM,
-   adresy z Photon, mapa OpenStreetMap (Leaflet). Dane w bazie (migracja 059_mapa_tras.sql), zmienia kierownik floty.
+/* Emage FLEET — Grafik → Mapa tras: klienci (punkty ze współrzędnymi) i plany tras na mapie.
+   Plan = start → przystanki (klienci) → koniec + punkty przejazdowe; przejazd po drogach z OSRM, adresy z Photon,
+   mapa OpenStreetMap (Leaflet). Plan można przypiąć do trasy z zakładki Trasy (albo utworzyć nową) – wtedy jego
+   przystanki stają się przystankami tej trasy (route_stops), które kierowca widzi w telefonie.
+   Dane w bazie (migracje 059–061), zmienia kierownik floty.
    Mapa jest jedna i żyje poza render() – przenosimy ją do strony po każdym odświeżeniu, żeby nie migała. */
 'use strict';
 const MT_COLORS = ['#245dcc', '#137e64', '#9d3bb5', '#b65616', '#c0263d', '#0f7d8c', '#6b5b00', '#4b3fb0'];
@@ -9,12 +11,34 @@ let mtTab = 'routes', mtActive = null, mtFilter = '', mtPicking = null, mtMap = 
 const mtCalc = new Map();
 let mtHidden = new Set(); try { mtHidden = new Set(JSON.parse(localStorage.getItem('ef-mt-hidden') || '[]')); } catch(_){}
 const mtSaveHidden = () => { try { localStorage.setItem('ef-mt-hidden', JSON.stringify([...mtHidden])); } catch(_){} };
-const mtOn = () => !!P().manage && optOn('clients');
+const mtOn = () => !!P().manage && optOn('clients') && optOn('routePlans');
 const mtClient = id => (S.clients || []).find(c => c.id===id);
 const mtHasXY = c => c && c.lat!=null && c.lng!=null && c.lat!=='' && c.lng!=='';
-const mtRoutes = () => S.routes.filter(r => r.active!==false).sort((a, b) => String(a.code).localeCompare(String(b.code), 'pl'));
+const mtRoutes = () => (S.routePlans || []).slice().sort((a, b) => String(a.name).localeCompare(String(b.name), 'pl'));   // plany tras
+const mtPlan = id => (S.routePlans || []).find(p => p.id===id);
 const mtColor = r => r.color || MT_COLORS[Math.max(0, mtRoutes().findIndex(x => x.id===r.id)) % MT_COLORS.length];
-const mtStops = rid => (S.routeStops || []).filter(s => s.routeId===rid).sort((a, b) => (a.pos || 0) - (b.pos || 0));
+const mtStops = r => (r && Array.isArray(r.stops) ? r.stops : []).filter(s => s && s.clientId);
+const mtLinked = r => r && r.routeId ? byId('routes', r.routeId) : null;
+const mtRStops = rid => (S.routeStops || []).filter(s => s.routeId===rid).sort((a, b) => (a.pos || 0) - (b.pos || 0));
+/* zapis planu; gdy plan jest przypięty do trasy, przystanki trasy (kierowca) idą za planem */
+async function mtSavePlan(r, patch){
+  await db.collection('routePlans').doc(r.id).update(patch);
+  const np = {...r, ...patch};
+  if (np.routeId && ('stops' in patch || 'routeId' in patch)) await mtSyncRoute(np);
+}
+async function mtSyncRoute(r){
+  const rid = r.routeId; if (!rid) return;
+  const rows = mtRStops(rid), used = new Set();
+  const want = mtStops(r);
+  for (let i = 0; i < want.length; i++){
+    const c = mtClient(want[i].clientId); if (!c) continue;
+    const ex = rows.find(x => !used.has(x.id) && x.clientId===c.id);
+    if (ex){ used.add(ex.id);
+      if (ex.pos!==i + 1 || ex.client!==c.name || (ex.address || null)!==(c.address || null)) await db.collection('routeStops').doc(ex.id).update({pos: i + 1, client: c.name, address: c.address || null}); }
+    else await db.collection('routeStops').doc().set({routeId: rid, pos: i + 1, client: c.name, address: c.address || null, phone: c.phone || null, note: c.note || null, clientId: c.id});
+  }
+  for (const x of rows) if (!used.has(x.id)) await db.collection('routeStops').doc(x.id).delete();
+}
 /* punkty trasy na mapie: start, przystanki z klientem ze współrzędnymi, koniec */
 /* punkty przejazdowe (via): [{lat, lng, after}] – after = 'start' albo id przystanku, za którym leży punkt */
 const mtVia = r => Array.isArray(r.via) ? r.via : [];
@@ -23,7 +47,7 @@ function mtPoints(r){
   const add = (c, lab, key) => { if (mtHasXY(c)) pts.push({c, lab, key, lat: Number(c.lat), lng: Number(c.lng)}); };
   const vias = key => via.forEach((v, vi) => { if (v.after===key && v.lat!=null && v.lng!=null) pts.push({via: true, vi, key, lat: Number(v.lat), lng: Number(v.lng)}); });
   add(mtClient(r.startClientId), 'S', 'start'); vias('start');
-  mtStops(r.id).forEach((s, i) => { add(mtClient(s.clientId), String(i + 1), s.id); vias(s.id); });
+  mtStops(r).forEach((s, i) => { add(mtClient(s.clientId), String(i + 1), s.id); vias(s.id); });
   add(mtClient(r.endClientId), 'K', 'end');
   return pts;
 }
@@ -40,7 +64,7 @@ function mtViaInsert(r, ll){
   via.splice(at, 0, nv);
   return via;
 }
-const mtSaveVia = (r, via) => mtWrite(() => db.collection('routes').doc(r.id).update({via}));
+const mtSaveVia = (r, via) => mtWrite(() => mtSavePlan(r, {via}));
 
 /* ---------- biblioteka mapy (ładowana dopiero na tej stronie) ---------- */
 function mtLib(){
@@ -103,7 +127,7 @@ function mtMetric(r){
   const x = mtRoad(r);
   if (x.status==='ready'){
     const mins = Math.round(x.data.duration / 60), kmR = x.data.distance / 1000;
-    const inv = Number(r.km) > 0 ? ` · do faktury ${new Intl.NumberFormat('pl-PL').format(r.km)} km` : '';
+    const rt = mtLinked(r), inv = rt && Number(rt.km) > 0 ? ` · do faktury ${new Intl.NumberFormat('pl-PL').format(rt.km)} km` : '';
     return `${kmR.toLocaleString('pl-PL', {maximumFractionDigits: 1})} km · ${mins >= 60 ? Math.floor(mins / 60) + ' godz. ' : ''}${mins % 60} min${inv}`;
   }
   return {empty: 'Ustaw co najmniej dwa punkty ze współrzędnymi', loading: 'Wyznaczanie przejazdu…', error: 'Przejazd niedostępny – linia poglądowa'}[x.status];
@@ -138,14 +162,14 @@ function mtMarker(c, color, label, r){
   const pin = L.divIcon({className: '', html: `<span class="mt-pin" style="background:${esc(color)}">${esc(label)}</span>`, iconSize: [30, 30], iconAnchor: [15, 15]});
   const mv = mtMovePin===c.id;
   const m = L.marker([Number(c.lat), Number(c.lng)], {icon: pin, title: c.name, alt: c.name, draggable: mv, zIndexOffset: mv ? 1000 : 0}).addTo(mtLayer);
-  const act = byId('routes', mtActive);
+  const act = mtPlan(mtActive);
   if (mv){
     m.on('dragend', () => { const ll = m.getLatLng(); mtMovePin = null; mtNotice('');
       mtWrite(() => db.collection('clients').doc(c.id).update({lat: +ll.lat.toFixed(6), lng: +ll.lng.toFixed(6)})).then(() => toast('Zapisano nowe miejsce pinezki')); });
     return;
   }
-  m.bindPopup(`<div class="mt-pop"><b>${esc(c.name)}</b>${c.address ? `<br>${esc(c.address)}` : ''}${r ? `<br><span class="muted small">${esc(r.code)} ${esc(r.name)}</span>` : ''}
-    <div class="mt-pop-a"><button type="button" class="small" data-mt-edit-client="${esc(c.id)}">Edytuj klienta</button><button type="button" class="small" data-mt-move-pin="${esc(c.id)}">Przesuń pinezkę</button>${act ? `<button type="button" class="small primary" data-mt-add-stop="${esc(c.id)}">Dodaj do ${esc(act.code)}</button>` : ''}</div></div>`);
+  m.bindPopup(`<div class="mt-pop"><b>${esc(c.name)}</b>${c.address ? `<br>${esc(c.address)}` : ''}${r ? `<br><span class="muted small">${esc(r.name)}</span>` : ''}
+    <div class="mt-pop-a"><button type="button" class="small" data-mt-edit-client="${esc(c.id)}">Edytuj klienta</button><button type="button" class="small" data-mt-move-pin="${esc(c.id)}">Przesuń pinezkę</button>${act ? `<button type="button" class="small primary" data-mt-add-stop="${esc(c.id)}">Dodaj do „${esc(act.name)}”</button>` : ''}</div></div>`);
   m.on('click', () => { if (mtPicking) mtMap.fire('click', {latlng: m.getLatLng()}); });
 }
 /* punkt przejazdowy wybranej trasy: przeciągnij albo usuń */
@@ -153,7 +177,7 @@ function mtViaMarker(r, p){
   const ic_ = L.divIcon({className: '', html: '<span class="mt-via"></span>', iconSize: [18, 18], iconAnchor: [9, 9]});
   const m = L.marker([p.lat, p.lng], {icon: ic_, draggable: true, title: 'Punkt przejazdowy', alt: 'Punkt przejazdowy', zIndexOffset: 500}).addTo(mtLayer);
   m.on('dragend', () => { const ll = m.getLatLng(), via = mtVia(r).slice(); via[p.vi] = {...via[p.vi], lat: +ll.lat.toFixed(6), lng: +ll.lng.toFixed(6)}; mtDragEnd = Date.now(); mtSaveVia(r, via); });
-  m.bindPopup(`<div class="mt-pop"><b>Punkt przejazdowy</b><br><span class="muted small">Trasa ${esc(r.code)} jedzie przez to miejsce – tu się nie zatrzymuje. Przeciągnij, żeby zmienić drogę.</span>
+  m.bindPopup(`<div class="mt-pop"><b>Punkt przejazdowy</b><br><span class="muted small">Trasa „${esc(r.name)}” jedzie przez to miejsce – tu się nie zatrzymuje. Przeciągnij, żeby zmienić drogę.</span>
     <div class="mt-pop-a"><button type="button" class="small" data-mt-via-del="${esc(r.id)}|${p.vi}">Usuń punkt przejazdowy</button></div></div>`);
 }
 /* przeciąganie linii trasy */
@@ -176,9 +200,9 @@ function mtLineDrop(ll){
 }
 /* klik w puste miejsce na mapie: nowy klient albo przystanek w tym miejscu */
 function mtMapMenu(ll){
-  const act = byId('routes', mtActive);
+  const act = mtPlan(mtActive);
   L.popup().setLatLng(ll).setContent(`<div class="mt-pop"><b>To miejsce</b><br><span class="muted small" id="mt-rev">${ll.lat.toFixed(5)}, ${ll.lng.toFixed(5)}</span>
-    <div class="mt-pop-a"><button type="button" class="small" data-mt-here="${ll.lat.toFixed(6)},${ll.lng.toFixed(6)}">Dodaj klienta tutaj</button>${act ? `<button type="button" class="small primary" data-mt-here="${ll.lat.toFixed(6)},${ll.lng.toFixed(6)}" data-mt-here-route="${esc(act.id)}">Dodaj jako przystanek do ${esc(act.code)}</button>` : ''}</div></div>`).openOn(mtMap);
+    <div class="mt-pop-a"><button type="button" class="small" data-mt-here="${ll.lat.toFixed(6)},${ll.lng.toFixed(6)}">Dodaj klienta tutaj</button>${act ? `<button type="button" class="small primary" data-mt-here="${ll.lat.toFixed(6)},${ll.lng.toFixed(6)}" data-mt-here-route="${esc(act.id)}">Dodaj jako przystanek do „${esc(act.name)}”</button>` : ''}</div></div>`).openOn(mtMap);
   mtReverse(ll.lat, ll.lng).then(a => { const el = document.getElementById('mt-rev'); if (el && a) el.textContent = a; });
 }
 async function mtReverse(lat, lng){
@@ -193,8 +217,8 @@ async function mtReverse(lat, lng){
 
 /* ---------- strona ---------- */
 function viewRouteMap(){
-  if (!mtOn()) return `<div class="bar"><h2>Mapa tras</h2></div><div class="panel empty"><p>${P().manage ? 'Mapa tras wymaga jednorazowego uruchomienia migracji <b>059_mapa_tras.sql</b> w Supabase.' : 'Mapę tras widzi kierownik floty.'}</p></div>`;
-  if (!mtActive || !byId('routes', mtActive)) mtActive = (mtRoutes()[0] || {}).id || null;
+  if (!mtOn()) return `<div class="bar"><h2>Mapa tras</h2></div><div class="panel empty"><p>${P().manage ? 'Mapa tras wymaga jednorazowego uruchomienia migracji <b>059–061</b> w Supabase.' : 'Mapę tras widzi kierownik floty.'}</p></div>`;
+  if (!mtActive || !mtPlan(mtActive)) mtActive = (mtRoutes()[0] || {}).id || null;
   setTimeout(mtMount, 0);
   const nC = (S.clients || []).length, nR = mtRoutes().length;
   return `<div class="mt-wrap"><aside class="mt-panel" id="mt-panel">
@@ -203,24 +227,92 @@ function viewRouteMap(){
     </aside><div class="mt-mapwrap"><div id="mt-slot"></div><div class="mt-tools"><button type="button" class="small" data-mt-fit>Pokaż wszystkie punkty</button></div><div id="mt-notice" class="mt-notice" role="status" hidden></div></div></div>`;
 }
 function mtRoutesPanel(){
-  const R = mtRoutes(), sel = byId('routes', mtActive);
-  if (!R.length) return `<p class="muted">Nie ma jeszcze tras. Dodaj trasę w zakładce <a href="#trasy">Trasy</a>.</p>`;
-  const list = R.map(r => `<div class="mt-card ${r.id===mtActive ? 'sel' : ''}"><input type="checkbox" data-mt-show="${esc(r.id)}" aria-label="Pokaż ${esc(r.name)} na mapie" ${mtHidden.has(r.id) ? '' : 'checked'}>
-      <span class="mt-dot" style="background:${esc(mtColor(r))}"></span><button type="button" class="mt-plain" data-mt-sel="${esc(r.id)}"><b>${esc(r.code)}</b> ${esc(r.name)}<span class="sub" data-mt-metric="${esc(r.id)}">${mtMetric(r)}</span></button></div>`).join('');
-  if (!sel) return list;
-  const st = mtStops(sel.id), cs = (S.clients || []).slice().sort((a, b) => a.name.localeCompare(b.name, 'pl'));
+  const R = mtRoutes(), sel = mtPlan(mtActive);
+  const head = `<div class="mt-row"><h4>Zaplanowane trasy</h4><button type="button" class="small primary" data-mt-new-plan>${ic('plus')}Nowa trasa</button></div>`;
+  if (!R.length) return head + `<p class="muted">Nie ma jeszcze zaplanowanych tras. Kliknij „Nowa trasa”, nazwij ją, a potem dodawaj przystanki z listy klientów albo klikając w mapę.</p>`;
+  const list = R.map(r => { const rt = mtLinked(r);
+    return `<div class="mt-card ${r.id===mtActive ? 'sel' : ''}"><input type="checkbox" data-mt-show="${esc(r.id)}" aria-label="Pokaż ${esc(r.name)} na mapie" ${mtHidden.has(r.id) ? '' : 'checked'}>
+      <span class="mt-dot" style="background:${esc(mtColor(r))}"></span><button type="button" class="mt-plain" data-mt-sel="${esc(r.id)}"><b>${esc(r.name)}</b>${rt ? ` <span class="pill info">${esc(rt.code)}</span>` : ' <span class="pill off">szkic</span>'}<span class="sub" data-mt-metric="${esc(r.id)}">${mtMetric(r)}</span></button></div>`; }).join('');
+  if (!sel) return head + list;
+  const st = mtStops(sel), cs = (S.clients || []).slice().sort((a, b) => a.name.localeCompare(b.name, 'pl')), rt = mtLinked(sel);
   const opt = v => `<option value="">— nie ustawiony —</option>${cs.map(c => `<option value="${esc(c.id)}" ${c.id===v ? 'selected' : ''}>${esc(c.name)}${c.address ? ' · ' + esc(c.address) : ''}</option>`).join('')}`;
-  return list + `<section class="mt-detail"><div class="mt-row"><b>${esc(sel.code)} ${esc(sel.name)}</b><input type="color" class="mt-color" data-mt-color="${esc(sel.id)}" value="${esc(mtColor(sel))}" aria-label="Kolor trasy na mapie"></div>
+  return head + list + `<section class="mt-detail"><div class="mt-row"><b>${esc(sel.name)}</b><span><input type="color" class="mt-color" data-mt-color="${esc(sel.id)}" value="${esc(mtColor(sel))}" aria-label="Kolor trasy na mapie"> <button type="button" class="small" data-mt-plan-edit="${esc(sel.id)}">Ustawienia</button></span></div>
+    <div class="mt-assign">${rt ? `Przypisana do trasy <b>${esc(rt.code)} ${esc(rt.name)}</b>. Przystanki z planu widzi kierowca tej trasy.` : 'Szkic – nieprzypisany do trasy. <button type="button" class="link" data-mt-plan-edit="' + esc(sel.id) + '">Przypisz albo utwórz trasę</button>'}</div>
     <label class="mt-lbl">Start<select data-mt-start="${esc(sel.id)}">${opt(sel.startClientId)}</select></label>
     <label class="mt-lbl">Koniec<select data-mt-end="${esc(sel.id)}">${opt(sel.endClientId)}</select></label>
     <div class="mt-row"><h4>Przystanki</h4><span class="muted small">${st.length}</span></div>
     ${st.map((s, i) => { const c = mtClient(s.clientId), ok = mtHasXY(c);
-      return `<div class="mt-stop"><span class="mt-n">${i + 1}</span><span class="mt-lab"><b>${esc(c ? c.name : s.client)}</b>${s.timeFrom ? ` <span class="pill soon">${esc(s.timeFrom)}</span>` : ''}${!ok ? `<span class="sub warn-t">nie ma go na mapie – <button type="button" class="link" data-mt-fix="${esc(s.id)}">wskaż klienta</button></span>` : ''}</span>
-        <button type="button" class="small ghost icon" data-mt-up="${esc(s.id)}" aria-label="W górę" ${i ? '' : 'disabled'}>↑</button><button type="button" class="small ghost icon" data-mt-down="${esc(s.id)}" aria-label="W dół" ${i < st.length - 1 ? '' : 'disabled'}>↓</button><button type="button" class="small ghost icon" data-mt-del="${esc(s.id)}" aria-label="Usuń przystanek">✕</button></div>`; }).join('') || '<p class="muted small">Dodaj przystanek z listy albo kliknij klienta na mapie.</p>'}
+      return `<div class="mt-stop"><span class="mt-n">${i + 1}</span><span class="mt-lab"><b>${esc(c ? c.name : '?')}</b>${!ok ? `<span class="sub warn-t">bez punktu na mapie – <button type="button" class="link" data-mt-edit-client="${esc(s.clientId)}">ustaw</button></span>` : ''}</span>
+        <button type="button" class="small ghost icon" data-mt-up="${esc(s.id)}" aria-label="W górę" ${i ? '' : 'disabled'}>↑</button><button type="button" class="small ghost icon" data-mt-down="${esc(s.id)}" aria-label="W dół" ${i < st.length - 1 ? '' : 'disabled'}>↓</button><button type="button" class="small ghost icon" data-mt-del="${esc(s.id)}" aria-label="Usuń przystanek">✕</button></div>`; }).join('') || '<p class="muted small">Dodaj przystanek z listy, kliknij klienta na mapie albo kliknij w puste miejsce mapy.</p>'}
     <div class="mt-add"><select id="mt-add-sel" aria-label="Klient do dodania"><option value="">Dodaj przystanek…</option>${cs.map(c => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('')}</select><button type="button" class="small" data-mt-add>${ic('plus')}Dodaj</button></div>
-    <p class="muted small">Kliknij w mapę, żeby dodać klienta albo przystanek w tym miejscu. Złap linię wybranej trasy i przeciągnij, żeby poprowadzić ją inną drogą${mtVia(sel).length ? ` (punkty przejazdowe: ${mtVia(sel).length} – <button type="button" class="link" data-mt-via-clear="${esc(sel.id)}">usuń wszystkie</button>)` : ''}. Godzinę, telefon i uwagi przystanku zmienisz w Trasy → Przystanki.</p>
-    <div class="mt-row"><button type="button" class="small" data-mt-retry="${esc(sel.id)}">Przelicz przejazd</button><button type="button" class="small ghost" data-stops="${esc(sel.id)}">Przystanki – szczegóły</button></div></section>`;
+    <p class="muted small">Kliknij w mapę, żeby dodać klienta albo przystanek w tym miejscu. Złap linię wybranej trasy i przeciągnij, żeby poprowadzić ją inną drogą${mtVia(sel).length ? ` (punkty przejazdowe: ${mtVia(sel).length} – <button type="button" class="link" data-mt-via-clear="${esc(sel.id)}">usuń wszystkie</button>)` : ''}.${rt ? ' Godzinę, telefon i uwagi przystanku zmienisz w Trasy → Przystanki.' : ''}</p>
+    <div class="mt-row"><button type="button" class="small" data-mt-retry="${esc(sel.id)}">Przelicz przejazd</button><button type="button" class="small ghost" data-mt-plan-copy="${esc(sel.id)}">Kopiuj</button>${rt ? `<button type="button" class="small ghost" data-stops="${esc(rt.id)}">Przystanki – szczegóły</button>` : ''}</div></section>`;
 }
+/* ustawienia planu: nazwa, kolor, przypisanie do trasy (istniejąca / nowa / szkic), usuń */
+function mtPlanForm(r = {}){
+  const free = S.routes.filter(x => x.active!==false && !(S.routePlans || []).some(p => p.routeId===x.id && p.id!==r.id)).sort((a, b) => String(a.code).localeCompare(String(b.code), 'pl'));
+  const mode = r.routeId ? 'route' : 'none';
+  editing = {col: 'mt-plan', id: r.id || null, base: {}, special: () => mtSavePlanForm(r), mtPlanR: r};
+  $('#dlg-title').textContent = r.id ? 'Ustawienia trasy' : 'Nowa trasa na mapie';
+  $('#dlg-body').innerHTML = `<div class="field full"><label for="mt-p-name">Nazwa *</label><input id="mt-p-name" maxlength="80" value="${esc(r.name || '')}" placeholder="np. Czechy – poniedziałek"></div>
+    <div class="field"><label for="mt-p-color">Kolor na mapie</label><input id="mt-p-color" type="color" value="${esc(r.color || MT_COLORS[(S.routePlans || []).length % MT_COLORS.length])}"></div>
+    <div class="field full"><span class="label">Przypisanie</span>
+      <div class="seg mt-mode">${[['none', 'Szkic (bez trasy)'], ['route', 'Istniejąca trasa'], ['new', 'Nowa trasa']].map(([k, l]) => `<button type="button" class="${mode===k ? 'on' : ''}" data-mt-mode="${k}">${l}</button>`).join('')}</div>
+      <input type="hidden" id="mt-p-mode" value="${mode}"></div>
+    <div class="field full mt-m mt-m-route" ${mode==='route' ? '' : 'hidden'}><label for="mt-p-route">Trasa z zakładki Trasy</label><select id="mt-p-route"><option value="">— wybierz —</option>${free.map(x => `<option value="${esc(x.id)}" ${x.id===r.routeId ? 'selected' : ''}>${esc(x.code)} ${esc(x.name)}${mtRStops(x.id).length ? ` (ma ${mtRStops(x.id).length} przyst.)` : ''}</option>`).join('')}</select></div>
+    <div class="field mt-m mt-m-new" hidden><label for="mt-p-code">Kod nowej trasy *</label><input id="mt-p-code" maxlength="20" placeholder="np. 260K"></div>
+    <div class="field mt-m mt-m-new" hidden><label for="mt-p-km">Km do faktury</label><input id="mt-p-km" type="number" min="0" step="1" inputmode="numeric"></div>
+    <div class="field full"><span class="muted small">Po przypisaniu przystanki z mapy stają się przystankami tej trasy – kierowca z tą trasą w grafiku zobaczy je w telefonie z nawigacją. Nowa trasa pojawi się też w zakładce Trasy i w grafiku. Usunięcie planu nie usuwa trasy ani grafiku.</span></div>
+    <div class="warnline" id="dlg-warn" hidden></div>`;
+  $('#dlg-save').textContent = r.id ? 'Zapisz' : 'Utwórz';
+  $('#dlg-del').hidden = !r.id;
+  $('#scrim').hidden = false;
+  setTimeout(() => $('#mt-p-name')?.focus(), 30);
+}
+async function mtSavePlanForm(r){
+  const w = $('#dlg-warn'), warn = t => { w.textContent = t; w.hidden = false; };
+  const name = $('#mt-p-name').value.trim(), color = $('#mt-p-color').value, mode = $('#mt-p-mode').value;
+  if (!name){ $('#mt-p-name').focus(); return warn('Wpisz nazwę trasy.'); }
+  let routeId = null;
+  if (mode==='route'){ routeId = $('#mt-p-route').value || null; if (!routeId) return warn('Wybierz trasę z listy albo zmień na „Szkic”.'); }
+  if (mode==='new'){
+    const code = $('#mt-p-code').value.trim(); if (!code){ $('#mt-p-code').focus(); return warn('Wpisz kod nowej trasy, np. 260K.'); }
+    if (S.routes.some(x => String(x.code).trim().toUpperCase()===code.toUpperCase())) return warn(`Trasa o kodzie ${code} już jest – wybierz „Istniejąca trasa”.`);
+  }
+  // przypięcie do trasy, która ma już przystanki spoza planu – potwierdź zastąpienie
+  if (routeId && routeId!==r.routeId){
+    const ex = mtRStops(routeId), mine = new Set(mtStops(r).map(s => s.clientId));
+    const other = ex.filter(x => !x.clientId || !mine.has(x.clientId));
+    if (other.length && editing.mtConfirm!==routeId){ editing.mtConfirm = routeId; return warn(`Trasa ${byId('routes', routeId).code} ma już ${ex.length} ${isPlural(ex.length, 'przystanek', 'przystanki', 'przystanków')} (np. ${other.slice(0, 3).map(x => x.client).join(', ')}). Zostaną zastąpione przystankami z tego planu. Kliknij „Zapisz” jeszcze raz, żeby potwierdzić.`); }
+  }
+  const btn = $('#dlg-save'); btn.disabled = true;
+  try {
+    if (mode==='new'){
+      const ref = db.collection('routes').doc(), km = $('#mt-p-km').value;
+      await ref.set({code: $('#mt-p-code').value.trim(), name, km: km==='' ? null : Number(km), active: true, loading: false, tacho: false});
+      routeId = ref.id;
+    }
+    const patch = {name, color, routeId};
+    if (r.id) await mtSavePlan(r, patch);
+    else { const ref = db.collection('routePlans').doc(); await ref.set({...patch, stops: [], via: []}); mtActive = ref.id; mtTab = 'routes'; }
+    closeForm(); toast(r.id ? 'Zapisano trasę' : 'Utworzono trasę – dodaj przystanki');
+    render();
+  } catch(err){ handleWriteErr(err); }
+  finally { btn.disabled = false; }
+}
+async function mtDelPlan(r){
+  if (editing.mtDelArmed!==r.id){ editing.mtDelArmed = r.id; const w = $('#dlg-warn'); w.textContent = `Usunąć plan „${r.name}” z mapy?${mtLinked(r) ? ` Trasa ${mtLinked(r).code}, jej przystanki i grafik zostaną bez zmian.` : ''} Kliknij „Usuń” jeszcze raz.`; w.hidden = false; return; }
+  try { await db.collection('routePlans').doc(r.id).delete(); mtCalc.delete(r.id); if (mtActive===r.id) mtActive = null; closeForm(); toast('Usunięto plan trasy'); render(); } catch(err){ handleWriteErr(err); }
+}
+document.addEventListener('click', e => {
+  if (!editing || editing.col!=='mt-plan') return;
+  if (e.target.closest('#dlg-del') && editing.mtPlanR && editing.mtPlanR.id){ e.preventDefault(); e.stopImmediatePropagation(); mtDelPlan(editing.mtPlanR); return; }
+  const m = e.target.closest('[data-mt-mode]'); if (!m) return;
+  $('#mt-p-mode').value = m.dataset.mtMode;
+  document.querySelectorAll('[data-mt-mode]').forEach(b => b.classList.toggle('on', b===m));
+  document.querySelectorAll('.mt-m').forEach(x => { x.hidden = !x.classList.contains('mt-m-' + m.dataset.mtMode); });
+  $('#dlg-warn').hidden = true; editing.mtConfirm = null;
+}, true);
 function mtClientsPanel(){
   const q = mtFilter.trim().toLocaleLowerCase('pl');
   const xs = (S.clients || []).filter(c => (c.name + ' ' + (c.address || '')).toLocaleLowerCase('pl').includes(q)).sort((a, b) => a.name.localeCompare(b.name, 'pl'));
@@ -248,7 +340,7 @@ function mtClientForm(c = {}, linkStop, addTo){
   $('#scrim').hidden = false;
   editing.mtDel = c.id ? () => mtDelClient(c) : null;
   editing.mtDraft = c; editing.mtLink = linkStop; editing.mtAddTo = addTo;
-  if (addTo && byId('routes', addTo)) $('#dlg-title').textContent = `Nowy przystanek · ${byId('routes', addTo).code}`;
+  if (addTo && mtPlan(addTo)) $('#dlg-title').textContent = `Nowy przystanek · ${mtPlan(addTo).name}`;
   setTimeout(() => $('#mt-c-name')?.focus(), 30);
 }
 const mtFormData = () => ({name: $('#mt-c-name').value.trim(), address: $('#mt-c-addr').value.trim(), lat: $('#mt-c-lat').value, lng: $('#mt-c-lng').value, phone: $('#mt-c-phone').value.trim(), note: $('#mt-c-note').value.trim()});
@@ -261,8 +353,8 @@ async function mtSaveClient(c, linkStop, addTo){
   try {
     const ref = c.id ? db.collection('clients').doc(c.id) : db.collection('clients').doc();
     await ref.set({name: d.name, address: d.address || null, lat, lng, phone: d.phone || null, note: d.note || null});
-    if (linkStop) await db.collection('routeStops').doc(linkStop).update({clientId: ref.id, client: d.name, address: d.address || null});
-    if (addTo && byId('routes', addTo)) await db.collection('routeStops').doc().set({routeId: addTo, pos: mtStops(addTo).length + 1, client: d.name, address: d.address || null, phone: d.phone || null, note: d.note || null, clientId: ref.id});
+    if (addTo && mtPlan(addTo)){ const r = mtPlan(addTo); await mtSavePlan(r, {stops: [...mtStops(r), {id: newId(), clientId: ref.id}]}); }
+    else if (c.id) for (const r of mtRoutes().filter(r => r.routeId && mtStops(r).some(s => s.clientId===c.id))) await mtSyncRoute(mtPlan(r.id));   // nowa nazwa/adres → przystanki trasy
     closeForm(); toast(c.id ? 'Zapisano klienta' : 'Dodano klienta');
     if (mtMap && lat!=null) mtMap.setView([lat, lng], Math.max(mtMap.getZoom(), 13));
     render();
@@ -270,10 +362,12 @@ async function mtSaveClient(c, linkStop, addTo){
   finally { btn.disabled = false; }
 }
 async function mtDelClient(c){
-  const used = mtRoutes().filter(r => r.startClientId===c.id || r.endClientId===c.id || mtStops(r.id).some(s => s.clientId===c.id));
-  if (!mtDelClient.armed || mtDelClient.armed!==c.id){ mtDelClient.armed = c.id; const w = $('#dlg-warn'); w.textContent = used.length ? `Klient jest na trasach: ${used.map(r => r.code).join(', ')}. Przystanki zostaną bez punktu na mapie. Kliknij „Usuń” jeszcze raz.` : 'Kliknij „Usuń” jeszcze raz, żeby usunąć klienta.'; w.hidden = false; return; }
+  const used = mtRoutes().filter(r => r.startClientId===c.id || r.endClientId===c.id || mtStops(r).some(s => s.clientId===c.id));
+  if (!mtDelClient.armed || mtDelClient.armed!==c.id){ mtDelClient.armed = c.id; const w = $('#dlg-warn'); w.textContent = used.length ? `Klient jest na trasach: ${used.map(r => r.name).join(', ')} – zniknie z nich. Kliknij „Usuń” jeszcze raz.` : 'Kliknij „Usuń” jeszcze raz, żeby usunąć klienta.'; w.hidden = false; return; }
   mtDelClient.armed = null;
-  try { await db.collection('clients').doc(c.id).delete(); closeForm(); toast('Usunięto klienta'); render(); } catch(err){ handleWriteErr(err); }
+  try {
+    for (const r of used){ const patch = {stops: mtStops(r).filter(s => s.clientId!==c.id)}; patch.via = mtVia(r).filter(v => v.after==='start' || patch.stops.some(s => s.id===v.after)); await mtSavePlan(r, patch); }
+    await db.collection('clients').doc(c.id).delete(); closeForm(); toast('Usunięto klienta'); render(); } catch(err){ handleWriteErr(err); }
 }
 document.addEventListener('click', e => {
   if (!editing || editing.col!=='mt-client') return;
@@ -305,50 +399,51 @@ async function mtLookup(){
 
 /* ---------- akcje na stronie ---------- */
 async function mtWrite(fn){ try { await fn(); render(); } catch(err){ handleWriteErr(err); } }
-async function mtReorder(rid, list){ for (let i = 0; i < list.length; i++) if (list[i].pos!==i + 1) await db.collection('routeStops').doc(list[i].id).update({pos: i + 1}); }
 async function mtAddStop(cid){
-  const r = byId('routes', mtActive), c = mtClient(cid); if (!r || !c) return;
-  const st = mtStops(r.id);
-  await mtWrite(() => db.collection('routeStops').doc().set({routeId: r.id, pos: st.length + 1, client: c.name, address: c.address || null, phone: c.phone || null, note: c.note || null, clientId: c.id}));
+  const r = mtPlan(mtActive), c = mtClient(cid); if (!r || !c) return;
+  await mtWrite(() => mtSavePlan(r, {stops: [...mtStops(r), {id: newId(), clientId: c.id}]}));
   mtHidden.delete(r.id); mtSaveHidden(); mtTab = 'routes';
   if (mtMap) mtMap.closePopup();
-  toast(`Dodano przystanek do ${r.code}`);
+  toast(`Dodano przystanek do „${r.name}”`);
 }
 document.addEventListener('click', e => {
-  const t = e.target.closest('[data-mt-via-clear],[data-mt-here],[data-mt-move-pin],[data-mt-via-del],[data-mt-tab],[data-mt-sel],[data-mt-fit],[data-mt-new-client],[data-mt-edit-client],[data-mt-locate],[data-mt-add],[data-mt-add-stop],[data-mt-up],[data-mt-down],[data-mt-del],[data-mt-retry],[data-mt-fix]');
+  const t = e.target.closest('[data-mt-new-plan],[data-mt-plan-edit],[data-mt-plan-copy],[data-mt-via-clear],[data-mt-here],[data-mt-move-pin],[data-mt-via-del],[data-mt-tab],[data-mt-sel],[data-mt-fit],[data-mt-new-client],[data-mt-edit-client],[data-mt-locate],[data-mt-add],[data-mt-add-stop],[data-mt-up],[data-mt-down],[data-mt-del],[data-mt-retry],[data-mt-fix]');
   if (!t || t.closest('#dialog')) return;
   const d = t.dataset;
+  if ('mtNewPlan' in d){ mtPlanForm(); return; }
+  if (d.mtPlanEdit){ const r = mtPlan(d.mtPlanEdit); if (r) mtPlanForm(r); return; }
+  if (d.mtPlanCopy){ const r = mtPlan(d.mtPlanCopy); if (!r) return; const ref = db.collection('routePlans').doc();
+    mtWrite(() => ref.set({name: r.name + ' – kopia', color: r.color || null, startClientId: r.startClientId || null, endClientId: r.endClientId || null, stops: mtStops(r), via: mtVia(r), routeId: null})).then(() => { mtActive = ref.id; render(); toast('Skopiowano – kopia jest szkicem bez przypisania'); }); return; }
   if (d.mtHere){ const [lat, lng] = d.mtHere.split(','); if (mtMap) mtMap.closePopup();
     mtClientForm({lat, lng}, null, d.mtHereRoute || null);
     mtReverse(lat, lng).then(a => { const el = $('#mt-c-addr'); if (el && !el.value && a) el.value = a; }); return; }
   if (d.mtMovePin){ mtMovePin = d.mtMovePin; if (mtMap) mtMap.closePopup(); mtDraw(); mtNotice('Przeciągnij pinezkę w dokładne miejsce. Esc – anuluj.'); return; }
-  if (d.mtViaDel){ const [rid, vi] = d.mtViaDel.split('|'), r = byId('routes', rid); if (!r) return; if (mtMap) mtMap.closePopup(); mtSaveVia(r, mtVia(r).filter((_, i) => i!==Number(vi))); return; }
+  if (d.mtViaDel){ const [rid, vi] = d.mtViaDel.split('|'), r = mtPlan(rid); if (!r) return; if (mtMap) mtMap.closePopup(); mtSaveVia(r, mtVia(r).filter((_, i) => i!==Number(vi))); return; }
   if (d.mtTab){ mtTab = d.mtTab; render(); return; }
-  if (d.mtSel){ mtActive = d.mtSel; render(); const pts = mtPoints(byId('routes', mtActive) || {}); if (mtMap && pts.length) mtMap.fitBounds(pts.map(p => [p.lat, p.lng]), {padding: [40, 40], maxZoom: 14}); return; }
+  if (d.mtSel){ mtActive = d.mtSel; render(); const pts = mtPoints(mtPlan(mtActive) || {}); if (mtMap && pts.length) mtMap.fitBounds(pts.map(p => [p.lat, p.lng]), {padding: [40, 40], maxZoom: 14}); return; }
   if ('mtFit' in d){ mtFit(); return; }
   if ('mtNewClient' in d){ mtClientForm(); return; }
   if (d.mtEditClient){ const c = mtClient(d.mtEditClient); if (c){ if (mtMap) mtMap.closePopup(); mtClientForm(c); } return; }
   if (d.mtLocate){ const c = mtClient(d.mtLocate); if (!c) return; if (mtHasXY(c) && mtMap){ mtMap.setView([Number(c.lat), Number(c.lng)], 15); mtNotice(c.name + (c.address ? ' · ' + c.address : '')); } else mtClientForm(c); return; }
   if ('mtAdd' in d){ const v = $('#mt-add-sel') && $('#mt-add-sel').value; if (!v){ $('#mt-add-sel').focus(); return; } mtAddStop(v); return; }
   if (d.mtAddStop){ mtAddStop(d.mtAddStop); return; }
-  if (d.mtViaClear){ const r = byId('routes', d.mtViaClear); if (r) mtSaveVia(r, []); return; }
+  if (d.mtViaClear){ const r = mtPlan(d.mtViaClear); if (r) mtSaveVia(r, []); return; }
   if (d.mtRetry){ mtCalc.delete(d.mtRetry); render(); return; }
-  if (d.mtFix){ const s = (S.routeStops || []).find(x => x.id===d.mtFix); if (s) mtClientForm({name: s.client, address: s.address, phone: s.phone, note: s.note}, s.id); return; }
   const id = d.mtUp || d.mtDown || d.mtDel; if (!id) return;
-  const s = (S.routeStops || []).find(x => x.id===id); if (!s) return;
-  const list = mtStops(s.routeId), i = list.findIndex(x => x.id===id);
-  if (d.mtDel) return mtWrite(async () => { const r = byId('routes', s.routeId); await db.collection('routeStops').doc(id).delete(); await mtReorder(s.routeId, mtStops(s.routeId));
-    if (r && mtVia(r).some(v => v.after===id)) await db.collection('routes').doc(r.id).update({via: mtVia(r).filter(v => v.after!==id)}); });
+  const r = mtPlan(mtActive); if (!r) return;
+  const list = mtStops(r).slice(), i = list.findIndex(x => x.id===id); if (i < 0) return;
+  if (d.mtDel) return mtWrite(() => mtSavePlan(r, {stops: list.filter(x => x.id!==id), via: mtVia(r).filter(v => v.after!==id)}));
   const j = d.mtUp ? i - 1 : i + 1; if (j < 0 || j >= list.length) return;
   [list[i], list[j]] = [list[j], list[i]];
-  mtWrite(() => mtReorder(s.routeId, list));
+  mtWrite(() => mtSavePlan(r, {stops: list}));
 });
 document.addEventListener('change', e => {
   const t = e.target;
   if (t.dataset.mtShow){ if (t.checked) mtHidden.delete(t.dataset.mtShow); else mtHidden.add(t.dataset.mtShow); mtSaveHidden(); mtDraw(); return; }
-  if (t.dataset.mtStart) return mtWrite(() => db.collection('routes').doc(t.dataset.mtStart).update({startClientId: t.value || null}));
-  if (t.dataset.mtEnd) return mtWrite(() => db.collection('routes').doc(t.dataset.mtEnd).update({endClientId: t.value || null}));
-  if (t.dataset.mtColor) return mtWrite(() => db.collection('routes').doc(t.dataset.mtColor).update({color: t.value}));
+  const r = mtPlan(t.dataset.mtStart || t.dataset.mtEnd || t.dataset.mtColor); if (!r) return;
+  if (t.dataset.mtStart) return mtWrite(() => mtSavePlan(r, {startClientId: t.value || null}));
+  if (t.dataset.mtEnd) return mtWrite(() => mtSavePlan(r, {endClientId: t.value || null}));
+  if (t.dataset.mtColor) return mtWrite(() => mtSavePlan(r, {color: t.value}));
 });
 document.addEventListener('input', e => {
   if (e.target.id!=='mt-filter') return;

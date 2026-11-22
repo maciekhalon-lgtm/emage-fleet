@@ -1894,3 +1894,6 @@ button.warn{background:var(--warn-soft);color:var(--warn);border-color:color-mix
 .mt-via{display:block;width:18px;height:18px;border-radius:50%;background:#fff;border:3px solid #16334d;box-shadow:0 1px 5px #0007;cursor:grab}
 .mt-via.drag{border-color:#c0263d}
 .leaflet-interactive.mt-grab{cursor:grab}
+
+.mt-assign{font-size:13px;color:var(--muted);background:var(--sunk);border-radius:10px;padding:8px 10px}
+.mt-mode{display:flex;flex-wrap:wrap}
