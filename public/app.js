@@ -5,7 +5,8 @@ const DRIVER_VIEWS = ['moje','wybierz','moje-dane','moj-grafik','moja-historia']
 const TABS = ['moje','wybierz','moje-dane','moj-grafik','moja-historia','pulpit','pojazdy','trasy','terminy','usterki','ksiazka','przydzial','mapa-tras','koszty','karty','oplaty','opony','wyposazenie','umowy','plan','zlecenia','serwis-terminy','ranking','ranking-kierowcy','spalanie','liczniki','raporty','rozliczenie','historia','kierowcy','uzytkownicy','ustawienia'];
 const homeTab = () => P().mycar ? 'moje' : 'pulpit';
 let pendingCard = null;
-let tab = 'pulpit', q = '', costMonth = today().slice(0,7), dlFilter = 'urgent';
+let tab = TABS.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'pulpit', q = '', costMonth = today().slice(0,7), dlFilter = 'urgent';
+document.getElementById('app')?.classList.toggle('planner', tab==='mapa-tras');   // planer po odświeżeniu: od razu pełny ekran, bez mignięcia menu
 function route(){ actsOpen = false; const h = location.hash.slice(1); tab = TABS.includes(h) ? h : homeTab(); cardId = pendingCard; pendingCard = null; $('#app').classList.remove('nav-open'); render(); window.scrollTo(0,0); }
 window.addEventListener('hashchange', route);
 
@@ -17,11 +18,12 @@ function render(){
   const ready = !!me;
   const gate = !role;
   const shell = $('#app');
+  shell.classList.toggle('planner', tab==='mapa-tras');
   shell.classList.toggle('bare', gate || !!P().mycar);
   renderTop(role);
   if (gate){
     renderNotices();
-    $('#view').innerHTML = !ready ? `<div class="panel empty"><p>Sprawdzanie uprawnień…</p></div>` : viewWaiting();
+    $('#view').innerHTML = !ready ? (tab==='mapa-tras' ? `<div class="pl pl-loading"><div class="pl-load">Wczytywanie planera…</div></div>` : `<div class="panel empty"><p>Sprawdzanie uprawnień…</p></div>`) : viewWaiting();
     return;
   }
   if (P().mycar){
@@ -38,7 +40,8 @@ function render(){
   const manage = !!P().manage;
   $('#tab-mycar').hidden = !drive; $('#bb-mycar').hidden = !drive; $('#bb-usterki').hidden = drive;
   syncNav();
-  if (!tabAllowed(tab) || (tab==='ustawienia' && !manage)){
+  // Planer tras po odświeżeniu: zanim dane się wczytają, nie przerzucaj na Pulpit (żeby nie mignął)
+  if ((!tabAllowed(tab) && !(tab==='mapa-tras' && dbState!=='live')) || (tab==='ustawienia' && !manage)){
     const g = groupOf(tab), first = g && GROUPS[g].find(([, , ok]) => ok());
     tab = first ? first[0] : 'pulpit';
   }

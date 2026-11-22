@@ -233,6 +233,7 @@ async function mtReverse(lat, lng){
 
 /* ---------- strona ---------- */
 function viewRouteMap(){
+  if (!mtOn() && dbState!=='live') return `<div class="pl pl-loading"><div class="pl-load">Wczytywanie planera…</div></div>`;
   if (!mtOn()) return `<div class="bar"><h2>Planer tras</h2></div><div class="panel empty"><p>${P().manage ? 'Planer tras wymaga jednorazowego uruchomienia migracji <b>059–062</b> w Supabase.' : 'Planer tras widzi kierownik floty.'}</p></div>`;
   if (!mtActive || !mtPlan(mtActive)) mtActive = (mtRoutes()[0] || {}).id || null;
   setTimeout(mtMount, 0);
