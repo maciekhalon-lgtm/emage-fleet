@@ -106,6 +106,13 @@ function mtFit(){
   const xs = (S.clients || []).filter(mtHasXY).map(c => [Number(c.lat), Number(c.lng)]);
   if (xs.length) mtMap.fitBounds(xs, {padding: [35, 35], maxZoom: 14});
 }
+/* komunikat na mapie z przyciskiem „Cofnij” (np. po przeciągnięciu pinezki) */
+function mtNoticeUndo(t, undo){
+  const n = document.getElementById('mt-notice'); if (!n) return;
+  n.innerHTML = `${esc(t)} <button type="button" class="link" data-mt-undo>Cofnij</button>`; n.hidden = false;
+  mtNoticeUndo.fn = undo; clearTimeout(mtNotice.t); mtNotice.t = setTimeout(() => { n.hidden = true; mtNoticeUndo.fn = null; }, 8000);
+}
+document.addEventListener('click', e => { if (!e.target.closest('[data-mt-undo]') || !mtNoticeUndo.fn) return; const f = mtNoticeUndo.fn; mtNoticeUndo.fn = null; mtNotice(''); f(); toast('Cofnięto'); });
 function mtNotice(t){ const n = document.getElementById('mt-notice'); if (!n) return; n.textContent = t; n.hidden = !t; clearTimeout(mtNotice.t); if (t && !mtPicking) mtNotice.t = setTimeout(() => { n.hidden = true; }, 5000); }
 
 /* ---------- przejazd po drogach (OSRM) ---------- */
@@ -161,16 +168,16 @@ function mtDraw(){
 }
 function mtMarker(c, color, label, r){
   const pin = L.divIcon({className: '', html: `<span class="mt-pin" style="background:${esc(color)}">${esc(label)}</span>`, iconSize: [30, 30], iconAnchor: [15, 15]});
-  const mv = mtMovePin===c.id;
-  const m = L.marker([Number(c.lat), Number(c.lng)], {icon: pin, title: c.name, alt: c.name, draggable: mv, zIndexOffset: mv ? 1000 : 0}).addTo(mtLayer);
+  // pinezkę klienta łapiesz myszką (albo palcem) i przeciągasz – jak w Mapach Google; zapis od razu, z możliwością cofnięcia
+  const m = L.marker([Number(c.lat), Number(c.lng)], {icon: pin, title: c.name, alt: c.name, draggable: !mtPicking, autoPan: true}).addTo(mtLayer);
   const act = mtPlan(mtActive);
-  if (mv){
-    m.on('dragend', () => { const ll = m.getLatLng(); mtMovePin = null; mtNotice('');
-      mtWrite(() => db.collection('clients').doc(c.id).update({lat: +ll.lat.toFixed(6), lng: +ll.lng.toFixed(6)})).then(() => toast('Zapisano nowe miejsce pinezki')); });
-    return;
-  }
+  m.on('dragstart', () => { mtMap.closePopup(); });
+  m.on('dragend', () => { const ll = m.getLatLng(), prev = {lat: Number(c.lat), lng: Number(c.lng)};
+    mtDragEnd = Date.now();
+    mtWrite(() => db.collection('clients').doc(c.id).update({lat: +ll.lat.toFixed(6), lng: +ll.lng.toFixed(6)}))
+      .then(() => mtNoticeUndo(`Przesunięto „${c.name}”.`, () => mtWrite(() => db.collection('clients').doc(c.id).update(prev)))); });
   m.bindPopup(`<div class="mt-pop"><b>${esc(c.name)}</b>${c.address ? `<br>${esc(c.address)}` : ''}${r ? `<br><span class="muted small">${esc(r.name)}</span>` : ''}
-    <div class="mt-pop-a"><button type="button" class="small" data-mt-edit-client="${esc(c.id)}">Edytuj klienta</button><button type="button" class="small" data-mt-move-pin="${esc(c.id)}">Przesuń pinezkę</button>${act ? `<button type="button" class="small primary" data-mt-add-stop="${esc(c.id)}">Dodaj do „${esc(act.name)}”</button>` : ''}</div></div>`);
+    <div class="mt-pop-a"><button type="button" class="small" data-mt-edit-client="${esc(c.id)}">Edytuj klienta</button>${act ? `<button type="button" class="small primary" data-mt-add-stop="${esc(c.id)}">Dodaj do „${esc(act.name)}”</button>` : ''}</div></div>`);
   m.on('click', () => { if (mtPicking) mtMap.fire('click', {latlng: m.getLatLng()}); });
 }
 /* punkt przejazdowy wybranej trasy: przeciągnij albo usuń */
@@ -225,7 +232,7 @@ function viewRouteMap(){
   return `<div class="mt-wrap"><aside class="mt-panel" id="mt-panel">
       <div class="seg mt-tabs"><button type="button" class="${mtTab==='routes' ? 'on' : ''}" data-mt-tab="routes">Trasy · ${nR}</button><button type="button" class="${mtTab==='clients' ? 'on' : ''}" data-mt-tab="clients">Klienci · ${nC}</button></div>
       ${mtTab==='routes' ? mtRoutesPanel() : mtClientsPanel()}
-    </aside><div class="mt-mapwrap"><div id="mt-slot"></div><div class="mt-tools"><button type="button" class="small" data-mt-fit>Pokaż wszystkie punkty</button></div><div id="mt-notice" class="mt-notice" role="status" hidden></div></div></div>`;
+    </aside><div class="mt-mapwrap"><div id="mt-slot"></div><div class="mt-tools"><button type="button" class="small" data-mt-fit>Pokaż wszystkie punkty</button></div><div id="mt-notice" class="mt-notice" role="status" data-morph-keep hidden></div></div></div>`;
 }
 function mtRoutesPanel(){
   const R = mtRoutes(), sel = mtPlan(mtActive);
@@ -250,7 +257,7 @@ function mtRoutesPanel(){
       return `<div class="mt-stop"><span class="mt-n">${i + 1}</span><span class="mt-lab"><b>${esc(c ? c.name : '?')}</b>${!ok ? `<span class="sub warn-t">bez punktu na mapie – <button type="button" class="link" data-mt-edit-client="${esc(s.clientId)}">ustaw</button></span>` : ''}</span>
         <button type="button" class="small ghost icon" data-mt-up="${esc(s.id)}" aria-label="W górę" ${i ? '' : 'disabled'}>↑</button><button type="button" class="small ghost icon" data-mt-down="${esc(s.id)}" aria-label="W dół" ${i < st.length - 1 ? '' : 'disabled'}>↓</button><button type="button" class="small ghost icon" data-mt-del="${esc(s.id)}" aria-label="Usuń przystanek">✕</button></div>`; }).join('') || '<p class="muted small">Dodaj przystanek z listy, kliknij klienta na mapie albo kliknij w puste miejsce mapy.</p>'}
     <div class="mt-add"><select id="mt-add-sel" aria-label="Klient do dodania"><option value="">Dodaj przystanek…</option>${cs.map(c => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('')}</select><button type="button" class="small" data-mt-add>${ic('plus')}Dodaj</button></div>
-    <p class="muted small">Kliknij w mapę, żeby dodać klienta albo przystanek w tym miejscu. Złap linię wybranej trasy i przeciągnij, żeby poprowadzić ją inną drogą${mtVia(sel).length ? ` (punkty przejazdowe: ${mtVia(sel).length} – <button type="button" class="link" data-mt-via-clear="${esc(sel.id)}">usuń wszystkie</button>)` : ''}.${rt ? ' Godzinę, telefon i uwagi przystanku zmienisz w Trasy → Przystanki.' : ''}</p>
+    <p class="muted small">Kliknij w mapę, żeby dodać klienta albo przystanek w tym miejscu. Pinezkę klienta złap i przeciągnij, żeby poprawić miejsce. Złap linię wybranej trasy i przeciągnij, żeby poprowadzić ją inną drogą${mtVia(sel).length ? ` (punkty przejazdowe: ${mtVia(sel).length} – <button type="button" class="link" data-mt-via-clear="${esc(sel.id)}">usuń wszystkie</button>)` : ''}.${rt ? ' Godzinę, telefon i uwagi przystanku zmienisz w Trasy → Przystanki.' : ''}</p>
     <div class="mt-row"><button type="button" class="small" data-mt-retry="${esc(sel.id)}">Przelicz przejazd</button><button type="button" class="small ghost" data-mt-plan-copy="${esc(sel.id)}">Kopiuj</button>${rt ? `<button type="button" class="small ghost" data-stops="${esc(rt.id)}">Przystanki – szczegóły</button>` : ''}</div></section>`;
 }
 /* ustawienia planu: nazwa, kolor, przypisanie do trasy (istniejąca / nowa / szkic), usuń */
@@ -427,7 +434,7 @@ async function mtLookup(){
   out.textContent = 'Wyszukiwanie…';
   const {res, approx} = await mtGeocode(q);
   if (!res.length){ out.innerHTML = 'Nie znaleziono tego adresu. Sprawdź pisownię albo kliknij „Wskaż na mapie” i zaznacz miejsce ręcznie.'; return; }
-  out.innerHTML = (approx ? '<span class="muted small">Nie ma dokładnie tego numeru – to najbliższe wyniki. Po zapisie popraw pinezkę („Przesuń pinezkę”).</span>' : '')
+  out.innerHTML = (approx ? '<span class="muted small">Nie ma dokładnie tego numeru – to najbliższe wyniki. Po zapisie złap pinezkę na mapie i przeciągnij ją w dokładne miejsce.</span>' : '')
     + res.map(r => `<button type="button" class="small mt-res" data-mt-res="${r.lng},${r.lat}">${esc(r.label)}</button>`).join('');
   if (res.length===1 && !approx) out.querySelector('[data-mt-res]').click();   // jeden pewny wynik – od razu ustaw współrzędne
 }

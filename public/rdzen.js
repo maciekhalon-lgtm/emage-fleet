@@ -234,8 +234,9 @@ function morphKids(a, b){
     if (x.nodeType!==y.nodeType || x.nodeName!==y.nodeName || (x.nodeType===1 && x.id!==y.id && (x.id || y.id))){ a.replaceChild(y, x); continue; }
     if (x.nodeType===3 || x.nodeType===8){ if (x.nodeValue!==y.nodeValue) x.nodeValue = y.nodeValue; continue; }
     if (x.nodeType!==1){ a.replaceChild(y, x); continue; }
+    if (x.hasAttribute('data-morph-keep') && y.hasAttribute('data-morph-keep')) continue;   // elementy zarządzane same (komunikat na mapie)
     morphAttrs(x, y);
-    if (x.id==='mt-slot' || x.hasAttribute('data-morph-keep')) continue;   // mapa i elementy zarządzane same
+    if (x.id==='mt-slot') continue;   // mapa
     if (x.tagName==='TEXTAREA'){ if (document.activeElement!==x) x.value = y.value; continue; }
     if (x.tagName==='SELECT'){ morphKids(x, y); if (document.activeElement!==x){ const o = [...y.options].findIndex(o => o.defaultSelected); if (o >= 0) x.selectedIndex = o; } continue; }
     morphKids(x, y);
