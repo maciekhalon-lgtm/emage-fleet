@@ -1395,9 +1395,9 @@ div.fc-tile{display:flex;border:1px solid var(--line)}
 .d-steps li.now{color:var(--night-ink)}
 /* szybkie akcje */
 .d-quick{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-.d-quick.n3>.d-qa:first-child,.d-quick.n5>.d-qa:first-child{grid-column:1/-1;min-height:0;flex-direction:row;align-items:center;gap:12px}
-.d-quick.n3>.d-qa:first-child b,.d-quick.n5>.d-qa:first-child b{margin-top:0}
-.d-quick.n3>.d-qa:first-child .d-qa-i,.d-quick.n5>.d-qa:first-child .d-qa-i{margin-bottom:0}
+.d-quick.n1>.d-qa,.d-quick.n3>.d-qa:first-child,.d-quick.n5>.d-qa:first-child{grid-column:1/-1;min-height:0;flex-direction:row;align-items:center;gap:12px}
+.d-quick.n1>.d-qa b,.d-quick.n3>.d-qa:first-child b,.d-quick.n5>.d-qa:first-child b{margin-top:0}
+.d-quick.n1>.d-qa .d-qa-i,.d-quick.n3>.d-qa:first-child .d-qa-i,.d-quick.n5>.d-qa:first-child .d-qa-i{margin-bottom:0}
 .d-quick.n6{grid-template-columns:repeat(3,minmax(0,1fr))}
 .d-qa{display:flex;flex-direction:column;align-items:flex-start;gap:3px;padding:14px;min-height:104px;border-radius:22px;background:var(--surface);border:1px solid var(--line);color:var(--ink);text-decoration:none;text-align:left;font:inherit;cursor:pointer}
 .d-qa:hover{background:var(--surface);border-color:var(--line-2)}

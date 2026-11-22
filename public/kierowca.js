@@ -159,7 +159,7 @@ function viewMyCar(){
       ${rt ? `<div class="d-note">${ic('route')}<span><b>${esc(rt.code)}</b> ${esc(rt.name)}</span></div>` : ''}
       ${b && b.purpose ? `<div class="d-note">${ic('clip')}<span>${esc(b.purpose)}</span></div>` : ''}
       <button class="d-main" ${b ? `data-ho="pickup" data-id="${esc(b.id)}"` : `data-take="${esc(v.id)}"`}>${ic('key')}Przyjmij auto</button>
-      <p class="d-hero-hint">Sprawdzisz checklistę, wpiszesz licznik i paliwo.${b ? ' <a href="#wybierz">Nie możesz jechać tym autem? Zmień auto</a>' : ''}</p></section>`
+      <p class="d-hero-hint">Sprawdzisz checklistę, wpiszesz licznik i paliwo. <a href="#wybierz">${b ? 'Nie możesz jechać tym autem? Zmień auto' : 'Chcesz jechać innym autem? Wybierz inne'}</a></p></section>`
       : asg && asg.booking && asg.vehicle ? `<section class="d-hero empty"><div class="d-hero-top"><span class="d-state-chip warn">Dziś jedziesz</span></div>
       <div class="d-car">${plate(asg.vehicle.plate)}<span>${esc(asg.vehicle.make || '')} ${esc(asg.vehicle.model || '')}</span></div>
       <div class="d-state warn">${ic('alert')}<span>Tego auta nie da się dziś przejąć: <b>${esc((takeState(asg.vehicle) || {}).why || 'niedostępne')}</b>. Wybierz inne – grafik zmieni się sam, a kierownik dostanie informację.</span></div>
@@ -171,7 +171,7 @@ function viewMyCar(){
       loadingRoutesOk() ? qa('data-action="loading"', 'box', 'Załadunek', loadingCount() ? `zaznaczone: ${loadingCount()}` : 'czyj towar wiozę') : '',
       P().mycar ? '' : qa('href="#moj-grafik"', 'cal', 'Grafik', 'kiedy jadę'),
       P().mycar ? '' : qa('href="#moja-historia"', 'hist', 'Historia', 'tankowania, trasy')].filter(Boolean);
-    quick = quick.length > 1 ? quick : [];
+    // „Inne auto” zostaje nawet sam – inaczej kierowca z „Twoim busem” nie ma jak wybrać innego auta
     quick = quick.join('');
   }
   const inbox = [typeof myAnnouncements==='function' ? myAnnouncements() : '', myExpiryNotes(), offlineNote(), toConfirmPanel(), myExplainPanel()].join('');
