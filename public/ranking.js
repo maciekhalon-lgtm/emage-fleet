@@ -194,7 +194,7 @@ function openRkVehicle(vid){
   $('#dlg-body').innerHTML = `<p class="muted small field full" style="margin:0;display:block">${esc([v.make, v.model].filter(Boolean).join(' '))} · ${fdate(from)} – ${fdate(to)} · spalanie auta: <b>${vRate!=null ? f1(vRate) + ' l/100 km' : 'za mało danych (' + nf.format(Math.round(vKm)) + ' z ' + nf.format(RK_MIN_KM) + ' km)'}</b> · z wpisów kierowców w aplikacji.</p>
     <div class="field full tablewrap"><table class="rk2-tbl"><thead><tr><th>#</th><th>Kierowca</th><th class="r">Spalanie l/100</th><th class="r">vs auto</th><th class="r">Km</th><th class="r">Dni</th><th class="r">Tankowania</th><th class="r">Niezgodne z kartą</th></tr></thead><tbody>
     ${rows.map((o, i) => `<tr class="click" data-drv-hist="${esc(o.id)}"><td class="num">${i + 1}</td><td><b>${esc(o.name)}</b></td>
-      <td class="r">${o.rate!=null ? `<b class="num ${o.rate > THEFT_RATE ? 'neg' : ''}">${f1(o.rate)}</b>` : '<span class="muted">—</span>'}</td>
+      <td class="r">${o.rate!=null ? `<b class="num ${o.rate > theftOf(v.id) ? 'neg' : ''}">${f1(o.rate)}</b>` : '<span class="muted">—</span>'}</td>
       <td class="r">${o.diff==null ? '<span class="muted">—</span>' : `<span class="pill ${o.diff > 15 ? 'bad' : o.diff > 5 ? 'warn' : o.diff < -5 ? 'ok' : 'off'}">${o.diff > 0 ? '+' : ''}${Math.round(o.diff)}%</span>`}</td>
       <td class="r num">${o.km ? nf.format(Math.round(o.km)) : '—'}</td><td class="r num">${o.days.size || '—'}</td>
       <td class="r num">${o.fills ? `${o.fills} <span class="muted small">· ${nf.format(Math.round(o.l))} l</span>` : '—'}</td>
