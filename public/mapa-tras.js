@@ -7,7 +7,8 @@
 'use strict';
 const MT_COLORS = ['#245dcc', '#137e64', '#9d3bb5', '#b65616', '#c0263d', '#0f7d8c', '#6b5b00', '#4b3fb0'];
 let mtSub = 'trasa';
-let plMode = 'mapa';   // tryb planera: mapa / koszty / wycena
+let plMode = 'mapa';
+let plSel = new Set(), plWeigh = true; try { plSel = new Set(JSON.parse(localStorage.getItem('ef-pl-sel') || '[]')); plWeigh = localStorage.getItem('ef-pl-weigh')!=='0'; } catch(_){}   // tryb planera: mapa / koszty / wycena
 const plCfg = () => { const s = (S.settings || []).find(x => x.id==='planner') || {}; return {drvMult: Number(s.drvMult) > 0 ? Number(s.drvMult) : 1.6, margin: s.margin!=null && s.margin!=='' ? Number(s.margin) : 20}; };
 let mtBases = null, plBase = 'map', plPanel = true, plQ = '', plPrev = 'pulpit', plMe = null, plTmp = null;
 try { plBase = localStorage.getItem('ef-pl-base')==='sat' ? 'sat' : 'map'; } catch(_){}   // zakładka w szczegółach planu: trasa / koszty / czas
@@ -608,13 +609,17 @@ function mtCalcData(r){
   const mult = plCfg().drvMult, drvNet = drivers * (mode==='godz' ? drvRate * (hours || 0) : mode==='dzien' ? drvRate * days : drvRate), drv = drvNet * mult;
   const tolls = Number(v('tolls')) || 0, other = Number(v('other')) || 0;
   const cost = fuel + car + drv + tolls + other;
-  const rev = v('revRate') ? (v('revMode')==='km' ? (Number(v('invKm')) || 0) * Number(v('revRate')) : Number(v('revRate'))) : null;
+  const revBase = v('revRate') ? (v('revMode')==='km' ? (Number(v('invKm')) || km || 0) * Number(v('revRate')) : Number(v('revRate'))) : null;
+  // dopłaty kontrahenta: za drugiego kierowcę (tylko przy obsadzie 2) i inne
+  const fee2 = drivers===2 ? Number(c.fee2) || 0 : 0, feeOther = Number(c.feeOther) || 0;
+  const rev = revBase!=null || fee2 || feeOther ? (revBase || 0) + fee2 + feeOther : null;
+  const drv2Cost = drivers===2 ? drv / 2 : 0;
   const profit = rev!=null ? rev - cost : null, trips = Number(v('trips')) || 0;
   // wycena: cena z marży (od ceny) albo z zysku na kurs
   const qMargin = c.qProfit!=null && c.qProfit!=='' ? null : (c.margin!=null && c.margin!=='' ? Number(c.margin) : plCfg().margin);
   const qPrice = cost > 0 ? (qMargin==null ? cost + Number(c.qProfit) : (qMargin < 100 ? cost / (1 - qMargin / 100) : null)) : null;
   const invKm = Number(v('invKm')) || km || 0;
-  return {c, def, v, rt, kc, km, kmAll, hours, fuel, car, drv, drvNet, mult, tolls, other, cost, rev, profit, trips, invKm, qMargin, qPrice,
+  return {c, def, v, rt, kc, km, kmAll, hours, fuel, car, drv, drvNet, mult, revBase, fee2, feeOther, drv2Cost, drivers, tolls, other, cost, rev, profit, trips, invKm, qMargin, qPrice,
     qPerKm: qPrice!=null && invKm ? qPrice / invKm : null, perKm: kmAll ? cost / kmAll : null, margin: rev ? profit / rev : null};
 }
 function mtCostPanel(r){
@@ -636,6 +641,8 @@ function mtCostPanel(r){
     <h5 class="mt-h">Przychód</h5>
     ${sel('revMode', 'Fakturuję', [['km', 'za km'], ['kurs', 'za kurs']])}
     ${x.v('revMode')==='km' ? inp('invKm', 'Km do faktury', 'km', '') : ''}${inp('revRate', 'Stawka', x.v('revMode')==='km' ? 'zł/km' : 'zł/kurs', 'wpisz')}
+    <label class="mt-f ${x.drivers===2 ? '' : 'dis'}"><span>Dopłata kontrahenta za 2. kierowcę${x.drivers===2 ? '' : ' <span class="muted small">(przy obsadzie 2 kierowców)</span>'}</span><span class="mt-fi"><input type="text" inputmode="decimal" data-mt-calc="fee2" value="${x.c.fee2!=null ? esc(rtShow(x.c.fee2)) : ''}" placeholder="0" ${x.drivers===2 ? '' : 'disabled'}><em>zł/kurs</em></span></label>
+    ${inp('feeOther', 'Inne dopłaty kontrahenta (załadunek, postój…)', 'zł/kurs', '0')}
     ${inp('trips', 'Kursów w miesiącu', 'kursów', x.rt ? 'z grafiku' : 'wpisz')}
     <div class="mt-calc" id="mt-calc-res">${mtCostResults(x)}</div>`;
 }
@@ -645,7 +652,9 @@ function mtCostResults(x){
   return `
       ${row(`Paliwo (${nf(x.kmAll)} km)`, x.fuel)}${row('Auto – pozostałe koszty', x.car)}${row(`Kierowca – na rękę${x.hours ? ` (${nf(Math.round(x.hours * 10) / 10)} h)` : ''}`, x.drvNet, 'sub')}${row(`Kierowca – koszt łączny (× ${nf(x.mult)})`, x.drv)}${row('Opłaty i inne', x.tolls + x.other)}
       ${row('Koszt kursu', x.cost, 'sum')}<div class="mt-cr"><span>Koszt na km</span><b>${x.perKm!=null ? nf(Math.round(x.perKm * 100) / 100) + ' zł' : '—'}</b></div>
-      ${row('Przychód z kursu', x.rev)}
+      ${x.fee2 || x.feeOther ? `${row(x.v('revMode')==='km' ? 'Stawka za km × km do faktury' : 'Stawka za kurs', x.revBase, 'sub')}${x.fee2 ? row('Dopłata za 2. kierowcę', x.fee2, 'sub') : ''}${x.feeOther ? row('Inne dopłaty', x.feeOther, 'sub') : ''}` : ''}
+      ${row(x.fee2 || x.feeOther ? 'Przychód łącznie' : 'Przychód z kursu', x.rev)}
+      ${x.drivers===2 ? `<div class="mt-cr ${x.fee2 >= x.drv2Cost ? 'ok' : 'bad'}"><span>2. kierowca: koszt ${zl(Math.round(x.drv2Cost))}, dopłata ${zl(Math.round(x.fee2))}</span><b>${x.fee2 >= x.drv2Cost ? 'pokrywa' : 'brakuje ' + zl(Math.round(x.drv2Cost - x.fee2))}</b></div>` : ''}
       ${x.profit!=null ? `${row('Zysk z kursu', x.profit, x.profit >= 0 ? 'ok' : 'bad')}<div class="mt-cr"><span>Marża</span><b>${Math.round(x.margin * 100)}%</b></div>` : '<p class="muted small">Wpisz stawkę w „Przychód”, żeby zobaczyć zysk.</p>'}
       ${x.trips && x.profit!=null ? row(`Zysk w miesiącu (${x.trips} ${isPlural(x.trips, 'kurs', 'kursy', 'kursów')})`, x.profit * x.trips, x.profit >= 0 ? 'ok sum' : 'bad sum') : ''}`;
 }
@@ -739,9 +748,11 @@ function plCostsMode(){
   const rows = R.map(r => ({r, x: mtCalcData(r)}));
   return plPicker() + (sel ? mtCostPanel(sel) + `<div class="mt-row"><span class="muted small">${mtLinked(sel) ? `Przypisana do trasy <b>${esc(mtLinked(sel).code)}</b>.` : 'Nieprzypisana do trasy.'}</span><button type="button" class="small primary" data-pl-assign ${mtCalcData(sel).cost ? '' : 'disabled'}>Przypisz do trasy…</button></div>
     <p class="muted small">„Przypisz do trasy” przenosi km do faktury, stawkę z „Przychód”, koszt kierowcy (łączny) i opłaty do trasy z zakładki Trasy (np. 167K Drezno) – rentowność trasy liczy się wtedy z tych danych.</p>` : '') + `
-    <h5 class="mt-h">Porównanie tras</h5>
-    <div class="tablewrap"><table class="pl-cmp"><thead><tr><th>Trasa</th><th class="r">Km</th><th class="r">Koszt kursu</th><th class="r">zł/km</th><th class="r">Przychód</th><th class="r">Marża</th></tr></thead><tbody>
-    ${rows.map(({r, x}) => `<tr class="click ${r.id===mtActive ? 'sel' : ''}" data-pl-row="${esc(r.id)}"><td><b>${esc(r.name)}</b>${mtLinked(r) ? ` <span class="pill info">${esc(mtLinked(r).code)}</span>` : ''}</td><td class="r num">${plFmt(Math.round(x.kmAll))}</td><td class="r num">${x.cost ? zl(Math.round(x.cost)) : '—'}</td><td class="r num">${x.perKm!=null ? plFmt(Math.round(x.perKm * 100) / 100) : '—'}</td><td class="r num">${x.rev!=null ? zl(Math.round(x.rev)) : '—'}</td><td class="r">${x.margin!=null ? `<span class="pill ${x.margin < 0 ? 'bad' : x.margin < 0.1 ? 'warn' : 'ok'}">${Math.round(x.margin * 100)}%</span>` : '—'}</td></tr>`).join('')}</tbody></table></div>`;
+    <h5 class="mt-h">Porównanie tras i stawka ogólna</h5>
+    <p class="muted small">Zaznacz trasy, z których ma się policzyć średnia stawka.</p>
+    <div class="tablewrap"><table class="pl-cmp"><thead><tr><th><input type="checkbox" data-pl-all aria-label="Zaznacz wszystkie" ${R.length && R.every(r => plSel.has(r.id)) ? 'checked' : ''}></th><th>Trasa</th><th class="r">Km</th><th class="r">Koszt kursu</th><th class="r">zł/km</th><th class="r">Przychód</th><th class="r">Marża</th></tr></thead><tbody>
+    ${rows.map(({r, x}) => `<tr class="click ${r.id===mtActive ? 'sel' : ''}" data-pl-row="${esc(r.id)}"><td><input type="checkbox" data-pl-sel="${esc(r.id)}" aria-label="Licz do stawki ogólnej" ${plSel.has(r.id) ? 'checked' : ''}></td><td><b>${esc(r.name)}</b>${mtLinked(r) ? ` <span class="pill info">${esc(mtLinked(r).code)}</span>` : ''}</td><td class="r num">${plFmt(Math.round(x.kmAll))}</td><td class="r num">${x.cost ? zl(Math.round(x.cost)) : '—'}</td><td class="r num">${x.perKm!=null ? plFmt(Math.round(x.perKm * 100) / 100) : '—'}</td><td class="r num">${x.rev!=null ? zl(Math.round(x.rev)) : '—'}</td><td class="r">${x.margin!=null ? `<span class="pill ${x.margin < 0 ? 'bad' : x.margin < 0.1 ? 'warn' : 'ok'}">${Math.round(x.margin * 100)}%</span>` : '—'}</td></tr>`).join('')}</tbody></table></div>
+    ${plAvgHtml(rows.filter(({r}) => plSel.has(r.id)))}`;
 }
 function plQuoteMode(){
   const sel = mtPlan(mtActive), nb = `<button type="button" class="small primary" data-pl-new-quote>${ic('plus')}Wycena bez mapy</button>`;
@@ -858,3 +869,33 @@ document.addEventListener('change', e => {
     if (n==null || isNaN(n) || n <= 0){ toast('Wpisz liczbę większą od zera, np. 1,6'); e.target.value = rtShow(cur[k]); return; }
     mtWrite(() => db.collection('settings').doc('planner').set({...cur, [k]: n})).then(() => toast('Zapisano przelicznik ' + rtShow(n))); }
 });
+
+/* stawka ogólna z zaznaczonych tras: „na zero” (koszty) i „tyle ile wychodzi” (obecne stawki) – na km do faktury i na kurs */
+function plAvgHtml(sel){
+  if (!sel.length) return '<p class="muted small">Zaznacz co najmniej jedną trasę w tabeli.</p>';
+  const w = ({x}) => plWeigh ? (x.trips || 0) : 1;
+  const useW = plWeigh && sel.every(o => o.x.trips > 0);
+  const wt = o => useW ? w(o) : 1;
+  const sum = f => sel.reduce((a, o) => a + f(o) * wt(o), 0);
+  const km = sum(o => o.x.invKm || o.x.kmAll || 0), trips = sum(() => 1);
+  const cost = sum(o => o.x.cost || 0), withRev = sel.filter(o => o.x.rev!=null);
+  const revAll = withRev.length===sel.length ? sum(o => o.x.rev || 0) : null;
+  const f2 = n => n==null || !isFinite(n) ? '—' : new Intl.NumberFormat('pl-PL', {minimumFractionDigits: 2, maximumFractionDigits: 2}).format(n) + ' zł';
+  const zl0 = n => n==null || !isFinite(n) ? '—' : zl(Math.round(n));
+  return `<div class="mt-calc pl-avg">
+    <div class="mt-cr"><span><b>Stawka ogólna – ${sel.length} ${isPlural(sel.length, 'trasa', 'trasy', 'tras')}</b></span><label class="check small"><input type="checkbox" data-pl-weigh ${plWeigh ? 'checked' : ''}> ważona liczbą kursów w miesiącu</label></div>
+    ${plWeigh && !useW ? '<p class="muted small" style="margin:0">Nie każda zaznaczona trasa ma liczbę kursów w miesiącu – liczę zwykłą średnią (każda trasa tak samo).</p>' : ''}
+    <div class="pl-avg-g"><span></span><b>Na zero</b><b>Tyle ile wychodzi</b>
+      <span>za km (do faktury)</span><span class="num">${f2(km ? cost / km : null)}</span><span class="num">${f2(revAll!=null && km ? revAll / km : null)}</span>
+      <span>za kurs</span><span class="num">${zl0(trips ? cost / trips : null)}</span><span class="num">${zl0(revAll!=null && trips ? revAll / trips : null)}</span>
+      ${revAll!=null ? `<span>marża</span><span class="num">0%</span><span class="num">${revAll ? Math.round((revAll - cost) / revAll * 100) + '%' : '—'}</span>` : ''}</div>
+    ${revAll==null ? `<p class="muted small" style="margin:0">„Tyle ile wychodzi” policzę, gdy każda zaznaczona trasa ma wpisaną stawkę (brakuje: ${sel.filter(o => o.x.rev==null).map(o => esc(o.r.name)).join(', ')}).</p>` : ''}
+    <p class="muted small" style="margin:0">„Na zero” = stawka, przy której przychód pokrywa wszystkie koszty (paliwo, auto, kierowca łącznie, opłaty). „Tyle ile wychodzi” = średnia z obecnych stawek i dopłat.</p></div>`;
+}
+document.addEventListener('change', e => {
+  const t = e.target;
+  if (t.dataset && t.dataset.plSel){ if (t.checked) plSel.add(t.dataset.plSel); else plSel.delete(t.dataset.plSel); try { localStorage.setItem('ef-pl-sel', JSON.stringify([...plSel])); } catch(_){} render(); return; }
+  if (t.dataset && 'plAll' in t.dataset){ mtRoutes().forEach(r => t.checked ? plSel.add(r.id) : plSel.delete(r.id)); try { localStorage.setItem('ef-pl-sel', JSON.stringify([...plSel])); } catch(_){} render(); return; }
+  if (t.dataset && 'plWeigh' in t.dataset){ plWeigh = t.checked; try { localStorage.setItem('ef-pl-weigh', plWeigh ? '1' : '0'); } catch(_){} render(); }
+});
+document.addEventListener('click', e => { if (e.target.closest('[data-pl-sel],[data-pl-all]')) e.stopPropagation(); }, true);
