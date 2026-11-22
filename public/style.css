@@ -1909,3 +1909,9 @@ button.warn{background:var(--warn-soft);color:var(--warn);border-color:color-mix
 .mt-cr.sum{border-top:1px solid var(--line);padding-top:6px;margin-top:2px}
 .mt-cr.ok b{color:var(--ok)}.mt-cr.bad b{color:var(--bad)}
 .mt-times{display:flex;flex-direction:column;gap:4px}.mt-tr{display:flex;align-items:center;gap:8px;background:var(--sunk);border-radius:10px;padding:6px 8px}
+
+.mt-stop[draggable=true]{cursor:grab}
+.mt-stop.dragging{opacity:.45}
+.mt-stop.drop-before{box-shadow:inset 0 3px 0 var(--info)}
+.mt-stop.drop-after{box-shadow:inset 0 -3px 0 var(--info)}
+.mt-grip{color:var(--muted);font-size:12px;letter-spacing:-2px;cursor:grab;user-select:none}

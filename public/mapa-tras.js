@@ -254,7 +254,7 @@ function mtRoutesPanel(){
     <label class="mt-lbl">Koniec<select data-mt-end="${esc(sel.id)}">${opt(sel.endClientId)}</select></label>
     <div class="mt-row"><h4>Przystanki</h4><span class="muted small">${st.length}</span></div>
     ${st.map((s, i) => { const c = mtClient(s.clientId), ok = mtHasXY(c);
-      return `<div class="mt-stop"><span class="mt-n">${i + 1}</span><span class="mt-lab"><b>${esc(c ? c.name : '?')}</b>${!ok ? `<span class="sub warn-t">bez punktu na mapie – <button type="button" class="link" data-mt-edit-client="${esc(s.clientId)}">ustaw</button></span>` : ''}</span>
+      return `<div class="mt-stop" draggable="true" data-mt-drag="${esc(s.id)}" title="Złap i przeciągnij, żeby zmienić kolejność"><span class="mt-grip" aria-hidden="true">⋮⋮</span><span class="mt-n">${i + 1}</span><span class="mt-lab"><b>${esc(c ? c.name : '?')}</b>${!ok ? `<span class="sub warn-t">bez punktu na mapie – <button type="button" class="link" data-mt-edit-client="${esc(s.clientId)}">ustaw</button></span>` : ''}</span>
         <button type="button" class="small ghost icon" data-mt-up="${esc(s.id)}" aria-label="W górę" ${i ? '' : 'disabled'}>↑</button><button type="button" class="small ghost icon" data-mt-down="${esc(s.id)}" aria-label="W dół" ${i < st.length - 1 ? '' : 'disabled'}>↓</button><button type="button" class="small ghost icon" data-mt-del="${esc(s.id)}" aria-label="Usuń przystanek">✕</button></div>`; }).join('') || '<p class="muted small">Dodaj przystanek z listy, kliknij klienta na mapie albo kliknij w puste miejsce mapy.</p>'}
     <div class="mt-add"><select id="mt-add-sel" aria-label="Klient do dodania"><option value="">Dodaj przystanek…</option>${cs.map(c => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('')}</select><button type="button" class="small" data-mt-add>${ic('plus')}Dodaj</button></div>
     <p class="muted small">Kliknij w mapę, żeby dodać klienta albo przystanek w tym miejscu. Pinezkę klienta złap i przeciągnij, żeby poprawić miejsce. Złap linię wybranej trasy i przeciągnij, żeby poprowadzić ją inną drogą${mtVia(sel).length ? ` (punkty przejazdowe: ${mtVia(sel).length} – <button type="button" class="link" data-mt-via-clear="${esc(sel.id)}">usuń wszystkie</button>)` : ''}.${rt ? ' Godzinę, telefon i uwagi przystanku zmienisz w Trasy → Przystanki.' : ''}</p>
@@ -620,3 +620,23 @@ document.addEventListener('input', e => {
   const c = document.getElementById('mt-calc-res'); if (c) c.innerHTML = mtCostResults(x);
   const tr = document.getElementById('mt-time-res'); if (tr) tr.innerHTML = mtTimeResults(tmp, x);
 });
+
+/* kolejność przystanków: złap wiersz myszką i upuść w nowym miejscu (strzałki zostają – np. na telefonie) */
+let mtDragId = null;
+document.addEventListener('dragstart', e => { const row = e.target.closest && e.target.closest('[data-mt-drag]'); if (!row) return;
+  mtDragId = row.dataset.mtDrag; row.classList.add('dragging'); try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', mtDragId); } catch(_){} });
+document.addEventListener('dragover', e => { if (!mtDragId) return; const row = e.target.closest && e.target.closest('[data-mt-drag]'); if (!row) return;
+  e.preventDefault(); const r = row.getBoundingClientRect(), after = e.clientY > r.top + r.height / 2;
+  document.querySelectorAll('.mt-stop.drop-before, .mt-stop.drop-after').forEach(x => x.classList.remove('drop-before', 'drop-after'));
+  if (row.dataset.mtDrag!==mtDragId) row.classList.add(after ? 'drop-after' : 'drop-before'); });
+document.addEventListener('drop', e => { if (!mtDragId) return; const row = e.target.closest && e.target.closest('[data-mt-drag]'); if (!row) return;
+  e.preventDefault(); const r = mtPlan(mtActive); const from = mtDragId; mtDragId = null;
+  const after = row.classList.contains('drop-after'), to = row.dataset.mtDrag;
+  document.querySelectorAll('.mt-stop').forEach(x => x.classList.remove('drop-before', 'drop-after', 'dragging'));
+  if (!r || from===to) return;
+  const list = mtStops(r).slice(), item = list.find(x => x.id===from); if (!item) return;
+  const rest = list.filter(x => x.id!==from); let j = rest.findIndex(x => x.id===to); if (j < 0) return; if (after) j++;
+  rest.splice(j, 0, item);
+  if (rest.map(x => x.id).join()===list.map(x => x.id).join()) return;
+  mtWrite(() => mtSavePlan(r, {stops: rest})); });
+document.addEventListener('dragend', () => { mtDragId = null; document.querySelectorAll('.mt-stop').forEach(x => x.classList.remove('drop-before', 'drop-after', 'dragging')); });
