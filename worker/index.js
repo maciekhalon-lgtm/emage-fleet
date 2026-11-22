@@ -9,6 +9,11 @@ export default {
   async fetch(req, env, ctx){
     const u = new URL(req.url);
     if (u.pathname==='/api/fuel/orlen') return cached(req, ctx, 6 * 3600, orlen);
+    if (u.pathname==='/api/fuel/orlen-raw'){ // diagnostyka: surowa odpowiedź API ORLEN (tylko ceny hurtowe)
+      const q = u.searchParams.get('q') || 'Products'; if (!/^[A-Za-z]+(\?[\w=&:.\-%]*)?$/.test(q)) return json({error: 'q'}, 400);
+      const r = await fetch('https://tool.orlen.pl/api/wholesalefuelprices/' + q, {headers: UA});
+      return new Response(await r.text(), {status: r.status, headers: {'Content-Type': 'text/plain; charset=utf-8'}});
+    }
     if (u.pathname==='/api/fuel/eu') return cached(req, ctx, 12 * 3600, eu);
     return env.ASSETS.fetch(req);
   }
