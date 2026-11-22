@@ -245,8 +245,8 @@ function viewRouteMap(){
     <aside class="pl-panel ${plPanel ? '' : 'shut'} ${plMode!=='mapa' ? 'wide' : ''}" id="mt-panel">
       <button type="button" class="pl-fold" data-pl-fold aria-label="${plPanel ? 'Zwiń panel' : 'Rozwiń panel'}" title="${plPanel ? 'Zwiń panel' : 'Rozwiń panel'}"><span class="pl-handle"></span>${ic('chev')}</button>
       <div class="pl-body">
-        <div class="seg pl-modes">${[['mapa', 'Mapa'], ['koszty', 'Koszty'], ['wycena', 'Wycena']].map(([k, l]) => `<button type="button" class="${plMode===k ? 'on' : ''}" data-pl-mode="${k}">${l}</button>`).join('')}</div>
-        ${plMode==='koszty' ? plCostsMode() : plMode==='wycena' ? plQuoteMode() : `<div class="seg mt-tabs"><button type="button" class="${mtTab==='routes' ? 'on' : ''}" data-mt-tab="routes">Trasy · ${nR}</button><button type="button" class="${mtTab==='clients' ? 'on' : ''}" data-mt-tab="clients">Klienci · ${nC}</button></div>
+        <div class="seg pl-modes">${[['mapa', 'Mapa'], ['koszty', 'Koszty']].map(([k, l]) => `<button type="button" class="${plMode===k ? 'on' : ''}" data-pl-mode="${k}">${l}</button>`).join('')}</div>
+        ${plMode==='koszty' ? plCostsMode() : `<div class="seg mt-tabs"><button type="button" class="${mtTab==='routes' ? 'on' : ''}" data-mt-tab="routes">Trasy · ${nR}</button><button type="button" class="${mtTab==='clients' ? 'on' : ''}" data-mt-tab="clients">Klienci · ${nC}</button></div>
         ${mtTab==='routes' ? mtRoutesPanel() : mtClientsPanel()}`}
       </div>
     </aside>
@@ -737,7 +737,8 @@ function plCostsMode(){
   const R = mtRoutes(), sel = mtPlan(mtActive);
   if (!R.length) return `<p class="muted">Nie ma jeszcze tras. Zaplanuj trasę w trybie „Mapa” albo dodaj wycenę bez mapy w trybie „Wycena”.</p>`;
   const rows = R.map(r => ({r, x: mtCalcData(r)}));
-  return plPicker() + (sel ? mtCostPanel(sel) : '') + `
+  return plPicker() + (sel ? mtCostPanel(sel) + `<div class="mt-row"><span class="muted small">${mtLinked(sel) ? `Przypisana do trasy <b>${esc(mtLinked(sel).code)}</b>.` : 'Nieprzypisana do trasy.'}</span><button type="button" class="small primary" data-pl-assign ${mtCalcData(sel).cost ? '' : 'disabled'}>Przypisz do trasy…</button></div>
+    <p class="muted small">„Przypisz do trasy” przenosi km do faktury, stawkę z „Przychód”, koszt kierowcy (łączny) i opłaty do trasy z zakładki Trasy (np. 167K Drezno) – rentowność trasy liczy się wtedy z tych danych.</p>` : '') + `
     <h5 class="mt-h">Porównanie tras</h5>
     <div class="tablewrap"><table class="pl-cmp"><thead><tr><th>Trasa</th><th class="r">Km</th><th class="r">Koszt kursu</th><th class="r">zł/km</th><th class="r">Przychód</th><th class="r">Marża</th></tr></thead><tbody>
     ${rows.map(({r, x}) => `<tr class="click ${r.id===mtActive ? 'sel' : ''}" data-pl-row="${esc(r.id)}"><td><b>${esc(r.name)}</b>${mtLinked(r) ? ` <span class="pill info">${esc(mtLinked(r).code)}</span>` : ''}</td><td class="r num">${plFmt(Math.round(x.kmAll))}</td><td class="r num">${x.cost ? zl(Math.round(x.cost)) : '—'}</td><td class="r num">${x.perKm!=null ? plFmt(Math.round(x.perKm * 100) / 100) : '—'}</td><td class="r num">${x.rev!=null ? zl(Math.round(x.rev)) : '—'}</td><td class="r">${x.margin!=null ? `<span class="pill ${x.margin < 0 ? 'bad' : x.margin < 0.1 ? 'warn' : 'ok'}">${Math.round(x.margin * 100)}%</span>` : '—'}</td></tr>`).join('')}</tbody></table></div>`;
@@ -775,12 +776,12 @@ function plQuoteResults(x){
 }
 /* przypisanie wyliczeń do trasy z zakładki Trasy – z podglądem „było / będzie” */
 function plAssignForm(r){
-  const x = mtCalcData(r), price = x.qPrice!=null ? x.qPrice : x.rev;
+  const x = mtCalcData(r), price = x.rev;
   const free = S.routes.filter(t => t.active!==false && !(S.routePlans || []).some(p => p.routeId===t.id && p.id!==r.id)).sort((a, b) => String(a.code).localeCompare(String(b.code), 'pl', {numeric: true}));
   editing = {col: 'pl-assign', id: r.id, base: {}, special: () => plAssignSave(r)};
   $('#dlg-title').textContent = 'Przypisz wyliczenia do trasy';
   $('#dlg-body').innerHTML = `<div class="field full"><label for="pl-a-route">Trasa</label><select id="pl-a-route"><option value="">— wybierz —</option>${free.map(t => `<option value="${esc(t.id)}" ${t.id===r.routeId ? 'selected' : ''}>${esc(t.code)} ${esc(t.name)}</option>`).join('')}</select></div>
-    <div class="field full"><span class="label">Co trafi do trasy</span><label class="check small"><input type="radio" name="pl-a-mode" value="kurs" checked> Stawka za kurs: <b>${price!=null ? zl(Math.round(price)) : '—'}</b></label>
+    <div class="field full"><span class="label">Co trafi do trasy</span>${price==null ? '<span class="muted small">Bez stawki – wpisz ją w „Przychód”, jeśli chcesz ją przenieść.</span>' : ''}<label class="check small"><input type="radio" name="pl-a-mode" value="kurs" checked> Stawka za kurs: <b>${price!=null ? zl(Math.round(price)) : '—'}</b></label>
       <label class="check small"><input type="radio" name="pl-a-mode" value="km"> Stawka za km: <b>${price!=null && x.invKm ? plFmt(Math.round(price / x.invKm * 100) / 100) + ' zł' : '—'}</b> (${plFmt(Math.round(x.invKm))} km do faktury)</label>
       ${mtStops(r).length ? `<label class="check small"><input type="checkbox" id="pl-a-stops" checked> Przenieś też przystanki z mapy (${mtStops(r).length}) – kierowca zobaczy je w telefonie</label>` : ''}</div>
     <div class="field full" id="pl-a-diff"></div><div class="warnline" id="dlg-warn" hidden></div>`;
@@ -839,7 +840,7 @@ async function plNewQuoteSave(){
   if (!(km > 0)){ w.textContent = 'Wpisz km kursu.'; w.hidden = false; return; }
   const ref = db.collection('routePlans').doc();
   try { await ref.set({name, color: MT_COLORS[(S.routePlans || []).length % MT_COLORS.length], stops: [], via: [], routeId: null, calc: {km, qClient: $('#pl-q-client').value.trim() || undefined, qStatus: 'szkic', qDate: today()}});
-    mtActive = ref.id; plMode = 'wycena'; closeForm(); toast('Utworzono wycenę'); render(); } catch(err){ handleWriteErr(err); }
+    mtActive = ref.id; plMode = 'koszty'; closeForm(); toast('Utworzono wycenę'); render(); } catch(err){ handleWriteErr(err); }
 }
 document.addEventListener('click', e => {
   const t = e.target.closest('[data-pl-mode],[data-pl-row],[data-pl-new-quote],[data-pl-set-rate],[data-pl-assign]'); if (!t) return;
