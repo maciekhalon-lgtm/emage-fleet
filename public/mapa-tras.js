@@ -379,28 +379,59 @@ document.addEventListener('click', e => {
   if (e.target.closest('#dlg-del') && editing.mtDel){ e.preventDefault(); e.stopImmediatePropagation(); editing.mtDel(); return; }
   if (e.target.closest('[data-mt-pick]')){
     if (!mtMap){ toast('Mapa jeszcze się wczytuje'); return; }
-    mtPicking = {...editing.mtDraft, ...mtFormData(), id: editing.mtDraft.id, _link: editing.mtLink, _addTo: editing.mtAddTo}; closeForm();
-    mtNotice('Kliknij na mapie miejsce wjazdu lub rozładunku. Esc – anuluj.'); return;
+    const fd = mtFormData();
+    mtPicking = {...editing.mtDraft, ...fd, id: editing.mtDraft.id, _link: editing.mtLink, _addTo: editing.mtAddTo}; closeForm();
+    mtNotice('Kliknij na mapie miejsce wjazdu lub rozładunku. Esc – anuluj.');
+    // pokaż od razu okolicę: wpisane współrzędne albo znaleziony adres
+    if (fd.lat!=='' && fd.lng!==''){ mtMap.setView([Number(fd.lat), Number(fd.lng)], 17); return; }
+    if (fd.address.length >= 3){ mtNotice('Szukam adresu na mapie…');
+      mtGeocode(fd.address).then(({res, approx}) => { if (!mtPicking) return;
+        if (res.length){ mtMap.setView([res[0].lat, res[0].lng], approx ? 15 : 17); mtNotice(`${approx ? 'Okolica adresu' : 'Adres'}: ${res[0].label}. Kliknij dokładne miejsce wjazdu lub rozładunku. Esc – anuluj.`); }
+        else mtNotice('Nie znalazłem adresu – przybliż mapę i kliknij miejsce ręcznie. Esc – anuluj.'); }); }
+    return;
   }
   if (e.target.closest('[data-mt-lookup]')) mtLookup();
   const ch = e.target.closest('[data-mt-res]');
   if (ch){ const [lng, lat] = ch.dataset.mtRes.split(','); $('#mt-c-addr').value = ch.textContent; $('#mt-c-lat').value = lat; $('#mt-c-lng').value = lng; $('#mt-results').textContent = 'Adres wybrany.'; }
 }, true);
+/* Wyszukiwanie adresu: Photon, a gdy nic nie znajdzie albo nie odpowiada – Nominatim (OpenStreetMap).
+   Najpierw pełny adres, potem bez „ul./al.” i kodu pocztowego, potem sama ulica z miejscowością – wynik przybliżony. */
+const mtClean = q => q.replace(/\b(ul|al|os|pl|aleja|ulica|osiedle)\.?\s+/gi, '').replace(/\b\d{2}-\d{3}\b/g, '').replace(/\s*,\s*,/g, ',').replace(/\s{2,}/g, ' ').replace(/^[\s,]+|[\s,]+$/g, '');
+const mtNoNum = q => q.replace(/\s\d+[a-zA-Z]?(\/\d+)?(?=\s*,|\s*$)/g, '').replace(/\s{2,}/g, ' ').trim();
+async function mtPhoton(q){
+  const x = await fetch('https://photon.komoot.io/api/?limit=5&q=' + encodeURIComponent(q), {signal: AbortSignal.timeout(8000)});
+  if (!x.ok) throw Error('photon');
+  return ((await x.json()).features || []).filter(f => f.geometry && f.geometry.type==='Point').map(({properties: p, geometry: g}) => ({
+    lat: g.coordinates[1], lng: g.coordinates[0],
+    label: [p.street ? [p.street, p.housenumber].filter(Boolean).join(' ') : p.name, p.postcode, p.city || p.town || p.village, p.country].filter(Boolean).join(', ')})).filter(r => r.label);
+}
+async function mtNominatim(q){
+  const x = await fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=5&accept-language=pl&q=' + encodeURIComponent(q), {signal: AbortSignal.timeout(8000)});
+  if (!x.ok) throw Error('nominatim');
+  return (await x.json()).map(f => { const a = f.address || {};
+    return {lat: Number(f.lat), lng: Number(f.lon), label: [a.road ? [a.road, a.house_number].filter(Boolean).join(' ') : f.name, a.postcode, a.city || a.town || a.village || a.municipality, a.country].filter(Boolean).join(', ') || f.display_name}; });
+}
+async function mtGeocode(q){
+  const vs = [...new Set([q, mtClean(q), mtNoNum(mtClean(q))])].filter(v => v.length >= 3);
+  for (let i = 0; i < vs.length; i++){
+    let res = [];
+    try { res = await mtPhoton(vs[i]); } catch(_){}
+    if (!res.length) try { res = await mtNominatim(vs[i]); } catch(_){}
+    if (res.length) return {res, approx: i===vs.length - 1 && i > 0 && vs[i]!==mtClean(q)};
+  }
+  return {res: [], approx: false};
+}
 async function mtLookup(){
   const q = $('#mt-c-addr').value.trim(), out = $('#mt-results');
-  if (q.length < 3){ out.textContent = 'Wpisz ulicę i miejscowość.'; return; }
+  if (q.length < 3){ out.textContent = 'Wpisz ulicę z numerem i miejscowość, np. Żmigrodzka 251, Wrocław.'; return; }
   out.textContent = 'Wyszukiwanie…';
-  try {
-    const x = await fetch('https://photon.komoot.io/api/?limit=5&q=' + encodeURIComponent(q), {signal: AbortSignal.timeout(10000)});
-    if (!x.ok) throw Error();
-    const {features} = await x.json();
-    const items = (features || []).filter(f => f.geometry && f.geometry.type==='Point').map(({properties: p, geometry: g}) => {
-      const label = [p.street ? [p.street, p.housenumber].filter(Boolean).join(' ') : p.name, p.postcode, p.city || p.town || p.village, p.country].filter(Boolean).join(', ');
-      return label ? `<button type="button" class="small mt-res" data-mt-res="${g.coordinates[0]},${g.coordinates[1]}">${esc(label)}</button>` : '';
-    }).join('');
-    out.innerHTML = items || 'Brak wyników. Doprecyzuj adres albo wskaż punkt na mapie.';
-  } catch(_){ out.textContent = 'Wyszukiwarka niedostępna. Wskaż punkt na mapie albo wpisz współrzędne.'; }
+  const {res, approx} = await mtGeocode(q);
+  if (!res.length){ out.innerHTML = 'Nie znaleziono tego adresu. Sprawdź pisownię albo kliknij „Wskaż na mapie” i zaznacz miejsce ręcznie.'; return; }
+  out.innerHTML = (approx ? '<span class="muted small">Nie ma dokładnie tego numeru – to najbliższe wyniki. Po zapisie popraw pinezkę („Przesuń pinezkę”).</span>' : '')
+    + res.map(r => `<button type="button" class="small mt-res" data-mt-res="${r.lng},${r.lat}">${esc(r.label)}</button>`).join('');
+  if (res.length===1 && !approx) out.querySelector('[data-mt-res]').click();   // jeden pewny wynik – od razu ustaw współrzędne
 }
+document.addEventListener('keydown', e => { if (e.key==='Enter' && e.target.id==='mt-c-addr'){ e.preventDefault(); mtLookup(); } });
 
 /* ---------- akcje na stronie ---------- */
 async function mtWrite(fn){ try { await fn(); render(); } catch(err){ handleWriteErr(err); } }
