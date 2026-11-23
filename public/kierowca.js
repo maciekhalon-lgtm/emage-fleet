@@ -7,10 +7,22 @@ const meDriver = () => byId('drivers', myDriverId());
 function myAssigned(){
   const t = today();
   const b = S.bookings.filter(x => x.driverId===myDriverId() && !x.pickup && !x.returned && x.from<=t && x.to>=t).sort((a,c) => a.from<c.from?-1:1)[0];
-  if (b) return {booking:b, vehicle: byId('vehicles', b.vehicleId)};
-  const mineV = S.vehicles.filter(x => respOf(x).includes(myDriverId()) && x.status!=='wycofany');
-  const v = mineV.find(x => { const st = takeState(x); return st && st.ok; }) || mineV[0];
-  return v ? {booking:null, vehicle:v} : null;
+  return b ? {booking:b, vehicle: byId('vehicles', b.vehicleId)} : null;   // odpowiedzialność za auto ≠ jazda nim – tylko grafik
+}
+/* Auta, za które kierowca odpowiada (opieka nad autem – nie oznacza, że nim jedzie) */
+function myRespPanel(){
+  const me_ = myDriverId(), vs = S.vehicles.filter(v => respOf(v).includes(me_) && v.status!=='wycofany');
+  if (!vs.length) return '';
+  const row = v => {
+    const b = S.bookings.find(x => x.vehicleId===v.id && holds(x));
+    const st = b ? (crewOf(b).includes(me_) ? ['ok', 'jedziesz nim'] : ['', 'jedzie nim: ' + crewName(b)])
+      : v.status==='serwis' ? ['warn', 'w serwisie'] : stopIssue(v.id) ? ['bad', 'niesprawne – usterka'] : ['', 'wolne, na bazie'];
+    const due = myDueNote(v);
+    return `<li class="d-resp">${plate(v.plate)}<span class="d-resp-t"><b>${esc(v.make || '')} ${esc(v.model || '')}</b><span class="sub ${st[0]}">${esc(st[1])} · ${km(lastKm(v.id))}</span></span>
+      <button class="small ghost" data-new="issues" data-veh="${esc(v.id)}" title="Zgłoś usterkę tego auta" aria-label="Zgłoś usterkę">${ic('wrench')}</button>${due ? `<div class="d-resp-due">${due}</div>` : ''}</li>`;
+  };
+  return `<section class="panel d-card"><div class="sec-head"><h3>Odpowiadasz za</h3></div><ul class="d-resp-list">${vs.map(row).join('')}</ul>
+    <p class="d-hint">Dbasz o to auto (stan, terminy, usterki). To nie znaczy, że dziś nim jedziesz – auto do jazdy wybierasz albo dostajesz w grafiku.</p></section>`;
 }
 /* Czy auto można dziś przejąć: aktywne, sprawne, nikt go nie ma i nikt inny go dziś nie zarezerwował */
 function takeState(v){
@@ -153,7 +165,7 @@ function viewMyCar(){
     if (v) car = v;
     const rt = b && b.routeId ? routeById(b.routeId) : (todayB && todayB.routeId ? routeById(todayB.routeId) : null);
     hero = v ? `<section class="d-hero">
-      <div class="d-hero-top"><span class="d-state-chip">${b ? 'Dziś jedziesz' : 'Twój bus'}</span></div>
+      <div class="d-hero-top"><span class="d-state-chip">Dziś jedziesz</span></div>
       <div class="d-car">${plate(v.plate)}<span>${esc(v.make)} ${esc(v.model)}${v.hasTacho ? ' · tachograf' : ''} · ${km(lastKm(v.id))}</span></div>
       ${dayStepper(0)}
       ${rt ? `<div class="d-note">${ic('route')}<span><b>${esc(rt.code)}</b> ${esc(rt.name)}</span></div>` : ''}
@@ -181,6 +193,7 @@ function viewMyCar(){
     ${inbox ? `<div class="d-inbox">${inbox}</div>` : ''}
     ${hero}
     ${quick ? `<div class="d-quick n${(quick.match(/class="d-qa /g) || []).length}">${quick}</div>` : ''}
+    ${myRespPanel()}
     ${typeof myStopsPanel==='function' ? myStopsPanel(active && !active.returned ? active.routeId : (todayB && todayB.routeId) || null) : ''}
     ${car && active && !active.returned ? myCarState(car) : ''}
     <section class="panel d-card"><div class="sec-head"><h3>Najbliższe dni</h3><a class="small ghost btn" href="#moj-grafik">Cały grafik</a></div>${next}</section>
@@ -270,15 +283,15 @@ function viewPickCar(){
   const swapB = asg && asg.booking ? asg.booking : null;   // przydział z grafiku – inne auto = zmiana przydziału
   const asgBad = swapB && !asgOk ? `<div class="panel notice warn"><span>${ic('alert')} Auto z grafiku ${plate(asg.vehicle ? asg.vehicle.plate : '')} – nie da się go dziś przejąć (${esc(asg.vehicle && takeState(asg.vehicle) ? takeState(asg.vehicle).why : 'niedostępne')}). Wybierz inne auto poniżej – grafik zmieni się sam, a kierownik dostanie informację.</span></div>` : '';
   const asgHtml = asgOk ? `<div class="panel mycar assigned">
-      <span class="label">${asg.booking ? 'Kierownik przydzielił Ci na dziś' : 'Twój bus – jesteś za niego odpowiedzialny'}</span>
+      <span class="label">Kierownik przydzielił Ci na dziś</span>
       <div class="mycar-head">${plate(asg.vehicle.plate)}<div><h2>${esc(asg.vehicle.make)} ${esc(asg.vehicle.model)}${asg.vehicle.hasTacho ? ' <span class="pill off">tachograf</span>' : ''}</h2><span class="muted">Ostatni stan licznika: ${km(lastKm(asg.vehicle.id))}${asg.booking && asg.booking.routeId ? ' · trasa '+esc(rLabel(asg.booking.routeId)) : ''}${asg.booking && asg.booking.purpose ? ' · '+esc(asg.booking.purpose) : ''}</span></div></div>
       <div class="big-grid">${asg.booking ? big(`data-ho="pickup" data-id="${esc(asg.booking.id)}"`, 'Przyjmij auto', 'checklista i przebieg', 'primary wide', 'key') : big(`data-take="${esc(asg.vehicle.id)}"`, 'Przyjmij auto', 'checklista i przebieg', 'primary wide', 'key')}</div>
     </div>` : '';
   const list = S.vehicles.filter(v => !asgOk || v.id!==asg.vehicle.id)
     .map(v => ({v, st: takeState(v)})).filter(x => x.st)
-    .sort((a, b) => (b.st.ok - a.st.ok) || (respOf(b.v).includes(myDriverId()) - respOf(a.v).includes(myDriverId())) || String(a.v.plate).localeCompare(b.v.plate));
+    .sort((a, b) => (b.st.ok - a.st.ok) || String(a.v.plate).localeCompare(b.v.plate));
   const rows = list.map(({v, st}) => `<div class="pick ${st.ok?'':'off'}">
-      <div class="pick-car">${plate(v.plate)}<div><b>${esc(v.make)} ${esc(v.model)}${respOf(v).includes(myDriverId()) ? ' <span class="pill soon">Twój bus</span>' : ''}</b><span class="sub">${esc(v.fuel||'')} · ${km(lastKm(v.id))}${v.hasTacho ? ' · tachograf' : ''}</span></div></div>
+      <div class="pick-car">${plate(v.plate)}<div><b>${esc(v.make)} ${esc(v.model)}${respOf(v).includes(myDriverId()) ? ' <span class="pill">Odpowiadasz</span>' : ''}</b><span class="sub">${esc(v.fuel||'')} · ${km(lastKm(v.id))}${v.hasTacho ? ' · tachograf' : ''}</span></div></div>
       ${st.ok ? (swapB ? `<button class="primary" data-swap="${esc(v.id)}" data-swap-b="${esc(swapB.id)}">Wybierz</button>` : `<button class="primary" data-take="${esc(v.id)}">Wybierz</button>`) : `<span class="muted small">${esc(st.why)}</span>`}</div>`).join('');
   return `<div class="section driver">${backBtn()}
     <header class="d-pagehead"><h2>Wybierz auto</h2><p class="muted">Najpierw wolne i sprawne auta. Szare są zajęte albo niesprawne – obok widać dlaczego.</p></header>

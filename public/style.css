@@ -2027,3 +2027,8 @@ body.viewas{padding-top:calc(var(--va-h,40px) + 10px)!important}body.viewas .dma
 .dm-seg button{flex:1;border:0;border-radius:9px;padding:7px 6px;background:none;color:var(--muted);font-weight:600;cursor:pointer}
 .dm-seg button.on{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
 .dm-group{margin-bottom:12px}
+.d-resp-list{list-style:none;margin:0;padding:0}
+.d-resp{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;padding:10px 0;border-bottom:1px solid var(--line)}.d-resp:last-child{border-bottom:0}
+.d-resp-t{flex:1;min-width:0;display:flex;flex-direction:column}
+.d-resp-t .sub{display:block;color:var(--muted);font-size:12.5px}.d-resp-t .sub.ok{color:var(--ok)}.d-resp-t .sub.bad{color:var(--bad)}.d-resp-t .sub.warn{color:var(--warn)}
+.d-resp-due{flex-basis:100%}

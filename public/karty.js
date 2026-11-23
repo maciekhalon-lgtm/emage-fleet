@@ -158,10 +158,12 @@ const fcAnchorApp = (vid, imp) => appFuel().filter(c => c.vehicleId===vid && c.d
 function fcDriver(r, c){
   if (c) return dName(fillDriver(c) || c.driverId) || '';
   const b = S.bookings.find(x => x.vehicleId===r.vehicleId && x.from<=r.txDate && x.to>=r.txDate);
-  if (b) return crewName(b);
-  // brak grafiku tego dnia: jeśli auto ma jednego odpowiedzialnego kierowcę – podpowiadamy go (z dopiskiem)
+  return b ? crewName(b) : '';
+}
+/* tankowanie z karty bez grafiku: „brak w grafiku” + kto odpowiada za auto (to nie znaczy, że tankował) */
+function fcNoCrew(r){
   const v = byId('vehicles', r.vehicleId), resp = v ? respOf(v) : [];
-  return resp.length===1 && byId('drivers', resp[0]) ? dName(resp[0]) + ' (odpowiedzialny)' : '';
+  return `<span class="muted">brak w grafiku</span>${resp.length ? `<span class="sub">odpowiada: ${esc(resp.map(dName).join(', '))}</span>` : ''}`;
 }
 
 /* ---------- widok ---------- */
@@ -205,7 +207,7 @@ function viewFuelCards(){
   const list = fcFilter==='ok' ? ok : fcFilter==='diff' ? dif : fcFilter==='miss' ? miss : fcFilter==='nocard' ? [] : pairs;
   const badOdo = new Set(); perV.forEach(x => { [x.kc, x.ka].forEach(k => { if (k){ k.bad.forEach(id => badOdo.add(id)); (k.fake || []).forEach(id => badOdo.add(id)); } }); });
   const pairRow = p => { const r = p.row, c = p.cost;
-    return `<tr><td class="num"><b>${fdate(r.txDate)}</b>${r.txTime ? `<span class="sub">${esc(r.txTime)}</span>` : ''}</td><td>${esc(fcDriver(r, c)) || '<span class="muted">—</span>'}</td>
+    return `<tr><td class="num"><b>${fdate(r.txDate)}</b>${r.txTime ? `<span class="sub">${esc(r.txTime)}</span>` : ''}</td><td>${esc(fcDriver(r, c)) || fcNoCrew(r)}</td>
       <td class="num">${fl(r.liters)} · <b>${fm(r.amount, r.currency)}</b><span class="sub">${r.odometer ? km(r.odometer) : 'bez licznika'}${badOdo.has(r.id) ? ' <span class="pill off">licznik podejrzany</span>' : ''}${r.station ? ' · ' + esc(r.station) : ''}${r.product ? ' · ' + esc(r.product) : ''}</span></td>
       <td class="num ${c ? 'click' : ''}" ${c ? `data-edit="costs" data-id="${esc(c.id)}"` : ''}>${c ? `${fl(c.liters)} · <b>${fm(c.currency && c.currency!=='PLN' ? c.amountOrig : c.amount, c.currency)}</b><span class="sub">${c.odometer ? km(c.odometer) : 'bez licznika'}${badOdo.has(c.id) ? ' <span class="pill off">licznik podejrzany</span>' : ''} · ${fdate(c.date)}</span>${photoStrip(c.photos)}` : '<span class="muted">—</span>'}</td>
       <td>${!c ? '<span class="pill bad">brak wpisu</span>' : p.issues.length ? p.issues.map(x => `<span class="pill warn">${esc(x)}</span>`).join(' ') : '<span class="pill ok">zgodne</span>'} <button class="small ghost" data-fc-excl="${esc(r.id)}" title="Wyklucz z kosztów floty">Nie flota</button></td></tr>`; };
@@ -568,7 +570,7 @@ function viewTolls(){
     const list = rows.filter(r => r.vehicleId===vid).sort((a, b) => (a.txDate + (a.txTime || '')).localeCompare(b.txDate + (b.txTime || ''))), open = tlOpen.has(vid);
     const det = open ? `<tr class="fc-det"><td colspan="3"><table><thead><tr><th>Data</th><th>Pozycja</th><th>Kierowca</th><th class="r">Kwota</th><th></th></tr></thead><tbody>${list.map(r => `<tr>
         <td class="num"><b>${fdate(r.txDate)}</b>${r.txTime ? `<span class="sub">${esc(r.txTime)}</span>` : ''}</td><td>${esc(r.product || 'inne')}<span class="sub">${esc(r.station || '')}</span></td>
-        <td>${esc(fcDriver(r, null)) || '<span class="muted">—</span>'}</td><td class="r num"><b>${fm(r.amount, r.currency)}</b></td>
+        <td>${esc(fcDriver(r, null)) || fcNoCrew(r)}</td><td class="r num"><b>${fm(r.amount, r.currency)}</b></td>
         <td>${r.costId ? '<span class="pill ok">w kosztach</span>' : '<span class="pill warn">nie dopisano – dodaj ręcznie</span>'} <button class="small ghost" data-fc-excl="${esc(r.id)}" title="Wyklucz z kosztów floty">Nie flota</button></td></tr>`).join('')}
         ${S.fuelCardRowsAll.filter(r => r.excluded && r.kind==='other' && r.importId===imp.id && r.vehicleId===vid).map(r => `<tr class="fc-excl"><td class="num"><b>${fdate(r.txDate)}</b></td><td>${esc(r.product || 'inne')}<span class="sub">${esc(r.station || '')}</span></td>
           <td class="muted">wykluczone${r.excludedNote ? ': ' + esc(r.excludedNote) : ''}</td><td class="r num">${fm(r.amount, r.currency)}</td><td><span class="pill off">nie flota</span> <button class="small ghost" data-fc-incl="${esc(r.id)}">Przywróć</button></td></tr>`).join('')}</tbody></table></td></tr>` : '';

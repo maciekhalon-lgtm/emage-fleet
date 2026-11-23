@@ -191,8 +191,8 @@ const DEFAULTS = {
     const base = {date: today(), category:'Paliwo', full:null};
     if (P().costs==='own'){
       const me = myDriverId();
-      const b = me && S.bookings.find(x => x.driverId===me && !x.returned && (x.pickup || (x.from<=today() && x.to>=today())));
-      const v = b ? byId('vehicles', b.vehicleId) : S.vehicles.find(x => respOf(x).includes(me) && x.status!=='wycofany');
+      const b = me && (S.bookings.find(x => crewOf(x).includes(me) && x.pickup && !x.returned) || S.bookings.find(x => crewOf(x).includes(me) && !x.returned && x.from<=today() && x.to>=today()));
+      const v = b ? byId('vehicles', b.vehicleId) : null;   // bez przejętego auta / grafiku – kierowca wybiera auto sam (odpowiedzialność ≠ jazda)
       return {...base, vehicleId: v ? v.id : '', driverId: me};
     }
     return base;

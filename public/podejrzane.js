@@ -92,7 +92,7 @@ function suspPanel(){
   const list = suspShowChecked ? all.filter(lv) : todo;
   const rows = list.slice(0, 200).map(({row: r, why, lvl}) => `<div class="sp-row ${ch.has(r.id) ? 'done' : ''}">
     <span class="sp-d num"><b>${fdate(r.txDate)}</b><em>${esc(r.txTime || '')}</em></span>
-    <span class="sp-v">${vPlate(r.vehicleId)}<span class="sub">${esc(fcDriver(r, null) || 'kierowca nieustalony')}${r.station ? ' · ' + esc(r.station) : ''}</span></span>
+    <span class="sp-v">${vPlate(r.vehicleId)}<span class="sub">${esc(fcDriver(r, null) || 'brak w grafiku')}${r.station ? ' · ' + esc(r.station) : ''}</span></span>
     <span class="sp-a num">${fl(r.liters)}<span class="sub">${fm(r.amount, r.currency)}</span></span>
     <span class="sp-w">${why.map(w => `<span class="pill ${lvl==='bad' && /bak|zmieściłoby|od stacji/i.test(w) ? 'bad' : 'warn'}">${esc(w)}</span>`).join('')}</span>
     <button class="small ${ch.has(r.id) ? 'ghost' : ''}" data-sp-ok="${esc(r.id)}">${ch.has(r.id) ? 'Cofnij' : `${ic('check')}Sprawdzone`}</button></div>`).join('');
