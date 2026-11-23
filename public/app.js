@@ -2,7 +2,7 @@
 'use strict';
 /* ---------- routing ---------- */
 const DRIVER_VIEWS = ['moje','wybierz','moje-dane','moj-grafik','moja-historia','moja-mapa'];
-const TABS = ['moje','wybierz','moje-dane','moj-grafik','moja-historia','moja-mapa','pulpit','pojazdy','trasy','terminy','usterki','ksiazka','przydzial','mapa-tras','koszty','karty','oplaty','opony','wyposazenie','umowy','plan','zlecenia','serwis-terminy','ranking','ranking-kierowcy','spalanie','liczniki','raporty','rozliczenie','historia','kierowcy','uzytkownicy','ustawienia'];
+const TABS = ['moje','wybierz','moje-dane','moj-grafik','moja-historia','moja-mapa','pulpit','pojazdy','trasy','terminy','usterki','ksiazka','przydzial','mapa-tras','koszty','wydatki','karty','oplaty','opony','wyposazenie','umowy','plan','zlecenia','serwis-terminy','ranking','ranking-kierowcy','spalanie','liczniki','raporty','rozliczenie','historia','kierowcy','uzytkownicy','ustawienia'];
 const homeTab = () => P().mycar ? 'moje' : 'pulpit';
 let pendingCard = null;
 let tab = TABS.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'pulpit', q = '', costMonth = today().slice(0,7), dlFilter = 'urgent';
@@ -35,6 +35,9 @@ function render(){
     hydrateFiles(v);
     return;
   }
+  // stare adresy: Raporty → Koszty (Podsumowanie), Opłaty drogowe → Wydatki (opłaty)
+  if (tab==='raporty'){ tab = 'koszty'; history.replaceState(null, '', '#koszty'); }
+  if (tab==='oplaty'){ tab = 'wydatki'; if (typeof expF!=='undefined'){ Object.keys(expF).forEach(k => { expF[k] = ''; }); expF.grp = '5'; } history.replaceState(null, '', '#wydatki'); }
   const drive = canDrive();
   if (DRIVER_VIEWS.includes(tab) && !drive) tab = 'pulpit';
   const manage = !!P().manage;
@@ -73,7 +76,7 @@ function render(){
   else if (tab==='pojazdy') html = cardId ? viewCard() : viewVehicles();
   else if (tab==='terminy') html = viewDeadlines();
   else if (tab==='usterki') html = viewIssues();
-  else if (tab==='raporty') html = viewReports();
+  else if (tab==='wydatki') html = viewExpenses();
   else if (tab==='rozliczenie') html = viewSettlement();
   else if (tab==='historia') html = viewHistory();
   else if (tab==='przydzial') html = viewAssign();
@@ -81,7 +84,6 @@ function render(){
   else if (tab==='spalanie') html = viewFuelSimple();
   else if (tab==='liczniki') html = viewOdoControl();
   // Rentowność (Cała firma, Trasy) – ukryta do czasu nowej wersji; kod w rentownosc.js i trasy-zysk.js, ustawienia zostają w bazie
-  else if (tab==='oplaty') html = viewTolls();
   else if (tab==='opony') html = viewTires();
   else if (tab==='wyposazenie') html = viewEquipment();
   else if (tab==='umowy') html = viewContracts();

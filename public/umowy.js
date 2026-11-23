@@ -34,6 +34,8 @@ function ctRate(cur, d){
 /* kwota umowy w złotych w miesiącu m (domyślnie bieżący) */
 const ctPln = (c, amt, m) => { const r = ctRate(ctCur(c), ctFxDay(m)); return r ? Number(amt || 0) * r.rate : 0; };
 const monthlyPln = (c, m) => ctPln(c, monthlyOf(c), m);
+/* rata netto w złotych – do kosztów (koszty liczymy netto); bez netto – brutto ÷ 1,23 */
+const monthlyNetPln = (c, m) => ctPln(c, Number(c.monthlyNet) || (Number(c.monthlyGross) ? Number(c.monthlyGross) / 1.23 : 0), m);
 /* kwota w walucie umowy, a obok – w złotych */
 const ctMoney = (c, amt, m) => { const cur = ctCur(c); if (cur==='PLN') return zl(amt);
   const r = ctRate(cur, ctFxDay(m)), f = new Intl.NumberFormat('pl-PL', {style: 'currency', currency: cur}).format(Number(amt));
@@ -97,7 +99,7 @@ function contractMonthCost(vid, from, to, own){
   if (!(typeof optOn==='function' && optOn('contracts'))) return 0;
   if (own.some(c => c.category==='Leasing')) return 0;
   const c = S.contracts.find(x => x.vehicleId===vid && x.kind!=='wlasne' && (!x.startDate || x.startDate <= to) && (!x.endDate || x.endDate >= from));
-  return c ? monthlyPln(c, to.slice(0, 7)) : 0;
+  return c ? monthlyNetPln(c, to.slice(0, 7)) : 0;
 }
 function contractFact(v){
   if (!contractsOn()) return null;

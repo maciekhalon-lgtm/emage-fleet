@@ -10,7 +10,7 @@ function viewCard(){
   const st = vehicleState(v);
   const t = today(), yr = t.slice(0,4);
   const VC = visibleCosts().filter(c => c.vehicleId===v.id);
-  const yearCost = VC.filter(c => (c.date||'').startsWith(yr)).reduce((s,c) => s+Number(c.amount||0), 0);
+  const yearCost = netSum(VC.filter(c => (c.date||'').startsWith(yr)));
   const cons = consumption(v.id);
   const add = (col, label) => canCreate(col) ? `<button class="small" data-new="${col}" data-veh="${esc(v.id)}">${label}</button>` : '';
 
@@ -152,7 +152,7 @@ function tcoHtml(v, VC){
   const from = months[0] + '-01';
   const grp = c => c.category==='Paliwo' || c.category==='Ładowanie' ? 'fuel' : c.category==='Serwis i naprawy' || c.category==='Opony' ? 'svc' : 'oth';
   const per = months.map(m => { const xs = VC.filter(c => (c.date || '').startsWith(m)); const o = {m, fuel:0, svc:0, oth:0};
-    xs.forEach(c => { o[grp(c)] += Number(c.amount || 0); }); o.sum = o.fuel + o.svc + o.oth; return o; });
+    xs.forEach(c => { o[grp(c)] += costNet(c); }); o.sum = o.fuel + o.svc + o.oth; return o; });
   const total = per.reduce((s, x) => s + x.sum, 0), max = Math.max(1, ...per.map(x => x.sum));
   if (!total) return '<p class="muted sec-empty">Brak kosztów w ostatnich 12 miesiącach.</p>';
   const kmR = typeof odoRange==='function' ? (odoRange(v.id, from, t).km || 0) : 0;

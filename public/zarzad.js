@@ -11,13 +11,11 @@ function boardPeriod(){
   return {a, b, label, pa: pm + '-01', pb: pm + '-' + pad(last), plabel: MONTHS_FULL[Number(pm.slice(5, 7)) - 1] + ' ' + pm.slice(0, 4)};
 }
 function boardNumbers(a, b){
-  const cs = visibleCosts().filter(c => c.date >= a && c.date <= b);
-  const vs = S.vehicles.filter(v => v.status!=='wycofany' || cs.some(c => c.vehicleId===v.id));
-  const per = vs.map(v => { const my = cs.filter(c => c.vehicleId===v.id), cost = sumOf(my);
-    const kmV = typeof odoRange==='function' ? (odoRange(v.id, a, b).km || 0) : 0; return {v, cost, km: kmV}; });
-  const fleet = sumOf((S.fleetCosts || []).filter(c => c.date >= a && c.date <= b));   // koszty ogólne floty (migracja 024)
-  const cost = sumOf(cs) + fleet, km = per.reduce((s, r) => s + r.km, 0);
-  const cats = Object.fromEntries(COST_CATS.map(k => [k, sumOf(cs.filter(c => c.category===k))]));
+  // te same liczby co Koszty → Podsumowanie / Według aut (netto, ubezpieczenie 1/12, leasing z umów, koszty ogólne)
+  const cs = visibleCosts().filter(c => c.date >= a && c.date <= b), st = settleRange(a, b);
+  const per = st.rows.map(r => ({v: r.v, cost: r.total, km: r.km || 0}));
+  const fleet = st.fleetSum, cost = st.tot.total, km = st.tot.km || 0;
+  const cats = Object.fromEntries(SETL_GROUPS.map(([l], i) => [l, st.tot.g[i]]));
   if (fleet) cats['Koszty ogólne floty'] = fleet;
   const iss = S.issues.filter(i => (i.date || '') >= a && (i.date || '') <= b);
   return {cs, per, cost, km, cats, fuel: (cats['Paliwo'] || 0) + (cats['Ładowanie'] || 0), active: S.vehicles.filter(v => v.status!=='wycofany').length,

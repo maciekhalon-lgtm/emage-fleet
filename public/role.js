@@ -48,10 +48,31 @@ function cardFuelCosts(){
     const x = typeof ctRate==='function' ? ctRate(cur, r.txDate) : null; return x && !x.approx ? Number(r.amount) * x.rate : null; };
   let waiting = false;
   const v = rows.filter(r => r.kind!=='other' && r.vehicleId && !r.costId && !matched.has(r.id) && Number(r.amount) > 0 && (pln(r)!=null || !(waiting = true)))
-    .map(r => ({id: 'fc_' + r.id, virtual: true, vehicleId: r.vehicleId, date: r.txDate, category: 'Paliwo', amount: Math.round(pln(r) * 100) / 100, amountOrig: r.currency && r.currency!=='PLN' ? Number(r.amount) : null, liters: Number(r.liters) || null,
+    .map(r => ({id: 'fc_' + r.id, virtual: true, cardRow: r.id, vehicleId: r.vehicleId, date: r.txDate, category: 'Paliwo', amount: Math.round(pln(r) * 100) / 100,
+      net: Math.round(pln(r) * (Number(r.amountNet) > 0 && Number(r.amount) > 0 ? Number(r.amountNet) / Number(r.amount) : 1 / (1 + (r.vatRate!=null ? Number(r.vatRate) / 100 : VAT_OF[r.currency || 'PLN'] ?? 0.23))) * 100) / 100, amountOrig: r.currency && r.currency!=='PLN' ? Number(r.amount) : null, liters: Number(r.liters) || null,
       odometer: Number(r.odometer) || null, station: r.station || '', currency: 'PLN', note: 'karta paliwowa' + (r.cardNo ? ' ' + r.cardNo : ''), full: false}));
   if (!waiting) cardFuelMemo = {k, v};   // gdy czekamy na kurs NBP – liczymy jeszcze raz przy następnym odświeżeniu
   return v;
 }
+/* ---------- koszty netto (migracja 064) ----------
+   Wszystkie sumy kosztów liczymy netto. Wpis kierowcy (paragon) i pozycje z kart są brutto → netto po stawce VAT kraju waluty;
+   pozycja z karty – netto z wyciągu, gdy jest. Wpisy kierowników są netto, chyba że zaznaczono „brutto”. */
+const VAT_OF = {PLN: 0.23, EUR: 0.19, CZK: 0.21};
+let cardByCostMemo = {k: '', m: new Map()};
+function cardByCost(){
+  const rows = S.fuelCardRowsAll || S.fuelCardRows || [], k = rows.length + '|' + (rows[0] || {}).id + '|' + (rows[rows.length - 1] || {}).costId;
+  if (cardByCostMemo.k!==k){ const m = new Map(); rows.forEach(r => { if (r.costId) m.set(r.costId, r); }); cardByCostMemo = {k, m}; }
+  return cardByCostMemo.m;
+}
+function costNet(c){
+  if (!c) return 0;
+  if (c.net!=null) return Number(c.net) || 0;
+  const a = Number(c.amount || 0); if (!a) return 0;
+  const r = cardByCost().get(c.id);
+  if (r && Number(r.amountNet) > 0 && Number(r.amount) > 0) return a * Number(r.amountNet) / Number(r.amount);
+  if (c.gross || r) return a / (1 + (r && r.vatRate!=null ? Number(r.vatRate) / 100 : VAT_OF[c.currency || 'PLN'] ?? 0.23));
+  return a;
+}
+const netSum = list => list.reduce((s, c) => s + costNet(c), 0);
 const visibleCosts = () => P().costs==='own' ? S.costs : S.costs.concat(cardFuelCosts());   // kierowca: baza zwraca tylko jego wpisy
 const pName = id => names[id] || (me && id===me.id ? me.full_name : '') || 'Użytkownik';

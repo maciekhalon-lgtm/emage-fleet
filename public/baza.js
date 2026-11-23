@@ -20,7 +20,7 @@ const COL_OF = Object.fromEntries(Object.entries(TABLES).map(([a, b]) => [b, a])
 /* pole w aplikacji → kolumna w bazie */
 const FIELDS = {
   common:    {createdBy:'created_by', createdAt:'created_at', updatedBy:'updated_by', updatedAt:'updated_at'},
-  vehicles:  {weightClass:'weight_class', driverId:'driver_id', responsible:'responsible', monthlyLimit:'monthly_limit', consGood:'cons_good', consOk:'cons_ok', policyNo:'policy_no', insurer:'insurer', policyUntil:'policy_until', assistancePhone:'assistance_phone', hasTacho:'has_tacho', tankL:'tank_l', tireSize:'tire_size'},
+  vehicles:  {insPremium:'ins_premium', weightClass:'weight_class', driverId:'driver_id', responsible:'responsible', monthlyLimit:'monthly_limit', consGood:'cons_good', consOk:'cons_ok', policyNo:'policy_no', insurer:'insurer', policyUntil:'policy_until', assistancePhone:'assistance_phone', hasTacho:'has_tacho', tankL:'tank_l', tireSize:'tire_size'},
   blockOverrides: {vehicleId:'vehicle_id'},
   drivers:   {name:'full_name', licenseExpiry:'license_expiry', medicalExpiry:'medical_expiry', psychExpiry:'psych_expiry'},
   crewChanges: {vehicleId:'vehicle_id', bookingId:'booking_id', newBookingId:'new_booking_id', fromDriverId:'from_driver_id', fromCoDriverId:'from_co_driver_id', toDriverId:'to_driver_id'},
@@ -53,7 +53,7 @@ const FIELDS = {
 };
 /* kolumny, które aplikacja może zapisywać (reszta ustawia baza) */
 const WRITABLE = {
-  vehicles:  ['id','plate','make','model','year','vin','fuel','km','driver_id','status','monthly_limit','notes','cons_good','cons_ok','policy_no','insurer','policy_until','assistance_phone','has_tacho','tank_l','weight_class','tires','responsible','tire_size'],
+  vehicles:  ['id','plate','make','model','year','vin','fuel','km','driver_id','status','monthly_limit','notes','cons_good','cons_ok','policy_no','insurer','policy_until','assistance_phone','has_tacho','tank_l','weight_class','tires','responsible','tire_size','ins_premium'],
   drivers:   ['id','full_name','phone','categories','license_expiry','medical_expiry','psych_expiry','active'],
   crewChanges: [],
   routes:    ['id','code','name','tacho','loading','active','note','km','color','start_client_id','end_client_id','via'],
@@ -73,7 +73,7 @@ const WRITABLE = {
   tires: ['id','vehicle_id','season','size','brand','dot','tread_mm','location','storage','mounted_at','mounted_km','note'],
   loadingReports: ['id','driver_id','weight_kg','photo'],
   bookings:  ['id','vehicle_id','driver_id','date_from','date_to','purpose','route_id','pickup_at','pickup_km','pickup_fuel','pickup_note','pickup_photos','pickup_by','pickup_checklist','return_at','return_km','return_fuel','return_note','return_photos','return_by','return_home','co_driver_id'],
-  costs:     ['id','date','vehicle_id','driver_id','category','amount','liters','odometer','full_tank','note','photos','co_driver_id','confirm_status','currency','amount_orig','fx_rate','fx_manual','station','flag_state','flag_question'],
+  costs:     ['id','date','vehicle_id','driver_id','category','amount','liters','odometer','full_tank','note','photos','co_driver_id','confirm_status','currency','amount_orig','fx_rate','fx_manual','station','flag_state','flag_question','gross'],
   issues:    ['id','vehicle_id','title','description','severity','status','date','km','repair_note','resolved_at','photos','service_type'],
   workOrders: ['id','workshop_id','workshop','date','note','status','closed_at'],
   woItems:   ['id','order_id','vehicle_id','issue_id','deadline_id','kind','title','status','service_entry_id'],
@@ -120,6 +120,8 @@ function toDb(col, o){
   }
   for (const k of Object.keys(out)) if (!WRITABLE[col].includes(k)) delete out[k];
   if (col==='vehicles' && !tireSizeOn()) delete out.tire_size;   // przed migracją 032 kolumny nie ma
+  if (col==='vehicles' && S.vehicles[0] && !('insPremium' in S.vehicles[0])) delete out.ins_premium;   // przed migracją 064
+  if (col==='costs' && S.costs[0] && !('gross' in S.costs[0])) delete out.gross;
   if ((col==='routes' || col==='routeStops') && !optOn('clients')){ delete out.color; delete out.start_client_id; delete out.end_client_id; delete out.client_id; }   // przed migracją 059 (mapa tras) tych kolumn nie ma
   if (col==='routes' && !(S.routes[0] && 'via' in S.routes[0])) delete out.via;   // przed migracją 060
   if (col==='routePlans' && (optOn('planCalc') || S.routePlans[0] && !('calc' in S.routePlans[0]))) delete out.calc;   // przed migracją 062; od 063 koszty w route_plan_calc

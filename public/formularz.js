@@ -24,6 +24,7 @@ const FORMS = {
     {k:'insurer',l:'Towarzystwo ubezpieczeniowe',ph:'np. PZU'},
     {k:'policyNo',l:'Numer polisy',ph:'np. 123/2026'},
     {k:'policyUntil',l:'Polisa ważna do',t:'date'},
+    {k:'insPremium',l:'Składka roczna netto (zł)',t:'number',step:'0.01',ph:'np. 6200',hint:'w kosztach po 1/12 na każdy z 12 miesięcy przed „Polisa ważna do”'},
     {k:'assistancePhone',l:'Telefon assistance',t:'tel',ph:'np. +48 22 566 55 55'},
     {k:'secEq',t:'html',html:'<div class="f-sec">Wyposażenie i limity</div>'},
     {k:'tankL',l:'Pojemność baku (l)',t:'number',ph:'np. 90'},
@@ -72,7 +73,8 @@ const FORMS = {
     {k:'date',l:'Data',t:'date',req:1},
     {k:'category',l:'Kategoria',t:'select',o:(P().costs==='own'?DRIVER_CATS:COST_CATS).map(c=>[c,c]),req:1},
     {k:'vehicleId',l:'Pojazd',t:'select',o:vehOpts(),req:1,full:1},
-    {k:'amount',l:'Kwota',t:'number',step:'0.01',req:1},
+    {k:'amount',l:P().costs==='own' ? 'Kwota' : 'Kwota (netto)',t:'number',step:'0.01',req:1},
+    ...(P().costs==='rw' ? [{k:'gross',l:'Kwota jest brutto (z VAT) – policzymy netto',t:'check'}] : []),
     ...(editing && editing.base && editing.base.mode==='quick' ? [{k:'abroad',l:'Tankuję za granicą (EUR / CZK)',t:'check'}] : []),
     {k:'currency',l:'Waluta',t:'select',o:CURRENCIES.map(c=>[c,c])},
     {k:'fxPrev',t:'html',html:'<div class="fx-prev muted small" id="fx-prev" hidden></div>'},
@@ -276,7 +278,8 @@ async function costFxUi(){
   const cur = g('currency')?.value || 'PLN', foreign = cur!=='PLN';
   const sel = g('stationSel')?.value;
   const other = $('#wrap-costs-stationOther'); if (other) other.hidden = sel!=='Inna';
-  const ck = costKind(g('category')?.value), lab = $('#wrap-costs-amount label'); if (lab) lab.textContent = ck==='bez VAT' ? `Kwota (${cur==='PLN'?'zł':cur}, bez VAT) *` : `Kwota ${ck} (${cur==='PLN'?'zł':cur}) *`;
+  // kierowca wpisuje kwotę z paragonu (brutto); kierownik – netto, chyba że zaznaczy „brutto” (migracja 064)
+  const gr = P().costs==='own' || !!g('gross')?.checked, lab = $('#wrap-costs-amount label'); if (lab) lab.textContent = P().costs==='own' ? `Kwota z paragonu (${cur==='PLN'?'zł':cur}) *` : `Kwota ${gr ? 'brutto, z VAT' : 'netto'} (${cur==='PLN'?'zł':cur}) *`;
   ['fxManual','fxRate'].forEach(k => { const w = $('#wrap-costs-'+k); if (w) w.hidden = !foreign; });
   const man = g('fxManual')?.checked; const wr = $('#wrap-costs-fxRate'); if (wr && foreign) wr.hidden = !man;
   const box = $('#fx-prev'); if (!box) return;

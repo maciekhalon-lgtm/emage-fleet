@@ -40,32 +40,23 @@ function periodRange(){
   const last = new Date(y, m, 0).getDate();
   return [repMonth+'-01', repMonth+'-'+pad(last), MONTHS_FULL[m-1]+' '+y];
 }
+/* wiersze aut do Excela – te same liczby co Koszty → Według aut (netto, z ubezpieczeniem, leasingiem i kosztami ogólnymi) */
 function reportRows(){
-  const [a, b] = periodRange();
-  const inP = visibleCosts().filter(c => c.date >= a && c.date <= b);
-  return S.vehicles.filter(v => v.status!=='wycofany' || inP.some(c => c.vehicleId===v.id)).map(v => {
-    const cs = inP.filter(c => c.vehicleId===v.id);
-    const cost = cs.reduce((s,c) => s+Number(c.amount||0), 0);
-    const fuel = cs.filter(c => c.category==='Paliwo'||c.category==='Ładowanie').reduce((s,c) => s+Number(c.amount||0), 0);
-    const kmD = typeof odoRange==='function' ? (odoRange(v.id, a, b).km || null) : kmInPeriod(v.id, a, b);
-    const cons = consumption(v.id);
-    const limit = Number(v.monthlyLimit) || 0;
-    return {v, cost, fuel, km:kmD, perKm: kmD ? cost/kmD : null, cons, limit, cats: Object.fromEntries(COST_CATS.map(k => [k, cs.filter(c => c.category===k).reduce((s,c) => s+Number(c.amount||0), 0)]))};
-  });
+  const [a, b] = periodRange(), st = settleRange(a, b);
+  return st.rows.map(r => ({v: r.v, cost: r.total, fuel: r.g[0], km: r.km, perKm: r.perKm, cons: consumption(r.v.id), limit: Number(r.v.monthlyLimit) || 0,
+    cats: Object.fromEntries(SETL_GROUPS.map(([l], i) => [l, r.g[i]]).concat([['Koszty ogólne floty', r.share]]))}));
 }
 
 /* Ostrzeżenia o limitach w bieżącym miesiącu – używane też w powiadomieniach na górze strony */
 function limitAlerts(){
-  const m = today().slice(0,7);
-  const inM = visibleCosts().filter(c => (c.date||'').startsWith(m));
+  const st = settlement(today().slice(0,7));
   const out = [];
-  S.vehicles.forEach(v => {
-    const lim = Number(v.monthlyLimit); if (!lim) return;
-    const sum = inM.filter(c => c.vehicleId===v.id).reduce((s,c) => s+Number(c.amount||0), 0);
-    if (sum >= lim*0.9) out.push({v, sum, lim, over: sum > lim});
+  st.rows.forEach(r => {
+    const lim = Number(r.v.monthlyLimit); if (!lim) return;
+    if (r.total >= lim*0.9) out.push({v: r.v, sum: r.total, lim, over: r.total > lim});
   });
   const fb = Number(budget().monthly);
-  const fleet = fb ? {sum: inM.reduce((s,c) => s+Number(c.amount||0), 0), lim: fb} : null;
+  const fleet = fb ? {sum: st.tot.total, lim: fb} : null;
   return {vehicles: out, fleet: fleet && fleet.sum >= fleet.lim*0.9 ? {...fleet, over: fleet.sum > fleet.lim} : null};
 }
 
@@ -122,9 +113,9 @@ async function exportXlsx(){
   const rows = reportRows();
   const sum = rows.map(r => ({'Rejestracja': r.v.plate, 'Pojazd': r.v.make+' '+r.v.model, 'Koszty (zł)': +r.cost.toFixed(2), 'W tym paliwo (zł)': +r.fuel.toFixed(2),
     'Przejechane km': r.km || '', 'Koszt na km (zł)': r.perKm ? +r.perKm.toFixed(2) : '', 'Śr. zużycie': r.cons ? +r.cons.val.toFixed(1) : '', 'Jednostka zużycia': r.cons ? r.cons.unit : '',
-    'Limit miesięczny (zł)': r.limit || '', ...Object.fromEntries(COST_CATS.map(k => [k+' (zł)', +r.cats[k].toFixed(2)]))}));
+    'Limit miesięczny (zł)': r.limit || '', ...Object.fromEntries(Object.entries(r.cats).map(([k, x]) => [k+' (zł netto)', +x.toFixed(2)]))}));
   const entries = visibleCosts().filter(c => c.date >= a && c.date <= b).sort((x,y) => x.date<y.date?-1:1).map(c => ({
-    'Data': fdate(c.date), 'Rejestracja': byId('vehicles', c.vehicleId)?.plate || '', 'Kategoria': c.category, 'Kwota (zł)': Number(c.amount||0), 'Netto / brutto': costKind(c.category),
+    'Data': fdate(c.date), 'Rejestracja': byId('vehicles', c.vehicleId)?.plate || '', 'Kategoria': c.category, 'Netto (zł)': +costNet(c).toFixed(2), 'Kwota wpisana (zł)': Number(c.amount||0), 'Wpisana jako': c.virtual || c.gross || cardByCost().has(c.id) ? 'z VAT' : 'netto',
     'Ilość (l/kWh)': c.liters || '', 'Stan licznika (km)': c.odometer || '', 'Trasa': rLabel(c.routeId), 'Stacja': c.station || '', 'Waluta': c.currency || 'PLN', 'Kwota w walucie': c.currency && c.currency!=='PLN' ? Number(c.amountOrig||0) : '',
     'Kurs': c.fxRate ? Number(c.fxRate) : '', 'Data kursu': c.fxDate ? fdate(c.fxDate) : '', 'Tabela NBP': c.fxTable || '', 'Opis': c.note || '', 'Dodał(a)': c.createdBy ? pName(c.createdBy) : ''}));
   const wb = X.utils.book_new();

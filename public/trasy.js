@@ -68,7 +68,7 @@ function routeReportRows(a, b){
     const kmD = d.reduce((s, x) => s + (x.returned && x.returned.km > x.pickup.km ? x.returned.km - x.pickup.km : 0), 0);
     const fuel = cs.filter(isFuel);
     const liters = fuel.reduce((s, c) => s + Number(c.liters || 0), 0);
-    const cost = cs.reduce((s, c) => s + Number(c.amount || 0), 0);
+    const cost = netSum(cs);
     return {id, r: routeById(id), days: d.length, km: kmD, cost, fuelCost: fuel.reduce((s, c) => s + Number(c.amount || 0), 0), liters,
       cons: kmD && liters ? liters / kmD * 100 : null, perKm: kmD ? cost / kmD : null};
   }).sort((x, y) => (!x.id) - (!y.id) || y.km - x.km || y.cost - x.cost);

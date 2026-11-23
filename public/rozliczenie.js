@@ -6,44 +6,66 @@
 
 let setlMonth = today().slice(0, 7);
 const FLEET_CATS = ['GPS / telematyka', 'Plac / parking', 'Ubezpieczenie floty', 'Oprogramowanie', 'Obsługa / księgowość', 'Myjnia (abonament)', 'Szkolenia kierowców', 'Inne'];
-const SETL_GROUPS = [['Paliwo', ['Paliwo','Ładowanie']], ['Serwis i opony', ['Serwis i naprawy','Opony']], ['Ubezp. i leasing', ['Ubezpieczenie','Leasing']], ['Pozostałe', ['Myjnia','Opłaty i parkingi','Inne']]];
+/* grupy kosztów – te same w Podsumowaniu, Według aut, raporcie dla zarządu i rankingu */
+const SETL_GROUPS = [['Paliwo', ['Paliwo','Ładowanie']], ['Serwis i naprawy', ['Serwis i naprawy']], ['Opony', ['Opony']], ['Ubezpieczenie', ['Ubezpieczenie']], ['Leasing i najem', ['Leasing']], ['Opłaty drogowe', ['Opłaty i parkingi']], ['Myjnia i inne', ['Myjnia','Inne']]];
+const G_INS = 3, G_LEASE = 4;
 
 function setlRange(m){ const [y, mm] = m.split('-').map(Number); const last = new Date(y, mm, 0).getDate(); return [m + '-01', m + '-' + String(last).padStart(2, '0')]; }
+/* ymAdd(ym, n) – prognoza.js */
+function monthsList(a, b){ const out = []; for (let m = a.slice(0, 7); m <= b.slice(0, 7) && out.length < 240; m = ymAdd(m, 1)) out.push(m); return out; }
+/* ubezpieczenie: roczna składka netto z danych polisy auta → 1/12 na każdy z 12 miesięcy kończących się w miesiącu „Polisa ważna do” */
+function insShare(v, ym){
+  const p = Number(v && v.insPremium); if (!(p > 0) || !v.policyUntil) return 0;
+  const end = String(v.policyUntil).slice(0, 7);
+  return ym >= ymAdd(end, -11) && ym <= end ? p / 12 : 0;
+}
 
-function settlement(m){
-  const [from, to] = setlRange(m);
-  const vs = S.vehicles.filter(v => v.status!=='wycofany').sort((a, b) => String(a.plate).localeCompare(b.plate));
-  const inM = S.costs.filter(c => c.vehicleId && c.date >= from && c.date <= to);
-  const cards = (S.fuelCardRows || []).filter(r => r.kind!=='other' && r.vehicleId && !r.costId && r.txDate >= from && r.txDate <= to && (!r.currency || r.currency==='PLN') && Number(r.amount) > 0);
-  const fleet = (S.fleetCosts || []).filter(c => c.date >= from && c.date <= to);
+/* Koszty netto aut w okresie (pełne miesiące od a do b): paliwo (wpisy + karty), serwis, opony,
+   ubezpieczenie (składka z polisy i wpisy „Ubezpieczenie” – po 1/12 przez 12 miesięcy), leasing (rata netto z umowy,
+   chyba że w miesiącu jest ręczny wpis „Leasing”), opłaty, myjnia i inne + koszty ogólne floty po równo na aktywne auta. */
+function settleRange(a, b){
+  const months = monthsList(a, b);
+  const vc = visibleCosts().filter(c => c.vehicleId);
+  const inR = vc.filter(c => c.date >= a && c.date <= b && c.category!=='Ubezpieczenie');
+  const insC = vc.filter(c => c.category==='Ubezpieczenie' && c.date);
+  const fleet = (S.fleetCosts || []).filter(c => c.date >= a && c.date <= b);
   const fleetSum = fleet.reduce((s, c) => s + Number(c.amount || 0), 0);
-  const share = vs.length ? fleetSum / vs.length : 0;
+  const active = S.vehicles.filter(v => v.status!=='wycofany');
+  const share = active.length ? fleetSum / active.length : 0;
+  const vs = S.vehicles.filter(v => v.status!=='wycofany' || inR.some(c => c.vehicleId===v.id)).sort((x, y) => String(x.plate).localeCompare(y.plate));
   const rows = vs.map(v => {
-    const own = inM.filter(c => c.vehicleId===v.id);
-    const g = SETL_GROUPS.map(([, cats]) => own.filter(c => cats.includes(c.category)).reduce((s, c) => s + Number(c.amount || 0), 0));
-    const card = cards.filter(r => r.vehicleId===v.id).reduce((s, r) => s + Number(r.amount), 0);
-    g[0] += card;
-    const lease = typeof contractMonthCost==='function' ? contractMonthCost(v.id, from, to, own) : 0;   // rata z umowy (migracja 029)
-    g[2] += lease;
+    const own = inR.filter(c => c.vehicleId===v.id), myIns = insC.filter(c => c.vehicleId===v.id);
+    const g = SETL_GROUPS.map(([, cats]) => netSum(own.filter(c => cats.includes(c.category))));
+    const card = netSum(own.filter(c => c.virtual));
+    let ins = 0, lease = 0;
+    months.forEach(m => {
+      ins += insShare(v, m) + netSum(myIns.filter(c => c.date.slice(0, 7) <= m && c.date.slice(0, 7) >= ymAdd(m, -11))) / 12;
+      const [mf, mt] = setlRange(m);
+      lease += typeof contractMonthCost==='function' ? contractMonthCost(v.id, mf, mt, own.filter(c => c.date >= mf && c.date <= mt)) : 0;
+    });
+    g[G_INS] += ins; g[G_LEASE] += lease;
     const ownSum = g.reduce((s, x) => s + x, 0);
-    const r = typeof odoRange==='function' ? odoRange(v.id, from, to) : null;
+    const r = typeof odoRange==='function' ? odoRange(v.id, a, b) : null;
     const kmV = r && r.km > 0 ? Math.round(r.km) : null;
-    const total = ownSum + share;
-    return {v, km: kmV, g, card, lease, ownSum, share, total, perKm: kmV ? total / kmV : null};
+    const sh = v.status!=='wycofany' ? share : 0, total = ownSum + sh;
+    return {v, km: kmV, g, card, lease, ins, ownSum, share: sh, total, perKm: kmV ? total / kmV : null};
   });
   const sum = k => rows.reduce((s, r) => s + (r[k] || 0), 0);
-  return {from, to, rows, fleet, fleetSum, share, n: vs.length, tot: {km: sum('km'), own: sum('ownSum'), total: sum('total'), g: SETL_GROUPS.map((_, i) => rows.reduce((s, r) => s + r.g[i], 0))}};
+  return {from: a, to: b, months, rows, fleet, fleetSum, share, n: active.length,
+    tot: {km: sum('km'), own: sum('ownSum'), total: sum('total'), g: SETL_GROUPS.map((_, i) => rows.reduce((s, r) => s + r.g[i], 0))}};
 }
+function settlement(m){ const [from, to] = setlRange(m); return settleRange(from, to); }
 
 function viewSettlement(){
   if (!P().manage) return '';
+  setlMonth = costMonth;   // jeden miesiąc w całych Kosztach
   const st = settlement(setlMonth);
   const [y, mm] = setlMonth.split('-').map(Number);
   const z = x => x ? zl(x) : '<span class="muted">—</span>';
   const kmF = x => x ? new Intl.NumberFormat('pl-PL').format(x) + ' km' : '<span class="muted">—</span>';
   const pk = x => x != null ? x.toFixed(2).replace('.', ',') + ' zł' : '<span class="muted">—</span>';
   const avgKm = st.tot.km ? st.tot.total / st.tot.km : null;
-  const head = `<div class="bar"><h2>Rozliczenie aut · ${MONTHS_FULL[mm - 1]} ${y}</h2><div class="tools">
+  const head = `<div class="bar"><h2>Koszty według aut · ${MONTHS_FULL[mm - 1]} ${y}</h2><div class="tools">
     <input id="setl-month" type="month" value="${setlMonth}" style="width:auto" aria-label="Miesiąc rozliczenia">
     <button data-action="setl-xlsx">${ic('chart')}Excel</button>
     ${fleetCostsReady ? `<button class="primary" data-action="fleet-cost-new">${ic('plus')}Koszt ogólny floty</button>` : ''}</div></div>`;
@@ -65,7 +87,7 @@ function viewSettlement(){
         : `<p class="muted sec-empty">Brak kosztów ogólnych w tym miesiącu. Dodaj np. abonament GPS, plac, księgowość floty – rozłożą się po równo na wszystkie auta.</p>`}
       ${st.fleet.length ? '' : prevFleetHint(setlMonth)}</div>`;
   return `<div class="section">${head}${kpis}${table}${fleetList}
-    <p class="muted small" style="margin-top:12px">Km z GPS (bez GPS – z liczników z tankowań, przejęć i zwrotów). Paliwo: wpisy w aplikacji + tankowania z kart paliwowych niepołączone z wpisem (tylko PLN). Koszty ogólne dzielone po równo na ${st.n} ${isPlural(st.n,'aktywne auto','aktywne auta','aktywnych aut')} (bez wycofanych).</p></div>`;
+    <p class="muted small" style="margin-top:12px">${COST_NOTE} Koszty ogólne dzielone po równo na ${st.n} ${isPlural(st.n,'aktywne auto','aktywne auta','aktywnych aut')} (bez wycofanych).</p></div>`;
 }
 
 /* podpowiedź: skopiuj stałe koszty ogólne z poprzedniego miesiąca */
@@ -89,7 +111,7 @@ function openFleetCost(id){
   const cat = c ? c.category : FLEET_CATS[0];
   $('#dlg-title').textContent = c ? 'Koszt ogólny floty' : 'Nowy koszt ogólny floty';
   $('#dlg-body').innerHTML = `<div class="field"><label for="flc-date">Data</label><input id="flc-date" type="date" value="${c ? c.date : (setlMonth===today().slice(0, 7) ? today() : setlMonth + '-01')}"></div>
-    <div class="field"><label for="flc-amount">Kwota brutto (zł)</label><input id="flc-amount" type="number" step="0.01" min="0" inputmode="decimal" value="${c ? c.amount : ''}"></div>
+    <div class="field"><label for="flc-amount">Kwota netto (zł)</label><input id="flc-amount" type="number" step="0.01" min="0" inputmode="decimal" value="${c ? c.amount : ''}"></div>
     <div class="field full"><label for="flc-cat">Rodzaj</label><input id="flc-cat" list="flc-cats" value="${esc(cat)}"><datalist id="flc-cats">${FLEET_CATS.map(x => `<option value="${esc(x)}">`).join('')}</datalist></div>
     <div class="field full"><label for="flc-note">Opis (opcjonalnie)</label><input id="flc-note" value="${esc(c ? c.note || '' : '')}" placeholder="np. abonament GPS za 28 aut"></div>
     <p class="muted small field full">Koszt rozłoży się po równo na wszystkie aktywne auta w rozliczeniu tego miesiąca.</p>
@@ -121,7 +143,7 @@ async function settlementXlsx(){
   await saveFile(`Emage-FLEET-rozliczenie-${setlMonth}.xlsx`, new Uint8Array(X.write(wb, {type:'array', bookType:'xlsx'})));
 }
 
-document.addEventListener('change', e => { if (e.target.id==='setl-month' && e.target.value){ setlMonth = e.target.value; render(); } });
+document.addEventListener('change', e => { if (e.target.id==='setl-month' && e.target.value){ setlMonth = costMonth = e.target.value; render(); } });
 document.addEventListener('click', e => {
   if (e.target.closest('[data-action="setl-xlsx"]')){ e.preventDefault(); settlementXlsx(); return; }
   if (e.target.closest('[data-action="fleet-cost-new"]')){ e.preventDefault(); openFleetCost(null); return; }
@@ -140,3 +162,6 @@ function vehMonthsHtml(v){
     ${rows.map(({m, r}) => `<tr><td>${MN[+m.slice(5) - 1]} ${m.slice(0, 4)}</td><td class="r num">${r.km ? new Intl.NumberFormat('pl-PL').format(r.km) + ' km' : '<span class="muted">—</span>'}</td><td class="r num">${zl(r.ownSum)}</td><td class="r num">${zl(r.share)}</td><td class="r num"><b>${zl(r.total)}</b></td><td class="r num">${r.perKm != null ? r.perKm.toFixed(2).replace('.', ',') + ' zł' : '—'}</td></tr>`).join('')}
   </tbody></table></div>`;
 }
+
+/* jedno zdanie „jak liczymy” – to samo pod Podsumowaniem i Według aut */
+const COST_NOTE = 'Wszystkie kwoty netto. Paragony kierowców i karty – bez VAT (PL 23%, DE 19%, CZ 21%; karty – netto z wyciągu). Ubezpieczenie – roczna składka z polisy auta po 1/12 na miesiąc. Leasing – rata netto z umowy. Km z GPS (bez GPS – z liczników).';

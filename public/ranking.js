@@ -96,6 +96,7 @@ function rkData(){
     return {d, name: d.name, km: Math.round(km), days: days.size, fills: fills.length, liters: fills.reduce((a, c) => a + Number(c.liters || 0), 0), rate, diff: rate!=null && expL > 0 ? (ll - expL) / expL * 100 : null,
       card: cardEv.filter(e => e.driverId===d.id).length, veh: veh.size, lkm, fullFills: fills.filter(c => c.full!==false).length};
   }).filter(x => x.km || x.fills || x.days);
+  const rkSt = settleRange(from, to);   // koszty netto aut – jak w Koszty → Według aut
   const veh = S.vehicles.filter(v => v.status!=='wycofany').map(v => {
     let km = 0; const days = new Set(), who = new Set();
     S.bookings.forEach(b => { if (b.vehicleId!==v.id) return;
@@ -105,10 +106,10 @@ function rkData(){
     const lg = legs.filter(x => x.vid===v.id), lkm = lg.reduce((a, x) => a + x.km, 0), ll = lg.reduce((a, x) => a + x.l, 0);
     const rate = lkm >= RK_MIN_KM ? ll / lkm * 100 : null;
     const vf = appFuel().filter(c => c.vehicleId===v.id && c.date >= from && c.date <= to && !String(c.note || '').startsWith('Karta:'));
-    const cost = S.costs.filter(c => c.vehicleId===v.id && c.date >= from && c.date <= to).reduce((a, c) => a + Number(c.amount || 0), 0);
+    const sr = rkSt.rows.find(x => x.v.id===v.id), cost = sr ? sr.total : 0;
     const cr = clsRate[wcls(v)];
     return {v, cls: wcls(v), km, days: days.size, rate, diff: rate!=null && cr ? (rate - cr) / cr * 100 : null, who: who.size, card: cardEv.filter(e => e.vehicleId===v.id).length,
-      cost, costKm: km >= 100 ? cost / km : null, lkm, fills: vf.length, fullFills: vf.filter(c => c.full!==false).length};
+      cost, costKm: sr && sr.perKm!=null ? sr.perKm : km >= 100 ? cost / km : null, lkm, fills: vf.length, fullFills: vf.filter(c => c.full!==false).length};
   });
   return {from, to, fleetRate, clsRate, drv, veh};
 }

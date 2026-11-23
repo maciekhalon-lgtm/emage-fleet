@@ -1,6 +1,6 @@
 /* Emage FLEET — pulpit: ekran startowy kierowników. Kierownik floty widzi całość, kierownik serwisu – naprawy, usterki i terminy. */
 'use strict';
-const sumOf = list => list.reduce((s, c) => s + Number(c.amount || 0), 0);
+const sumOf = list => list.reduce((s, c) => s + costNet(c), 0);   // koszty zawsze netto
 const pct = (a, b) => b ? Math.max(0, Math.min(100, a / b * 100)) : 0;
 
 function kpi({label, icon, cls, value, small = '', bar = [], foot = '', go = '', dl = ''}){
@@ -192,7 +192,7 @@ function viewDashboard(){
     return `<div class="section dash">${head}${sinceLastVisit()}<div class="kpis k4">${kp}</div>
       <div class="dgrid"><div class="dcol">${attentionCard(true)}${issuesCard()}</div><div class="dcol">${serviceCarsCard()}${deadlinesCard()}</div></div></div>`;
   }
-  const mc = sumOf(inM), fb = Number(budget().monthly) || 0;
+  const mc = settlement(m).tot.total, fb = Number(budget().monthly) || 0;   // koszty netto miesiąca – jak w Koszty → Podsumowanie
   const att = attentionItems(false).filter(x => x.k!=='data').length;
   const kp = [
     kpi({label:'W trasie', icon:'truck', cls:'info', value: inUse, small: '/' + active.length, bar:[[pct(inUse, n), 'info']], foot: `${planned ? `${planned} ${isPlural(planned,'czeka','czekają','czeka')} na przejęcie · ` : ''}${free} wolnych · ${svc + stop} w serwisie`, go:'przydzial'}),

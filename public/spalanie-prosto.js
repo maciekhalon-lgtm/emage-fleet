@@ -60,7 +60,8 @@ function viewFuelSimple(){
   const none = D.none.length ? `<details class="panel fold"><summary class="sec-head"><h3>Bez danych</h3><span class="count">${D.none.length} ${isPlural(D.none.length, 'auto', 'auta', 'aut')}</span></summary>
     <p class="muted small" style="margin:0 0 8px">Za mało tankowań z licznikiem w tym okresie.</p><div class="sp-none">${D.none.map(r => `<span data-sp-veh="${esc(r.v.id)}" class="click">${plate(r.v.plate)}</span>`).join('')}</div></details>` : '';
   const note = D.ok.length ? `<p class="muted small">Auta porównujemy w obrębie klasy (do 2,5 t / powyżej 2,5 t – ustawiasz w danych auta). „Średnia auta” – jego spalanie z ostatnich 6 miesięcy; obok różnica: ile teraz pali więcej (+) albo mniej (−) niż zwykle.</p>` : '';
-  return head + kpi + tbl + none + note;
+  const fl = typeof flagsPanel==='function' ? flagsPanel() : '';   // tankowania do wyjaśnienia (wcześniej w Kosztach)
+  return head + (fl ? `<div style="margin-bottom:20px">${fl}</div>` : '') + kpi + tbl + none + note;
 }
 function openSpVehicle(vid){
   const v = byId('vehicles', vid); if (!v) return;
