@@ -3,6 +3,15 @@
 const sb = supabase.createClient(CONFIG.supabaseUrl, CONFIG.supabaseKey, {
   auth: {persistSession: true, autoRefreshToken: true, detectSessionInUrl: true},
 });
+/* Podgląd jako kierowca: każdy zapis do bazy kończy się błędem „tylko do oglądania” (odczyty działają normalnie) */
+const VIEWAS_MSG = 'Podgląd jako kierowca – tylko do oglądania, zmiany są zablokowane.';
+(() => {
+  const res = {data: null, error: {message: VIEWAS_MSG, code: 'viewas'}, count: 0};
+  const stub = () => { const p = new Proxy(function(){}, {get: (t, k) => k==='then' ? (ok, bad) => Promise.resolve(res).then(ok, bad) : () => p, apply: () => p}); return p; };
+  const from = sb.from.bind(sb), rpc = sb.rpc.bind(sb), READ_RPC = ['people', 'nbp_rate', 'fuel_fills'];
+  sb.from = t => { const q = from(t); if (viewAs) ['insert', 'update', 'upsert', 'delete'].forEach(m => { q[m] = stub; }); return q; };
+  sb.rpc = (n, a, o) => viewAs && !READ_RPC.includes(n) ? stub() : rpc(n, a, o);
+})();
 
 /* nazwa w aplikacji → tabela w bazie */
 const TABLES = {gpsOdometer:'gps_odometer', odoGps:'odo_gps', events:'events', workOrders:'work_orders', woItems:'work_order_items', vehicles:'vehicles', drivers:'drivers', deadlines:'deadlines', bookings:'bookings', costs:'costs', issues:'issues', docs:'documents', settings:'settings', routeStops:'route_stops', fleetCosts:'fleet_costs', tires:'tires', contracts:'vehicle_contracts', equipment:'equipment', workshops:'workshops', visits:'service_visits', requests:'data_change_requests', crewChanges:'crew_changes', routes:'routes', serviceEntries:'service_entries', blockOverrides:'block_overrides', loadings:'loadings', loadingReports:'loading_reports', fuelCardImports:'fuel_card_imports', fuelCardRows:'fuel_card_rows', clients:'clients', routePlans:'route_plans', planCalc:'route_plan_calc', members:'profiles'};
@@ -126,6 +135,7 @@ const CHECK_MSG = {
 };
 function dbErr(e){
   const msg = e && e.message || '';
+  if (e && e.code==='viewas') return {code:'invalid_argument', message: VIEWAS_MSG};
   if (e && (e.code==='42501' || /row-level security/i.test(msg))) return {code:'invalid_argument', message:msg};
   if (e && e.code==='23505') return {code:'duplicate', message: /plate/.test(msg) ? 'Pojazd o takim numerze rejestracyjnym już jest w ewidencji.' : /routes_code/.test(msg) ? 'Trasa o takim kodzie już istnieje.' : 'Taki wpis już istnieje.'};
   if (e && (e.code==='23514' || e.code==='P0001')){
@@ -288,6 +298,7 @@ function onProfileChange(p){
 const BUCKET = 'pliki';
 const storageApi = {
   async upload(file, opts = {}){
+    if (viewAs) throw {code:'invalid_argument', message: VIEWAS_MSG};
     const ext = ((file.name || '').split('.').pop() || 'bin').toLowerCase().replace(/[^a-z0-9]/g, '') || 'bin';
     const path = `${myId}/${newId()}.${ext}`;
     const {error} = await sb.storage.from(BUCKET).upload(path, file, {contentType: opts.type || file.type, upsert:false});

@@ -5,6 +5,7 @@ const S = {clients:[],routePlans:[],planCalc:[],fuelCardRowsAll:[],gpsOdometer:[
 const got = {};
 let db = null, canWrite = true, dbState = 'loading';
 let myId = null;
+let viewAs = null;   // podgląd jako kierowca (podglad.js): {driverId, name, me0, myId0} – zapisy zablokowane
 let assetsNS = null;      // magazyn plików (Supabase Storage), ustawiany po zalogowaniu
 
 /* ---------- helpers ---------- */

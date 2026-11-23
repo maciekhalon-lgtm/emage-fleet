@@ -23,6 +23,7 @@ function filesOf(prefix){ const el = $('#' + prefix + '-photos'); return el && e
 const isNetErr = err => !navigator.onLine || /fetch|network|load failed|timeout|offline/i.test(String((err && (err.message || err.code)) || err));
 
 async function queueOffline(kind, payload, files){
+  if (viewAs) throw {code:'invalid_argument', message: VIEWAS_MSG};
   try { await offTx('readwrite', s => s.add({kind, payload, files: files || [], at: new Date().toISOString(), user: myId})); }
   catch(_){ toast('Nie udało się zapisać wpisu w telefonie'); return; }
   await refreshOfflineCount(); render();
@@ -33,7 +34,7 @@ function addFail(msg){ try { const l = failList(); l.push({at: new Date().toISOS
 
 /* Wysyłka kolejki po odzyskaniu sieci */
 async function processQueue(){
-  if (offlineBusy || !navigator.onLine || !db || !myId) return;
+  if (offlineBusy || viewAs || !navigator.onLine || !db || !myId) return;
   offlineBusy = true;
   let sent = 0;
   try {

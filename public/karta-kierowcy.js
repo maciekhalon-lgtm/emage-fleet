@@ -35,6 +35,7 @@ function openDriverCard(id){
       <span class="muted">${esc([d.phone, d.categories ? 'kat. ' + d.categories : ''].filter(Boolean).join(' · ')) || 'brak telefonu'}</span>
       ${typeof canResp==='function' && canResp() ? `<button class="small ghost" data-resp-drv="${esc(id)}">${ic('truck')}Busy: ${esc(S.vehicles.filter(v => respOf(v).includes(id) && v.status!=='wycofany').map(v => v.plate).join(', ') || 'przypisz')}</button>` : ''}
       <button class="small" data-drv-hist="${esc(id)}">${ic('hist')}Pełna historia</button>
+      ${me && me.role==='floty' && !viewAs && d.active!==false ? `<button class="small ghost" data-viewas="${esc(id)}" title="Zobacz aplikację tak, jak widzi ją ten kierowca – bez możliwości zmian">${ic('eye')}Podgląd jako kierowca</button>` : ''}
       ${d.phone && P().manage ? `<a class="btn small" href="tel:${esc(String(d.phone).replace(/\s/g, ''))}">${ic('phone')}Zadzwoń</a>` : ''}
     </div>
     ${now ? `<div class="field full"><div class="notice"><span>Teraz: <b>${esc(byId('vehicles', now.vehicleId)?.plate || '')}</b>${now.routeId ? ' · ' + esc(rLabel(now.routeId)) : ''}</span></div></div>` : ''}
