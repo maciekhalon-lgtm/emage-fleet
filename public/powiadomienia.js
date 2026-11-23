@@ -124,3 +124,20 @@ document.addEventListener('click', async e => {
   else if (a.dataset.action==='push-done'){ generatedKeys = null; render(); }
   else if (a.dataset.action==='push-open') openPushDialog();
 });
+
+/* ---------- wybrani kierowcy: powiadomienie o każdym tankowaniu (migracja 065, settings 'notify') ---------- */
+const fuelWatch = () => { const s = (S.settings || []).find(x => x.id==='notify') || {}; return Array.isArray(s.fuelDrivers) ? s.fuelDrivers : []; };
+function fuelWatchPanel(){
+  if (!P().manage) return '';
+  const on = new Set(fuelWatch()), ds = S.drivers.filter(d => d.active!==false).sort((a, b) => String(a.name).localeCompare(b.name, 'pl'));
+  return `<div class="panel"><div class="sec-head"><h3>Tankowania – zawsze powiadamiaj</h3><span class="pill ${on.size ? 'ok' : 'off'}">${on.size ? on.size + ' ' + isPlural(on.size, 'kierowca', 'kierowców', 'kierowców') : 'nikt'}</span></div>
+    <div class="re-box"><p class="muted" style="margin:0">Zaznacz kierowców, o których <b>każdym</b> tankowaniu chcesz dostać powiadomienie na telefon (z litrami, licznikiem, km odcinka i spalaniem). O podejrzanych tankowaniach wszystkich kierowców powiadamiamy jak dotąd.</p>
+    <div class="fw-list">${ds.map(d => `<label class="fw-it"><input type="checkbox" data-fuel-watch="${esc(d.id)}" ${on.has(d.id) ? 'checked' : ''}><span>${esc(d.name)}</span></label>`).join('')}</div>
+    <p class="muted small" style="margin:0">Powiadomienie przyjdzie na telefony z włączonymi powiadomieniami kierownika floty (sekcja wyżej).</p></div></div>`;
+}
+document.addEventListener('change', async e => {
+  const id = e.target.dataset && e.target.dataset.fuelWatch; if (!id) return;
+  const cur = new Set(fuelWatch()); if (e.target.checked) cur.add(id); else cur.delete(id);
+  try { await db.collection('settings').doc('notify').set({fuelDrivers: [...cur]}); toast(e.target.checked ? 'Będziesz dostawać powiadomienia o tankowaniach' : 'Wyłączono powiadomienia o tankowaniach'); }
+  catch(err){ e.target.checked = !e.target.checked; handleWriteErr(err); }
+});

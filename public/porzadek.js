@@ -153,7 +153,7 @@ function budgetPanel(){
 let setSec = (() => { try { return localStorage.getItem('ef-set-sec') || 'firma'; } catch(_){ return 'firma'; } })();
 const SET_SECS = [
   ['firma', 'Firma i budżet', () => dataQualityPanel() + budgetPanel()],
-  ['powiadomienia', 'Powiadomienia', () => pushSetupPanel() + (typeof reportEmailPanel==='function' ? reportEmailPanel() : '') + calendarPanel()],
+  ['powiadomienia', 'Powiadomienia', () => pushSetupPanel() + (typeof fuelWatchPanel==='function' ? fuelWatchPanel() : '') + (typeof reportEmailPanel==='function' ? reportEmailPanel() : '') + calendarPanel()],
   ['gps', 'Lokalizatory GPS', () => typeof geotabPanel==='function' ? geotabPanel() : ''],
   ['moduly', 'Moduły i kontrole', () => modulesPanel() + checklistPanel()],
   ['kopia', 'Kopia danych', () => (P().manage ? `<div class="panel"><div class="sec-head"><h3>Kopia danych</h3><button class="small" data-action="backup">${ic('clip')}Pobierz kopię (JSON)</button></div><p class="muted sec-empty">Wszystkie dane floty w jednym pliku: auta, kierowcy, grafik, koszty, terminy, usterki, książka serwisowa, karty paliwowe, trasy i przystanki. Zrób kopię raz w miesiącu i trzymaj ją na dysku firmy. Zdjęcia i skany zostają w Supabase.</p></div>` : '')],

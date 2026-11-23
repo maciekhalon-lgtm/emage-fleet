@@ -148,7 +148,7 @@ function viewRankingFleet(drvTab){
   if (isDrv){
     const xs = R.drv.map(x => ({...x, id: x.d.id})), withR = xs.filter(x => x.rate!=null).sort(cmp), none = xs.filter(x => x.rate==null).sort((a, b) => b.lkm - a.lkm || b.km - a.km);
     const {top, low} = marks(withR);
-    return head + (withR.length ? `<div class="panel tablewrap"><table class="rk2-tbl"><thead><tr><th>#</th>${th('name', 'Kierowca')}${th('rate', 'Spalanie l/100', 1)}${th('diff', 'vs średnia klasy', 1)}${th('km', 'Km', 1)}${th('days', 'Dni pracy', 1)}${th('fills', 'Tankowania', 1)}${th('card', 'Niezgodne z kartą', 1)}</tr></thead><tbody>
+    return head + rkGpsNote() + (withR.length ? `<div class="panel tablewrap"><table class="rk2-tbl"><thead><tr><th>#</th>${th('name', 'Kierowca')}${th('rate', 'Spalanie l/100', 1)}${th('diff', 'vs średnia klasy', 1)}${th('km', 'Km', 1)}${th('days', 'Dni pracy', 1)}${th('fills', 'Tankowania', 1)}${th('card', 'Niezgodne z kartą', 1)}</tr></thead><tbody>
       ${withR.map((x, i) => `<tr class="click ${top.has(x.id) ? 'rk-top' : low.has(x.id) ? 'rk-low' : ''}" data-drv-hist="${esc(x.id)}"><td class="num">${i + 1}</td><td><b>${esc(x.d.name)}</b>${x.veh ? `<span class="sub">${x.veh} ${isPlural(x.veh, 'auto', 'auta', 'aut')}</span>` : ''}</td>
         <td class="r">${rateCell(x)}</td><td class="r">${diffCell(x)}</td><td class="r num">${x.km ? nf.format(x.km) : '—'}</td><td class="r num">${x.days || '—'}</td>
         <td class="r num">${x.fills ? `${x.fills} <span class="muted small">· ${nf.format(Math.round(x.liters))} l</span>` : '—'}</td><td class="r">${cardCell(x)}</td></tr>`).join('')}</tbody></table></div>`
@@ -168,7 +168,7 @@ function viewRankingFleet(drvTab){
   };
   const none = all.filter(x => x.rate==null).sort((a, b) => b.lkm - a.lkm || b.km - a.km || String(a.v.plate).localeCompare(b.v.plate));
   const body = WCLS.map(sect).join('');
-  return head + (body || `<div class="panel empty"><p>Żadne auto nie ma jeszcze ${nf.format(RK_MIN_KM)} km od pełnego baku w tym okresie.</p></div>`)
+  return head + rkGpsNote() + (body || `<div class="panel empty"><p>Żadne auto nie ma jeszcze ${nf.format(RK_MIN_KM)} km od pełnego baku w tym okresie.</p></div>`)
     + noRes(none, 'aut', x => `${plate(x.v.plate)} <span class="muted small">${esc(wclsName(x.cls).toLowerCase())}</span>`, x => `data-rk-veh="${esc(x.id)}"`)
     + `<p class="muted small">Kliknij auto, żeby zobaczyć, którzy kierowcy nim jeździli i jakie mieli spalanie.</p>` + how;
 }
@@ -212,3 +212,10 @@ document.addEventListener('click', e => {
   const s = e.target.closest('[data-rk-sort]'); if (s){ const k = s.dataset.rkSort, cur = rkSort[rkView];
     rkSort[rkView] = [k, cur[0]===k ? -cur[1] : (k==='rate' || k==='name' || k==='card' || k==='diff' || k==='costKm' ? 1 : -1)]; render(); }
 });
+
+/* kiedy ostatnio dociągnięto liczniki z GPS (co 15 min) – nowe wpisy liczą się od razu z licznika kierowcy */
+function rkGpsNote(){
+  const last = (S.odoGps || []).reduce((m, g) => g.checkedAt && g.checkedAt > m ? g.checkedAt : m, '');
+  const t = last ? new Date(last).toLocaleTimeString('pl-PL', {hour: '2-digit', minute: '2-digit'}) : '';
+  return `<p class="muted small rk-gps">Ranking liczy się na bieżąco z wpisów kierowców; liczniki z GPS dociągamy co 15 minut${t ? ` (ostatnio ${t})` : ''} i wtedy wynik się doprecyzowuje.</p>`;
+}
