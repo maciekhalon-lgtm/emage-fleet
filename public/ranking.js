@@ -30,7 +30,7 @@ function rkVehLegsRaw(vid){
   const fills = appFuel().filter(c => c.vehicleId===vid && Number(c.liters) > 0 && Number(c.odometer) > 0 && !String(c.note || '').startsWith('Karta:') && !dup(c))
     .map(c => ({t: 'f', odo: odoAt('tankowanie', c.id, vid, c.odometer), c, date: c.date}));
   const picks = S.bookings.filter(b => b.vehicleId===vid && b.pickup && Number(b.pickup.km) > 0 && Number(b.pickup.fuel)===100 && !b.pickupFuelDoubt)
-    .map(b => ({t: 'p', odo: pickOdo(b), date: String(b.pickup.at || b.from).slice(0, 10)}));
+    .map(b => ({t: 'p', odo: odoAt('przejecie', b.id, vid, b.pickup.km), date: String(b.pickup.at || b.from).slice(0, 10)}));
   // ten sam km z GPS (auto stało, kierowca wpisał dwa tankowania po kolei) – kolejność wg licznika z wpisu, dotankowanie przed „do pełna”
   const typed = e => e.t==='f' ? Number(e.c.odometer) || 0 : 0;
   const ev = [...fills, ...picks].sort((a, b) => a.odo - b.odo || (a.t===b.t ? 0 : a.t==='f' ? -1 : 1) || typed(a) - typed(b)
@@ -62,7 +62,7 @@ function rkDrvParts(from, to){
     if (L.a==null || L.z==null || !(L.z > L.a)){ if (L.drv) out.push({vid: L.vid, drv: L.drv, km: L.km, l: L.l, date: L.date}); return; }
     const bs = S.bookings.filter(b => b.vehicleId===L.vid && b.pickup), seg = new Map(); let done = 0;
     bs.forEach(b => {
-      const s = pickOdo(b), e = b.returned ? odoAt('zdanie', b.id, b.vehicleId, b.returned.km) : L.z;
+      const s = odoAt('przejecie', b.id, b.vehicleId, b.pickup.km), e = b.returned ? odoAt('zdanie', b.id, b.vehicleId, b.returned.km) : L.z;
       if (s==null || e==null) return;
       const ov = Math.min(e, L.z) - Math.max(s, L.a); if (!(ov > 0)) return;
       const crew = crewOf(b); crew.forEach(id => seg.set(id, (seg.get(id) || 0) + ov / crew.length)); done += ov;
