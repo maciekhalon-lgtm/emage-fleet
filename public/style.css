@@ -2019,3 +2019,11 @@ body.viewas{padding-top:calc(var(--va-h,40px) + 10px)!important}body.viewas .dma
 @media (max-width:620px){#viewas-bar em{display:none}}
 /* dolne menu kierowcy: tyle kolumn, ile pozycji (Start, Grafik, Mapa, Historia, Ja) */
 .d-bar{grid-template-columns:none;grid-auto-flow:column;grid-auto-columns:1fr}
+.dm-route input{width:20px;height:20px;margin:0;accent-color:var(--accent);flex-shrink:0}
+.dm-route.on{border-color:var(--accent);background:var(--accent-soft)}
+.dm-route .sub{padding-left:54px}
+.dm-sub{display:flex;align-items:baseline;justify-content:space-between;gap:8px}.dm-sub .mt-h{margin-bottom:6px}
+.dm-seg{display:flex;gap:4px;padding:3px;margin:2px 0 8px;border-radius:12px;background:var(--sunk)}
+.dm-seg button{flex:1;border:0;border-radius:9px;padding:7px 6px;background:none;color:var(--muted);font-weight:600;cursor:pointer}
+.dm-seg button.on{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.dm-group{margin-bottom:12px}
