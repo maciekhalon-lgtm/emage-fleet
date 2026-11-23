@@ -2045,3 +2045,11 @@ body.viewas{padding-top:calc(var(--va-h,40px) + 10px)!important}body.viewas .dma
 .exp-sum{margin-left:auto;display:flex;flex-direction:column;align-items:flex-end}.exp-sum b{font-size:18px}.exp-sum .sub{font-size:12px;color:var(--muted)}
 .exp-t td:nth-child(3){white-space:nowrap}
 @media (max-width:700px){.months.m12 .v{display:none}.exp-sum{margin-left:0;align-items:flex-start;flex-basis:100%}.cost-parts .catbar{grid-template-columns:110px minmax(0,1fr) 96px}}
+
+/* ---------- niesprawne jednym kliknięciem ---------- */
+button.danger-ghost{background:transparent;color:var(--bad);border:1px solid color-mix(in srgb,var(--bad) 45%,transparent)}
+button.danger-ghost:hover{background:var(--bad-soft)}
+.vt-st [data-brk],.vt-st [data-brk-fix]{margin-left:4px;padding:3px 9px;font-size:12px}
+.vt-st button.danger-ghost{color:var(--muted);border-color:var(--line-2);background:transparent}
+.vt-st button.danger-ghost:hover,.vt-st button.danger-ghost:focus-visible{color:var(--bad);border-color:var(--bad);background:var(--bad-soft)}
+@media (hover:hover){.veh-tbl tr:not(:hover) .vt-st button.danger-ghost:not(:focus-visible){opacity:.0}}

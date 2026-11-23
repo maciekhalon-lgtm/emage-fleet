@@ -106,7 +106,7 @@ function viewCard(){
           'Brak dokumentów – dodaj skan dowodu rejestracyjnego, polisy lub umowy (PDF albo zdjęcie).')}</div></div>`;
   return `<div class="section">
     <div class="bar"><button class="ghost" data-back="1">← Wszystkie pojazdy</button>
-      <div class="tools">${(P().manage || P().service) && canCreate('issues') ? `<button class="primary" data-new="issues" data-veh="${esc(v.id)}">${ic('alert')}Zgłoś usterkę</button>` : ''}${canEditDoc('vehicles',v)?`<button data-edit="vehicles" data-id="${esc(v.id)}">Edytuj dane</button>`:''}</div></div>
+      <div class="tools">${typeof brkButton==='function' ? brkButton(v, false) : ''}${(P().manage || P().service) && canCreate('issues') ? `<button class="primary" data-new="issues" data-veh="${esc(v.id)}">${ic('alert')}Zgłoś usterkę</button>` : ''}${canEditDoc('vehicles',v)?`<button data-edit="vehicles" data-id="${esc(v.id)}">Edytuj dane</button>`:''}</div></div>
     <div class="card-head">${plate(v.plate)}<div><h2>${esc(v.make)} ${esc(v.model)}</h2><span class="muted">${km(v.km)}${v.notes ? ' · ' + esc(v.notes) : ''}</span></div><span class="pill ${st.cls}">${esc(st.txt)}</span></div>
     ${blockBanner(v)}
     ${(b => { if (!b) return ''; const ph = crewOf(b).map(id => [id, (byId('drivers', id) || {}).phone]);

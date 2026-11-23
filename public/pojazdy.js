@@ -25,7 +25,7 @@ function viewVehicles(){
     const st = vehicleState(v); const nd = nextDeadline(v.id); const ds = nd && dlState(nd); const sk = svcKm(v.id), m30 = typeof odoRange==='function' ? odoRange(v.id, addDays(today(), -29), today()) : null;
     return `<tr class="click" data-card="${esc(v.id)}" tabindex="0" title="Otwórz kartę pojazdu">
       <td>${plate(v.plate)}<span class="sub">${esc(v.make)} ${esc(v.model)}</span></td>
-      <td class="vt-st"><span class="pill ${st.cls}">${esc(st.txt)}</span>${theftIds.has(v.id) ? ' <span class="pill bad">podejrzane spalanie</span>' : ''}${spBy[v.id] ? ` <span class="pill bad">${spBy[v.id]} ${isPlural(spBy[v.id],'niemożliwe tankowanie','niemożliwe tankowania','niemożliwych tankowań')}</span>` : ''}</td>
+      <td class="vt-st"><span class="pill ${st.cls}">${esc(st.txt)}</span>${typeof brkButton==='function' ? ' ' + brkButton(v) : ''}${theftIds.has(v.id) ? ' <span class="pill bad">podejrzane spalanie</span>' : ''}${spBy[v.id] ? ` <span class="pill bad">${spBy[v.id]} ${isPlural(spBy[v.id],'niemożliwe tankowanie','niemożliwe tankowania','niemożliwych tankowań')}</span>` : ''}</td>
       <td class="vt-dl">${nd?`<span class="pill ${ds.cls}">${esc(nd.type)}</span><span class="sub num">${esc(ds.txt)}</span>`:'<span class="muted">brak terminów</span>'}</td>
       <td class="r vt-c">${sk && sk.km ? `<b class="num">${km(sk.km)}</b><span class="sub">${sk.gps ? 'GPS' : 'z wpisów'}${m30 && m30.km > 0 ? ` · ${new Intl.NumberFormat('pl-PL').format(Math.round(m30.km))} km / 30 dni` : ''}</span>` : '<span class="muted">—</span>'}</td>
     </tr>`; }).join('');
