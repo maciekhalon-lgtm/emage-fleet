@@ -218,8 +218,30 @@ function odoAt(source, refId, vid, typed){
   const t = Number(typed); if (!(t > 0)) return null;
   return t - (I.off.get(vid) || 0);
 }
+/* Przejęcie wpisane z opóźnieniem: wg GPS auto przejechało > 30 km między zdaniem przez poprzedniego kierowcę a wpisem
+   przejęcia (nikt go w tym czasie nie miał w aplikacji) → kierowca ruszył wcześniej i wpisał przejęcie później.
+   Wtedy start przejęcia (km i pełny bak) liczymy od miejsca, w którym auto stało – GPS przy poprzednim zdaniu. */
+let lateMemo = {k: '', m: new Map()};
+function pickupLate(b){
+  if (!b || !b.pickup || !b.pickupTs) return null;
+  const I = gpsAtIdx(), k = I.k + '|' + S.bookings.length;
+  if (lateMemo.k!==k) lateMemo = {k, m: new Map()};
+  if (lateMemo.m.has(b.id)) return lateMemo.m.get(b.id);
+  let r = null;
+  const g = I.m.get('przejecie|' + b.id);
+  if (g){
+    const prev = S.bookings.filter(x => x.vehicleId===b.vehicleId && x.id!==b.id && x.returned && x.returnTs && x.returnTs < b.pickupTs).sort((x, y) => y.returnTs.localeCompare(x.returnTs))[0];
+    const busy = prev && S.bookings.some(x => x.vehicleId===b.vehicleId && x.id!==b.id && x.id!==prev.id && x.pickupTs && x.pickupTs > prev.returnTs && x.pickupTs < b.pickupTs);
+    const pg = prev && I.m.get('zdanie|' + prev.id);
+    if (pg && !busy && g - pg > 30) r = {anchor: pg, moved: Math.round(g - pg), prev};
+  }
+  lateMemo.m.set(b.id, r);
+  return r;
+}
+/* km startu przejęcia w skali GPS (z poprawką na przejęcie wpisane z opóźnieniem) */
+const pickOdo = b => { const L = pickupLate(b); return L ? L.anchor : odoAt('przejecie', b.id, b.vehicleId, b.pickup && b.pickup.km); };
 /* km przejechane w przydziale (przejęcie → zdanie) – z GPS, gdy jest */
-const bkKm = b => { if (!b.pickup || !b.returned) return null; const a = odoAt('przejecie', b.id, b.vehicleId, b.pickup.km), z = odoAt('zdanie', b.id, b.vehicleId, b.returned.km); return a!=null && z!=null ? z - a : null; };
+const bkKm = b => { if (!b.pickup || !b.returned) return null; const a = pickOdo(b), z = odoAt('zdanie', b.id, b.vehicleId, b.returned.km); return a!=null && z!=null ? z - a : null; };
 
 /* Podmiana treści strony bez „przeładowania”: zamiast innerHTML porównujemy stary i nowy DOM i zmieniamy tylko to,
    co się zmieniło. Zostaje przewinięcie, kursor w polu, otwarte <details>, mapa (#mt-slot) i wczytane zdjęcia. */

@@ -129,6 +129,9 @@ async function saveHandover({id, kind, vehicleId, minKm, items}){
   if (!kmV){ $('#ho-km').focus(); return warn('Wpisz aktualny stan licznika – to pole jest obowiązkowe.'); }
   { const chk = odoInputCheck(kmV, minKm); if (chk && chk.hard){ $('#ho-km').focus(); return warn(chk.hard); } }
   if (kmV < minKm) return warn(`Stan licznika nie może być niższy niż ostatni zapis (${km(minKm)}). Sprawdź licznik.`);
+  // przejęcie: licznik dużo wyższy niż przy ostatnim zdaniu – zwykle literówka albo przejęcie wpisywane dopiero po kilku godzinach jazdy
+  if (kind==='pickup' && minKm && kmV - minKm > 50 && kmV - minKm <= 2000){ if (!w.dataset.far){ w.dataset.far = '1'; $('#ho-km').focus();
+    return warn(`Sprawdź licznik – przy ostatnim zdaniu auta było ${km(minKm)}, a wpisujesz ${km(kmV)} (o ${new Intl.NumberFormat('pl-PL').format(kmV - minKm)} km więcej). Jeśli wyjechałeś już wcześniej, wpisz stan licznika z chwili przejęcia. Jeśli wszystko się zgadza – kliknij jeszcze raz.`); } }
   if (kmV - minKm > 2000 && minKm) { if (!w.dataset.big){ w.dataset.big = '1'; return warn(`To ${new Intl.NumberFormat('pl-PL').format(kmV - minKm)} km więcej niż ostatni zapis. Jeśli to prawda, kliknij jeszcze raz.`); } }
   if ($('#ho-fuel') && $('#ho-fuel').value===''){ $('.ho-fb')?.scrollIntoView({block:'center'}); return warn(`Zaznacz, czy bak ${kind==='pickup' ? 'przy przejęciu' : 'przy zdaniu'} jest pełny, czy niepełny.`); }
   let checklist = [];

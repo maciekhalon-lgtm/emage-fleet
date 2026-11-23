@@ -122,7 +122,7 @@ function viewOdoCompare(){
       <td class="odo-act">${e.bad ? (done ? `<button class="small ghost" data-oc-un="${esc(e.key)}">Cofnij</button>` : `<button class="small ghost" data-oc-ok="${esc(e.key)}">Sprawdzone</button>`) : ''}</td></tr>`;
   }).join('');
   const migr = typeof optOn==='function' && !optOn('odoGps') ? '<div class="notice"><span>Dokładny GPS z chwili wpisu wymaga migracji 036 – do tego czasu porównujemy z dziennymi odczytami GPS (przedział z danego dnia).</span></div>' : '';
-  return head + migr + meta + drvTbl + `<div class="panel tablewrap fc-table"><table class="oc-tbl"><thead><tr><th>Data</th><th>Auto</th><th>Kto / zdarzenie</th><th class="r">Licznik kierowcy</th><th class="r">Licznik z karty</th><th class="r">GPS</th><th>Wynik</th><th></th></tr></thead>
+  return head + migr + meta + latePanel() + drvTbl + `<div class="panel tablewrap fc-table"><table class="oc-tbl"><thead><tr><th>Data</th><th>Auto</th><th>Kto / zdarzenie</th><th class="r">Licznik kierowcy</th><th class="r">Licznik z karty</th><th class="r">GPS</th><th>Wynik</th><th></th></tr></thead>
     <tbody>${rows || `<tr><td colspan="8" class="muted">${ocOnlyBad ? 'Brak niezgodnych liczników w wybranym zakresie.' : 'Brak wpisów z licznikiem.'}</td></tr>`}</tbody></table></div>
     ${list.length > 400 ? `<p class="muted small">Pokazano 400 najnowszych z ${list.length}.</p>` : ''}
     <p class="muted small" style="margin:0;max-width:100ch">Każdy wpis licznika porównujemy z pozostałymi źródłami: kierowca (przejęcie, zdanie, tankowanie w aplikacji), karta paliwowa (licznik wpisany na stacji) i lokalizator GPS. GPS „o godz.” – stan licznika z Geotab dokładnie w chwili wpisu (pobierany co rano; dla tankowania w aplikacji tylko, gdy wpisano je tego samego dnia). Bez tego – przedział z GPS z końca dnia poprzedniego i końca tego dnia. Niezgodne = różnica ponad ${tol} km (zmienisz w Ustawienia → Lokalizatory GPS). Kierowca przy karcie – z wpisu w aplikacji, a bez niego z grafiku.</p>`;
@@ -155,3 +155,15 @@ document.addEventListener('click', e => {
   if (t.dataset.ocUn) return ocMark(t.dataset.ocUn, false);
   if (t.dataset.ocVehGo){ e.preventDefault(); ocVeh = t.dataset.ocVehGo; ocMode = 'cmp'; ocOnlyBad = false; cardId = null; location.hash = 'liczniki'; render(); }
 });
+
+/* przejęcia wpisane z opóźnieniem (auto jeździło przed wpisem) – spalanie i km liczymy już od miejsca, gdzie auto stało */
+function latePanel(){
+  const nf = n => new Intl.NumberFormat('pl-PL').format(Math.round(n));
+  const hm = ts => new Date(ts).toLocaleTimeString('pl-PL', {hour: '2-digit', minute: '2-digit'});
+  const xs = S.bookings.filter(b => b.pickup && (!ocVeh || b.vehicleId===ocVeh) && (!ocMonth || String(b.pickup.at || b.from).slice(0, 7)===ocMonth) && (!ocDrv || crewOf(b).includes(ocDrv)))
+    .map(b => ({b, L: pickupLate(b)})).filter(x => x.L).sort((a, b) => String(b.b.pickupTs).localeCompare(a.b.pickupTs));
+  if (!xs.length) return '';
+  return `<div class="panel"><div class="sec-head"><h3>Przejęcia wpisane z opóźnieniem</h3><span class="pill warn">${xs.length}</span></div>
+    ${xs.map(({b, L}) => `<div class="mini">${vPlate(b.vehicleId)}<span><b>${esc(crewName(b))}</b> – wpis o ${hm(b.pickupTs)} ${fdate(String(b.pickupTs).slice(0, 10))}, auto przejechało wcześniej <b>${nf(L.moved)} km</b><span class="sub">po zdaniu przez ${esc(crewName(L.prev))} (${fdate(String(L.prev.returnTs).slice(0, 10))}) auto stało przy ${nf(L.anchor)} km GPS · kierowca wpisał ${nf(b.pickup.km)} km</span></span></div>`).join('')}
+    <p class="muted small sec-empty">Spalanie i km tych przejęć liczymy od miejsca, w którym auto stało (GPS przy poprzednim zdaniu), łącznie z pełnym bakiem. Poproś kierowców, żeby wpisywali przejęcie zaraz po wyjeździe.</p></div>`;
+}
