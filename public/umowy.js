@@ -92,7 +92,7 @@ function viewContracts(){
     <div class="panel tablewrap"><table class="ct-tbl"><thead><tr><th>Auto</th><th>Umowa</th><th>Okres</th><th class="r">Rata</th><th class="r">Kilometry</th><th class="r">Prognoza na koniec</th><th>Stan</th></tr></thead><tbody>
       ${list.map(row).join('') || `<tr><td colspan="7" class="muted">${S.contracts.length ? 'Brak umów dla tego filtra.' : 'Dodaj pierwszą umowę – rata wejdzie do rozliczenia aut, a system przypomni o końcu umowy i limicie km.'}</td></tr>`}
     </tbody></table></div>
-    <p class="muted small" style="margin:0;max-width:90ch">Kilometry: przebieg auta minus przebieg na początku umowy. Prognoza: tempo z liczników z ostatnich 90 dni × miesiące do końca. Umowy w EUR przeliczamy na złote po średnim kursie NBP (dla każdego miesiąca – z jego ostatniego dnia roboczego). W Rozliczeniu aut rata (brutto, a gdy brak – netto) liczy się w „Ubezp. i leasing”, jeśli w danym miesiącu nie ma ręcznie wpisanego kosztu „Leasing” dla tego auta.</p>`;
+    <p class="muted small" style="margin:0;max-width:90ch">Kilometry: przebieg auta minus przebieg na początku umowy. Prognoza: tempo z liczników z ostatnich 90 dni × miesiące do końca. Umowy w EUR przeliczamy na złote po średnim kursie NBP (dla każdego miesiąca – z jego ostatniego dnia roboczego). W Kosztach (Podsumowanie, Według aut) liczy się rata netto (gdy brak – brutto ÷ 1,23), jeśli w danym miesiącu nie ma ręcznie wpisanego kosztu „Leasing” dla tego auta.</p>`;
 }
 /* rata do rozliczenia miesiąca: aktywna w danym miesiącu umowa, gdy brak ręcznego kosztu „Leasing” */
 function contractMonthCost(vid, from, to, own){

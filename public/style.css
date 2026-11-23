@@ -2055,3 +2055,18 @@ button.danger-ghost:hover{background:var(--bad-soft)}
 @media (hover:hover){.veh-tbl tr:not(:hover) .vt-st button.danger-ghost:not(:focus-visible){opacity:.0}}
 .fw-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:6px 12px;margin:10px 0}
 .fw-it{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;border:1px solid var(--line);cursor:pointer}.fw-it input{width:18px;height:18px;margin:0;accent-color:var(--accent)}
+
+/* ---------- szerokie ekrany i tabele z liczbami (poprawki układu) ---------- */
+@media (min-width:1600px){
+  .side{max-width:1720px}
+  .main{max-width:1720px}
+}
+/* kwoty, km i daty w tabelach nie łamią się w pół („0,96 / zł”) – dopisek pod spodem może się zawijać */
+td.num,th.num,td.r.num,.tablewrap th.r{white-space:nowrap}
+td.num .sub,td.r .sub{white-space:normal}
+/* Koszty według aut: 12 kolumn – ciaśniej, żeby mieściły się bez przewijania */
+.setl table{font-size:13.5px}
+.setl td,.setl th{padding-left:10px;padding-right:10px}
+.setl th{white-space:normal;line-height:1.25;vertical-align:bottom}
+@media (max-width:1500px){.setl table{font-size:13px}.setl td,.setl th{padding-left:8px;padding-right:8px}}
+.notice a{color:inherit;text-decoration:underline;text-underline-offset:2px;font-weight:600}
