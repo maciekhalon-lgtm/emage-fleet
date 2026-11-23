@@ -24,6 +24,8 @@ const mtRoutes = () => (S.routePlans || []).slice().sort((a, b) => String(a.name
 const mtPlan = id => (S.routePlans || []).find(p => p.id===id);
 const mtColor = r => r.color || MT_COLORS[Math.max(0, mtRoutes().findIndex(x => x.id===r.id)) % MT_COLORS.length];
 const mtStops = r => (r && Array.isArray(r.stops) ? r.stops : []).filter(s => s && s.clientId);
+/* aktywne przystanki – odznaczony klient (s.off: chwilowo nie zamawia) zostaje na liście, ale nie jedzie trasą ani do kierowcy */
+const mtActStops = r => mtStops(r).filter(s => !s.off);
 const mtLinked = r => r && r.routeId ? byId('routes', r.routeId) : null;
 const mtRStops = rid => (S.routeStops || []).filter(s => s.routeId===rid).sort((a, b) => (a.pos || 0) - (b.pos || 0));
 /* zapis planu; gdy plan jest przypięty do trasy, przystanki trasy (kierowca) idą za planem */
@@ -37,7 +39,7 @@ async function mtSavePlan(r, patch){
 async function mtSyncRoute(r){
   const rid = r.routeId; if (!rid) return;
   const rows = mtRStops(rid), used = new Set();
-  const want = mtStops(r);
+  const want = mtActStops(r);
   for (let i = 0; i < want.length; i++){
     const c = mtClient(want[i].clientId); if (!c) continue;
     const ex = rows.find(x => !used.has(x.id) && x.clientId===c.id);
@@ -55,7 +57,7 @@ function mtPoints(r){
   const add = (c, lab, key) => { if (mtHasXY(c)) pts.push({c, lab, key, lat: Number(c.lat), lng: Number(c.lng)}); };
   const vias = key => via.forEach((v, vi) => { if (v.after===key && v.lat!=null && v.lng!=null) pts.push({via: true, vi, key, lat: Number(v.lat), lng: Number(v.lng)}); });
   add(mtClient(r.startClientId), 'S', 'start'); vias('start');
-  mtStops(r).forEach((s, i) => { add(mtClient(s.clientId), String(i + 1), s.id); vias(s.id); });
+  let n = 0; mtStops(r).forEach(s => { if (!s.off) add(mtClient(s.clientId), String(++n), s.id); vias(s.id); });
   add(mtClient(r.endClientId), 'K', 'end');
   return pts;
 }
@@ -333,10 +335,10 @@ function mtRoutesPanel(){
     <div class="mt-assign">${rt ? `Przypisana do trasy <b>${esc(rt.code)} ${esc(rt.name)}</b>. Przystanki z planu widzi kierowca tej trasy.` : 'Szkic – nieprzypisany do trasy. <button type="button" class="link" data-mt-plan-edit="' + esc(sel.id) + '">Przypisz albo utwórz trasę</button>'}</div>
     <label class="mt-lbl">Start<select data-mt-start="${esc(sel.id)}">${opt(sel.startClientId)}</select></label>
     <label class="mt-lbl">Koniec<select data-mt-end="${esc(sel.id)}">${opt(sel.endClientId)}</select></label>
-    <div class="mt-row"><h4>Przystanki</h4><span class="muted small">${st.length}</span></div>
-    ${st.map((s, i) => { const c = mtClient(s.clientId), ok = mtHasXY(c);
-      return `<div class="mt-stop" draggable="true" data-mt-drag="${esc(s.id)}" title="Złap i przeciągnij, żeby zmienić kolejność"><span class="mt-grip" aria-hidden="true">⋮⋮</span><span class="mt-n">${i + 1}</span><span class="mt-lab"><b>${esc(c ? c.name : '?')}</b>${!ok ? `<span class="sub warn-t">bez punktu na mapie – <button type="button" class="link" data-mt-edit-client="${esc(s.clientId)}">ustaw</button></span>` : ''}</span>
-        <button type="button" class="small ghost icon" data-mt-up="${esc(s.id)}" aria-label="W górę" ${i ? '' : 'disabled'}>↑</button><button type="button" class="small ghost icon" data-mt-down="${esc(s.id)}" aria-label="W dół" ${i < st.length - 1 ? '' : 'disabled'}>↓</button><button type="button" class="small ghost icon" data-mt-del="${esc(s.id)}" aria-label="Usuń przystanek">✕</button></div>`; }).join('') || '<p class="muted small">Dodaj przystanek z listy, kliknij klienta na mapie albo kliknij w puste miejsce mapy.</p>'}
+    <div class="mt-row"><h4>Przystanki</h4><span class="muted small">${st.some(s => s.off) ? `${st.filter(s => !s.off).length} z ${st.length} aktywnych · <button type="button" class="link" data-mt-all-on="${esc(sel.id)}">zaznacz wszystkie</button>` : st.length}</span></div>
+    ${(() => { let n = 0; return st.map((s, i) => { const c = mtClient(s.clientId), ok = mtHasXY(c), num = s.off ? '–' : ++n;
+      return `<div class="mt-stop ${s.off ? 'off' : ''}" draggable="true" data-mt-drag="${esc(s.id)}" title="Złap i przeciągnij, żeby zmienić kolejność"><span class="mt-grip" aria-hidden="true">⋮⋮</span><input type="checkbox" class="mt-on" data-mt-on="${esc(s.id)}" ${s.off ? '' : 'checked'} title="${s.off ? 'Klient nieaktywny – zaznacz, żeby wrócił na trasę' : 'Odznacz, gdy klient chwilowo nie zamawia'}" aria-label="Klient aktywny na trasie"><span class="mt-n">${num}</span><span class="mt-lab"><b>${esc(c ? c.name : '?')}</b>${s.off ? '<span class="sub">nieaktywny – pominięty na trasie</span>' : ''}${!ok ? `<span class="sub warn-t">bez punktu na mapie – <button type="button" class="link" data-mt-edit-client="${esc(s.clientId)}">ustaw</button></span>` : ''}</span>
+        <button type="button" class="small ghost icon" data-mt-up="${esc(s.id)}" aria-label="W górę" ${i ? '' : 'disabled'}>↑</button><button type="button" class="small ghost icon" data-mt-down="${esc(s.id)}" aria-label="W dół" ${i < st.length - 1 ? '' : 'disabled'}>↓</button><button type="button" class="small ghost icon" data-mt-del="${esc(s.id)}" aria-label="Usuń przystanek">✕</button></div>`; }).join(''); })() || '<p class="muted small">Dodaj przystanek z listy, kliknij klienta na mapie albo kliknij w puste miejsce mapy.</p>'}
     <div class="mt-add"><select id="mt-add-sel" aria-label="Klient do dodania"><option value="">Dodaj przystanek…</option>${cs.map(c => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('')}</select><button type="button" class="small" data-mt-add>${ic('plus')}Dodaj</button></div>
     <p class="muted small">Kliknij w mapę, żeby dodać klienta albo przystanek w tym miejscu. Pinezkę klienta złap i przeciągnij, żeby poprawić miejsce. Złap linię wybranej trasy i przeciągnij, żeby poprowadzić ją inną drogą${mtVia(sel).length ? ` (punkty przejazdowe: ${mtVia(sel).length} – <button type="button" class="link" data-mt-via-clear="${esc(sel.id)}">usuń wszystkie</button>)` : ''}.${rt ? ' Godzinę, telefon i uwagi przystanku zmienisz w Trasy → Przystanki.' : ''}</p>
     <div class="mt-row"><button type="button" class="small" data-mt-retry="${esc(sel.id)}">Przelicz przejazd</button><button type="button" class="small ghost" data-mt-plan-copy="${esc(sel.id)}">Kopiuj</button>${rt ? `<button type="button" class="small ghost" data-stops="${esc(rt.id)}">Przystanki – szczegóły</button>` : ''}</div></section>`;
@@ -1012,3 +1014,16 @@ document.addEventListener('change', e => {
   if (t.dataset && 'plWeigh' in t.dataset){ plWeigh = t.checked; try { localStorage.setItem('ef-pl-weigh', plWeigh ? '1' : '0'); } catch(_){} render(); }
 });
 document.addEventListener('click', e => { if (e.target.closest('[data-pl-sel],[data-pl-all]')) e.stopPropagation(); }, true);
+
+/* ptaszek: klient aktywny / chwilowo nie zamawia (tylko planowanie – nie usuwa przystanku) */
+document.addEventListener('change', e => {
+  const id = e.target.dataset && e.target.dataset.mtOn; if (!id) return;
+  const r = mtPlan(mtActive); if (!r) return;
+  const stops = mtStops(r).map(s => s.id===id ? (e.target.checked ? (({off, ...x}) => x)(s) : {...s, off: true}) : s);
+  mtWrite(() => mtSavePlan(r, {stops})).then(() => toast(e.target.checked ? 'Klient wrócił na trasę' : 'Klient pominięty – trasa przeliczona'));
+});
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-mt-all-on]'); if (!b) return;
+  const r = mtPlan(b.dataset.mtAllOn); if (!r) return;
+  mtWrite(() => mtSavePlan(r, {stops: mtStops(r).map(({off, ...x}) => x)})).then(() => toast('Wszyscy klienci aktywni'));
+});

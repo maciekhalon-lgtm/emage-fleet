@@ -14,7 +14,7 @@ function dmMyPlan(){
 }
 function dmPoints(r){   // start, przystanki, koniec – z klientem
   const out = [], add = (c, lab) => { if (c) out.push({c, lab}); };
-  add(mtClient(r.startClientId), 'S'); mtStops(r).forEach((s, i) => add(mtClient(s.clientId), String(i + 1))); add(mtClient(r.endClientId), 'K');
+  add(mtClient(r.startClientId), 'S'); mtActStops(r).forEach((s, i) => add(mtClient(s.clientId), String(i + 1))); add(mtClient(r.endClientId), 'K');
   return out;
 }
 function dmClientRow(c, lab, col){
