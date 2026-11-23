@@ -165,10 +165,15 @@ const r1 = n => n==null ? '—' : n.toFixed(1).replace('.', ',');
 const monthsBack = n => { const out = []; let m = today().slice(0, 7); for (let i = 0; i < n; i++){ out.unshift(m); m = prevMonth(m); } return out; };
 const odoOk = o => { const x = Number(o); return x > 1000 && !(typeof fakeOdo==='function' && fakeOdo(x)); };
 
-/* VAT na paliwo wg daty tankowania – gdy plik z karty nie podaje stawki.
-   Obniżka do 8%: 17–31.08.2026 i 3.10–31.12.2026 (ta sama zasada w bazie: private.fuel_vat, migracja 049). */
-const FUEL_VAT_8 = [['2026-08-17', '2026-08-31'], ['2026-10-03', '2026-12-31']];
-const fuelVat = d => FUEL_VAT_8.some(([a, b]) => String(d || '') >= a && String(d || '') <= b) ? 8 : 23;
+/* VAT na paliwo w Polsce wg daty tankowania – gdy źródło (plik z karty) nie podaje netto ani stawki.
+   Okresy ustawia kierownik floty: Ustawienia → VAT na paliwo (settings 'vat'.fuelPL; ta sama zasada w bazie: private.fuel_vat, migracja 067).
+   Data poza wszystkimi okresami = brak stawki → liczymy 23% i pokazujemy informację o brakującej stawce. */
+const FUEL_VAT_DEF = [{from:'2020-01-01', to:'2026-08-16', rate:23}, {from:'2026-08-17', to:'2026-08-31', rate:8}, {from:'2026-09-01', to:'2026-10-02', rate:23}, {from:'2026-10-03', to:'2026-12-31', rate:8}];
+const fuelVatPeriods = () => { const s = (typeof S!=='undefined' && S.settings || []).find(x => x.id==='vat'); return s && Array.isArray(s.fuelPL) ? s.fuelPL : FUEL_VAT_DEF; };
+const fuelVatOf = d => { const x = String(d || '').slice(0, 10); let best = null;
+  fuelVatPeriods().forEach(p => { if (p && p.from && x >= p.from && x <= (p.to || '9999-12-31') && (!best || p.from > best.from)) best = p; });
+  return best ? Number(best.rate) : null; };
+const fuelVat = d => fuelVatOf(d) ?? 23;
 /* klasa auta: do 2,5 t / powyżej 2,5 t – spalanie porównujemy w obrębie klasy */
 const WCLS = [['pow25', 'Powyżej 2,5 t'], ['do25', 'Do 2,5 t']];
 const wcls = v => v && v.weightClass==='do25' ? 'do25' : 'pow25';

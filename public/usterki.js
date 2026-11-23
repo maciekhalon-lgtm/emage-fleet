@@ -26,7 +26,7 @@ function issueRow(i, showVeh = true){
       + (typeof isAccident==='function' && isAccident(i) ? `<button class="small ghost" data-print-acc="${esc(i.id)}" title="Druk / PDF dla ubezpieczyciela">${ic('clip')}Drukuj</button>` : '')
       + (i.status!=='naprawione' && P().service && canCreate('serviceEntries') ? `<button class="small ghost" data-svc-issue="${esc(i.id)}" title="Wpis do książki serwisowej – po zapisaniu usterka zamknie się sama">${ic('wrench')}Wpis serwisowy</button>` : '')
     : '';
-  return `<div class="is-row ${i.status==='naprawione'?'done':sev.cls}" ${edit?`data-edit="issues" data-id="${esc(i.id)}" tabindex="0"`:'style="cursor:default"'}>
+  return `<div class="is-row ${i.status==='naprawione'?'done':sev.cls}" data-issue-row="${esc(i.id)}" ${edit?`data-edit="issues" data-id="${esc(i.id)}" tabindex="0"`:'style="cursor:default"'}>
     <div class="dl-date">${fdate(i.date)}</div>
     <div style="min-width:0"><b>${esc(i.title)}</b>${typeof isAccident==='function' && isAccident(i) ? ' <span class="pill bad">szkoda</span>' : ''}<span class="sub ${typeof isAccident==='function' && isAccident(i) ? 'pre' : ''}">${typeof mapLinks==='function' ? mapLinks(esc(i.description||'')) : esc(i.description||'')}${i.repairNote?` · Naprawa: ${esc(i.repairNote)}`:''}</span>
       ${P().mycar && me && i.createdBy===me.id ? (i.km ? `<span class="sub">przy ${km(i.km)}</span>` : '') : `<span class="sub">Zgłosił(a): ${esc(i.createdBy?pName(i.createdBy):'—')}${i.km?' · przy '+km(i.km):''}</span>`}${photoStrip(i.photos)}</div>
@@ -84,3 +84,16 @@ document.addEventListener('click', e => {
   const v = byId('vehicles', i.vehicleId) || {};
   openForm('serviceEntries', null, {vehicleId: i.vehicleId, issueIds: [i.id], date: today(), km: v.km || i.km || null, description: i.title});
 }, true);
+
+/* „Otwórz zgłoszenie” z Pulpitu / Serwisu: po przejściu do Usterek / Zgłoszeń przewiń do tego zgłoszenia i podświetl je.
+   Gdy nie ma go na liście (np. już w zleceniu u warsztatu) – otwórz samo zgłoszenie. */
+let focusIssueId = null;
+document.addEventListener('click', e => { const b = e.target.closest('[data-focus-issue]'); if (b){ focusIssueId = b.dataset.focusIssue; if (typeof issueFilter!=='undefined') issueFilter = 'open'; } }, true);
+function focusIssueAfterRender(){
+  if (!focusIssueId) return; const id = focusIssueId; focusIssueId = null;
+  requestAnimationFrame(() => {
+    const el = document.querySelector(`[data-issue-row="${CSS.escape(id)}"]`);
+    if (el){ el.scrollIntoView({block: 'center', behavior: 'smooth'}); el.classList.add('focus-hl'); setTimeout(() => el.classList.remove('focus-hl'), 2600); }
+    else if (byId('issues', id) && canEditDoc('issues', byId('issues', id))) openForm('issues', id);
+  });
+}

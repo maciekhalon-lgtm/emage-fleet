@@ -87,7 +87,7 @@ function viewSettlement(){
         : `<p class="muted sec-empty">Brak kosztów ogólnych w tym miesiącu. Dodaj np. abonament GPS, plac, księgowość floty – rozłożą się po równo na wszystkie auta.</p>`}
       ${st.fleet.length ? '' : prevFleetHint(setlMonth)}</div>`;
   return `<div class="section">${head}${kpis}${table}${fleetList}
-    <p class="muted small" style="margin-top:12px">${COST_NOTE} Koszty ogólne dzielone po równo na ${st.n} ${isPlural(st.n,'aktywne auto','aktywne auta','aktywnych aut')} (bez wycofanych).</p></div>`;
+    <p class="muted small" style="margin-top:12px">${costNote(...setlRange(setlMonth))} Koszty ogólne dzielone po równo na ${st.n} ${isPlural(st.n,'aktywne auto','aktywne auta','aktywnych aut')} (bez wycofanych).</p></div>`;
 }
 
 /* podpowiedź: skopiuj stałe koszty ogólne z poprzedniego miesiąca */
@@ -164,4 +164,11 @@ function vehMonthsHtml(v){
 }
 
 /* jedno zdanie „jak liczymy” – to samo pod Podsumowaniem i Według aut */
-const COST_NOTE = 'Wszystkie kwoty netto. Paragony kierowców i karty – bez VAT (PL 23%, DE 19%, CZ 21%; karty – netto z wyciągu). Ubezpieczenie – roczna składka z polisy auta po 1/12 na miesiąc. Leasing – rata netto z umowy. Km z GPS (bez GPS – z liczników).';
+/* opis zasad liczenia pod tabelami kosztów; stawka VAT paliwa w Polsce – z Ustawień dla pokazanego okresu */
+function costNote(from, to){
+  const ym = m => m.slice(5, 7) + '.' + m.slice(0, 4), d = (from || '').slice(0, 10), e = (to || d).slice(0, 10);
+  const rates = [...new Set(fuelVatPeriods().filter(p => p.from <= e && (p.to || '9999-12-31') >= d).map(p => Number(p.rate) + '%'))];
+  const miss = fuelVatMissing(visibleCosts().filter(c => c.date >= d && c.date <= e));
+  return `Wszystkie kwoty netto. Paragony kierowców i karty – bez VAT (paliwo w Polsce ${rates.length ? rates.join(' / ') : '—'} wg Ustawień → VAT na paliwo, inne koszty 23%; DE 19%, CZ 21%; karty – netto z wyciągu, gdy jest). Ubezpieczenie – roczna składka z polisy auta po 1/12 na miesiąc. Leasing – rata netto z umowy. Km z GPS (bez GPS – z liczników).`
+    + (miss.length ? ` <b class="neg">Brak stawki VAT na paliwo dla ${miss.map(ym).join(', ')} – te tankowania liczone po 23%, uzupełnij w Ustawieniach.</b>` : '');
+}

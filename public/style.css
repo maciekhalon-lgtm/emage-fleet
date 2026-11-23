@@ -2072,3 +2072,5 @@ td.num .sub,td.r .sub{white-space:normal}
 .notice a{color:inherit;text-decoration:underline;text-underline-offset:2px;font-weight:600}
 .mt-stop .mt-on{width:18px;height:18px;margin:0;flex-shrink:0;accent-color:var(--accent);cursor:pointer}
 .mt-stop.off .mt-lab b{text-decoration:line-through;color:var(--muted)}.mt-stop.off .mt-n{opacity:.5}.mt-stop.off{background:var(--sunk)}
+@keyframes focus-hl{0%,60%{box-shadow:0 0 0 3px var(--accent);background:color-mix(in srgb,var(--accent) 12%,transparent)}100%{box-shadow:none}}
+.focus-hl{animation:focus-hl 2.6s ease-out;border-radius:10px}

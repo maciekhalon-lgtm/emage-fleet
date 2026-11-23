@@ -67,7 +67,7 @@ function viewRequests(){
       ${canCreate('issues') ? `<button data-new="issues">${ic('alert')}Zgłoś usterkę</button>` : ''}
       <button class="primary" data-svc-info>${ic('plus')}Informacja serwisowa</button></div></div>
     <p class="muted small wo-steps">Zaznacz pozycje (mogą być z kilku aut) i kliknij „Zrób zlecenie”.${inWs ? ` W warsztacie: <a href="#zlecenia">${inWs} ${isPlural(inWs, 'pozycja', 'pozycje', 'pozycji')}</a>.` : ''}</p>`;
-  const row = x => `<label class="wo-item ${x.cls}"><input type="checkbox" data-wo-pick="${esc(x.key)}" ${woPicked.has(x.key) ? 'checked' : ''}>
+  const row = x => `<label class="wo-item ${x.cls}" ${x.issue ? `data-issue-row="${esc(x.issue.id)}"` : ''}><input type="checkbox" data-wo-pick="${esc(x.key)}" ${woPicked.has(x.key) ? 'checked' : ''}>
       <span class="wo-t"><b>${esc(x.title)}</b>${x.issue && typeof isAccident==='function' && isAccident(x.issue) ? ' <span class="pill bad">szkoda</span>' : ''}<span class="sub">${x.sub}</span>${x.issue && x.issue.description ? `<span class="sub">${esc(String(x.issue.description).slice(0, 160))}</span>` : ''}${x.issue ? photoStrip(x.issue.photos) : ''}</span>
       <span class="wo-p"><span class="pill ${x.kind==='usterka' ? 'off' : 'info'}">${WO_KIND[x.kind]}</span>${x.sev ? `<span class="pill ${x.cls}">${esc(x.sev)}</span>` : ''}</span>
       <span class="wo-a">${x.issue && canEditDoc('issues', x.issue) ? `<button type="button" class="small ghost" data-edit="issues" data-id="${esc(x.issue.id)}">Otwórz zgłoszenie</button>` : x.deadline ? `<button type="button" class="small ghost" data-edit="deadlines" data-id="${esc(x.deadline.id)}">Termin</button>` : ''}</span></label>`;

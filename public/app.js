@@ -97,6 +97,7 @@ function render(){
   morph(v, (st || '') + html);
   hydrateFiles(v);
   centerTabs();
+  if (typeof focusIssueAfterRender==='function') focusIssueAfterRender();
 }
 function updateCounts(){
   $('#c-pojazdy').textContent = S.vehicles.length;

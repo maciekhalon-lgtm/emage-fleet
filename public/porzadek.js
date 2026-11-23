@@ -149,10 +149,48 @@ function budgetPanel(){
     <div class="budget-edit"><input id="budget-in" type="number" min="0" inputmode="numeric" placeholder="np. 15000" value="${fb || ''}" aria-label="Budżet miesięczny w zł"><button class="small" data-action="save-budget">Zapisz</button></div></div>
     <span class="muted small" style="flex:1;min-width:220px">Wykorzystanie widać w Raportach i na Pulpicie. Limity pojedynczych aut ustawisz w danych pojazdu.</span></div></div>`;
 }
+/* ---------- VAT na paliwo w Polsce (migracja 067, settings 'vat'.fuelPL) ----------
+   Okresy „od – do – stawka”; tankowanie bierze stawkę z okresu, w który wpada jego data. Zmiana jednego okresu nie rusza innych miesięcy. */
+let vatDraft = null;
+function fuelVatPanel(){
+  if (!P().manage) return '';
+  const rows = vatDraft || fuelVatPeriods().map(p => ({...p})).sort((a, b) => a.from < b.from ? -1 : 1);
+  const cur = fuelVatOf(today()), lastTo = rows.reduce((m, p) => (p.to || '9999-12-31') > m ? (p.to || '9999-12-31') : m, '');
+  return `<div class="panel"><div class="sec-head"><h3>VAT na paliwo w Polsce</h3><span class="pill ${cur!=null ? 'ok' : 'warn'}">${cur!=null ? 'dziś ' + cur + '%' : 'brak stawki na dziś'}</span></div>
+    <div class="re-box"><p class="muted" style="margin:0">Stawka, po której paragony kierowców i pozycje z kart (gdy plik nie podaje netto) przeliczamy na netto. Liczy się data tankowania. Tankowania za granicą – stawka kraju (DE 19%, CZ 21%).</p>
+    <div class="tablewrap"><table class="vat-tbl"><thead><tr><th>Od</th><th>Do</th><th class="r">Stawka</th><th></th></tr></thead><tbody>
+    ${rows.map((p, i) => `<tr><td><input type="date" data-vat-i="${i}" data-vat-k="from" value="${esc(p.from || '')}" aria-label="Od"></td><td><input type="date" data-vat-i="${i}" data-vat-k="to" value="${esc(p.to || '')}" aria-label="Do"></td>
+      <td class="r"><select data-vat-i="${i}" data-vat-k="rate" aria-label="Stawka">${[23, 8, 5, 0].map(r => `<option value="${r}" ${Number(p.rate)===r ? 'selected' : ''}>${r}%</option>`).join('')}</select></td>
+      <td class="r"><button type="button" class="small ghost" data-vat-del="${i}" title="Usuń okres">Usuń</button></td></tr>`).join('')}</tbody></table></div>
+    <div class="row-act"><button type="button" class="small" data-vat-add>Dodaj miesiąc</button><button type="button" class="small primary" data-vat-save ${vatDraft ? '' : 'disabled'}>Zapisz</button>${vatDraft ? '<button type="button" class="small ghost" data-vat-cancel>Anuluj</button>' : ''}</div>
+    <p class="muted small" style="margin:0">Po ${lastTo && lastTo < '9999' ? fdate(lastTo) : '—'} nie ma ustawionej stawki – takie tankowania liczymy po 23% i Koszty pokażą „brak stawki VAT”. Dodaj kolejny miesiąc, gdy znana będzie stawka.</p></div></div>`;
+}
+document.addEventListener('change', e => {
+  const t = e.target; if (!t.dataset || t.dataset.vatI==null) return;
+  vatDraft = vatDraft || fuelVatPeriods().map(p => ({...p})).sort((a, b) => a.from < b.from ? -1 : 1);
+  const p = vatDraft[Number(t.dataset.vatI)]; if (!p) return;
+  p[t.dataset.vatK] = t.dataset.vatK==='rate' ? Number(t.value) : t.value; render();
+});
+document.addEventListener('click', async e => {
+  const t = e.target.closest('[data-vat-add],[data-vat-del],[data-vat-save],[data-vat-cancel]'); if (!t) return;
+  if (t.dataset.vatCancel!=null){ vatDraft = null; return render(); }
+  vatDraft = vatDraft || fuelVatPeriods().map(p => ({...p})).sort((a, b) => a.from < b.from ? -1 : 1);
+  if (t.dataset.vatAdd!=null){   // następny miesiąc po ostatnim okresie, stawka jak w ostatnim
+    const last = vatDraft[vatDraft.length - 1], start = last && last.to ? addDays(last.to, 1) : today().slice(0, 7) + '-01', m = start.slice(0, 7);
+    vatDraft.push({from: start, to: setlRange(m)[1], rate: last ? Number(last.rate) : 23}); return render();
+  }
+  if (t.dataset.vatDel!=null){ vatDraft.splice(Number(t.dataset.vatDel), 1); return render(); }
+  const bad = vatDraft.find(p => !p.from || (p.to && p.to < p.from));
+  if (bad) return toast('Uzupełnij daty: „od” jest wymagane, „do” nie może być wcześniej niż „od”.', 'err');
+  const xs = vatDraft.slice().sort((a, b) => a.from < b.from ? -1 : 1);
+  for (let i = 1; i < xs.length; i++) if (!xs[i - 1].to || xs[i - 1].to >= xs[i].from) return toast(`Okresy nachodzą na siebie: ${fdate(xs[i - 1].from)} i ${fdate(xs[i].from)}.`, 'err');
+  try { await db.collection('settings').doc('vat').set({fuelPL: xs.map(p => ({from: p.from, to: p.to || null, rate: Number(p.rate)}))}); vatDraft = null; toast('Zapisano stawki VAT na paliwo'); render(); }
+  catch(err){ handleWriteErr(err); }
+});
 /* Ustawienia w sekcjach – widać jedną naraz (wybór pamiętany w tej przeglądarce) */
 let setSec = (() => { try { return localStorage.getItem('ef-set-sec') || 'firma'; } catch(_){ return 'firma'; } })();
 const SET_SECS = [
-  ['firma', 'Firma i budżet', () => dataQualityPanel() + budgetPanel()],
+  ['firma', 'Firma i budżet', () => dataQualityPanel() + budgetPanel() + fuelVatPanel()],
   ['powiadomienia', 'Powiadomienia', () => pushSetupPanel() + (typeof fuelWatchPanel==='function' ? fuelWatchPanel() : '') + (typeof reportEmailPanel==='function' ? reportEmailPanel() : '') + calendarPanel()],
   ['gps', 'Lokalizatory GPS', () => typeof geotabPanel==='function' ? geotabPanel() : ''],
   ['moduly', 'Moduły i kontrole', () => modulesPanel() + checklistPanel()],

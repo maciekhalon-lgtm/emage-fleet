@@ -44,10 +44,10 @@ function flagRow(c, compact, noAct){
   const who = c.driverId ? dName(c.driverId) : (c.createdBy ? pName(c.createdBy) : '—');
   const fx = typeof fxNote==='function' && fxNote(c) ? ' · ' + fxNote(c) : '';
   const act = noAct ? '' : P().manage ? (c.flagState==='explain'
-      ? `<span class="pill info">czeka na kierowcę</span><button class="small ghost" data-flag-ok="${esc(c.id)}">OK</button>`
-      : `<button class="small" data-flag-ok="${esc(c.id)}">${ic('check')}OK</button><button class="small" data-flag-ask="${esc(c.id)}">Wyjaśnij</button>${(c.flags || []).some(f => f.startsWith('Możliwy duplikat')) ? `<button class="small ghost" data-flag-dup="${esc(c.id)}">Usuń duplikat</button>` : ''}`) : '';
+      ? `<span class="pill info">czeka na kierowcę</span><button class="small ghost" data-flag-ok="${esc(c.id)}" title="Tankowanie w porządku – flaga zniknie z listy do wyjaśnienia">Akceptuję</button>`
+      : `<button class="small" data-flag-ok="${esc(c.id)}" title="Tankowanie w porządku – flaga zniknie z listy do wyjaśnienia">${ic('check')}Akceptuję</button><button class="small" data-flag-ask="${esc(c.id)}">Wyjaśnij</button>${(c.flags || []).some(f => f.startsWith('Możliwy duplikat')) ? `<button class="small ghost" data-flag-dup="${esc(c.id)}">Usuń duplikat</button>` : ''}`) : '';
   return `<div class="att-row flag-row"><i class="stripe ${c.flagState==='explain' ? 'info' : 'warn'}"></i>${vPlate(c.vehicleId)}
-    <div class="att-t"><b>${fdate(c.date)} · ${String(c.liters || '').replace('.', ',')} l · ${zl2(c.amount)}${fx}</b><span class="sub">${esc(who)}${c.station ? ' · ' + esc(c.station) : ''}</span>
+    <div class="att-t"><b>${fdate(c.date)} · ${String(c.liters || '').replace('.', ',')} l · ${amtTxt(c)}${fx}</b><span class="sub">${esc(who)}${c.station ? ' · ' + esc(c.station) : ''}</span>
       <span class="sub flag-list">${(c.flags || []).map(f => `<span class="pill warn">${esc(f)}</span>`).join('')}</span>
       ${c.flagQuestion ? `<span class="sub">Pytanie: „${esc(c.flagQuestion)}”</span>` : ''}${c.flagReply ? `<span class="sub"><b>Odpowiedź kierowcy:</b> „${esc(c.flagReply)}”</span>` : ''}
       ${compact ? '' : photoStrip(c.photos)}</div><div class="att-act">${act}</div></div>`;
@@ -71,13 +71,13 @@ function openFlagAsk(id){
   $('#scrim').hidden = false;
 }
 async function flagOk(id){
-  try { await db.collection('costs').doc(id).update({flagState:'ok'}); toast('Oznaczono jako wyjaśnione'); } catch(err){ handleWriteErr(err); }
+  try { await db.collection('costs').doc(id).update({flagState:'ok'}); toast('Zaakceptowano tankowanie'); } catch(err){ handleWriteErr(err); }
 }
 /* Kierowca: prośby kierownika o wyjaśnienie */
 function myExplainPanel(){
   const list = S.costs.filter(c => c.flagState==='explain' && (c.driverId===myDriverId() || c.createdBy===myId));
   if (!list.length) return '';
-  return `<div class="panel confirms"><div class="sec-head"><h3>Kierownik prosi o wyjaśnienie</h3></div>${list.map(c => `<div class="confirm"><span>${vPlate(c.vehicleId)} <b>Tankowanie ${fdate(c.date)}</b> · ${String(c.liters||'').replace('.', ',')} l · ${zl2(c.amount)}<span class="sub">„${esc(c.flagQuestion || '')}”</span></span>
+  return `<div class="panel confirms"><div class="sec-head"><h3>Kierownik prosi o wyjaśnienie</h3></div>${list.map(c => `<div class="confirm"><span>${vPlate(c.vehicleId)} <b>Tankowanie ${fdate(c.date)}</b> · ${String(c.liters||'').replace('.', ',')} l · ${amtTxt(c)}<span class="sub">„${esc(c.flagQuestion || '')}”</span></span>
     <span class="disp"><input id="exp-${esc(c.id)}" type="text" placeholder="Twoje wyjaśnienie"><button class="small primary" data-explain="${esc(c.id)}">Wyślij</button></span></div>`).join('')}</div>`;
 }
 async function sendExplain(id){

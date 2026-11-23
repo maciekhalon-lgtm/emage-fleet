@@ -279,7 +279,7 @@ async function costFxUi(){
   const sel = g('stationSel')?.value;
   const other = $('#wrap-costs-stationOther'); if (other) other.hidden = sel!=='Inna';
   // kierowca wpisuje kwotę z paragonu (brutto); kierownik – netto, chyba że zaznaczy „brutto” (migracja 064)
-  const gr = P().costs==='own' || !!g('gross')?.checked, lab = $('#wrap-costs-amount label'); if (lab) lab.textContent = P().costs==='own' ? `Kwota z paragonu (${cur==='PLN'?'zł':cur}) *` : `Kwota ${gr ? 'brutto, z VAT' : 'netto'} (${cur==='PLN'?'zł':cur}) *`;
+  const gr = P().costs==='own' || !!g('gross')?.checked, lab = $('#wrap-costs-amount label'); if (lab) lab.textContent = P().costs==='own' ? `Kwota z paragonu – brutto (${cur==="PLN"?"zł":cur}) *` : `Kwota ${gr ? 'brutto, z VAT' : 'netto'} (${cur==='PLN'?'zł':cur}) *`;
   ['fxManual','fxRate'].forEach(k => { const w = $('#wrap-costs-'+k); if (w) w.hidden = !foreign; });
   const man = g('fxManual')?.checked; const wr = $('#wrap-costs-fxRate'); if (wr && foreign) wr.hidden = !man;
   const box = $('#fx-prev'); if (!box) return;

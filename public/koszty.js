@@ -26,10 +26,14 @@ function viewCosts(){
   </div>`;
   const parts = SETL_GROUPS.map(([l], i) => [l, st.tot.g[i], prev.tot.g[i], String(i)]).concat([[EXP_FLEET, st.fleetSum, prev.fleetSum, 'f']]);
   const max = Math.max(1, ...parts.map(p => p[1]));
+  const actV = S.vehicles.filter(v => v.status!=='wycofany'), insN = actV.filter(v => Number(v.insPremium) > 0 && v.policyUntil).length;   // ile aut ma składkę z polisy
+  const partVal = (v, pv, k) => k===String(G_INS) && insN < actV.length
+    ? (v ? `${zl(v)}<span class="sub warn-t">niepełne – składki w ${insN} z ${actV.length} aut</span>` : `<span class="muted">Brak danych</span><span class="sub">składki w ${insN} z ${actV.length} aut</span>`)
+    : `${v ? zl(v) : '<span class="muted">0 zł</span>'}<span class="sub">${tot && v ? Math.round(v / tot * 100) + '%' : ''}${pv && v ? ` · ${pctTxt(v, pv).replace(' do poprz. miesiąca', '')}` : ''}</span>`;
   const breakdown = `<div class="panel"><div class="sec-head"><h3>Na co poszły pieniądze</h3><span class="muted small">netto · kliknij, żeby zobaczyć wydatki</span></div>
     <div class="catbars cost-parts">${parts.map(([l, v, pv, k]) => `<button type="button" class="catbar click" data-exp-grp="${k}"><span>${esc(l)}</span><div class="track"><div class="fill" style="width:${(v / max * 100).toFixed(1)}%"></div></div>
-      <span class="v">${v ? zl(v) : '<span class="muted">0 zł</span>'}<span class="sub">${tot && v ? Math.round(v / tot * 100) + '%' : ''}${pv && v ? ` · ${pctTxt(v, pv).replace(' do poprz. miesiąca', '')}` : ''}</span></span></button>`).join('')}</div>
-    ${!(st.tot.g[G_INS] > 0) ? `<p class="muted small sec-empty">Brak ubezpieczeń w kosztach – wpisz roczną składkę netto w danych polisy auta (Pojazdy → auto → Edytuj → Ubezpieczenie), aplikacja rozłoży ją po 1/12 na miesiąc.</p>` : ''}</div>`;
+      <span class="v">${partVal(v, pv, k)}</span></button>`).join('')}</div>
+    ${insN < actV.length ? `<p class="muted small sec-empty">${insN ? `Ubezpieczenie niepełne – składka jest w ${insN} z ${actV.length} aut.` : 'Brak ubezpieczeń w kosztach.'} Wpisz roczną składkę netto w danych polisy auta (Pojazdy → auto → Edytuj → Ubezpieczenie), aplikacja rozłoży ją po 1/12 na miesiąc.</p>` : ''}</div>`;
   const months = []; for (let i = 11; i >= 0; i--){ const m = ymAdd(costMonth, -i); months.push([m, MONTHS[Number(m.slice(5, 7)) - 1], i===0 ? tot : settlement(m).tot.total]); }
   const maxM = Math.max(1, ...months.map(x => x[2]));
   const trend = `<div class="panel"><div class="sec-head"><h3>Ostatnie 12 miesięcy</h3><span class="muted small">razem ${zl(months.reduce((s, x) => s + x[2], 0))} · średnio ${zl(months.reduce((s, x) => s + x[2], 0) / 12)}/mies.</span></div>
@@ -42,7 +46,7 @@ function viewCosts(){
     <div class="grid2"><div class="section">${breakdown}${topCars}</div><div class="section">${trend}${fl ? `<div class="panel notice"><span>${ic('alert')} Tankowania do wyjaśnienia są teraz w <a href="#spalanie">Paliwo → Spalanie</a>.</span></div>` : ''}</div></div>
     ${typeof forecastSection==='function' ? forecastSection() : ''}
     ${typeof fleetAgeSection==='function' ? fleetAgeSection() : ''}
-    <p class="muted small">${COST_NOTE}</p></div>`;
+    <p class="muted small">${costNote(...setlRange(costMonth))}</p></div>`;
 }
 
 /* ---------- Wydatki: wszystkie wpisy z filtrami ---------- */

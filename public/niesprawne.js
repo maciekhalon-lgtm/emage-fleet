@@ -14,7 +14,7 @@ function brkButton(v, small = true){
   if (!brkOn() || v.status==='wycofany') return '';
   const b = brkOrder(v.id);
   return b ? `<button type="button" class="${small ? 'small ' : ''}ghost" data-brk-fix="${esc(v.id)}" title="Zakończ naprawę – auto wraca do użytku">${ic('check')}Przywróć jako sprawne</button>`
-    : `<button type="button" class="${small ? 'small ' : ''}danger-ghost" data-brk="${esc(v.id)}" title="Auto stoi zepsute – powstanie zlecenie naprawy">${ic('wrench')}Niesprawne</button>`;
+    : `<button type="button" class="${small ? 'small ' : ''}danger-ghost" data-brk="${esc(v.id)}" title="Auto stoi zepsute – powstanie zlecenie naprawy">${ic('wrench')}Oznacz jako niesprawny</button>`;
 }
 function openBroken(vid){
   const v = byId('vehicles', vid); if (!v) return;

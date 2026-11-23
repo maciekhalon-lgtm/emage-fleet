@@ -70,7 +70,7 @@ function attentionItems(serviceOnly){
     const b = soonB(i.vehicleId);
     out.push({w: stop ? 0 : 1, html: attRow(stop ? 'bad' : 'warn', i.vehicleId, (stop ? 'Niesprawne: ' : 'Usterka: ') + esc(i.title),
       `${i.status==='naprawa' ? 'w naprawie · ' : ''}zgłosił(a) ${esc(i.createdBy ? pName(i.createdBy) : '—')} · ${fdate(i.date)}` + bkTxt(b),
-      bkBtn(b) + (canIs && i.status==='nowe' ? `<button class="small" data-issue-st="naprawa" data-id="${esc(i.id)}">Do naprawy</button>` : `<button class="small ghost" data-go="usterki">Otwórz usterki</button>`))});
+      bkBtn(b) + (canIs && i.status==='nowe' ? `<button class="small" data-issue-st="naprawa" data-id="${esc(i.id)}">Do naprawy</button>` : `<button class="small ghost" data-go="usterki" data-focus-issue="${esc(i.id)}">Otwórz zgłoszenie</button>`))});
   });
   if (!serviceOnly && P().manage){
     theftVehicles().forEach(({v, c}) => out.push({w: 1, html: attRow('bad', v.id, `Podejrzane spalanie: ${c.rate.toFixed(1).replace('.', ',')} l/100 km`, `powyżej ${String(theftOf(v.id)).replace(".", ",")} l/100 km – możliwa kradzież paliwa · ${new Intl.NumberFormat('pl-PL').format(Math.round(c.km))} km`, `<button class="small" data-card-go="${esc(v.id)}" data-ctab-go="paliwo">Sprawdź</button>`)}));
@@ -81,8 +81,9 @@ function attentionItems(serviceOnly){
     const spN = typeof suspTodoCount==='function' ? suspTodoCount() : 0; if (spN) out.push({w: 1, html: attRow('bad', '', `${spN} ${isPlural(spN,'niemożliwe tankowanie','niemożliwe tankowania','niemożliwych tankowań')} z kart`, 'więcej niż bak, więcej, niż mogło wejść, albo bus był wtedy daleko od stacji (GPS) – sprawdź, kto miał kartę', `<button class="small" data-go="karty">Pokaż</button>`)});
     if (typeof utStats==='function' && (S.gpsOdometer || []).length){ const stand = utStats(30).rows.filter(r => r.streak >= 3).sort((a, b) => b.streak - a.streak);
       if (stand.length) out.push({w: 3, html: attRow('info', stand.length===1 ? stand[0].v.id : '', `${stand.length} ${isPlural(stand.length,'auto stoi','auta stoją','aut stoi')} od 3+ dni`, esc(stand.slice(0, 6).map(r => r.v.plate + ' – ' + r.streak + ' dni').join(', ')) + ' (GPS)', stand.length===1 ? `<button class="small ghost" data-card-go="${esc(stand[0].v.id)}">Karta auta</button>` : '')}); }
-    const ocB = odoCtrlBad(); if (ocB.length){ const tol = odoCfg().tol, kinds = ['kierowca – GPS', 'karta – GPS', 'karta – kierowca'].map(k => [k, ocB.filter(e => e.cmp.some(([n, x]) => n===k && Math.abs(x) > tol)).length]).filter(x => x[1]);
-      out.push({w: 1.5, html: attRow('warn', '', `${ocB.length} ${isPlural(ocB.length,'licznik niezgodny','liczniki niezgodne','liczników niezgodnych')} między źródłami`, `ostatnie 30 dni, różnica ponad ${tol} km` + (kinds.length ? ' · ' + kinds.map(([k, n]) => `${k}: ${n}`).join(', ') : ''), `<button class="small" data-go="liczniki">Sprawdź</button>`)}); }
+    const ocB = odoCtrlBad(); if (ocB.length){ const tol = odoCfg().tol, kinds = ['kierowca – GPS', 'karta – GPS', 'karta – kierowca'].map(k => [k, ocB.filter(e => e.cmp.some(([n, x]) => n===k && Math.abs(x) > tol)).length]).concat([['nierealny licznik', ocB.filter(e => e.fake).length]]).filter(x => x[1]);
+      const multi = ocB.filter(e => e.cmp.filter(([, x]) => Math.abs(x) > tol).length + (e.fake ? 1 : 0) > 1).length;   // jedno zdarzenie może mieć kilka rozbieżności
+      out.push({w: 1.5, html: attRow('warn', '', `${ocB.length} ${isPlural(ocB.length,'licznik niezgodny','liczniki niezgodne','liczników niezgodnych')} między źródłami`, `ostatnie 30 dni, różnica ponad ${tol} km` + (kinds.length ? ' · ' + kinds.map(([k, n]) => `${k}: ${n}`).join(', ') + (multi ? ` (${multi} ${isPlural(multi, 'wpis ma', 'wpisy mają', 'wpisów ma')} kilka rozbieżności naraz)` : '') : ''), `<button class="small" data-go="liczniki">Sprawdź</button>`)}); }
     const odoN = odoTodoCount(); if (odoN) out.push({w: 2, k: 'data', html: attRow('warn', '', `${odoN} ${isPlural(odoN,'licznik','liczniki','liczników')} do sprawdzenia`, 'zmyślone albo niepasujące z GPS liczniki z kart i tankowań', `<button class="small" data-go="liczniki">Pokaż</button>`)});
   }
   if (!serviceOnly){
@@ -201,7 +202,7 @@ function viewDashboard(){
   const kp = [
     kpi({label:'W trasie', icon:'truck', cls:'info', value: inUse, small: '/' + active.length, bar:[[pct(inUse, n), 'info']], foot: `${planned ? `${planned} ${isPlural(planned,'czeka','czekają','czeka')} na przejęcie · ` : ''}${free} wolnych · ${svc + stop} w serwisie`, go:'przydzial'}),
     kpi({label:'Wymaga uwagi', icon:'alert', cls: att ? 'bad' : 'ok', value: att, bar:[], foot: att ? 'blokady, terminy, usterki, tankowania' : 'wszystko w porządku', go:'pulpit'}),
-    kpi({label:'Koszty – ' + MONTHS_FULL[Number(m.slice(5)) - 1], icon:'fuel', cls:'acc', value: zl(mc).replace(/\s?zł/, ''), small:' zł', bar: fb ? [[pct(mc, fb), mc > fb ? 'bad' : 'acc']] : [], foot: fb ? `${Math.round(mc / fb * 100)}% budżetu ${zl(fb)}` : 'brutto, wszystkie auta', go:'koszty'}),
+    kpi({label:'Koszty – ' + MONTHS_FULL[Number(m.slice(5)) - 1], icon:'fuel', cls:'acc', value: zl(mc).replace(/\s?zł/, ''), small:' zł', bar: fb ? [[pct(mc, fb), mc > fb ? 'bad' : 'acc']] : [], foot: fb ? `${Math.round(mc / fb * 100)}% budżetu ${zl(fb)}` : 'netto, wszystkie auta', go:'koszty'}),
   ].join('');
   const myCar = canDrive() && typeof myActive==='function' ? myActive() : null;
   const myCarTile = myCar ? `<a class="tile" href="#moje"><span class="t-ic">${ic('key')}</span><span class="t-txt"><b>Prowadzisz ${esc(byId('vehicles', myCar.vehicleId)?.plate || '')}</b><span>Przejęte ${fdate(myCar.pickup.at)} · zatankuj albo zdaj pojazd w „Moje auto”</span></span>${ic('chev','chev')}</a>` : '';

@@ -70,7 +70,7 @@ function offlineNote(){
   const fails = failList();
   return (offlineCount ? `<div class="notice"><span>${navigator.onLine ? 'Wysyłanie' : 'Brak zasięgu'} – <b>${offlineCount}</b> ${isPlural(offlineCount,'wpis czeka','wpisy czekają','wpisów czeka')} na wysłanie. Zapiszą się same, gdy telefon złapie sieć.</span>${navigator.onLine ? '<button class="small" data-action="sync-now">Wyślij teraz</button>' : ''}</div>` : '')
     + (!offlineCount && !navigator.onLine ? `<div class="notice"><span>Brak zasięgu. Tankowanie i zdanie auta możesz zapisać – wyślą się same po odzyskaniu sieci.</span></div>` : '')
-    + (fails.length ? `<div class="notice err"><span>Nie udało się zapisać wpisów zrobionych bez zasięgu: ${fails.map(f => esc(f.msg)).join('; ')}. Dodaj je ponownie.</span><button class="small" data-action="clear-fails">OK</button></div>` : '');
+    + (fails.length ? `<div class="notice err"><span>Nie udało się zapisać wpisów zrobionych bez zasięgu: ${fails.map(f => esc(f.msg)).join('; ')}. Dodaj je ponownie.</span><button class="small" data-action="clear-fails">Zamknij</button></div>` : '');
 }
 document.addEventListener('click', e => {
   const t = e.target.closest('[data-action="sync-now"],[data-action="clear-fails"]'); if (!t) return;

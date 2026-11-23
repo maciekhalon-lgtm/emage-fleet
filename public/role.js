@@ -49,7 +49,7 @@ function cardFuelCosts(){
   let waiting = false;
   const v = rows.filter(r => r.kind!=='other' && r.vehicleId && !r.costId && !matched.has(r.id) && Number(r.amount) > 0 && (pln(r)!=null || !(waiting = true)))
     .map(r => ({id: 'fc_' + r.id, virtual: true, cardRow: r.id, vehicleId: r.vehicleId, date: r.txDate, category: 'Paliwo', amount: Math.round(pln(r) * 100) / 100,
-      net: Math.round(pln(r) * (Number(r.amountNet) > 0 && Number(r.amount) > 0 ? Number(r.amountNet) / Number(r.amount) : 1 / (1 + (r.vatRate!=null ? Number(r.vatRate) / 100 : VAT_OF[r.currency || 'PLN'] ?? 0.23))) * 100) / 100, amountOrig: r.currency && r.currency!=='PLN' ? Number(r.amount) : null, liters: Number(r.liters) || null,
+      net: Math.round(pln(r) * (Number(r.amountNet) > 0 && Number(r.amount) > 0 ? Number(r.amountNet) / Number(r.amount) : 1 / (1 + (r.vatRate!=null ? Number(r.vatRate) : (r.currency || 'PLN')==='PLN' ? fuelVat(r.txDate) : (VAT_OF[r.currency] ?? 0.23) * 100) / 100)) * 100) / 100, amountOrig: r.currency && r.currency!=='PLN' ? Number(r.amount) : null, liters: Number(r.liters) || null,
       odometer: Number(r.odometer) || null, station: r.station || '', currency: 'PLN', note: 'karta paliwowa' + (r.cardNo ? ' ' + r.cardNo : ''), full: false}));
   if (!waiting) cardFuelMemo = {k, v};   // gdy czekamy na kurs NBP – liczymy jeszcze raz przy następnym odświeżeniu
   return v;
@@ -58,6 +58,11 @@ function cardFuelCosts(){
    Wszystkie sumy kosztów liczymy netto. Wpis kierowcy (paragon) i pozycje z kart są brutto → netto po stawce VAT kraju waluty;
    pozycja z karty – netto z wyciągu, gdy jest. Wpisy kierowników są netto, chyba że zaznaczono „brutto”. */
 const VAT_OF = {PLN: 0.23, EUR: 0.19, CZK: 0.21};
+/* stawka VAT (%) kwoty brutto: paliwo w złotych – z Ustawień wg daty tankowania, inne koszty w złotych 23%, za granicą – stawka kraju waluty */
+const vatPct = c => { const cur = c.currency || 'PLN'; return cur==='PLN' ? (c.category==='Paliwo' ? fuelVat(c.date) : 23) : (VAT_OF[cur] ?? 0.23) * 100; };
+/* tankowania brutto w złotych bez ustawionej stawki VAT w danym dniu (liczone po 23%) – miesiące do informacji */
+const fuelVatMissing = list => [...new Set(list.filter(c => c.category==='Paliwo' && (c.currency || 'PLN')==='PLN' && (c.virtual || c.net==null) && (c.gross || c.virtual || cardByCost().has(c.id))
+  && !(cardByCost().get(c.id) || {}).amountNet && fuelVatOf(c.date)==null).map(c => String(c.date).slice(0, 7)))].sort();
 let cardByCostMemo = {k: '', m: new Map()};
 function cardByCost(){
   const rows = S.fuelCardRowsAll || S.fuelCardRows || [], k = rows.length + '|' + (rows[0] || {}).id + '|' + (rows[rows.length - 1] || {}).costId;
@@ -70,9 +75,11 @@ function costNet(c){
   const a = Number(c.amount || 0); if (!a) return 0;
   const r = cardByCost().get(c.id);
   if (r && Number(r.amountNet) > 0 && Number(r.amount) > 0) return a * Number(r.amountNet) / Number(r.amount);
-  if (c.gross || r) return a / (1 + (r && r.vatRate!=null ? Number(r.vatRate) / 100 : VAT_OF[c.currency || 'PLN'] ?? 0.23));
+  if (c.gross || r) return a / (1 + (r && r.vatRate!=null ? Number(r.vatRate) : vatPct(c)) / 100);
   return a;
 }
+/* kwota pojedynczego wpisu tak, jak ją wpisano – z oznaczeniem „brutto”, gdy to paragon / karta */
+const amtTxt = c => zl2(c.amount) + (c.gross || c.virtual || cardByCost().has(c.id) ? ' brutto' : '');
 const netSum = list => list.reduce((s, c) => s + costNet(c), 0);
 const visibleCosts = () => P().costs==='own' ? S.costs : S.costs.concat(cardFuelCosts());   // kierowca: baza zwraca tylko jego wpisy
 const pName = id => names[id] || (me && id===me.id ? me.full_name : '') || 'Użytkownik';

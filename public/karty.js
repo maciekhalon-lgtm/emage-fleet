@@ -186,12 +186,20 @@ function viewFuelCards(){
   const cardL = sum(rows, r => r.liters), cardA = sum(rows.filter(r => !r.currency || r.currency==='PLN'), r => r.amount);
   const appRows = pairs.filter(p => p.cost).map(p => p.cost).concat(noCard);
   const appL = sum(appRows, c => c.liters), appA = sum(appRows, c => c.amount);
+  // porównanie kwot na wspólnej podstawie netto (karta – netto z wyciągu albo z VAT wg daty; wpis kierowcy – brutto z paragonu → netto); tylko złote
+  const isPl = x => !x.currency || x.currency==='PLN', cardN = sum(rows.filter(isPl), fcNet), appN = sum(appRows.filter(isPl), costNet);
+  const prd = pairs.filter(p => p.cost && isPl(p.row) && isPl(p.cost)), prdDiff = sum(prd, p => fcNet(p.row)) - sum(prd, p => costNet(p.cost));
+  const diffBox = !appRows.length
+    ? `<div><span class="label">Różnica</span><b class="muted">porównanie niepełne</b><span class="sub">brak wpisów kierowców w tym okresie</span></div>`
+    : miss.length
+      ? `<div><span class="label">Różnica netto</span><b class="${Math.abs(prdDiff) > 1 ? 'neg' : ''}">${fm(prdDiff)}</b><span class="sub">niepełne – tylko ${prd.length} ${isPlural(prd.length, 'tankowanie', 'tankowania', 'tankowań')} z wpisem kierowcy; ${miss.length} bez wpisu</span></div>`
+      : `<div><span class="label">Różnica netto</span><b class="${Math.abs(cardN - appN) > 1 ? 'neg' : ''}">${fm(cardN - appN)}</b><span class="sub">karta ${fm(cardN)} − wpisy ${fm(appN)}</span></div>`;
   const tile = (k, l, n, cls) => `<button class="fc-tile ${cls} ${fcFilter===k ? 'on' : ''}" data-fcf="${k}"><b>${n}</b><span>${l}</span></button>`;
   const tiles = `<div class="fc-tiles">${tile('all','wszystkie', pairs.length, '')}${tile('ok','zgodne', ok.length, 'ok')}${tile('diff','różnice', dif.length, 'warn')}${tile('miss','brak wpisu kierowcy', miss.length, 'bad')}${tile('nocard','wpisy bez karty', noCard.length, 'info')}</div>`;
   const meta = `<div class="panel fc-meta"><div><span class="label">Dostawca</span><b>${esc(imp.provider || '—')}</b></div><div><span class="label">Okres</span><b>${imp.periodFrom ? fdate(imp.periodFrom) + ' – ' + fdate(imp.periodTo) : '—'}</b></div>
-    <div><span class="label">Karta (nasze auta)</span><b>${fl(cardL)} · ${fm(cardA)}</b><span class="sub">netto ${fm(sum(rows.filter(r => !r.currency || r.currency==='PLN'), fcNet))}</span></div><div><span class="label">Wpisy kierowców</span><b>${fl(appL)} · ${fm(appA)}</b></div>
+    <div><span class="label">Karta (nasze auta)</span><b>${fl(cardL)} · ${fm(cardA)}</b><span class="sub">brutto · netto ${fm(sum(rows.filter(r => !r.currency || r.currency==='PLN'), fcNet))}</span></div><div><span class="label">Wpisy kierowców</span>${appRows.length ? `<b>${fl(appL)} · ${fm(appA)}</b><span class="sub">brutto · netto ${fm(appN)}</span>` : `<b class="muted">brak wpisów</b><span class="sub">${miss.length} ${isPlural(miss.length, 'tankowanie', 'tankowania', 'tankowań')} z karty bez wpisu kierowcy</span>`}</div>
     ${(xs => xs.length ? `<div><span class="label">Wykluczone (nie flota)</span><b>${xs.length} · ${fm(sum(xs.filter(r => !r.currency || r.currency==='PLN'), r => r.amount))}</b></div>` : '')(S.fuelCardRowsAll.filter(r => r.excluded && r.importId===imp.id))}
-    <div><span class="label">Różnica</span><b class="${Math.abs(cardA - appA) > 1 ? 'neg' : ''}">${fm(cardA - appA)}</b></div>
+    ${diffBox}
     <div class="fc-meta-act">${imp.invoicePath ? `<a class="btn small" data-file="${esc(imp.invoicePath)}" href="#" target="_blank" rel="noopener">Faktura${imp.invoiceNo ? ' ' + esc(imp.invoiceNo) : ''}</a>` : ''}<button class="small" data-fc-inv="${esc(imp.id)}">${imp.invoicePath ? 'Zmień fakturę' : 'Dodaj fakturę'}</button><button class="small ghost" data-fc-del="${esc(imp.id)}">Usuń zestawienie</button></div></div>`;
   const perV = [...vids].map(vid => { const r = rows.filter(x => x.vehicleId===vid), a = appRows.filter(c => c.vehicleId===vid);
     return {vid, cl: sum(r, x => x.liters), ca: sum(r.filter(x => !x.currency || x.currency==='PLN'), x => x.amount), al: sum(a, c => c.liters), aa: sum(a, c => c.amount),
