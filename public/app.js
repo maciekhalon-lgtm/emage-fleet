@@ -36,6 +36,7 @@ function render(){
     return;
   }
   // stare adresy: Raporty → Koszty (Podsumowanie), Opłaty drogowe → Wydatki (opłaty)
+  if (tab==='liczniki' && !P().manage){ tab = 'pulpit'; history.replaceState(null, '', '#pulpit'); }   // Kontrola liczników – tylko kierownik floty
   if (tab==='raporty'){ tab = 'koszty'; history.replaceState(null, '', '#koszty'); }
   if (tab==='oplaty'){ tab = 'wydatki'; if (typeof expF!=='undefined'){ Object.keys(expF).forEach(k => { expF[k] = ''; }); expF.grp = '5'; } history.replaceState(null, '', '#wydatki'); }
   const drive = canDrive();

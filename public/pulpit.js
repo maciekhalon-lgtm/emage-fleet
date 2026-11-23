@@ -98,7 +98,11 @@ function attentionItems(serviceOnly){
       if (pu) out.push({w:0.5, html: attRow('warn', '', `${pu} ${isPlural(pu,'nowe konto','nowe konta','nowych kont')} do zatwierdzenia`, 'nadaj rolę w Użytkownikach', `<button class="small" data-go="uzytkownicy">Zatwierdź</button>`)});
     }
     if (P().manage) flaggedCosts().slice(0, 6).forEach(c => out.push({w: c.flagState==='explain' ? 3 : 1, html: flagRow(c, true)}));
-    if (flaggedCosts().length > 6) out.push({w:3, html: attRow('warn', '', `i ${flaggedCosts().length - 6} innych tankowań do wyjaśnienia`, 'pełna lista w zakładce Koszty', `<button class="small" data-go="koszty">Pokaż</button>`)});
+    if (flaggedCosts().length > 6) out.push({w:3, html: attRow('warn', '', `i ${flaggedCosts().length - 6} innych tankowań do wyjaśnienia`, 'pełna lista w Paliwo → Spalanie', `<button class="small" data-go="spalanie">Pokaż</button>`)});
+    if (P().manage && typeof noDriverDays==='function'){   // GPS: auto jeździło, a nikt go nie miał w aplikacji (ostatnie 3 pełne dni)
+      const nd = noDriverDays(addDays(today(), -3), addDays(today(), -1));
+      if (nd.length) out.push({w: 2, html: attRow('warn', '', `${nd.length} ${isPlural(nd.length, 'dzień jazdy', 'dni jazdy', 'dni jazdy')} bez kierowcy w aplikacji`, nd.slice(0, 5).map(x => `${esc((byId('vehicles', x.vid) || {}).plate || '')} ${fdate(x.day).slice(0, 5)} – ${new Intl.NumberFormat('pl-PL').format(x.km)} km`).join(' · ') + (nd.length > 5 ? '…' : '') + ' (wg GPS)', `<button class="small" data-go="liczniki">Pokaż</button>`)});
+    }
     if (P().reports){
       const la = limitAlerts();
       if (la.fleet) out.push({w: la.fleet.over ? 1 : 3, html: attRow(la.fleet.over ? 'bad' : 'warn', '', la.fleet.over ? 'Budżet floty przekroczony' : 'Budżet floty blisko limitu', `${zl(la.fleet.sum)} z ${zl(la.fleet.lim)} w tym miesiącu`, `<button class="small ghost" data-go="raporty">Raporty</button>`)});

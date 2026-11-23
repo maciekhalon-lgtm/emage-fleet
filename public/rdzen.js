@@ -213,13 +213,45 @@ function gpsAtIdx(){
 }
 /* km w skali GPS dla wpisu: source 'tankowanie' | 'przejecie' | 'zdanie'; typed – licznik wpisany przez kierowcę */
 function odoAt(source, refId, vid, typed){
-  const I = gpsAtIdx(), g = I.m.get(source + '|' + refId);
+  const I = gpsAtIdx(), g = I.m.get(source + '|' + refId), t = Number(typed), ts = t > 0 ? t - (I.off.get(vid) || 0) : null;
+  // wpis zrobiony długo po zdarzeniu (licznik kierowcy różni się od GPS z chwili wpisu o > 150 km) – liczymy z licznika kierowcy
+  if (g && ts!=null && Math.abs(ts - g) > 150) return ts;
   if (g) return g;
-  const t = Number(typed); if (!(t > 0)) return null;
-  return t - (I.off.get(vid) || 0);
+  return ts;
 }
+/* Przejęcie wpisane z opóźnieniem: kierowca ruszył rano, a przejęcie wpisał po kilku godzinach jazdy.
+   Rozpoznajemy tylko, gdy jednocześnie: wg GPS auto po zdaniu przez poprzedniego kierowcę STAŁO aż do dnia przejęcia
+   (licznik dzienny z dnia przed przejęciem ≈ GPS przy zdaniu), przed wpisem przejechało 30–700 km i w tym czasie
+   nikt nie wpisał tankowania. Wtedy start przejęcia (km i pełny bak) = GPS przy poprzednim zdaniu.
+   (Gdy auto jeździło wcześniej bez nikogo w aplikacji – np. WGM 4792V 21.11 – liczymy normalnie, od wpisu.) */
+const wawDay = ts => new Date(ts).toLocaleDateString('sv-SE', {timeZone: 'Europe/Warsaw'});
+let lateMemo = {k: '', m: new Map()};
+function pickupLate(b){
+  if (!b || !b.pickup || !b.pickupTs) return null;
+  const I = gpsAtIdx(), k = I.k + '|' + S.bookings.length + '|' + (S.gpsOdometer || []).length;
+  if (lateMemo.k!==k) lateMemo = {k, m: new Map()};
+  if (lateMemo.m.has(b.id)) return lateMemo.m.get(b.id);
+  let r = null;
+  const g = I.m.get('przejecie|' + b.id);
+  if (g){
+    const prev = S.bookings.filter(x => x.vehicleId===b.vehicleId && x.id!==b.id && x.returned && x.returnTs && x.returnTs < b.pickupTs).sort((x, y) => y.returnTs.localeCompare(x.returnTs))[0];
+    const pg = prev && I.m.get('zdanie|' + prev.id), moved = pg ? g - pg : 0;
+    if (pg && moved > 30 && moved <= 700){
+      const busy = S.bookings.some(x => x.vehicleId===b.vehicleId && x.id!==b.id && x.id!==prev.id && x.pickupTs && x.pickupTs > prev.returnTs && x.pickupTs < b.pickupTs);
+      const fuel = S.costs.some(c => c.vehicleId===b.vehicleId && c.createdAt && c.createdAt > prev.returnTs && c.createdAt < b.pickupTs && (c.category==='Paliwo' || c.category==='Ładowanie'));
+      const day = wawDay(b.pickupTs), dayBefore = addDays(day, -1);
+      const gd = (S.gpsOdometer || []).filter(x => x.vehicleId===b.vehicleId && x.day >= wawDay(prev.returnTs) && x.day <= dayBefore);
+      const stood = gd.length > 0 && gd.every(x => Math.abs(Number(x.km) - pg) <= 30);   // auto stało do dnia przejęcia
+      if (!busy && !fuel && stood) r = {anchor: pg, moved: Math.round(moved), prev};
+    }
+  }
+  lateMemo.m.set(b.id, r);
+  return r;
+}
+/* km startu przejęcia w skali GPS (z poprawką na przejęcie wpisane z opóźnieniem) */
+const pickOdo = b => { const L = pickupLate(b); return L ? L.anchor : odoAt('przejecie', b.id, b.vehicleId, b.pickup && b.pickup.km); };
 /* km przejechane w przydziale (przejęcie → zdanie) – z GPS, gdy jest */
-const bkKm = b => { if (!b.pickup || !b.returned) return null; const a = odoAt('przejecie', b.id, b.vehicleId, b.pickup.km), z = odoAt('zdanie', b.id, b.vehicleId, b.returned.km); return a!=null && z!=null ? z - a : null; };
+const bkKm = b => { if (!b.pickup || !b.returned) return null; const a = pickOdo(b), z = odoAt('zdanie', b.id, b.vehicleId, b.returned.km); return a!=null && z!=null ? z - a : null; };
 
 /* Podmiana treści strony bez „przeładowania”: zamiast innerHTML porównujemy stary i nowy DOM i zmieniamy tylko to,
    co się zmieniło. Zostaje przewinięcie, kursor w polu, otwarte <details>, mapa (#mt-slot) i wczytane zdjęcia. */
