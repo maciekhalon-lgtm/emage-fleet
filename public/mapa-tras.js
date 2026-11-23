@@ -28,6 +28,8 @@ const mtLinked = r => r && r.routeId ? byId('routes', r.routeId) : null;
 const mtRStops = rid => (S.routeStops || []).filter(s => s.routeId===rid).sort((a, b) => (a.pos || 0) - (b.pos || 0));
 /* zapis planu; gdy plan jest przypięty do trasy, przystanki trasy (kierowca) idą za planem */
 async function mtSavePlan(r, patch){
+  // koszty (calc) od migracji 063 w osobnej tabeli – kierowcy jej nie widzą
+  if ('calc' in patch && optOn('planCalc')){ const {calc, ...rest} = patch; await db.collection('planCalc').doc(r.id).set({calc: calc || {}}); r.calc = calc || {}; patch = rest; if (!Object.keys(patch).length) return; }
   await db.collection('routePlans').doc(r.id).update(patch);
   const np = {...r, ...patch};
   if (np.routeId && ('stops' in patch || ('routeId' in patch && (mtStops(np).length || np.startClientId)))) await mtSyncRoute(np);
@@ -135,7 +137,7 @@ function mtRoad(r){
       .then(x => { if (!x.ok) throw Error(); return x.json(); })
       .then(d => { if (d.code!=='Ok' || !d.routes || !d.routes[0]) throw Error(); Object.assign(res, {status: 'ready', data: d.routes[0]}); })
       .catch(() => { res.status = 'error'; })
-      .finally(() => { if (mtCalc.get(r.id)===res){ document.querySelectorAll(`[data-mt-metric="${r.id}"]`).forEach(n => { n.innerHTML = mtMetric(r); }); mtDraw(); } });
+      .finally(() => { if (mtCalc.get(r.id)===res){ document.querySelectorAll(`[data-mt-metric="${r.id}"]`).forEach(n => { n.innerHTML = mtMetric(r); }); mtDraw(); if (typeof dmDraw==='function') dmDraw(); } });
   }
   return res;
 }
@@ -959,7 +961,9 @@ async function plNewQuoteSave(){
   if (!name){ w.textContent = 'Wpisz nazwę.'; w.hidden = false; return; }
   if (!(km > 0)){ w.textContent = 'Wpisz km kursu.'; w.hidden = false; return; }
   const ref = db.collection('routePlans').doc();
-  try { await ref.set({name, color: MT_COLORS[(S.routePlans || []).length % MT_COLORS.length], stops: [], via: [], routeId: null, calc: {km, qClient: $('#pl-q-client').value.trim() || undefined, qStatus: 'szkic', qDate: today()}});
+  try { const cc = {km, qClient: $('#pl-q-client').value.trim() || undefined, qStatus: 'szkic', qDate: today()};
+    await ref.set({name, color: MT_COLORS[(S.routePlans || []).length % MT_COLORS.length], stops: [], via: [], routeId: null, calc: cc});
+    if (optOn('planCalc')) await db.collection('planCalc').doc(ref.id).set({calc: cc});
     mtActive = ref.id; plMode = 'koszty'; closeForm(); toast('Utworzono wycenę'); render(); } catch(err){ handleWriteErr(err); }
 }
 document.addEventListener('click', e => {

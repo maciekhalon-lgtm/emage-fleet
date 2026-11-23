@@ -1,7 +1,7 @@
 /* Emage FLEET — rdzeń: stan danych, pomocnicze funkcje dat i formatowania, logika domenowa */
 'use strict';
-const COLS = ['clients','routePlans','vehicles','drivers','deadlines','bookings','costs','issues','docs','settings','requests','crewChanges','routes','serviceEntries','blockOverrides','loadings','loadingReports','fuelCardImports','fuelCardRows','routeStops','fleetCosts','tires','contracts','equipment','workshops','visits','gpsOdometer','odoGps','workOrders','woItems','events'];
-const S = {clients:[],routePlans:[],fuelCardRowsAll:[],gpsOdometer:[],odoGps:[],events:[],workOrders:[],woItems:[],routeStops:[],fleetCosts:[],tires:[],contracts:[],equipment:[],workshops:[],visits:[],vehicles:[],drivers:[],deadlines:[],bookings:[],costs:[],issues:[],docs:[],settings:[],requests:[],crewChanges:[],routes:[],serviceEntries:[],blockOverrides:[],loadings:[],loadingReports:[],fuelCardImports:[],fuelCardRows:[]};
+const COLS = ['clients','routePlans','planCalc','vehicles','drivers','deadlines','bookings','costs','issues','docs','settings','requests','crewChanges','routes','serviceEntries','blockOverrides','loadings','loadingReports','fuelCardImports','fuelCardRows','routeStops','fleetCosts','tires','contracts','equipment','workshops','visits','gpsOdometer','odoGps','workOrders','woItems','events'];
+const S = {clients:[],routePlans:[],planCalc:[],fuelCardRowsAll:[],gpsOdometer:[],odoGps:[],events:[],workOrders:[],woItems:[],routeStops:[],fleetCosts:[],tires:[],contracts:[],equipment:[],workshops:[],visits:[],vehicles:[],drivers:[],deadlines:[],bookings:[],costs:[],issues:[],docs:[],settings:[],requests:[],crewChanges:[],routes:[],serviceEntries:[],blockOverrides:[],loadings:[],loadingReports:[],fuelCardImports:[],fuelCardRows:[]};
 const got = {};
 let db = null, canWrite = true, dbState = 'loading';
 let myId = null;

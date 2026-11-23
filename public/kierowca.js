@@ -52,12 +52,12 @@ function notLinked(){
 /* ---------- ekran startowy ---------- */
 const initials = n => String(n || '').split(/\s+/).filter(Boolean).slice(0, 2).map(x => x[0].toUpperCase()).join('') || '?';
 /* Dolny pasek kierowcy: Start · Grafik · Historia · Ja */
-const DRV_NAV = [['moje','Start','home'],['moj-grafik','Grafik','cal'],['moja-historia','Historia','hist'],['moje-dane','Ja','user']];
+const DRV_NAV = [['moje','Start','home'],['moj-grafik','Grafik','cal'],['moja-mapa','Mapa','pin'],['moja-historia','Historia','hist'],['moje-dane','Ja','user']];
 function driverBar(){
   if (!P().mycar) return '';
   const cur = tab==='wybierz' ? 'moje' : tab;
   const badge = k => k==='moje' ? myConfirmations().length + S.costs.filter(c => c.flagState==='explain' && (c.driverId===myDriverId() || c.createdBy===myId)).length : 0;
-  return `<nav class="d-bar" aria-label="Menu kierowcy">${DRV_NAV.map(([k, l, i]) => `<a href="#${k}" ${cur===k ? 'aria-current="page"' : ''}>${ic(i)}<span>${l}</span>${badge(k) ? `<em>${badge(k)}</em>` : ''}</a>`).join('')}</nav>`;
+  return `<nav class="d-bar" aria-label="Menu kierowcy">${DRV_NAV.filter(([k]) => k!=='moja-mapa' || (typeof dmOn==='function' && dmOn())).map(([k, l, i]) => `<a href="#${k}" ${cur===k ? 'aria-current="page"' : ''}>${ic(i)}<span>${l}</span>${badge(k) ? `<em>${badge(k)}</em>` : ''}</a>`).join('')}</nav>`;
 }
 /* Etapy dnia: przejęcie → w trasie → zdanie */
 function dayStepper(stage){

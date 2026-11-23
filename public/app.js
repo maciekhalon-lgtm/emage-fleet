@@ -1,8 +1,8 @@
 /* Emage FLEET — aplikacja: nawigacja, odświeżanie widoków i obsługa kliknięć */
 'use strict';
 /* ---------- routing ---------- */
-const DRIVER_VIEWS = ['moje','wybierz','moje-dane','moj-grafik','moja-historia'];
-const TABS = ['moje','wybierz','moje-dane','moj-grafik','moja-historia','pulpit','pojazdy','trasy','terminy','usterki','ksiazka','przydzial','mapa-tras','koszty','karty','oplaty','opony','wyposazenie','umowy','plan','zlecenia','serwis-terminy','ranking','ranking-kierowcy','spalanie','liczniki','raporty','rozliczenie','historia','kierowcy','uzytkownicy','ustawienia'];
+const DRIVER_VIEWS = ['moje','wybierz','moje-dane','moj-grafik','moja-historia','moja-mapa'];
+const TABS = ['moje','wybierz','moje-dane','moj-grafik','moja-historia','moja-mapa','pulpit','pojazdy','trasy','terminy','usterki','ksiazka','przydzial','mapa-tras','koszty','karty','oplaty','opony','wyposazenie','umowy','plan','zlecenia','serwis-terminy','ranking','ranking-kierowcy','spalanie','liczniki','raporty','rozliczenie','historia','kierowcy','uzytkownicy','ustawienia'];
 const homeTab = () => P().mycar ? 'moje' : 'pulpit';
 let pendingCard = null;
 let tab = TABS.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'pulpit', q = '', costMonth = today().slice(0,7), dlFilter = 'urgent';
@@ -31,7 +31,7 @@ function render(){
     if (!DRIVER_VIEWS.includes(tab)) tab = 'moje';
     renderNotices();
     const v = $('#view');
-    morph(v, tab==='wybierz' ? viewPickCar() : tab==='moje-dane' ? viewMyData() : tab==='moj-grafik' ? viewMySchedule() : tab==='moja-historia' ? viewMyHistory() : viewMyCar());
+    morph(v, tab==='moja-mapa' ? viewDriverMap() : tab==='wybierz' ? viewPickCar() : tab==='moje-dane' ? viewMyData() : tab==='moj-grafik' ? viewMySchedule() : tab==='moja-historia' ? viewMyHistory() : viewMyCar());
     hydrateFiles(v);
     return;
   }
@@ -62,6 +62,7 @@ function render(){
   else if (tab==='ksiazka') html = viewServiceBook();
   else if (tab==='ustawienia') html = viewSettings();
   else if (tab==='wybierz') html = viewPickCar();
+  else if (tab==='moja-mapa') html = viewDriverMap();
   else if (tab==='moje-dane') html = viewMyData();
   else if (tab==='moj-grafik') html = viewMySchedule();
   else if (tab==='moja-historia') html = viewMyHistory();

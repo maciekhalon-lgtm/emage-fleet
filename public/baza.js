@@ -5,7 +5,7 @@ const sb = supabase.createClient(CONFIG.supabaseUrl, CONFIG.supabaseKey, {
 });
 
 /* nazwa w aplikacji → tabela w bazie */
-const TABLES = {gpsOdometer:'gps_odometer', odoGps:'odo_gps', events:'events', workOrders:'work_orders', woItems:'work_order_items', vehicles:'vehicles', drivers:'drivers', deadlines:'deadlines', bookings:'bookings', costs:'costs', issues:'issues', docs:'documents', settings:'settings', routeStops:'route_stops', fleetCosts:'fleet_costs', tires:'tires', contracts:'vehicle_contracts', equipment:'equipment', workshops:'workshops', visits:'service_visits', requests:'data_change_requests', crewChanges:'crew_changes', routes:'routes', serviceEntries:'service_entries', blockOverrides:'block_overrides', loadings:'loadings', loadingReports:'loading_reports', fuelCardImports:'fuel_card_imports', fuelCardRows:'fuel_card_rows', clients:'clients', routePlans:'route_plans', members:'profiles'};
+const TABLES = {gpsOdometer:'gps_odometer', odoGps:'odo_gps', events:'events', workOrders:'work_orders', woItems:'work_order_items', vehicles:'vehicles', drivers:'drivers', deadlines:'deadlines', bookings:'bookings', costs:'costs', issues:'issues', docs:'documents', settings:'settings', routeStops:'route_stops', fleetCosts:'fleet_costs', tires:'tires', contracts:'vehicle_contracts', equipment:'equipment', workshops:'workshops', visits:'service_visits', requests:'data_change_requests', crewChanges:'crew_changes', routes:'routes', serviceEntries:'service_entries', blockOverrides:'block_overrides', loadings:'loadings', loadingReports:'loading_reports', fuelCardImports:'fuel_card_imports', fuelCardRows:'fuel_card_rows', clients:'clients', routePlans:'route_plans', planCalc:'route_plan_calc', members:'profiles'};
 const COL_OF = Object.fromEntries(Object.entries(TABLES).map(([a, b]) => [b, a]));
 
 /* pole w aplikacji → kolumna w bazie */
@@ -50,6 +50,7 @@ const WRITABLE = {
   routes:    ['id','code','name','tacho','loading','active','note','km','color','start_client_id','end_client_id','via'],
   clients:   ['id','name','address','lat','lng','phone','note'],
   routePlans: ['id','name','color','start_client_id','end_client_id','stops','via','route_id','note','calc'],
+  planCalc:  ['id','calc'],
   blockOverrides: ['id','vehicle_id','date','reason'],
   deadlines: ['id','vehicle_id','type','date','km_due','interval_months','interval_km','remind_km','note','last_done_km','last_done_date'],
   serviceEntries: ['id','vehicle_id','date','km','workshop','description','cost','oil_change','deadline_id','issue_ids','note','storage_path','file_name','content_type','tires_set','timing_change'],
@@ -112,7 +113,7 @@ function toDb(col, o){
   if (col==='vehicles' && !tireSizeOn()) delete out.tire_size;   // przed migracją 032 kolumny nie ma
   if ((col==='routes' || col==='routeStops') && !optOn('clients')){ delete out.color; delete out.start_client_id; delete out.end_client_id; delete out.client_id; }   // przed migracją 059 (mapa tras) tych kolumn nie ma
   if (col==='routes' && !(S.routes[0] && 'via' in S.routes[0])) delete out.via;   // przed migracją 060
-  if (col==='routePlans' && S.routePlans[0] && !('calc' in S.routePlans[0])) delete out.calc;   // przed migracją 062
+  if (col==='routePlans' && (optOn('planCalc') || S.routePlans[0] && !('calc' in S.routePlans[0]))) delete out.calc;   // przed migracją 062; od 063 koszty w route_plan_calc
   return out;
 }
 
@@ -184,6 +185,7 @@ async function refresh(col){
   if ((col==='members' || col==='crewChanges' || col==='fuelCardImports' || col==='fuelCardRows' || col==='fleetCosts') && !P().manage) return;
   if ((col==='tires' || col==='contracts' || col==='equipment' || col==='workshops' || col==='visits' || col==='gpsOdometer' || col==='odoGps' || col==='workOrders' || col==='woItems' || col==='events') && !P().manage && !P().service){ got[col] = true; return; }
   if (col==='serviceEntries' && !P().service) return;
+  if (col==='planCalc' && !P().manage){ got[col] = true; return; }   // koszty planów tras – tylko kierownictwo
   // Supabase oddaje najwyżej 1000 wierszy na zapytanie – pobieramy partiami aż do końca
   const key = col==='settings' ? 'key' : 'id', PAGE = 1000, data = [];
   for (let from = 0; ; from += PAGE){
@@ -197,6 +199,7 @@ async function refresh(col){
   if (col in OPT) OPT[col] = true;
   if (col==='members') profiles = data;
   else S[col] = data.map(r => toApp(col, r));
+  if ((col==='routePlans' || col==='planCalc') && OPT.planCalc) mergePlanCalc();
   // tankowania z karty wykluczone z kosztów floty (migracja 050): w S.fuelCardRows ich nie ma – liczenia ich nie widzą; pełna lista w S.fuelCardRowsAll
   if (col==='fuelCardRows'){ S.fuelCardRowsAll = S.fuelCardRows; S.fuelCardRows = S.fuelCardRowsAll.filter(r => !r.excluded); }
   got[col] = true;
@@ -240,8 +243,10 @@ function queueRefresh(col){
 let channel = null, stopsChannel = null, stopsReady = false, fcChannel = null, fleetCostsReady = false;
 /* Tabele z nowszych migracji (027 opony, 028 wyposażenie, 029 umowy, 030 warsztaty): dopóki SQL nie jest uruchomiony, moduł jest ukryty,
    a reszta aplikacji działa normalnie. OPT[col] = true, gdy tabela istnieje i dane się wczytały. */
-const OPT = {clients: false, routePlans: false, tires: false, contracts: false, equipment: false, workshops: false, visits: false, gpsOdometer: false, odoGps: false, workOrders: false, woItems: false, events: false}, optChannels = {};
+const OPT = {clients: false, routePlans: false, planCalc: false, tires: false, contracts: false, equipment: false, workshops: false, visits: false, gpsOdometer: false, odoGps: false, workOrders: false, woItems: false, events: false}, optChannels = {};
 const optOn = col => !!OPT[col];
+/* od migracji 063 wyliczenia kosztów planów są w osobnej tabeli (tylko kierownictwo) – w pamięci dalej jako plan.calc */
+function mergePlanCalc(){ S.routePlans.forEach(p => { const c = S.planCalc.find(x => x.id===p.id); p.calc = c && c.calc || {}; }); }
 async function loadAll(){
   db = dbApi;
   setSync('', 'Wczytywanie danych…');
