@@ -256,7 +256,7 @@ function pickupLate(b){
 /* km startu przejęcia w skali GPS (z poprawką na przejęcie wpisane z opóźnieniem) */
 const pickOdo = b => { const L = pickupLate(b); return L ? L.anchor : odoAt('przejecie', b.id, b.vehicleId, b.pickup && b.pickup.km); };
 /* km przejechane w przydziale (przejęcie → zdanie) – z GPS, gdy jest */
-const bkKm = b => { if (!b.pickup || !b.returned) return null; const a = pickOdo(b), z = odoAt('zdanie', b.id, b.vehicleId, b.returned.km); return a!=null && z!=null ? z - a : null; };
+const bkKm = b => { if (!b.pickup || !b.returned) return null; const a = pickOdo(b), z = odoAt('zdanie', b.id, b.vehicleId, b.returned.km); return a!=null && z!=null ? Math.max(0, z - a) : null; };
 
 /* Podmiana treści strony bez „przeładowania”: zamiast innerHTML porównujemy stary i nowy DOM i zmieniamy tylko to,
    co się zmieniło. Zostaje przewinięcie, kursor w polu, otwarte <details>, mapa (#mt-slot) i wczytane zdjęcia. */

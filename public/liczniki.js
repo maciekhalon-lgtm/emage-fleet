@@ -104,11 +104,13 @@ document.addEventListener('click', e => {
 /* ---------- walidacja licznika wpisywanego przez kierowcę ---------- */
 /* Zwraca błąd (nie da się zapisać) albo ostrzeżenie {soft} o dużym skoku. last – ostatni prawdziwy licznik auta. */
 function odoInputCheck(odo, last){
-  const n = Math.round(Number(odo)), nf = x => new Intl.NumberFormat('pl-PL').format(x);
+  /* licznik wpisany przez kierowcę to tylko kontrola (rzeczywisty przebieg bierzemy z GPS) – nigdy nie blokuje zapisu:
+     podejrzany stan = ostrzeżenie, drugie kliknięcie „Zapisz” zapisuje, a rozbieżność widać w Kontroli liczników */
+  const n = Math.round(Number(odo)), nf = x => new Intl.NumberFormat('pl-PL').format(x), again = ' Jeśli licznik na desce rozdzielczej się zgadza – kliknij jeszcze raz „Zapisz”.';
   if (!(n > 0)) return {hard: 'Wpisz stan licznika.'};
-  if (last >= 1000 && n < 1000) return {hard: `Wpisz pełny stan licznika z deski rozdzielczej (ostatni zapis: ${nf(last)} km).`};
-  if (/^(\d)\1+$/.test(String(n)) && !(n >= last && n - last <= 2000)) return {hard: `Licznik ${nf(n)} km wygląda na wpisany „z głowy”. Wpisz prawdziwy stan z deski rozdzielczej (ostatni zapis: ${nf(last)} km).`};
-  if (last && n < last) return {hard: `Stan licznika ${nf(n)} km jest niższy niż ostatni zapis (${nf(last)} km). Sprawdź licznik.`};
+  if (last >= 1000 && n < 1000) return {soft: `Wpisz pełny stan licznika z deski rozdzielczej (ostatni zapis: ${nf(last)} km).` + again};
+  if (/^(\d)\1+$/.test(String(n)) && !(n >= last && n - last <= 2000)) return {soft: `Licznik ${nf(n)} km wygląda na wpisany „z głowy”. Sprawdź stan na desce rozdzielczej (ostatni zapis: ${nf(last)} km).` + again};
+  if (last && n < last) return {soft: `Stan licznika ${nf(n)} km jest niższy niż ostatni zapis (${nf(last)} km).` + again};
   if (last && n - last > 2000) return {soft: `To ${nf(n - last)} km więcej niż ostatni zapis (${nf(last)} km). Jeśli to prawda, kliknij jeszcze raz „Zapisz”.`};
   return null;
 }

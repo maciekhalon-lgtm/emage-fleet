@@ -60,7 +60,7 @@ function openHandover(id, kind, vehicleId){
   $('#dlg-body').innerHTML = where + `<div class="ho-rest" ${kind==='return' ? 'hidden' : ''}>
     <div class="field full"><span class="ho-car">${plate(v.plate)} <b>${esc(v.make)} ${esc(v.model)}</b></span>
       ${b ? `<span class="muted">${esc(dName(b.driverId))} · ${fdate(b.from)}${b.to!==b.from?'–'+fdate(b.to):''}${b.purpose?' · '+esc(b.purpose):''}</span>` : '<span class="muted">Auto na dzisiejszy dzień pracy</span>'}</div>
-    <div class="field"><label for="ho-km">Stan licznika (km) *</label><input id="ho-km" type="number" inputmode="numeric" min="${minKm}" placeholder="${minKm ? 'co najmniej '+new Intl.NumberFormat('pl-PL').format(minKm) : ''}" required><span class="muted small">Ostatni zapis: ${km(minKm)}</span></div>
+    <div class="field"><label for="ho-km">Stan licznika (km) *</label><input id="ho-km" type="number" inputmode="numeric" min="1" placeholder="${minKm ? 'co najmniej '+new Intl.NumberFormat('pl-PL').format(minKm) : ''}" required><span class="muted small">Ostatni zapis: ${km(minKm)}</span></div>
     ${kind==='pickup' && S.routes.some(r => r.active!==false) ? `<div class="field full"><label for="ho-route">Trasa</label>${routeSelect('ho-route', b && b.routeId)}${b && b.routeId ? '<span class="muted small">Podpowiedziana przez kierownika – możesz zmienić.</span>' : ''}</div>` : ''}
     ${kind==='pickup' ? (modOn('obsada') ? crewField(b ? b.driverId : myDriverId(), b && b.coDriverId) : '') : (b && b.coDriverId ? `<div class="field full"><span class="pill info">Podwójna obsada: ${esc(crewName(b))}</span><span class="muted small">Zdanie musi potwierdzić drugi kierowca – do tego czasu auto czeka.</span></div>` : '')}
     ${ev ? '' : `<div class="field full ho-fuel"><span class="label">Bak ${kind==='pickup' ? 'przy przejęciu' : 'przy zdaniu'} *</span>
@@ -127,8 +127,10 @@ async function saveHandover({id, kind, vehicleId, minKm, items}){
   if (crew && !coDriverId){ $('#ho-co').focus(); return warn('Wybierz drugiego kierowcę albo odznacz „Podwójna obsada”.'); }
   const kmV = Number(String($('#ho-km').value).replace(',','.'));
   if (!kmV){ $('#ho-km').focus(); return warn('Wpisz aktualny stan licznika – to pole jest obowiązkowe.'); }
-  { const chk = odoInputCheck(kmV, minKm); if (chk && chk.hard){ $('#ho-km').focus(); return warn(chk.hard); } }
-  if (kmV < minKm) return warn(`Stan licznika nie może być niższy niż ostatni zapis (${km(minKm)}). Sprawdź licznik.`);
+  // licznik kierowcy = tylko kontrola: podejrzany stan ostrzega raz, drugie kliknięcie zapisuje (nie blokuje przejęcia / zdania)
+  { const chk = odoInputCheck(kmV, minKm); if (chk && chk.hard){ $('#ho-km').focus(); return warn(chk.hard); }
+    if (chk && chk.soft && kmV < minKm && w.dataset.low!==String(kmV)){ w.dataset.low = String(kmV); $('#ho-km').focus(); return warn(chk.soft); }
+    if (chk && chk.soft && kmV >= minKm && kmV - minKm <= 2000 && w.dataset.odd!==String(kmV)){ w.dataset.odd = String(kmV); $('#ho-km').focus(); return warn(chk.soft); } }
   // przejęcie: licznik dużo wyższy niż przy ostatnim zdaniu – zwykle literówka albo przejęcie wpisywane dopiero po kilku godzinach jazdy
   if (kind==='pickup' && minKm && kmV - minKm > 50 && kmV - minKm <= 2000){ if (!w.dataset.far){ w.dataset.far = '1'; $('#ho-km').focus();
     return warn(`Sprawdź licznik – przy ostatnim zdaniu auta było ${km(minKm)}, a wpisujesz ${km(kmV)} (o ${new Intl.NumberFormat('pl-PL').format(kmV - minKm)} km więcej). Jeśli wyjechałeś już wcześniej, wpisz stan licznika z chwili przejęcia. Jeśli wszystko się zgadza – kliknij jeszcze raz.`); } }
@@ -210,7 +212,7 @@ function openTransfer(id){
       <span class="muted">Teraz: ${esc(crewName(b))} · przejęte ${fdate(b.pickup.at)} przy ${km(b.pickup.km)}</span></div>
     <div class="field full"><label for="tr-to">Nowy kierowca *</label><select id="tr-to" required><option value="">— wybierz kierowcę —</option>${opts.map(d => `<option value="${esc(d.id)}">${esc(d.name)}</option>`).join('')}</select>
       <span class="muted small">${opts.length ? 'Lista pokazuje aktywnych kierowców, którzy nie mają teraz innego auta.' : '<b>Wszyscy aktywni kierowcy mają teraz auto</b> – najpierw ktoś musi zdać swoje.'}</span></div>
-    <div class="field"><label for="tr-km">Stan licznika teraz (km) *</label><input id="tr-km" type="number" inputmode="numeric" min="${minKm}" value="${esc(v.km && v.km >= minKm ? v.km : '')}" required><span class="muted small">Przy przejęciu: ${km(minKm)}</span></div>
+    <div class="field"><label for="tr-km">Stan licznika teraz (km) *</label><input id="tr-km" type="number" inputmode="numeric" min="1" value="${esc(v.km && v.km >= minKm ? v.km : '')}" required><span class="muted small">Przy przejęciu: ${km(minKm)}</span></div>
     <div class="field"><label for="tr-why">Powód *</label><select id="tr-why">${TRANSFER_REASONS.map(r => `<option>${esc(r)}</option>`).join('')}</select></div>
     <div class="field full"><label for="tr-note">Opis</label><input id="tr-note" type="text" placeholder="np. kontrolka silnika, auto jedzie na lawecie"></div>
     <p class="muted small field full" style="margin:0">Dzień pracy obecnego kierowcy zakończy się na tym przebiegu${b.coDriverId ? ' (bez czekania na potwierdzenie drugiego kierowcy)' : ''}. Nowy kierowca zobaczy auto u siebie i przyjmie je z checklistą i przebiegiem.</p>
@@ -227,7 +229,7 @@ async function saveTransfer(b, minKm){
   const why = $('#tr-why').value, note = $('#tr-note').value.trim();
   if (!to){ $('#tr-to').focus(); return warn('Wybierz kierowcę, który przejmie auto.'); }
   if (!kmV){ $('#tr-km').focus(); return warn('Wpisz aktualny stan licznika – to pole jest obowiązkowe.'); }
-  if (kmV < minKm) return warn(`Stan licznika nie może być niższy niż przy przejęciu (${km(minKm)}).`);
+  if (kmV < minKm && w.dataset.low!==String(kmV)){ w.dataset.low = String(kmV); $('#tr-km').focus(); return warn(`Stan licznika ${km(kmV)} jest niższy niż przy przejęciu (${km(minKm)}). Jeśli licznik na desce się zgadza – kliknij jeszcze raz.`); }
   if (why==='Inne' && !note){ $('#tr-note').focus(); return warn('Przy powodzie „Inne” opisz, co się stało.'); }
   const reason = note ? `${why} – ${note}` : why;
   const btn = $('#dlg-save'); btn.disabled = true;
