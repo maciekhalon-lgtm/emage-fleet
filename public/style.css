@@ -2074,3 +2074,12 @@ td.num .sub,td.r .sub{white-space:normal}
 .mt-stop.off .mt-lab b{text-decoration:line-through;color:var(--muted)}.mt-stop.off .mt-n{opacity:.5}.mt-stop.off{background:var(--sunk)}
 @keyframes focus-hl{0%,60%{box-shadow:0 0 0 3px var(--accent);background:color-mix(in srgb,var(--accent) 12%,transparent)}100%{box-shadow:none}}
 .focus-hl{animation:focus-hl 2.6s ease-out;border-radius:10px}
+/* VAT na paliwo (Ustawienia) – na telefonie okres w dwóch wierszach zamiast tabeli przewijanej w bok */
+.vat-tbl input[type=date]{min-width:0}
+@media (max-width:600px){
+  .vat-tbl thead{display:none}
+  .vat-tbl, .vat-tbl tbody{display:block;min-width:0}
+  .vat-tbl tr{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:6px 8px;padding:8px 0;border-bottom:1px solid var(--line)}
+  .vat-tbl td{padding:0;border:0;text-align:left;min-width:0}
+  .vat-tbl input, .vat-tbl select{width:100%;box-sizing:border-box}
+}

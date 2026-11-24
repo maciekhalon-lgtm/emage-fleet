@@ -40,7 +40,7 @@ function render(){
   if (tab==='raporty'){ tab = 'koszty'; history.replaceState(null, '', '#koszty'); }
   if (tab==='oplaty'){ tab = 'wydatki'; if (typeof expF!=='undefined'){ Object.keys(expF).forEach(k => { expF[k] = ''; }); expF.grp = '5'; } history.replaceState(null, '', '#wydatki'); }
   const drive = canDrive();
-  if (DRIVER_VIEWS.includes(tab) && !drive) tab = 'pulpit';
+  if (DRIVER_VIEWS.includes(tab) && !drive){ tab = 'pulpit'; history.replaceState(null, '', '#pulpit'); }
   const manage = !!P().manage;
   $('#tab-mycar').hidden = !drive; $('#bb-mycar').hidden = !drive; $('#bb-usterki').hidden = drive;
   syncNav();
@@ -48,6 +48,7 @@ function render(){
   if ((!tabAllowed(tab) && !(tab==='mapa-tras' && dbState!=='live')) || (tab==='ustawienia' && !manage)){
     const g = groupOf(tab), first = g && GROUPS[g].find(([, , ok]) => ok());
     tab = first ? first[0] : 'pulpit';
+    history.replaceState(null, '', '#' + tab);   // adres zgodny z tym, co widać (zakładka niedostępna dla tej roli)
   }
   navRemember(tab); syncNav();
   syncFab();
