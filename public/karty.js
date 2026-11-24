@@ -272,7 +272,7 @@ function fcCardCons(vid, from, to){
   if (!(km_ > 0)) return empty;
   const rate = km_ >= 300 ? l / km_ * 100 : null;
   return {n: fs.length, L, net, l, km: km_, exact: exact===fs.length, approx: !g[i0].exact || !g[i1].exact,
-    rate: rate!=null && rate >= 3 && rate <= 40 ? rate : null, odd: rate!=null && (rate < 3 || rate > 25)};
+    rate: rate!=null && rate >= RK_MIN_RATE && rate <= 40 ? rate : null, odd: rate!=null && (rate < RK_MIN_RATE || rate > 25)};
 }
 function fcConsData(from, to){
   const vs = S.vehicles.filter(v => v.status!=='wycofany' && S.fuelCardRows.some(r => r.vehicleId===v.id && r.kind!=='other' && r.txDate >= from && r.txDate <= to));

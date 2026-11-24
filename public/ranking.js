@@ -22,6 +22,7 @@ function rkVehLegs(vid){
   const r = rkVehLegsRaw(vid); rkLegMemo.m.set(vid, r); return r;
 }
 var rkStamp = 0;   // podbijane przy każdym render() – wyniki liczone raz na odświeżenie ekranu
+const RK_MIN_RATE = 5.5;   // l/100 km – niżej spalanie busa jest nierealne (brakujący wpis tankowania)
 function rkVehLegsRaw(vid){
   // licznik z GPS w chwili wpisu (literówka kierowcy nie psuje odcinka), bez GPS – wpis kierowcy w skali GPS.
   // Odcinek: od tankowania do pełna do tankowania do pełna (dotankowania po drodze wliczone). Przejęcie auta jest
@@ -29,21 +30,26 @@ function rkVehLegsRaw(vid){
   const dup = c => (c.flags || []).some(f => String(f).startsWith('Możliwy duplikat')) && c.flagState!=='ok';
   const fills = appFuel().filter(c => c.vehicleId===vid && Number(c.liters) > 0 && Number(c.odometer) > 0 && !String(c.note || '').startsWith('Karta:') && !dup(c))
     .map(c => ({t: 'f', odo: odoAt('tankowanie', c.id, vid, c.odometer), c, date: c.date}));
-  const picks = S.bookings.filter(b => b.vehicleId===vid && b.pickup && Number(b.pickup.km) > 0 && Number(b.pickup.fuel)===100 && !b.pickupFuelDoubt)
-    .map(b => ({t: 'p', odo: pickOdo(b), date: String(b.pickup.at || b.from).slice(0, 10)}));
+  // przejęcie z pełnym bakiem „wątpliwym” (poprzedni kierowca nie wpisał tankowania) – zapasowy początek odcinka:
+  // używamy go, gdy odcinek od poprzedniego pełnego baku wychodzi nierealnie nisko (brakujący wpis tankowania)
+  const picks = S.bookings.filter(b => b.vehicleId===vid && b.pickup && Number(b.pickup.km) > 0 && Number(b.pickup.fuel)===100)
+    .map(b => ({t: b.pickupFuelDoubt ? 'pd' : 'p', odo: pickOdo(b), date: String(b.pickup.at || b.from).slice(0, 10)}));
   // ten sam km z GPS (auto stało, kierowca wpisał dwa tankowania po kolei) – kolejność wg licznika z wpisu, dotankowanie przed „do pełna”
   const typed = e => e.t==='f' ? Number(e.c.odometer) || 0 : 0;
   const ev = [...fills, ...picks].sort((a, b) => a.odo - b.odo || (a.t===b.t ? 0 : a.t==='f' ? -1 : 1) || typed(a) - typed(b)
     || (a.t==='f' && b.t==='f' ? (a.c.full===false ? 0 : 1) - (b.c.full===false ? 0 : 1) : 0) || String(a.date).localeCompare(b.date)
     || String(a.c && a.c.createdAt || '').localeCompare(String(b.c && b.c.createdAt || '')));
-  let anchor = null, aDate = null, acc = 0; const out = [];
+  let anchor = null, aDate = null, acc = 0, soft = null, sDate = null, sAcc = 0; const out = [];
   ev.forEach(e => {
-    if (e.t==='p'){ anchor = e.odo; aDate = e.date; acc = 0; return; }
-    acc += Number(e.c.liters);
+    if (e.t==='p'){ anchor = e.odo; aDate = e.date; acc = 0; soft = null; return; }
+    if (e.t==='pd'){ soft = e.odo; sDate = e.date; sAcc = 0; return; }
+    acc += Number(e.c.liters); if (soft!=null) sAcc += Number(e.c.liters);
     if (e.c.full===false) return;
-    if (anchor!=null){ const km = e.odo - anchor, rate = km > 0 ? acc / km * 100 : null;
-      if (km >= 50 && km <= 5000 && rate >= 3 && rate <= 40) out.push({vid, drv: fillDriver(e.c) || e.c.driverId || '', km, l: acc, date: e.c.date, d0: aDate || e.c.date, c: e.c, rate, a: anchor, z: e.odo}); }
-    anchor = e.odo; aDate = e.c.date; acc = 0;
+    let a = anchor, d0 = aDate, l = acc, km = a!=null ? e.odo - a : null, rate = km > 0 ? l / km * 100 : null;
+    if (soft!=null && (a==null || rate==null || rate < RK_MIN_RATE)){ a = soft; d0 = sDate; l = sAcc; km = e.odo - a; rate = km > 0 ? l / km * 100 : null; }
+    // poniżej RK_MIN_RATE l/100 spalanie jest nierealne (brakuje wpisu tankowania) – odcinka nie liczymy
+    if (a!=null && km >= 50 && km <= 5000 && rate >= RK_MIN_RATE && rate <= 40) out.push({vid, drv: fillDriver(e.c) || e.c.driverId || '', km, l, date: e.c.date, d0: d0 || e.c.date, c: e.c, rate, a, z: e.odo});
+    anchor = e.odo; aDate = e.c.date; acc = 0; soft = null;
   });
   return out;
 }
