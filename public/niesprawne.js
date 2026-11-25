@@ -21,22 +21,21 @@ function openBroken(vid){
   const ws = S.workshops.slice().sort((a, b) => a.name.localeCompare(b.name, 'pl')), own = ws.find(w => normTxt(w.name)===normTxt(WO_OWN));
   const busy = S.bookings.filter(b => b.vehicleId===vid && !b.pickup && b.to >= today() && b.from <= addDays(today(), 7));
   editing = {col: 'brk', base: {}, special: async () => {
-    const w = $('#dlg-warn'), title = $('#brk-title').value.trim(), note = $('#brk-note').value.trim(), wsId = $('#brk-ws').value, wsTxt = $('#brk-ws-txt').value.trim();
+    const w = $('#dlg-warn'), title = $('#brk-title').value.trim(), note = '', wsId = $('#brk-ws').value, wsTxt = $('#brk-ws-txt').value.trim();
     const wsObj = byId('workshops', wsId), wsName = wsObj ? wsObj.name : (wsTxt || WO_OWN);
-    if (!title){ w.textContent = 'Wpisz krótko, co się stało (np. nie odpala).'; w.hidden = false; return; }
+    if (!title){ w.textContent = 'Opisz usterkę (np. nie odpala).'; w.hidden = false; return; }
     const btn = $('#dlg-save'); btn.disabled = true;
     try {
       const iid = newId(), oid = newId();
-      let r = await sb.from('issues').insert({id: iid, vehicle_id: vid, title: title.slice(0, 200), description: note || null, severity: 'stop', status: 'naprawa', date: today(), km: lastKm(vid) || null}); if (r.error) throw dbErr(r.error);
+      let r = await sb.from('issues').insert({id: iid, vehicle_id: vid, title: title.slice(0, 1000), description: note || null, severity: 'stop', status: 'naprawa', date: today(), km: lastKm(vid) || null}); if (r.error) throw dbErr(r.error);
       r = await sb.from('work_orders').insert({id: oid, workshop_id: wsObj ? wsObj.id : null, workshop: wsName, date: today(), note: note || null, status: 'otwarte'}); if (r.error) throw dbErr(r.error);
-      r = await sb.from('work_order_items').insert({order_id: oid, vehicle_id: vid, issue_id: iid, kind: 'usterka', title: title.slice(0, 200), status: 'zlecone'}); if (r.error) throw dbErr(r.error);
+      r = await sb.from('work_order_items').insert({order_id: oid, vehicle_id: vid, issue_id: iid, kind: 'usterka', title: title.slice(0, 1000), status: 'zlecone'}); if (r.error) throw dbErr(r.error);
       await Promise.all(['issues', 'workOrders', 'woItems'].map(c => refresh(c)));
       closeForm(); toast(`${v.plate}: niesprawne – zlecenie naprawy zapisane`); render();
     } catch(err){ handleWriteErr(err); } finally { btn.disabled = false; }
   }};
   $('#dlg-title').textContent = `${v.plate} – niesprawne`;
-  $('#dlg-body').innerHTML = `<div class="field full"><label for="brk-title">Co się stało? *</label><input id="brk-title" maxlength="200" placeholder="np. nie odpala, wyciek oleju, kontrolka silnika"></div>
-    <div class="field full"><label for="brk-note">Szczegóły (opcjonalnie)</label><textarea id="brk-note" placeholder="gdzie stoi auto, co już sprawdzono"></textarea></div>
+  $('#dlg-body').innerHTML = `<div class="field full"><label for="brk-title">Opis usterki *</label><textarea id="brk-title" placeholder="np. nie odpala, kontrolka silnika – auto stoi na bazie"></textarea></div>
     <div class="field"><label for="brk-ws">Warsztat</label><select id="brk-ws"><option value="" ${own ? '' : 'selected'}>${own ? 'inny – wpisz obok' : esc(WO_OWN) + ' (nasz warsztat)'}</option>${ws.map(w => `<option value="${esc(w.id)}" ${own && w.id===own.id ? 'selected' : ''}>${esc(w.name)}</option>`).join('')}</select></div>
     <div class="field"><label for="brk-ws-txt">Inny warsztat</label><input id="brk-ws-txt" placeholder="nazwa warsztatu"></div>
     <p class="muted small field full">Auto od razu będzie niesprawne – kierowcy nie będą mogli go wybrać. Powstanie zgłoszenie i zlecenie naprawy w Serwis → Zlecenia. Auto wróci do użytku po „Zakończ naprawę” (albo „Przywróć jako sprawne”).</p>

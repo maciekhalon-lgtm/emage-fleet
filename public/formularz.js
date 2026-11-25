@@ -89,11 +89,12 @@ const FORMS = {
   ])},
   issues: { title:['Zgłoś usterkę','Edytuj zgłoszenie'], fields: () => [
     {k:'vehicleId',l:'Pojazd',t:'select',o:vehOpts(),req:1,full:1},
-    {k:'title',l:'Co się dzieje?',req:1,full:1,ph:'np. stuk z przedniego zawieszenia'},
+    {k:'title',l:'Opis usterki',t:'textarea',req:1,full:1,ph:'np. stuk z przedniego zawieszenia przy hamowaniu, od wczoraj'},
     {k:'severity',l:'Waga',t:'select',o:Object.entries(ISSUE_SEV).map(([k,v])=>[k,v.l]),req:1},
     {k:'date',l:'Data zgłoszenia',t:'date',req:1},
     {k:'km',l:'Przebieg (km)',t:'number'},
-    {k:'description',l:'Szczegóły',t:'textarea',full:1,ph:'Kiedy występuje, co już sprawdzono'},
+    // jedno pole opisu; „Szczegóły” zostają widoczne tylko w starych zgłoszeniach, które je mają
+    ...(editing && editing.base && editing.base.description ? [{k:'description',l:'Szczegóły (ze starego zgłoszenia)',t:'textarea',full:1}] : []),
     ...(P().issues==='rw' ? [
       {k:'status',l:'Status',t:'select',o:Object.entries(ISSUE_ST).map(([k,v])=>[k,v.l]),req:1},
       {k:'repairNote',l:'Opis naprawy',ph:'np. wymiana łącznika stabilizatora'},
