@@ -339,13 +339,14 @@ async function fuelGpsCheck(sb: any, rpc: (h: string, m: string, p: Record<strin
 
 /* ---------- Kontrola liczników (migracja 036): licznik GPS w chwili wpisu kierowcy / tankowania z karty ---------- */
 const warsawDay = (iso: string) => new Intl.DateTimeFormat('sv-SE', {timeZone: 'Europe/Warsaw'}).format(new Date(iso));
+// odczyt licznika GPS 10 min po zdarzeniu (lokalizator wysyła dane z kilkuminutowym opóźnieniem); harmonogram emage-fleet-gps co 5 min (migracja 070)
 async function odoGpsCheck(sb: any, rpc: (h: string, m: string, p: Record<string, unknown>) => Promise<any>, host: string, cred: unknown, devOf: Map<string, string>, limit: number){
   const since = new Date(Date.now() - 120 * DAY).toISOString();
   const {data: done} = await sb.from('odo_gps').select('source, ref_id, at, gps_km').gte('at', since);
   // brak odczytu GPS ponawiamy przez 3 dni (lokalizator czasem wysyła dane z opóźnieniem)
   const have = new Set((done || []).filter((x: Row) => x.gps_km != null || Date.parse(x.at) < Date.now() - 3 * DAY).map((x: Row) => x.source + '|' + x.ref_id));
   const ev: {source: string; ref_id: string; vehicle_id: string; at: string}[] = [];
-  const add = (source: string, ref_id: string, vehicle_id: string, at: string) => { if (vehicle_id && devOf.has(vehicle_id) && at && !have.has(source + '|' + ref_id) && Date.parse(at) < Date.now() - 30 * 60000) ev.push({source, ref_id, vehicle_id, at}); };
+  const add = (source: string, ref_id: string, vehicle_id: string, at: string) => { if (vehicle_id && devOf.has(vehicle_id) && at && !have.has(source + '|' + ref_id) && Date.parse(at) < Date.now() - 10 * 60000) ev.push({source, ref_id, vehicle_id, at}); };
   // 1) tankowania z karty – godzina z wyciągu
   const {data: card} = await sb.from('fuel_card_rows').select('id, vehicle_id, tx_date, tx_time, odometer, cost_id').not('odometer', 'is', null).not('tx_time', 'is', null).gte('tx_date', since.slice(0, 10)).limit(3000);
   (card || []).forEach((r: Row) => add('karta', r.id, r.vehicle_id, warsawToUtc(r.tx_date, r.tx_time)));
