@@ -32,6 +32,7 @@ function wbDocHtml(w, printedBy){
   return `<div class="wb-doc${w.status==='anulowany' ? ' wb-void' : ''}">
     ${w.status==='anulowany' ? '<div class="wb-voidmark">ANULOWANY</div>' : ''}
     <div class="wb-kv wb-from"><span>Nadawca:</span><div>${esc(String(w.sender || wbCfg().head).trim())}</div></div>
+    ${String(w.senderWh || '').trim() ? `<div class="wb-kv wb-from"><span>Magazyn<br>nadawczy:</span><div>${esc(String(w.senderWh).trim())}</div></div>` : ''}
     <h1 class="wb-title">LIST PRZEWOZOWY <small>nr</small> <b>${esc(wbNo(w))}</b> <small>z dnia</small> <b>${fdate(w.date)}</b></h1>
     <div class="wb-kv"><span>Odbiorca:</span><div>${[esc(w.rName || '')].concat(lines(w.rAddress)).join('<br>')}${w.rRegon || w.rNip ? `<br><span class="wb-ids">${w.rRegon ? `REGON: ${esc(w.rRegon)}` : ''}${w.rNip ? `<span>NIP: ${esc(w.rNip)}</span>` : ''}</span>` : ''}</div></div>
     ${w.whName || w.whAddress ? `<div class="wb-kv"><span>Magazyn<br>odbiorczy:</span><div>${[esc(w.whName || '')].concat(lines(w.whAddress)).filter(Boolean).join('<br>')}</div></div>` : ''}
@@ -151,6 +152,7 @@ function wbEditor(){
       const known = !!sel;
       return `<label>Wybierz nadawcę<select data-wb-snd>${opts.map(o => `<option value="${esc(o.id)}" ${o.id===sel ? 'selected' : ''}>${esc(wbSenderName(o.text))}${o.id==='def' ? ' (domyślny)' : ''}</option>`).join('')}${known ? '' : '<option value="" selected>— zmieniony dla tego listu —</option>'}</select></label>
       <label>Nadawca na tym liście<textarea data-wb-f="sender" rows="5">${esc(d.sender || '')}</textarea></label>
+      <label>Magazyn nadawczy (opcjonalnie – drukuje się pod nadawcą)<textarea data-wb-f="senderWh" rows="2" placeholder="nazwa magazynu, adres">${esc(d.senderWh || '')}</textarea></label>
       <label class="check" id="wb-sndsave" ${known ? 'hidden' : ''}><input type="checkbox" data-wb-savesnd ${d.saveSender ? 'checked' : ''}> Zapisz tego nadawcę do wyboru przy następnych listach</label>`; })()}
     <h3>Odbiorca</h3>
     <label>Wybierz z książki<select data-wb-rec><option value="">— nowy odbiorca (wpisz poniżej) —</option>${rs.map(r => `<option value="${esc(r.id)}" ${d.recipientId===r.id ? 'selected' : ''}>${esc(r.name)}${r.whName ? ' · ' + esc(r.whName) : ''}</option>`).join('')}</select></label>
@@ -201,9 +203,9 @@ async function wbSave(){
       else { const ref = db.collection('wbRecipients').doc(); await ref.set(rec); recId = ref.id; }
     }
     const sender = String(d.sender || '').trim() || wbCfg().head;
-    if (d.saveSender && !wbCfg().senders.some(x => String(x.text).trim()===sender) && sender!==wbCfg().head.trim()) await wbCfgSave({senders: [...wbCfg().senders, {id: newId(), text: sender}]});
+    if (d.saveSender && !wbCfg().senders.some(x => String(x.text).trim()===sender) && sender!==wbCfg().head.trim()) await wbCfgSave({senders: [...wbCfg().senders, {id: newId(), text: sender, wh: String(d.senderWh || '').trim()}]});
     const ref = db.collection('waybills').doc(d.id || undefined);
-    await ref.set({date: d.date || today(), sender, recipientId: recId, rName: d.rName.trim(), rAddress: d.rAddress || '', rRegon: d.rRegon || '', rNip: d.rNip || '', whName: d.whName || '', whAddress: d.whAddress || '',
+    await ref.set({date: d.date || today(), sender, senderWh: String(d.senderWh || '').trim(), recipientId: recId, rName: d.rName.trim(), rAddress: d.rAddress || '', rRegon: d.rRegon || '', rNip: d.rNip || '', whName: d.whName || '', whAddress: d.whAddress || '',
       items, pallets: wbTot(items).paleta, weightKg: d.weightKg==='' || d.weightKg==null ? null : Number(d.weightKg), vehicleId: d.vehicleId || null, plate: v ? v.plate : '', departDate: d.departDate || null,
       note: d.note || '', status: d.status || 'wystawiony', ...(d.id ? {} : {printedAt: null, printedBy: null})});
     const saved = byId('waybills', ref.id);
@@ -239,7 +241,7 @@ document.addEventListener('change', e => {
   if (t.dataset.wbVeh!=null){ wbEdit.vehicleId = t.value; return; }
   if (t.dataset.wbSaverec!=null){ wbEdit.saveRec = t.checked; return; }
   if (t.dataset.wbSavesnd!=null){ wbEdit.saveSender = t.checked; return; }
-  if (t.dataset.wbSnd!=null){ const c = wbCfg(), o = t.value==='def' ? {text: c.head} : c.senders.find(x => x.id===t.value); if (o){ wbEdit.sender = o.text; wbEdit.saveSender = false; } return render(); }
+  if (t.dataset.wbSnd!=null){ const c = wbCfg(), o = t.value==='def' ? {text: c.head} : c.senders.find(x => x.id===t.value); if (o){ wbEdit.sender = o.text; wbEdit.senderWh = o.wh || ''; wbEdit.saveSender = false; } return render(); }
 });
 document.addEventListener('click', async e => {
   const b = e.target.closest('[data-wb-new],[data-wb-open],[data-wb-back],[data-wb-edit],[data-wb-copy],[data-wb-cancel],[data-wb-restore],[data-wb-print],[data-wb-save],[data-wb-discard],[data-wb-add],[data-wb-del],[data-wb-recopen],[data-wb-recnew],[data-wb-reccancel],[data-wb-recsave],[data-wb-recdel],[data-wb-cfgsave],[data-wb-snddel]');

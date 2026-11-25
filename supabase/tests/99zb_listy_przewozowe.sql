@@ -18,3 +18,6 @@ select set_config('request.jwt.claim.sub', (select id::text from profiles where 
 select count(*) = 0 as ok_kierowca_nie_widzi from waybills;
 reset role;
 delete from waybills where id::text like '77777777-0000-0000-0000-00000000069%';
+\echo '5 AUTO-PARTNER w książce odbiorców i jako nadawca do wyboru (z magazynem)'
+select exists (select 1 from waybill_recipients where name like 'AUTO-PARTNER Gdańsk%' and nip = '5842731959') as ok_odbiorca,
+       exists (select 1 from settings s, jsonb_array_elements(s.value->'senders') x where s.key='waybill' and x->>'id'='auto-partner' and x->>'text' like E'AUTO-PARTNER%\n80-180 Kowale%' and x->>'wh' like 'CE MG%') as ok_nadawca;

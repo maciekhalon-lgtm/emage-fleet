@@ -5,7 +5,7 @@
 --    z chwili wystawienia), pozycje w items (jsonb), palety, waga, auto, data wyjazdu, status
 --  • numeracja: settings 'waybill' = {"startYear":2026,"startNo":370} – w 2026 pierwszy numer 370, w kolejnych latach od 1
 --  • nadawca: domyślny w settings 'waybill'.header, dla każdego listu można go zmienić (waybills.sender);
---    zapisani nadawcy do wyboru w settings 'waybill'.senders = [{"id","text"}]
+--    zapisani nadawcy do wyboru w settings 'waybill'.senders = [{"id","text","wh"}] (wh – domyślny magazyn nadawczy)
 --  • wystawia i widzi tylko kierownik floty
 -- ============================================================================
 
@@ -28,6 +28,7 @@ create table if not exists public.waybills (
   no           int,
   date         date not null default current_date,
   sender       text,                                  -- nadawca wydrukowany na tym liście (domyślnie dane Emage z Ustawień)
+  sender_wh    text,                                  -- magazyn nadawczy (opcjonalnie, np. magazyn AUTO-PARTNER)
   recipient_id uuid references public.waybill_recipients(id) on delete set null,
   r_name       text not null check (length(trim(r_name)) > 0),
   r_address    text,
@@ -51,6 +52,7 @@ create table if not exists public.waybills (
   unique (year, no)
 );
 alter table public.waybills add column if not exists sender text;
+alter table public.waybills add column if not exists sender_wh text;
 create index if not exists waybills_date on public.waybills(date);
 
 insert into public.settings (key, value) values ('waybill', '{"startYear":2026,"startNo":370}'::jsonb) on conflict (key) do nothing;
@@ -91,3 +93,13 @@ exception when duplicate_object then null; when undefined_object then null; end 
 
 drop trigger if exists waybills_log on public.waybills;
 create trigger waybills_log after insert or update or delete on public.waybills for each row execute function public.log_change();
+
+-- AUTO-PARTNER: odbiorca w książce odbiorców i nadawca do wyboru (z magazynem nadawczym do wpisania)
+insert into public.waybill_recipients (name, address, regon, nip, wh_name, wh_address)
+select 'AUTO-PARTNER Gdańsk Spółka z ograniczoną odpowiedzialnością', '80-180 Kowale, ul. Magazynowa 7', '221914230', '5842731959', 'CE MG CENTRALNY KOWALE', '80-180 Kowale, ul. Magazynowa 7'
+where not exists (select 1 from public.waybill_recipients where name ilike 'AUTO-PARTNER%');
+update public.settings set value = jsonb_set(value, '{senders}', coalesce(value->'senders', '[]'::jsonb) || jsonb_build_array(jsonb_build_object(
+    'id', 'auto-partner',
+    'text', E'AUTO-PARTNER Gdańsk Spółka z ograniczoną odpowiedzialnością\n80-180 Kowale, ul. Magazynowa 7\nREGON: 221914230    NIP: 5842731959',
+    'wh', E'CE MG CENTRALNY KOWALE\n80-180 Kowale, ul. Magazynowa 7')))
+ where key = 'waybill' and not exists (select 1 from jsonb_array_elements(coalesce(value->'senders', '[]'::jsonb)) x where x->>'id' = 'auto-partner');
