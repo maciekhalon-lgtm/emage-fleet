@@ -2149,3 +2149,45 @@ td.num .sub,td.r .sub{white-space:normal}
 .wb-senders li{display:flex;align-items:center;justify-content:space-between;gap:8px;border-bottom:1px solid var(--line);padding:4px 0}
 .wb-sndrow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:end}
 .wb-newsnd{border:1px solid var(--line);border-radius:10px;padding:12px}
+/* listy przewozowe – uproszczony formularz i lista */
+.wb-filters{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}
+.wb-filters input{flex:1 1 240px;max-width:360px}
+.wb-filters select{width:auto}
+.wb-acts{display:inline-flex;gap:2px}
+.wb-acts button{padding:6px 8px}
+.wb-mob{display:none}
+@media (max-width:640px){
+  .wb-desk{display:none}
+  .wb-mob{display:grid;gap:8px}
+  .wb-card{background:var(--surface);border-radius:14px;padding:12px 14px;box-shadow:var(--shadow-sm);display:grid;gap:4px;position:relative}
+  .wb-card-h{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .wb-card-h .pill{margin-left:auto}
+  .wb-card-r{font-weight:600}
+  .wb-card .wb-acts{justify-self:end}
+}
+.wb-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;align-items:end}
+@media (max-width:760px){ .wb-3{grid-template-columns:minmax(0,1fr)} }
+.wb-sec{display:grid;gap:10px;border-top:1px solid var(--line);padding-top:12px}
+.wb-sec h3{margin:0}
+.wb-card-rec{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;gap:12px;align-items:start;background:var(--raised);border-radius:10px;padding:12px 14px;line-height:1.45}
+@media (max-width:640px){ .wb-card-rec{grid-template-columns:minmax(0,1fr)} }
+.wb-line{line-height:1.6}
+.wb-line .sub{display:block}
+.wb-items .wb-place-sum{display:block;margin-top:4px}
+.wb-items .wb-place-ed{display:grid;gap:4px;margin-top:6px;font-size:12.5px}
+.wb-items td:first-child{min-width:240px}
+.wb-items input.wb-n{width:64px}
+.wb-items .wb-total td{vertical-align:middle}
+.wb-seg{margin:0 0 12px;flex-wrap:wrap}
+.wb-setp .wb-inner{padding-top:16px}
+@media (max-width:640px){
+  .wb-items, .wb-items tbody{display:block;min-width:0}
+  .wb-items thead{display:none}
+  .wb-items tr{display:grid;grid-template-columns:repeat(4,minmax(0,1fr)) auto;gap:6px 8px;padding:10px 0;border-bottom:1px solid var(--line)}
+  .wb-items td{padding:0;border:0;min-width:0!important}
+  .wb-items td:first-child{grid-column:1/-1}
+  .wb-items td[data-l]{display:grid;gap:2px;text-align:left}
+  .wb-items td[data-l]::before{content:attr(data-l);font-size:11.5px;color:var(--muted);text-transform:capitalize}
+  .wb-items input.wb-n{width:100%}
+  .wb-items .wb-total td:first-child{display:flex;justify-content:space-between;align-items:center}
+}

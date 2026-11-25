@@ -214,6 +214,7 @@ document.addEventListener('click', e => { if (!actsOpen || e.target.closest('[da
 /* Telefon: przycisk „+” – najczęstsze wpisy jednym dotknięciem z każdego ekranu (kierownik floty i serwisu) */
 function fabItems(){
   const it = [];
+  if (tab==='listy' && typeof wbOn==='function' && wbOn()) it.push(['clip', 'Nowy list przewozowy', () => { wbEdit = wbNewDraft(); wbView = null; wbSet = null; render(); scrollTo(0, 0); }]);
   if (canCreate('costs') && P().manage) it.push(['fuel', 'Koszt / tankowanie', () => openForm('costs')]);
   if (canCreate('issues')) it.push(['alert', 'Zgłoś usterkę', () => openForm('issues')]);
   if (canCreate('bookings') && P().manage) it.push(['cal', 'Przydział w grafiku', () => openForm('bookings')]);

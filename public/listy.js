@@ -33,12 +33,12 @@ function wbSenderForm(s){
 function wbSendersPanel(){
   const c = wbCfg(), ss = wbSenders().sort((a, b) => String(a.name).localeCompare(b.name, 'pl'));
   const ed = wbSndCtx==='book' && wbSndEdit ? (wbSndEdit==='new' ? {} : ss.find(x => x.id===wbSndEdit)) : null;
-  return `<details class="panel fold wb-fold" ${ed ? 'open' : ''}><summary class="sec-head"><h3>Książka nadawców</h3><span class="muted small">${ss.length + 1}</span></summary><div class="wb-inner">
-    <p class="muted small">Nadawców wybierasz w formularzu listu; magazyn nadawczy wpisuje się sam i można go zmienić w danym liście. Domyślnego nadawcę (Emage) zmieniasz w panelu „Domyślny nadawca i numeracja”.</p>
+  return `<div class="panel wb-setp"><div class="wb-inner">
+    <p class="muted small">Nadawców wybierasz w formularzu listu; magazyn nadawczy wpisuje się sam i można go zmienić w danym liście. Domyślnego nadawcę (Emage) zmieniasz w zakładce „Domyślny nadawca i numeracja”.</p>
     <div class="tablewrap"><table><thead><tr><th>Nadawca</th><th>Adres</th><th>NIP</th><th>Magazyn nadawczy</th></tr></thead><tbody>
       <tr><td><b>${esc(wbSenderName(c.head))}</b> <span class="pill">domyślny</span></td><td>${esc(c.head.split('\n').slice(1, 2).join(''))}</td><td></td><td></td></tr>
       ${ss.map(s => `<tr class="click" data-wb-sndopen="${esc(s.id)}"><td><b>${esc(s.name)}</b></td><td>${esc(s.address || '').replace(/\n/g, ', ')}</td><td class="num">${esc(s.nip || '')}</td><td>${esc(s.whName || '')}</td></tr>`).join('')}</tbody></table></div>
-    ${ed ? wbSenderForm(ed) : `<div class="row-act" style="justify-content:flex-start"><button type="button" class="small" data-wb-sndnew>${ic('plus')}Dodaj nadawcę</button></div>`}</div></details>`;
+    ${ed ? wbSenderForm(ed) : `<div class="row-act" style="justify-content:flex-start"><button type="button" class="small" data-wb-sndnew>${ic('plus')}Dodaj nadawcę</button></div>`}</div></div>`;
 }
 async function wbCfgSave(patch){ const cur = S.settings.find(x => x.id==='waybill') || {}; const {id, updatedAt, updatedBy, createdBy, ...rest} = cur;
   await db.collection('settings').doc('waybill').set({startYear: 2026, startNo: 370, ...rest, ...patch}); }
@@ -48,7 +48,7 @@ const wbRowSum = it => wbInt(it.inna) + wbInt(it.karton) + wbInt(it.paleta);
 const wbTot = items => items.reduce((t, it) => ({inna: t.inna + wbInt(it.inna), karton: t.karton + wbInt(it.karton), paleta: t.paleta + wbInt(it.paleta), all: t.all + wbRowSum(it)}), {inna: 0, karton: 0, paleta: 0, all: 0});
 const wbFmtKg = n => n==null || n==='' ? '' : new Intl.NumberFormat('pl-PL', {maximumFractionDigits: 1}).format(Number(n)) + ' kg';
 
-let wbSearchT = null, wbEdit = null, wbView = null, wbQ = '', wbYear = '', wbCancelArm = null, wbRecEdit = null, wbCfgOpen = false;
+let wbSearchT = null, wbEdit = null, wbView = null, wbQ = '', wbYear = '', wbStatus = '', wbCancelArm = null, wbRecEdit = null, wbCfgOpen = false, wbSet = null;   // wbSet: null | 'nadawcy' | 'odbiorcy' | 'numeracja'
 
 /* ---------- dokument (podgląd i wydruk – ten sam HTML) ---------- */
 function wbDocHtml(w, printedBy){
@@ -98,28 +98,47 @@ async function wbPrint(id){
 }
 
 /* ---------- widok ---------- */
+const wbStat = w => w.status==='anulowany' ? 'anulowany' : w.printedAt ? 'wydrukowany' : 'do druku';
+const wbStatPill = w => ({anulowany: '<span class="pill">anulowany</span>', wydrukowany: '<span class="pill ok">wydrukowany</span>', 'do druku': '<span class="pill warn">do druku</span>'})[wbStat(w)];
 function viewWaybills(){
   if (!P().manage) return '';
   if (!optOn('waybills')) return `<div class="bar"><h2>Listy przewozowe</h2></div>${loadingOr('waybills', `<div class="panel empty"><p>Moduł listów przewozowych wymaga uruchomienia migracji 069 w bazie.</p></div>`)}`;
   if (wbEdit) return wbEditor();
+  if (wbSet) return wbSettings();
   if (wbView && byId('waybills', wbView)) return wbPreview(byId('waybills', wbView));
   const years = [...new Set(S.waybills.map(w => String(w.year || String(w.date).slice(0, 4))))].sort().reverse();
   const q = wbQ.trim().toLowerCase();
-  const list = S.waybills.filter(w => (!wbYear || String(w.year)===wbYear) && (!q || [wbNo(w), w.rName, w.whName, w.plate, (w.items || []).map(it => it.name).join(' ')].join(' ').toLowerCase().includes(q)))
+  const list = S.waybills.filter(w => (!wbYear || String(w.year)===wbYear) && (!wbStatus || wbStat(w)===wbStatus)
+      && (!q || [wbNo(w), w.rName, w.whName, w.plate, (w.items || []).map(it => it.name).join(' ')].join(' ').toLowerCase().includes(q)))
     .sort((a, b) => (b.year - a.year) || (b.no - a.no));
+  const cnt = k => S.waybills.filter(w => wbStat(w)===k).length;
   const head = `<div class="bar"><h2>Listy przewozowe</h2><div class="tools">
-      <input id="wb-q" type="search" placeholder="Szukaj: numer, odbiorca, towar…" value="${esc(wbQ)}" aria-label="Szukaj listów" style="width:min(260px,100%)">
-      ${years.length > 1 ? `<select id="wb-year" style="width:auto" aria-label="Rok"><option value="">Wszystkie lata</option>${years.map(y => `<option ${y===wbYear ? 'selected' : ''}>${y}</option>`).join('')}</select>` : ''}
-      <button class="primary" data-wb-new>${ic('plus')}Nowy list</button></div></div>`;
-  const rows = list.slice(0, 400).map(w => { const t = wbTot(w.items || []), v = w.vehicleId ? byId('vehicles', w.vehicleId) : null;
+      <button class="ghost" data-wb-set="nadawcy">${ic('cog')}Ustawienia listów</button>
+      <button class="primary" data-wb-new>${ic('plus')}Nowy list</button></div></div>
+    <div class="wb-filters"><input id="wb-q" type="search" placeholder="Szukaj: numer, odbiorca, towar…" value="${esc(wbQ)}" aria-label="Szukaj listów">
+      <select id="wb-status" aria-label="Status"><option value="">Wszystkie (${S.waybills.length})</option>${['do druku', 'wydrukowany', 'anulowany'].map(k => `<option value="${k}" ${wbStatus===k ? 'selected' : ''}>${k==='do druku' ? 'Do druku' : k==='wydrukowany' ? 'Wydrukowane' : 'Anulowane'} (${cnt(k)})</option>`).join('')}</select>
+      ${years.length > 1 ? `<select id="wb-year" aria-label="Rok"><option value="">Wszystkie lata</option>${years.map(y => `<option ${y===wbYear ? 'selected' : ''}>${y}</option>`).join('')}</select>` : ''}</div>`;
+  const acts = w => `<span class="wb-acts"><button type="button" class="small ghost" data-wb-print="${esc(w.id)}" title="Drukuj list ${esc(wbNo(w))}" aria-label="Drukuj">${ic('print')}</button><button type="button" class="small ghost" data-wb-copy="${esc(w.id)}" title="Kopiuj jako nowy list" aria-label="Kopiuj">${ic('copy')}</button></span>`;
+  const shown = list.slice(0, 400);
+  const rows = shown.map(w => { const t = wbTot(w.items || []), v = w.vehicleId ? byId('vehicles', w.vehicleId) : null;
     return `<tr class="click${w.status==='anulowany' ? ' muted' : ''}" data-wb-open="${esc(w.id)}"><td class="num"><b>${esc(wbNo(w))}</b></td><td class="num">${fdate(w.date)}</td>
       <td><b>${esc(w.rName || '')}</b>${w.whName ? `<span class="sub">${esc(w.whName)}</span>` : ''}</td>
       <td>${esc((w.items || []).map(it => it.name).filter(Boolean).join(', '))}</td>
       <td class="r num">${t.paleta || ''}</td><td class="r num">${esc(wbFmtKg(w.weightKg))}</td><td>${esc(w.plate || (v && v.plate) || '')}</td>
-      <td>${w.status==='anulowany' ? '<span class="pill">anulowany</span>' : w.printedAt ? '<span class="pill ok">wydrukowany</span>' : '<span class="pill warn">do druku</span>'}</td></tr>`; }).join('');
-  const table = list.length ? `<div class="panel tablewrap"><table class="wb-list"><thead><tr><th>Nr</th><th>Data</th><th>Odbiorca</th><th>Towar</th><th class="r">Palety</th><th class="r">Waga</th><th>Auto</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table></div>`
+      <td>${wbStatPill(w)}</td><td class="r">${acts(w)}</td></tr>`; }).join('');
+  const cards = shown.map(w => { const t = wbTot(w.items || []);
+    return `<div class="wb-card click${w.status==='anulowany' ? ' muted' : ''}" data-wb-open="${esc(w.id)}"><div class="wb-card-h"><b>${esc(wbNo(w))}</b><span class="muted">${fdate(w.date)}</span>${wbStatPill(w)}</div>
+      <div class="wb-card-r">${esc(w.rName || '')}</div><div class="muted small">${esc((w.items || []).map(it => it.name).filter(Boolean).join(', '))}${t.paleta ? ` · palety: ${t.paleta}` : ''}${w.weightKg ? ` · ${esc(wbFmtKg(w.weightKg))}` : ''}</div>${acts(w)}</div>`; }).join('');
+  const table = list.length ? `<div class="panel tablewrap wb-desk"><table class="wb-list"><thead><tr><th>Nr</th><th>Data</th><th>Odbiorca</th><th>Towar</th><th class="r">Palety</th><th class="r">Waga</th><th>Auto</th><th>Status</th><th></th></tr></thead><tbody>${rows}</tbody></table></div><div class="wb-mob">${cards}</div>`
     : `<div class="panel empty"><p>${S.waybills.length ? 'Brak listów dla tego wyszukiwania.' : `Nie ma jeszcze listów przewozowych. Pierwszy dostanie numer ${wbCfg().startNo}/${wbCfg().startYear}.`}</p><button class="primary" data-wb-new>${ic('plus')}Nowy list</button></div>`;
-  return head + table + wbSendersPanel() + wbRecipientsPanel() + wbCfgPanel();
+  return head + table;
+}
+/* ustawienia listów: nadawcy / odbiorcy / numeracja */
+function wbSettings(){
+  const tabs = [['nadawcy', 'Nadawcy'], ['odbiorcy', 'Odbiorcy'], ['numeracja', 'Domyślny nadawca i numeracja']];
+  return `<div class="bar"><h2>Ustawienia listów</h2><div class="tools"><button class="ghost" data-wb-setclose>${ic('back')}Listy przewozowe</button></div></div>
+    <div class="seg wb-seg" role="tablist">${tabs.map(([k, l]) => `<button type="button" role="tab" aria-selected="${wbSet===k}" class="${wbSet===k ? 'on' : ''}" data-wb-set="${k}">${l}</button>`).join('')}</div>
+    ${wbSet==='nadawcy' ? wbSendersPanel() : wbSet==='odbiorcy' ? wbRecipientsPanel() : wbCfgPanel()}`;
 }
 
 function wbRecipientsPanel(){
@@ -131,18 +150,18 @@ function wbRecipientsPanel(){
       <div class="wb-2"><label>REGON<input data-wb-r="regon" value="${esc(ed.regon || '')}"></label><label>NIP<input data-wb-r="nip" value="${esc(ed.nip || '')}"></label></div>
       <div class="wb-2"><label>Magazyn odbiorczy<input data-wb-r="whName" value="${esc(ed.whName || '')}"></label><label>Adres magazynu<textarea data-wb-r="whAddress" rows="2">${esc(ed.whAddress || '')}</textarea></label></div>
       <div class="row-act">${wbRecEdit!=='new' ? `<button type="button" class="small ghost" data-wb-recdel="${esc(wbRecEdit)}">Usuń z książki</button>` : ''}<button type="button" class="small ghost" data-wb-reccancel>Anuluj</button><button type="button" class="small primary" data-wb-recsave>Zapisz</button></div></div>` : '';
-  return `<details class="panel fold wb-fold" ${ed ? 'open' : ''}><summary class="sec-head"><h3>Książka odbiorców</h3><span class="muted small">${rs.length}</span></summary><div class="wb-inner">
+  return `<div class="panel wb-setp"><div class="wb-inner">
     <p class="muted small">Odbiorcy zapisują się tu sami przy wystawianiu listu. Zmiana danych w książce nie zmienia już wystawionych listów.</p>
     ${rs.length ? `<div class="tablewrap"><table><thead><tr><th>Odbiorca</th><th>Adres</th><th>NIP</th><th>Magazyn</th></tr></thead><tbody>${rs.map(r => `<tr class="click" data-wb-recopen="${esc(r.id)}"><td><b>${esc(r.name)}</b></td><td>${esc(r.address || '').replace(/\n/g, ', ')}</td><td class="num">${esc(r.nip || '')}</td><td>${esc(r.whName || '')}</td></tr>`).join('')}</tbody></table></div>` : ''}
-    ${form || `<div class="row-act" style="justify-content:flex-start"><button type="button" class="small" data-wb-recnew>${ic('plus')}Dodaj odbiorcę</button></div>`}</div></details>`;
+    ${form || `<div class="row-act" style="justify-content:flex-start"><button type="button" class="small" data-wb-recnew>${ic('plus')}Dodaj odbiorcę</button></div>`}</div></div>`;
 }
 function wbCfgPanel(){
   const c = wbCfg(), next = S.waybills.filter(w => w.year===new Date().getFullYear()).reduce((m, w) => Math.max(m, w.no || 0), 0);
   const nextNo = next ? next + 1 : (c.startYear===new Date().getFullYear() ? c.startNo : 1);
-  return `<details class="panel fold wb-fold" ${wbCfgOpen ? 'open' : ''} data-wb-cfgfold><summary class="sec-head"><h3>Domyślny nadawca i numeracja</h3><span class="muted small">następny numer: ${nextNo}/${new Date().getFullYear()}</span></summary><div class="wb-inner">
+  return `<div class="panel wb-setp"><div class="wb-inner"><p><span class="muted">Następny numer listu:</span> <b>${nextNo}/${new Date().getFullYear()}</b></p>
     <label>Domyślny nadawca (wstawia się do każdego nowego listu)<textarea id="wb-head" rows="6">${esc(c.head)}</textarea></label>
     <p class="muted small">Numer nadaje się sam: kolejny w roku daty listu. W ${c.startYear} numeracja zaczyna się od ${c.startNo}, w następnych latach od 1. Numer raz nadany się nie zmienia.</p>
-    <div class="row-act"><button type="button" class="small primary" data-wb-cfgsave>Zapisz nagłówek</button></div></div></details>`;
+    <div class="row-act"><button type="button" class="small primary" data-wb-cfgsave>Zapisz nagłówek</button></div></div></div>`;
 }
 
 /* ---------- podgląd jednego listu ---------- */
@@ -166,60 +185,68 @@ function wbNewDraft(src){
   if (src && !src.id){ d.date = today(); d.departDate = ''; d.status = 'wystawiony'; d.printedAt = null; d.printedBy = null; }
   if (!d.items.length) d.items.push(wbBlankItem(d));
   if (!d.sender) d.sender = wbCfg().head;
-  d.saveRec = true; d.saveSender = false;
+  d.saveRec = true; d.saveSender = false; d.sndOpen = false; d.recOpen = false; d.noteOpen = false;
+  d.items.forEach(it => { it.placeOpen = false; });
   return d;
 }
 function wbEditor(){
   const d = wbEdit, t = wbTot(d.items), rs = S.wbRecipients.slice().sort((a, b) => String(a.name).localeCompare(b.name, 'pl'));
   const vs = S.vehicles.filter(v => v.status!=='wycofany').sort((a, b) => String(a.plate).localeCompare(b.plate));
   const f = (k, label, extra = '') => `<label>${label}<input data-wb-f="${k}" value="${esc(d[k] ?? '')}" ${extra}></label>`;
-  return `<div class="bar"><h2>${d.id ? `Edycja listu ${esc(wbNo(d))}` : 'Nowy list przewozowy'}</h2><div class="tools"><button class="ghost" data-wb-discard>Anuluj</button><button class="primary" data-wb-save>${d.id ? 'Zapisz zmiany' : 'Wystaw list'}</button></div></div>
-  <div class="panel wb-form">
-    <div class="wb-2"><label>Data listu<input type="date" data-wb-f="date" value="${esc(d.date || '')}"></label>
-      <div class="wb-nohint"><span class="label">Numer</span><b>${d.id ? esc(wbNo(d)) : 'nada się sam przy zapisie'}</b></div></div>
-    <h3>Nadawca</h3>
-    ${(() => { const c = wbCfg(), cur = String(d.sender || '').trim(), opts = [{id: 'def', text: c.head}, ...wbSenders().map(s => ({id: s.id, text: wbSndText(s)}))], sel = (opts.find(o => String(o.text).trim()===cur) || {}).id || '';
-      const known = !!sel;
-      if (wbSndCtx==='editor' && wbSndEdit) return `<div class="wb-newsnd"><b>Nowy nadawca</b>${wbSenderForm({})}</div>`;
-      return `<div class="wb-sndrow"><label>Wybierz nadawcę<select data-wb-snd>${opts.map(o => `<option value="${esc(o.id)}" ${o.id===sel ? 'selected' : ''}>${esc(wbSenderName(o.text))}${o.id==='def' ? ' (domyślny)' : ''}</option>`).join('')}${known ? '' : '<option value="" selected>— zmieniony dla tego listu —</option>'}</select></label>
+  const ln = x => String(x || '').split('\n').map(y => y.trim()).filter(Boolean);
+  const rec = d.recipientId ? byId('wbRecipients', d.recipientId) : null, recCard = rec && !d.recOpen;
+  const acts = `<button class="ghost" data-wb-discard>Anuluj</button><button data-wb-save>${d.id ? 'Zapisz zmiany' : 'Wystaw list'}</button><button class="primary" data-wb-save="print">${d.id ? 'Zapisz i drukuj' : 'Wystaw i drukuj'}</button>`;
+  // nadawca: domyślnie jedna linia; pełne dane po „Zmień”
+  const sndBlock = (() => { const c = wbCfg(), cur = String(d.sender || '').trim(), opts = [{id: 'def', text: c.head}, ...wbSenders().map(x => ({id: x.id, text: wbSndText(x)}))], sel = (opts.find(o => String(o.text).trim()===cur) || {}).id || '';
+    const known = !!sel, sl = ln(d.sender);
+    if (!d.sndOpen) return `<div class="wb-line"><span class="muted">Nadawca:</span> <b>${esc(sl[0] || '')}</b>${sl[1] ? ` <span class="muted">· ${esc(sl[1])}</span>` : ''}${String(d.senderWh || '').trim() ? `<span class="sub">Magazyn nadawczy: ${esc(ln(d.senderWh).join(', '))}</span>` : ''} <button type="button" class="small ghost" data-wb-sndopen-ed>Zmień</button></div>`;
+    if (wbSndCtx==='editor' && wbSndEdit) return `<div class="wb-newsnd"><b>Nowy nadawca</b>${wbSenderForm({})}</div>`;
+    return `<div class="wb-sndrow"><label>Nadawca<select data-wb-snd>${opts.map(o => `<option value="${esc(o.id)}" ${o.id===sel ? 'selected' : ''}>${esc(wbSenderName(o.text))}${o.id==='def' ? ' (domyślny)' : ''}</option>`).join('')}${known ? '' : '<option value="" selected>— zmieniony dla tego listu —</option>'}</select></label>
         <button type="button" class="small" data-wb-sndnew="editor">${ic('plus')}Nowy nadawca</button></div>
-      <label>Nadawca na tym liście<textarea data-wb-f="sender" rows="5">${esc(d.sender || '')}</textarea></label>
-      <label>Magazyn nadawczy (opcjonalnie – drukuje się pod nadawcą)<textarea data-wb-f="senderWh" rows="2" placeholder="nazwa magazynu, adres">${esc(d.senderWh || '')}</textarea></label>
-      <label class="check" id="wb-sndsave" ${known ? 'hidden' : ''}><input type="checkbox" data-wb-savesnd ${d.saveSender ? 'checked' : ''}> Zapisz tego nadawcę do wyboru przy następnych listach</label>`; })()}
-    <h3>Odbiorca</h3>
-    <label>Wybierz z książki<select data-wb-rec><option value="">— nowy odbiorca (wpisz poniżej) —</option>${rs.map(r => `<option value="${esc(r.id)}" ${d.recipientId===r.id ? 'selected' : ''}>${esc(r.name)}${r.whName ? ' · ' + esc(r.whName) : ''}</option>`).join('')}</select></label>
-    ${f('rName', 'Nazwa odbiorcy *', 'autocomplete="off"')}
+      <label>Dane nadawcy na tym liście<textarea data-wb-f="sender" rows="5">${esc(d.sender || '')}</textarea></label>
+      <label>Magazyn nadawczy (opcjonalnie)<textarea data-wb-f="senderWh" rows="2" placeholder="nazwa magazynu, adres">${esc(d.senderWh || '')}</textarea></label>
+      <label class="check" id="wb-sndsave" ${known ? 'hidden' : ''}><input type="checkbox" data-wb-savesnd ${d.saveSender ? 'checked' : ''}> Zapisz tego nadawcę do wyboru przy następnych listach</label>`; })();
+  return `<div class="bar"><h2>${d.id ? `Edycja listu ${esc(wbNo(d))}` : 'Nowy list przewozowy'}</h2><div class="tools">${acts}</div></div>
+  <div class="panel wb-form">
+    <div class="wb-3"><label>Data listu<input type="date" data-wb-f="date" value="${esc(d.date || '')}"></label>
+      <div class="wb-nohint"><span class="label">Numer</span><b>${d.id ? esc(wbNo(d)) : 'nada się sam'}</b></div></div>
+    <section class="wb-sec"><h3>Odbiorca</h3>
+    <label>Wybierz z książki<select data-wb-rec><option value="">— nowy odbiorca (wpisz dane) —</option>${rs.map(r => `<option value="${esc(r.id)}" ${d.recipientId===r.id ? 'selected' : ''}>${esc(r.name)}${r.whName ? ' · ' + esc(r.whName) : ''}</option>`).join('')}</select></label>
+    ${recCard ? `<div class="wb-card-rec"><div><b>${esc(d.rName)}</b>${ln(d.rAddress).map(x => `<br>${esc(x)}`).join('')}${d.rRegon || d.rNip ? `<br><span class="muted">${d.rRegon ? 'REGON ' + esc(d.rRegon) : ''}${d.rRegon && d.rNip ? ' · ' : ''}${d.rNip ? 'NIP ' + esc(d.rNip) : ''}</span>` : ''}</div>
+        ${d.whName || d.whAddress ? `<div><span class="muted">Magazyn odbiorczy</span><br><b>${esc(d.whName || '')}</b>${ln(d.whAddress).map(x => `<br>${esc(x)}`).join('')}</div>` : ''}
+        <button type="button" class="small ghost" data-wb-recopen-ed>Popraw dane</button></div>`
+      : `${f('rName', 'Nazwa odbiorcy *', 'autocomplete="off"')}
     <label>Adres odbiorcy<textarea data-wb-f="rAddress" rows="2" placeholder="80-180 Kowale, ul. Magazynowa 7">${esc(d.rAddress || '')}</textarea></label>
     <div class="wb-2">${f('rRegon', 'REGON', 'inputmode="numeric"')}${f('rNip', 'NIP', 'inputmode="numeric"')}</div>
     <div class="wb-2">${f('whName', 'Magazyn odbiorczy')}<label>Adres magazynu<textarea data-wb-f="whAddress" rows="2">${esc(d.whAddress || '')}</textarea></label></div>
-    <label class="check"><input type="checkbox" data-wb-saverec ${d.saveRec ? 'checked' : ''}> ${d.recipientId ? 'Zapisz zmiany danych odbiorcy w książce odbiorców' : 'Zapisz odbiorcę w książce odbiorców'}</label>
-    <h3>Pozycje</h3>
-    <div class="tablewrap"><table class="wb-items"><thead><tr><th>Odbiorca / miejsce dostawy</th><th>Nazwa / rodzaj</th><th class="r">Inna</th><th class="r">Karton</th><th class="r">Paleta</th><th class="r">Razem</th><th></th></tr></thead><tbody>
-      ${d.items.map((it, i) => `<tr><td><textarea data-wb-i="${i}" data-wb-k="place" rows="3" aria-label="Miejsce dostawy">${esc(it.place || '')}</textarea></td>
-        <td><input data-wb-i="${i}" data-wb-k="name" value="${esc(it.name || '')}" placeholder="np. ZWROT 47/2026" aria-label="Nazwa / rodzaj"></td>
-        ${['inna', 'karton', 'paleta'].map(k => `<td class="r"><input class="wb-n" type="number" min="0" step="1" inputmode="numeric" data-wb-i="${i}" data-wb-k="${k}" value="${esc(it[k] ?? '')}" aria-label="${k}"></td>`).join('')}
-        <td class="r num"><b data-wb-rowsum="${i}">${wbRowSum(it) || ''}</b></td>
-        <td class="r">${d.items.length > 1 ? `<button type="button" class="small ghost" data-wb-del="${i}" title="Usuń pozycję" aria-label="Usuń pozycję">${ic('x')}</button>` : ''}</td></tr>`).join('')}
-      <tr class="wb-total"><td><b>SUMA</b></td><td></td><td class="r num" data-wb-tot="inna">${t.inna || ''}</td><td class="r num" data-wb-tot="karton">${t.karton || ''}</td><td class="r num" data-wb-tot="paleta">${t.paleta || ''}</td><td class="r num"><b data-wb-tot="all">${t.all || ''}</b></td><td></td></tr>
-    </tbody></table></div>
-    <div class="row-act" style="justify-content:flex-start"><button type="button" class="small" data-wb-add>${ic('plus')}Dodaj pozycję</button></div>
-    <div class="wb-2"><div class="wb-nohint"><span class="label">Łączna liczba palet</span><b data-wb-tot="paleta2">${t.paleta}</b><span class="sub">liczona z pozycji</span></div>
-      <label>Łączna waga towaru (kg)<input type="number" min="0" step="0.1" inputmode="decimal" data-wb-f="weightKg" value="${esc(d.weightKg ?? '')}"></label></div>
-    <h3>Transport</h3>
-    <div class="wb-2"><label>Nr rej. pojazdu<select data-wb-veh><option value="">— puste (wpisze się ręcznie na wydruku) —</option>${vs.map(v => `<option value="${esc(v.id)}" ${d.vehicleId===v.id ? 'selected' : ''}>${esc(v.plate)}</option>`).join('')}</select></label>
+    <label class="check"><input type="checkbox" data-wb-saverec ${d.saveRec ? 'checked' : ''}> ${d.recipientId ? 'Zapisz zmiany w książce odbiorców' : 'Zapisz odbiorcę w książce odbiorców'}</label>`}</section>
+    <section class="wb-sec"><h3>Towar</h3>
+    <div class="tablewrap"><table class="wb-items"><thead><tr><th>Nazwa / rodzaj</th><th class="r">Inna</th><th class="r">Karton</th><th class="r">Paleta</th><th class="r">Razem</th><th></th></tr></thead><tbody>
+      ${d.items.map((it, i) => { const pl = ln(it.place);
+        return `<tr><td><input data-wb-i="${i}" data-wb-k="name" value="${esc(it.name || '')}" placeholder="np. ZWROT 47/2026" aria-label="Nazwa / rodzaj">
+          ${it.placeOpen ? `<label class="wb-place-ed">Miejsce dostawy (kolumna 1 na wydruku)<textarea data-wb-i="${i}" data-wb-k="place" rows="3">${esc(it.place || '')}</textarea></label>`
+            : `<span class="sub wb-place-sum">Dostawa: ${esc(pl.join(', ') || '—')} <button type="button" class="link" data-wb-place="${i}">zmień</button></span>`}</td>
+        ${['inna', 'karton', 'paleta'].map(k => `<td class="r" data-l="${k}"><input class="wb-n" type="number" min="0" step="1" inputmode="numeric" data-wb-i="${i}" data-wb-k="${k}" value="${esc(it[k] ?? '')}" aria-label="${k}"></td>`).join('')}
+        <td class="r num" data-l="razem"><b data-wb-rowsum="${i}">${wbRowSum(it) || ''}</b></td>
+        <td class="r">${d.items.length > 1 ? `<button type="button" class="small ghost" data-wb-del="${i}" title="Usuń pozycję" aria-label="Usuń pozycję">${ic('x')}</button>` : ''}</td></tr>`; }).join('')}
+      <tr class="wb-total"><td><b>SUMA</b> <button type="button" class="small ghost" data-wb-add>${ic('plus')}Dodaj pozycję</button></td><td class="r num" data-l="inna" data-wb-tot="inna">${t.inna || ''}</td><td class="r num" data-l="karton" data-wb-tot="karton">${t.karton || ''}</td><td class="r num" data-l="paleta"><b data-wb-tot="paleta">${t.paleta || ''}</b></td><td class="r num" data-l="razem"><b data-wb-tot="all">${t.all || ''}</b></td><td></td></tr>
+    </tbody></table></div></section>
+    <section class="wb-sec"><h3>Waga i transport</h3>
+    <div class="wb-3"><label>Łączna waga (kg)<input type="number" min="0" step="0.1" inputmode="decimal" data-wb-f="weightKg" value="${esc(d.weightKg ?? '')}"></label>
+      <label>Nr rej. pojazdu<select data-wb-veh><option value="">— wpisze się ręcznie —</option>${vs.map(v => `<option value="${esc(v.id)}" ${d.vehicleId===v.id ? 'selected' : ''}>${esc(v.plate)}</option>`).join('')}</select></label>
       <label>Data wyjazdu<input type="date" data-wb-f="departDate" value="${esc(d.departDate || '')}"></label></div>
-    <label>Uwagi (drukują się pod danymi transportu)<input data-wb-f="note" value="${esc(d.note || '')}"></label>
+    ${d.note || d.noteOpen ? `<label>Uwagi (drukują się pod transportem)<input data-wb-f="note" value="${esc(d.note || '')}"></label>` : `<div><button type="button" class="link" data-wb-note>+ Dodaj uwagi</button></div>`}</section>
+    <section class="wb-sec wb-sec-snd">${sndBlock}</section>
     <p class="warn-t" id="wb-err" hidden></p>
-    <div class="row-act"><button class="ghost" data-wb-discard>Anuluj</button><button class="primary" data-wb-save>${d.id ? 'Zapisz zmiany' : 'Wystaw list'}</button></div>
+    <div class="row-act">${acts}</div>
   </div>`;
 }
 function wbUpdateSums(){
   if (!wbEdit) return; const t = wbTot(wbEdit.items);
   wbEdit.items.forEach((it, i) => { const el = document.querySelector(`[data-wb-rowsum="${i}"]`); if (el) el.textContent = wbRowSum(it) || ''; });
   ['inna', 'karton', 'paleta', 'all'].forEach(k => { const el = document.querySelector(`[data-wb-tot="${k}"]`); if (el) el.textContent = t[k] || ''; });
-  const p2 = document.querySelector('[data-wb-tot="paleta2"]'); if (p2) p2.textContent = t.paleta;
 }
-async function wbSave(){
+async function wbSave(andPrint){
   const d = wbEdit, err = m => { const e = $('#wb-err'); if (e){ e.textContent = m; e.hidden = false; e.scrollIntoView({block: 'center'}); } };
   if (!String(d.rName || '').trim()) return err('Wpisz nazwę odbiorcy.');
   const items = d.items.filter(it => String(it.name || '').trim() || String(it.place || '').trim() || wbRowSum(it))
@@ -244,6 +271,7 @@ async function wbSave(){
     const saved = byId('waybills', ref.id);
     toast(d.id ? 'Zapisano zmiany listu' : `Wystawiono list ${saved ? wbNo(saved) : ''}`);
     wbEdit = null; wbView = ref.id; render(); scrollTo(0, 0);
+    if (andPrint) wbPrint(ref.id);
   } catch(e){ handleWriteErr(e); }
 }
 
@@ -265,9 +293,11 @@ document.addEventListener('input', e => {
 document.addEventListener('change', e => {
   const t = e.target; if (!t.dataset) return;
   if (t.id==='wb-year'){ wbYear = t.value; return render(); }
+  if (t.id==='wb-status'){ wbStatus = t.value; return render(); }
   if (!wbEdit) return;
   if (t.dataset.wbRec!=null){ const r = byId('wbRecipients', t.value);
-    wbEdit.recipientId = r ? r.id : '';
+    wbEdit.recipientId = r ? r.id : ''; wbEdit.recOpen = false;
+    if (!r) Object.assign(wbEdit, {rName: '', rAddress: '', rRegon: '', rNip: '', whName: '', whAddress: ''});
     if (r) Object.assign(wbEdit, {rName: r.name || '', rAddress: r.address || '', rRegon: r.regon || '', rNip: r.nip || '', whName: r.whName || '', whAddress: r.whAddress || ''});
     wbEdit.saveRec = !r; wbEdit.items.forEach(it => { if (!it.placeTouched) it.place = wbPlaceOf(wbEdit); });
     return render(); }
@@ -275,15 +305,22 @@ document.addEventListener('change', e => {
   if (t.dataset.wbSaverec!=null){ wbEdit.saveRec = t.checked; return; }
   if (t.dataset.wbSavesnd!=null){ wbEdit.saveSender = t.checked; return; }
   if (t.dataset.wbSnd!=null){ const c = wbCfg(), s = wbSenders().find(x => x.id===t.value);
+    wbEdit.sndOpen = true;
     if (t.value==='def'){ wbEdit.sender = c.head; wbEdit.senderWh = ''; } else if (s){ wbEdit.sender = wbSndText(s); wbEdit.senderWh = wbSndWh(s); }
     wbEdit.saveSender = false; return render(); }
 });
 document.addEventListener('click', async e => {
-  const b = e.target.closest('[data-wb-new],[data-wb-open],[data-wb-back],[data-wb-edit],[data-wb-copy],[data-wb-cancel],[data-wb-restore],[data-wb-print],[data-wb-save],[data-wb-discard],[data-wb-add],[data-wb-del],[data-wb-recopen],[data-wb-recnew],[data-wb-reccancel],[data-wb-recsave],[data-wb-recdel],[data-wb-cfgsave],[data-wb-snddel],[data-wb-sndopen],[data-wb-sndnew],[data-wb-sndcancel],[data-wb-sndsave]');
+  const b = e.target.closest('[data-wb-new],[data-wb-open],[data-wb-back],[data-wb-edit],[data-wb-copy],[data-wb-cancel],[data-wb-restore],[data-wb-print],[data-wb-save],[data-wb-discard],[data-wb-add],[data-wb-del],[data-wb-recopen],[data-wb-recnew],[data-wb-reccancel],[data-wb-recsave],[data-wb-recdel],[data-wb-cfgsave],[data-wb-snddel],[data-wb-sndopen],[data-wb-sndnew],[data-wb-sndcancel],[data-wb-sndsave],[data-wb-set],[data-wb-setclose],[data-wb-sndopen-ed],[data-wb-recopen-ed],[data-wb-place],[data-wb-note]');
   if (!b || !P().manage) return;
   const d = b.dataset;
   if (d.wbCancel==null) wbCancelArm = null;
-  if (d.wbNew!=null){ wbEdit = wbNewDraft(); wbView = null; wbSndEdit = null; render(); return scrollTo(0, 0); }
+  if (d.wbNew!=null){ wbEdit = wbNewDraft(); wbView = null; wbSet = null; wbSndEdit = null; render(); return scrollTo(0, 0); }
+  if (d.wbSet){ wbSet = d.wbSet; wbView = null; wbSndEdit = null; wbRecEdit = null; render(); return scrollTo(0, 0); }
+  if (d.wbSetclose!=null){ wbSet = null; wbSndEdit = null; wbRecEdit = null; return render(); }
+  if (d.wbSndopenEd!=null){ wbEdit.sndOpen = true; return render(); }
+  if (d.wbRecopenEd!=null){ wbEdit.recOpen = true; wbEdit.saveRec = true; return render(); }
+  if (d.wbPlace!=null){ const it = wbEdit.items[Number(d.wbPlace)]; if (it){ it.placeOpen = true; render(); const el = document.querySelector(`[data-wb-i="${d.wbPlace}"][data-wb-k="place"]`); if (el) el.focus(); } return; }
+  if (d.wbNote!=null){ wbEdit.noteOpen = true; render(); const el = document.querySelector('[data-wb-f="note"]'); if (el) el.focus(); return; }
   if (d.wbOpen){ wbView = d.wbOpen; render(); return scrollTo(0, 0); }
   if (d.wbBack!=null){ wbView = null; return render(); }
   if (d.wbEdit){ const w = byId('waybills', d.wbEdit); if (w){ wbEdit = wbNewDraft(w); wbEdit.saveRec = false; wbEdit.items.forEach(it => { it.placeTouched = true; }); render(); scrollTo(0, 0); } return; }
@@ -292,7 +329,7 @@ document.addEventListener('click', async e => {
     wbCancelArm = null; try { await db.collection('waybills').doc(d.wbCancel).update({status: 'anulowany'}); toast('List anulowany – numer zostaje w archiwum'); render(); } catch(err){ handleWriteErr(err); } return; }
   if (d.wbRestore){ try { await db.collection('waybills').doc(d.wbRestore).update({status: 'wystawiony'}); toast('List przywrócony'); render(); } catch(err){ handleWriteErr(err); } return; }
   if (d.wbPrint) return wbPrint(d.wbPrint);
-  if (d.wbSave!=null) return wbSave();
+  if (d.wbSave!=null) return wbSave(d.wbSave==='print');
   if (d.wbDiscard!=null){ const id = wbEdit && wbEdit.id; wbEdit = null; wbSndEdit = null; wbView = id || null; return render(); }
   if (d.wbAdd!=null){ wbEdit.items.push(wbBlankItem(wbEdit)); render(); const el = document.querySelector(`[data-wb-i="${wbEdit.items.length - 1}"][data-wb-k="name"]`); if (el) el.focus(); return; }
   if (d.wbDel!=null){ wbEdit.items.splice(Number(d.wbDel), 1); return render(); }
@@ -319,4 +356,3 @@ document.addEventListener('click', async e => {
   if (d.wbCfgsave!=null){ wbCfgOpen = true;
     try { await wbCfgSave({header: ($('#wb-head') || {}).value || WB_HEAD_DEF}); toast('Zapisano nagłówek nadawcy'); render(); } catch(err){ handleWriteErr(err); } return; }
 });
-document.addEventListener('toggle', e => { if (e.target.matches && e.target.matches('[data-wb-cfgfold]')) wbCfgOpen = e.target.open; }, true);
