@@ -14,7 +14,7 @@ const VIEWAS_MSG = 'Podgląd jako kierowca – tylko do oglądania, zmiany są z
 })();
 
 /* nazwa w aplikacji → tabela w bazie */
-const TABLES = {gpsOdometer:'gps_odometer', odoGps:'odo_gps', events:'events', workOrders:'work_orders', woItems:'work_order_items', vehicles:'vehicles', drivers:'drivers', deadlines:'deadlines', bookings:'bookings', costs:'costs', issues:'issues', docs:'documents', settings:'settings', routeStops:'route_stops', fleetCosts:'fleet_costs', tires:'tires', contracts:'vehicle_contracts', equipment:'equipment', workshops:'workshops', visits:'service_visits', requests:'data_change_requests', crewChanges:'crew_changes', routes:'routes', serviceEntries:'service_entries', blockOverrides:'block_overrides', loadings:'loadings', loadingReports:'loading_reports', fuelCardImports:'fuel_card_imports', fuelCardRows:'fuel_card_rows', clients:'clients', routePlans:'route_plans', planCalc:'route_plan_calc', members:'profiles'};
+const TABLES = {waybills:'waybills', wbRecipients:'waybill_recipients', gpsOdometer:'gps_odometer', odoGps:'odo_gps', events:'events', workOrders:'work_orders', woItems:'work_order_items', vehicles:'vehicles', drivers:'drivers', deadlines:'deadlines', bookings:'bookings', costs:'costs', issues:'issues', docs:'documents', settings:'settings', routeStops:'route_stops', fleetCosts:'fleet_costs', tires:'tires', contracts:'vehicle_contracts', equipment:'equipment', workshops:'workshops', visits:'service_visits', requests:'data_change_requests', crewChanges:'crew_changes', routes:'routes', serviceEntries:'service_entries', blockOverrides:'block_overrides', loadings:'loadings', loadingReports:'loading_reports', fuelCardImports:'fuel_card_imports', fuelCardRows:'fuel_card_rows', clients:'clients', routePlans:'route_plans', planCalc:'route_plan_calc', members:'profiles'};
 const COL_OF = Object.fromEntries(Object.entries(TABLES).map(([a, b]) => [b, a]));
 
 /* pole w aplikacji → kolumna w bazie */
@@ -35,6 +35,8 @@ const FIELDS = {
   visits: {vehicleId:'vehicle_id', workshopId:'workshop_id', deadlineId:'deadline_id', issueId:'issue_id'},
   gpsOdometer: {vehicleId:'vehicle_id', updatedAt:'updated_at'},
   workOrders: {workshopId:'workshop_id', closedAt:'closed_at'},
+  waybills: {recipientId:'recipient_id', rName:'r_name', rAddress:'r_address', rRegon:'r_regon', rNip:'r_nip', whName:'wh_name', whAddress:'wh_address', weightKg:'weight_kg', vehicleId:'vehicle_id', departDate:'depart_date', printedAt:'printed_at', printedBy:'printed_by'},
+  wbRecipients: {whName:'wh_name', whAddress:'wh_address'},
   events: {vehicleId:'vehicle_id', driverId:'driver_id', refId:'ref_id'},
   woItems: {orderId:'order_id', vehicleId:'vehicle_id', issueId:'issue_id', deadlineId:'deadline_id', serviceEntryId:'service_entry_id'},
   odoGps: {refId:'ref_id', vehicleId:'vehicle_id', gpsKm:'gps_km', checkedAt:'checked_at'},
@@ -76,6 +78,8 @@ const WRITABLE = {
   costs:     ['id','date','vehicle_id','driver_id','category','amount','liters','odometer','full_tank','note','photos','co_driver_id','confirm_status','currency','amount_orig','fx_rate','fx_manual','station','flag_state','flag_question','gross'],
   issues:    ['id','vehicle_id','title','description','severity','status','date','km','repair_note','resolved_at','photos','service_type'],
   workOrders: ['id','workshop_id','workshop','date','note','status','closed_at'],
+  waybills: ['id','date','recipient_id','r_name','r_address','r_regon','r_nip','wh_name','wh_address','items','pallets','weight_kg','vehicle_id','plate','depart_date','status','note','printed_at','printed_by'],
+  wbRecipients: ['id','name','address','regon','nip','wh_name','wh_address'],
   woItems:   ['id','order_id','vehicle_id','issue_id','deadline_id','kind','title','status','service_entry_id'],
   docs:      ['id','vehicle_id','kind','name','valid_until','storage_path','file_name','content_type','size_bytes'],
   settings:  ['key','value'],
@@ -197,7 +201,8 @@ async function refresh(col){
   if ((col==='members' || col==='crewChanges' || col==='fuelCardImports' || col==='fuelCardRows' || col==='fleetCosts') && !P().manage) return;
   if ((col==='tires' || col==='contracts' || col==='equipment' || col==='workshops' || col==='visits' || col==='gpsOdometer' || col==='odoGps' || col==='workOrders' || col==='woItems' || col==='events') && !P().manage && !P().service){ got[col] = true; return; }
   if (col==='serviceEntries' && !P().service) return;
-  if (col==='planCalc' && !P().manage){ got[col] = true; return; }   // koszty planów tras – tylko kierownictwo
+  if (col==='planCalc' && !P().manage){ got[col] = true; return; }
+  if ((col==='waybills' || col==='wbRecipients') && !P().manage){ got[col] = true; return; }   // listy przewozowe – tylko kierownik floty   // koszty planów tras – tylko kierownictwo
   // Supabase oddaje najwyżej 1000 wierszy na zapytanie – pobieramy partiami aż do końca
   const key = col==='settings' ? 'key' : 'id', PAGE = 1000, data = [];
   for (let from = 0; ; from += PAGE){
@@ -255,7 +260,7 @@ function queueRefresh(col){
 let channel = null, stopsChannel = null, stopsReady = false, fcChannel = null, fleetCostsReady = false;
 /* Tabele z nowszych migracji (027 opony, 028 wyposażenie, 029 umowy, 030 warsztaty): dopóki SQL nie jest uruchomiony, moduł jest ukryty,
    a reszta aplikacji działa normalnie. OPT[col] = true, gdy tabela istnieje i dane się wczytały. */
-const OPT = {clients: false, routePlans: false, planCalc: false, tires: false, contracts: false, equipment: false, workshops: false, visits: false, gpsOdometer: false, odoGps: false, workOrders: false, woItems: false, events: false}, optChannels = {};
+const OPT = {waybills: false, wbRecipients: false, clients: false, routePlans: false, planCalc: false, tires: false, contracts: false, equipment: false, workshops: false, visits: false, gpsOdometer: false, odoGps: false, workOrders: false, woItems: false, events: false}, optChannels = {};
 const optOn = col => !!OPT[col];
 /* od migracji 063 wyliczenia kosztów planów są w osobnej tabeli (tylko kierownictwo) – w pamięci dalej jako plan.calc */
 function mergePlanCalc(){ S.routePlans.forEach(p => { const c = S.planCalc.find(x => x.id===p.id); p.calc = c && c.calc || {}; }); }
