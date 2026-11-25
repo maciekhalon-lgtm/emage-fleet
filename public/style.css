@@ -2147,3 +2147,5 @@ td.num .sub,td.r .sub{white-space:normal}
 .wb-form label.check[hidden]{display:none}
 .wb-senders{list-style:none;padding:0;margin:4px 0 0;display:grid;gap:4px}
 .wb-senders li{display:flex;align-items:center;justify-content:space-between;gap:8px;border-bottom:1px solid var(--line);padding:4px 0}
+.wb-sndrow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:end}
+.wb-newsnd{border:1px solid var(--line);border-radius:10px;padding:12px}
