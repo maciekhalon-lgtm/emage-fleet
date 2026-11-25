@@ -4,6 +4,8 @@
 --  • waybills – wystawione listy: numer kolejny w roku (nr/RRRR), odbiorca zapisany w liście (kopia danych
 --    z chwili wystawienia), pozycje w items (jsonb), palety, waga, auto, data wyjazdu, status
 --  • numeracja: settings 'waybill' = {"startYear":2026,"startNo":370} – w 2026 pierwszy numer 370, w kolejnych latach od 1
+--  • nadawca: domyślny w settings 'waybill'.header, dla każdego listu można go zmienić (waybills.sender);
+--    zapisani nadawcy do wyboru w settings 'waybill'.senders = [{"id","text"}]
 --  • wystawia i widzi tylko kierownik floty
 -- ============================================================================
 
@@ -25,6 +27,7 @@ create table if not exists public.waybills (
   year         int,
   no           int,
   date         date not null default current_date,
+  sender       text,                                  -- nadawca wydrukowany na tym liście (domyślnie dane Emage z Ustawień)
   recipient_id uuid references public.waybill_recipients(id) on delete set null,
   r_name       text not null check (length(trim(r_name)) > 0),
   r_address    text,
@@ -47,6 +50,7 @@ create table if not exists public.waybills (
   updated_at   timestamptz not null default now(),
   unique (year, no)
 );
+alter table public.waybills add column if not exists sender text;
 create index if not exists waybills_date on public.waybills(date);
 
 insert into public.settings (key, value) values ('waybill', '{"startYear":2026,"startNo":370}'::jsonb) on conflict (key) do nothing;

@@ -2144,3 +2144,6 @@ td.num .sub,td.r .sub{white-space:normal}
   html.print-doc #toast{display:none!important}
   html.print-doc .wb-t tr{break-inside:avoid;page-break-inside:avoid}
 }
+.wb-form label.check[hidden]{display:none}
+.wb-senders{list-style:none;padding:0;margin:4px 0 0;display:grid;gap:4px}
+.wb-senders li{display:flex;align-items:center;justify-content:space-between;gap:8px;border-bottom:1px solid var(--line);padding:4px 0}

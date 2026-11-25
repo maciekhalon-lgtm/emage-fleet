@@ -7,7 +7,10 @@
    ============================================================================ */
 const wbOn = () => !!P().manage && optOn('waybills');
 const WB_HEAD_DEF = 'Emage Group Sp. z o.o.\n53-534 Wrocław, ul. Tadeusza Zielińskiego 43/6\nTel. 882166933\nKRS: 0000579426    REGON: 362706691    NIP: 8943067387\nNr rej. BDO: 000584657    www.emage.com.pl';
-const wbCfg = () => { const s = S.settings.find(x => x.id==='waybill') || {}; return {head: s.header || WB_HEAD_DEF, startYear: s.startYear || 2026, startNo: s.startNo || 370}; };
+const wbCfg = () => { const s = S.settings.find(x => x.id==='waybill') || {}; return {head: s.header || WB_HEAD_DEF, senders: Array.isArray(s.senders) ? s.senders : [], startYear: s.startYear || 2026, startNo: s.startNo || 370}; };
+const wbSenderName = t => String(t || '').trim().split('\n')[0];
+async function wbCfgSave(patch){ const cur = S.settings.find(x => x.id==='waybill') || {}; const {id, updatedAt, updatedBy, createdBy, ...rest} = cur;
+  await db.collection('settings').doc('waybill').set({startYear: 2026, startNo: 370, ...rest, ...patch}); }
 const wbNo = w => w.no ? `${w.no}/${w.year}` : '—';
 const wbInt = v => Math.max(0, Math.round(Number(v) || 0));
 const wbRowSum = it => wbInt(it.inna) + wbInt(it.karton) + wbInt(it.paleta);
@@ -28,7 +31,7 @@ function wbDocHtml(w, printedBy){
   const vert = s => s.split('').map(ch => `<span>${ch}</span>`).join('');
   return `<div class="wb-doc${w.status==='anulowany' ? ' wb-void' : ''}">
     ${w.status==='anulowany' ? '<div class="wb-voidmark">ANULOWANY</div>' : ''}
-    <div class="wb-kv wb-from"><span>Nadawca:</span><div>${esc(wbCfg().head.trim())}</div></div>
+    <div class="wb-kv wb-from"><span>Nadawca:</span><div>${esc(String(w.sender || wbCfg().head).trim())}</div></div>
     <h1 class="wb-title">LIST PRZEWOZOWY <small>nr</small> <b>${esc(wbNo(w))}</b> <small>z dnia</small> <b>${fdate(w.date)}</b></h1>
     <div class="wb-kv"><span>Odbiorca:</span><div>${[esc(w.rName || '')].concat(lines(w.rAddress)).join('<br>')}${w.rRegon || w.rNip ? `<br><span class="wb-ids">${w.rRegon ? `REGON: ${esc(w.rRegon)}` : ''}${w.rNip ? `<span>NIP: ${esc(w.rNip)}</span>` : ''}</span>` : ''}</div></div>
     ${w.whName || w.whAddress ? `<div class="wb-kv"><span>Magazyn<br>odbiorczy:</span><div>${[esc(w.whName || '')].concat(lines(w.whAddress)).filter(Boolean).join('<br>')}</div></div>` : ''}
@@ -105,7 +108,8 @@ function wbCfgPanel(){
   const c = wbCfg(), next = S.waybills.filter(w => w.year===new Date().getFullYear()).reduce((m, w) => Math.max(m, w.no || 0), 0);
   const nextNo = next ? next + 1 : (c.startYear===new Date().getFullYear() ? c.startNo : 1);
   return `<details class="panel fold wb-fold" ${wbCfgOpen ? 'open' : ''} data-wb-cfgfold><summary class="sec-head"><h3>Nadawca i numeracja</h3><span class="muted small">następny numer: ${nextNo}/${new Date().getFullYear()}</span></summary><div class="wb-inner">
-    <label>Nagłówek „Nadawca” na liście<textarea id="wb-head" rows="6">${esc(c.head)}</textarea></label>
+    <label>Domyślny nadawca (wstawia się do każdego nowego listu)<textarea id="wb-head" rows="6">${esc(c.head)}</textarea></label>
+    ${c.senders.length ? `<div><span class="label muted small">Zapisani inni nadawcy – do wyboru w formularzu listu</span><ul class="wb-senders">${c.senders.map(x => `<li><span>${esc(wbSenderName(x.text))}</span><button type="button" class="small ghost" data-wb-snddel="${esc(x.id)}">Usuń</button></li>`).join('')}</ul></div>` : ''}
     <p class="muted small">Numer nadaje się sam: kolejny w roku daty listu. W ${c.startYear} numeracja zaczyna się od ${c.startNo}, w następnych latach od 1. Numer raz nadany się nie zmienia.</p>
     <div class="row-act"><button type="button" class="small primary" data-wb-cfgsave>Zapisz nagłówek</button></div></div></details>`;
 }
@@ -130,7 +134,8 @@ function wbNewDraft(src){
   const d = src ? {...src, items: (src.items || []).map(x => ({...x}))} : {date: today(), rName: '', rAddress: '', rRegon: '', rNip: '', whName: '', whAddress: '', items: [], weightKg: '', vehicleId: '', plate: '', departDate: '', note: ''};
   if (src && !src.id){ d.date = today(); d.departDate = ''; d.status = 'wystawiony'; d.printedAt = null; d.printedBy = null; }
   if (!d.items.length) d.items.push(wbBlankItem(d));
-  d.saveRec = true;
+  if (!d.sender) d.sender = wbCfg().head;
+  d.saveRec = true; d.saveSender = false;
   return d;
 }
 function wbEditor(){
@@ -141,6 +146,12 @@ function wbEditor(){
   <div class="panel wb-form">
     <div class="wb-2"><label>Data listu<input type="date" data-wb-f="date" value="${esc(d.date || '')}"></label>
       <div class="wb-nohint"><span class="label">Numer</span><b>${d.id ? esc(wbNo(d)) : 'nada się sam przy zapisie'}</b></div></div>
+    <h3>Nadawca</h3>
+    ${(() => { const c = wbCfg(), cur = String(d.sender || '').trim(), opts = [{id: 'def', text: c.head}, ...c.senders], sel = (opts.find(o => String(o.text).trim()===cur) || {}).id || '';
+      const known = !!sel;
+      return `<label>Wybierz nadawcę<select data-wb-snd>${opts.map(o => `<option value="${esc(o.id)}" ${o.id===sel ? 'selected' : ''}>${esc(wbSenderName(o.text))}${o.id==='def' ? ' (domyślny)' : ''}</option>`).join('')}${known ? '' : '<option value="" selected>— zmieniony dla tego listu —</option>'}</select></label>
+      <label>Nadawca na tym liście<textarea data-wb-f="sender" rows="5">${esc(d.sender || '')}</textarea></label>
+      <label class="check" id="wb-sndsave" ${known ? 'hidden' : ''}><input type="checkbox" data-wb-savesnd ${d.saveSender ? 'checked' : ''}> Zapisz tego nadawcę do wyboru przy następnych listach</label>`; })()}
     <h3>Odbiorca</h3>
     <label>Wybierz z książki<select data-wb-rec><option value="">— nowy odbiorca (wpisz poniżej) —</option>${rs.map(r => `<option value="${esc(r.id)}" ${d.recipientId===r.id ? 'selected' : ''}>${esc(r.name)}${r.whName ? ' · ' + esc(r.whName) : ''}</option>`).join('')}</select></label>
     ${f('rName', 'Nazwa odbiorcy *', 'autocomplete="off"')}
@@ -189,8 +200,10 @@ async function wbSave(){
       if (recId && byId('wbRecipients', recId)) await db.collection('wbRecipients').doc(recId).update(rec);
       else { const ref = db.collection('wbRecipients').doc(); await ref.set(rec); recId = ref.id; }
     }
+    const sender = String(d.sender || '').trim() || wbCfg().head;
+    if (d.saveSender && !wbCfg().senders.some(x => String(x.text).trim()===sender) && sender!==wbCfg().head.trim()) await wbCfgSave({senders: [...wbCfg().senders, {id: newId(), text: sender}]});
     const ref = db.collection('waybills').doc(d.id || undefined);
-    await ref.set({date: d.date || today(), recipientId: recId, rName: d.rName.trim(), rAddress: d.rAddress || '', rRegon: d.rRegon || '', rNip: d.rNip || '', whName: d.whName || '', whAddress: d.whAddress || '',
+    await ref.set({date: d.date || today(), sender, recipientId: recId, rName: d.rName.trim(), rAddress: d.rAddress || '', rRegon: d.rRegon || '', rNip: d.rNip || '', whName: d.whName || '', whAddress: d.whAddress || '',
       items, pallets: wbTot(items).paleta, weightKg: d.weightKg==='' || d.weightKg==null ? null : Number(d.weightKg), vehicleId: d.vehicleId || null, plate: v ? v.plate : '', departDate: d.departDate || null,
       note: d.note || '', status: d.status || 'wystawiony', ...(d.id ? {} : {printedAt: null, printedBy: null})});
     const saved = byId('waybills', ref.id);
@@ -204,6 +217,10 @@ document.addEventListener('input', e => {
   const t = e.target; if (!t.dataset) return;
   if (t.id==='wb-q'){ wbQ = t.value; clearTimeout(wbSearchT); wbSearchT = setTimeout(() => { const el = $('#wb-q'); if (!el || el.value!==wbQ) return; const pos = el.selectionStart; render(); const n = $('#wb-q'); if (n){ n.focus(); n.setSelectionRange(pos, pos); } }, 250); return; }
   if (!wbEdit) return;
+  if (t.dataset.wbF==='sender'){   // tekst zmieniony ręcznie: „zmieniony dla tego listu” + możliwość zapisu
+    const c = wbCfg(), cur = t.value.trim(), o = [{id: 'def', text: c.head}, ...c.senders].find(x => String(x.text).trim()===cur), sel = document.querySelector('[data-wb-snd]'), box = $('#wb-sndsave');
+    if (sel){ let opt = sel.querySelector('option[value=""]'); if (!o && !opt){ opt = document.createElement('option'); opt.value = ''; opt.textContent = '— zmieniony dla tego listu —'; sel.appendChild(opt); } sel.value = o ? o.id : ''; }
+    if (box) box.hidden = !!o; }
   if (t.dataset.wbF){ wbEdit[t.dataset.wbF] = t.value;
     // miejsce dostawy w pozycjach podąża za odbiorcą, dopóki ktoś go nie zmienił ręcznie
     if (['rName', 'rAddress', 'whAddress'].includes(t.dataset.wbF)){ const pl = wbPlaceOf(wbEdit); wbEdit.items.forEach((it, i) => { if (!it.placeTouched){ it.place = pl; const el = document.querySelector(`[data-wb-i="${i}"][data-wb-k="place"]`); if (el) el.value = pl; } }); }
@@ -221,9 +238,11 @@ document.addEventListener('change', e => {
     return render(); }
   if (t.dataset.wbVeh!=null){ wbEdit.vehicleId = t.value; return; }
   if (t.dataset.wbSaverec!=null){ wbEdit.saveRec = t.checked; return; }
+  if (t.dataset.wbSavesnd!=null){ wbEdit.saveSender = t.checked; return; }
+  if (t.dataset.wbSnd!=null){ const c = wbCfg(), o = t.value==='def' ? {text: c.head} : c.senders.find(x => x.id===t.value); if (o){ wbEdit.sender = o.text; wbEdit.saveSender = false; } return render(); }
 });
 document.addEventListener('click', async e => {
-  const b = e.target.closest('[data-wb-new],[data-wb-open],[data-wb-back],[data-wb-edit],[data-wb-copy],[data-wb-cancel],[data-wb-restore],[data-wb-print],[data-wb-save],[data-wb-discard],[data-wb-add],[data-wb-del],[data-wb-recopen],[data-wb-recnew],[data-wb-reccancel],[data-wb-recsave],[data-wb-recdel],[data-wb-cfgsave]');
+  const b = e.target.closest('[data-wb-new],[data-wb-open],[data-wb-back],[data-wb-edit],[data-wb-copy],[data-wb-cancel],[data-wb-restore],[data-wb-print],[data-wb-save],[data-wb-discard],[data-wb-add],[data-wb-del],[data-wb-recopen],[data-wb-recnew],[data-wb-reccancel],[data-wb-recsave],[data-wb-recdel],[data-wb-cfgsave],[data-wb-snddel]');
   if (!b || !P().manage) return;
   const d = b.dataset;
   if (d.wbCancel==null) wbCancelArm = null;
@@ -249,7 +268,8 @@ document.addEventListener('click', async e => {
       if (wbRecEdit==='new') await ref.set(rec); else await ref.update(rec);
       wbRecEdit = null; toast('Zapisano odbiorcę'); render(); } catch(err){ handleWriteErr(err); } return; }
   if (d.wbRecdel){ try { await db.collection('wbRecipients').doc(d.wbRecdel).delete(); wbRecEdit = null; toast('Usunięto odbiorcę z książki'); render(); } catch(err){ handleWriteErr(err); } return; }
-  if (d.wbCfgsave!=null){ wbCfgOpen = true; const cur = S.settings.find(x => x.id==='waybill') || {};
-    try { await db.collection('settings').doc('waybill').set({startYear: cur.startYear || 2026, startNo: cur.startNo || 370, header: ($('#wb-head') || {}).value || WB_HEAD_DEF}); toast('Zapisano nagłówek nadawcy'); render(); } catch(err){ handleWriteErr(err); } return; }
+  if (d.wbSnddel){ wbCfgOpen = true; try { await wbCfgSave({senders: wbCfg().senders.filter(x => x.id!==d.wbSnddel)}); toast('Usunięto nadawcę z listy'); render(); } catch(err){ handleWriteErr(err); } return; }
+  if (d.wbCfgsave!=null){ wbCfgOpen = true;
+    try { await wbCfgSave({header: ($('#wb-head') || {}).value || WB_HEAD_DEF}); toast('Zapisano nagłówek nadawcy'); render(); } catch(err){ handleWriteErr(err); } return; }
 });
 document.addEventListener('toggle', e => { if (e.target.matches && e.target.matches('[data-wb-cfgfold]')) wbCfgOpen = e.target.open; }, true);

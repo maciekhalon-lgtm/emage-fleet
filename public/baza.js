@@ -78,7 +78,7 @@ const WRITABLE = {
   costs:     ['id','date','vehicle_id','driver_id','category','amount','liters','odometer','full_tank','note','photos','co_driver_id','confirm_status','currency','amount_orig','fx_rate','fx_manual','station','flag_state','flag_question','gross'],
   issues:    ['id','vehicle_id','title','description','severity','status','date','km','repair_note','resolved_at','photos','service_type'],
   workOrders: ['id','workshop_id','workshop','date','note','status','closed_at'],
-  waybills: ['id','date','recipient_id','r_name','r_address','r_regon','r_nip','wh_name','wh_address','items','pallets','weight_kg','vehicle_id','plate','depart_date','status','note','printed_at','printed_by'],
+  waybills: ['id','date','sender','recipient_id','r_name','r_address','r_regon','r_nip','wh_name','wh_address','items','pallets','weight_kg','vehicle_id','plate','depart_date','status','note','printed_at','printed_by'],
   wbRecipients: ['id','name','address','regon','nip','wh_name','wh_address'],
   woItems:   ['id','order_id','vehicle_id','issue_id','deadline_id','kind','title','status','service_entry_id'],
   docs:      ['id','vehicle_id','kind','name','valid_until','storage_path','file_name','content_type','size_bytes'],
