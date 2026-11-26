@@ -102,7 +102,7 @@ function attentionItems(serviceOnly){
     if (flaggedCosts().length > 6) out.push({w:3, html: attRow('warn', '', `i ${flaggedCosts().length - 6} innych tankowań do wyjaśnienia`, 'pełna lista w Paliwo → Spalanie', `<button class="small" data-go="spalanie">Pokaż</button>`)});
     if (P().manage && typeof noDriverDays==='function'){   // GPS: auto jeździło, a nikt go nie miał w aplikacji (ostatnie 3 pełne dni)
       const nd = noDriverDays(addDays(today(), -3), addDays(today(), -1));
-      if (nd.length) out.push({w: 2, html: attRow('warn', '', `${nd.length} ${isPlural(nd.length, 'dzień jazdy', 'dni jazdy', 'dni jazdy')} bez kierowcy w aplikacji`, nd.slice(0, 5).map(x => `${esc((byId('vehicles', x.vid) || {}).plate || '')} ${fdate(x.day).slice(0, 5)} – ${new Intl.NumberFormat('pl-PL').format(x.km)} km`).join(' · ') + (nd.length > 5 ? '…' : '') + ' (wg GPS)', `<button class="small" data-go="liczniki">Pokaż</button>`)});
+      if (nd.length) out.push({w: 2, html: attRow('warn', '', `Km nieprzypisane: ${nd.length} ${isPlural(nd.length, 'dzień', 'dni', 'dni')} jazdy bez kierowcy w aplikacji`, nd.slice(0, 5).map(x => `${esc((byId('vehicles', x.vid) || {}).plate || '')} ${fdate(x.day).slice(0, 5)} – ${new Intl.NumberFormat('pl-PL').format(x.km)} km`).join(' · ') + (nd.length > 5 ? '…' : '') + ' (wg GPS)', `<button class="small" data-go="${typeof pzOn==='function' && pzOn() ? 'poza' : 'liczniki'}">Przypisz</button>`)});
     }
     if (P().reports){
       const la = limitAlerts();

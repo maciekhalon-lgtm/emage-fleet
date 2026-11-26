@@ -8,7 +8,7 @@ const GROUPS = {
   planer:     [['mapa-tras','Planer tras', () => typeof mtOn==='function' && mtOn()]],
   listy:      [['listy','Listy przewozowe', () => !!P().manage]],
   serwis:     [['usterki','Zgłoszenia', () => true], ['serwis-terminy','Terminy', () => typeof cdOn==='function' && cdOn()], ['zlecenia','Zlecenia', () => typeof woOn==='function' && woOn()], ['ksiazka','Historia napraw', () => !!P().service], ['plan','Plan serwisu', () => planOn() && !(typeof woOn==='function' && woOn())], ['opony','Opony', () => tiresOn()]],
-  paliwo:     [['karty','Karty', () => !!P().manage], ['spalanie','Spalanie', () => !!P().manage]],
+  paliwo:     [['karty','Karty', () => !!P().manage], ['spalanie','Spalanie', () => !!P().manage], ['poza','Poza transportem', () => !!P().manage]],
   koszty:     [['koszty','Podsumowanie', () => !!(P().manage || P().reports)], ['rozliczenie','Według aut', () => !!P().manage], ['wydatki','Wydatki', () => true], ['umowy','Leasing i umowy', () => contractsOn()]],
   ludzie:     [['kierowcy','Kierowcy', () => !serviceOnly()], ['uzytkownicy','Użytkownicy', () => !!P().manage]],
   ustawienia: [['ustawienia','Ustawienia', () => !!P().manage], ['historia','Historia zmian', () => !!P().history]],

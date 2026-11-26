@@ -21,3 +21,10 @@ delete from waybills where id::text like '77777777-0000-0000-0000-00000000069%';
 \echo '5 AUTO-PARTNER w książce odbiorców i jako nadawca do wyboru (z magazynem)'
 select exists (select 1 from waybill_recipients where name like 'AUTO-PARTNER Gdańsk%' and nip = '5842731959') as ok_odbiorca,
        exists (select 1 from settings s, jsonb_array_elements(s.value->'senders') x where s.key='waybill' and x->>'id'='auto-partner' and x->>'text' like E'AUTO-PARTNER%\n80-180 Kowale%' and x->>'wh' like 'CE MG%') as ok_nadawca;
+\echo '6 km poza transportem: przypisanie dnia (kto + cel), jeden wpis na auto i dzień'
+set role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-00000000000a',false) \g /dev/null
+insert into km_assignments (vehicle_id, day, km, who_name, purpose) select id, '2026-11-21', 120, 'Szef', 'prywatnie' from vehicles limit 1;
+select count(*) = 1 as ok_przypisanie from km_assignments where who_name = 'Szef';
+reset role;
+delete from km_assignments where who_name = 'Szef';

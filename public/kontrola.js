@@ -169,7 +169,7 @@ function latePanel(){
 }
 
 /* GPS: dni, w których auto przejechało > 50 km, a nikt go nie miał przejętego w aplikacji */
-function noDriverDays(from, to){
+function noDriverDays(from, to, opt = {}){   // opt.all – także dni przypisane (km poza transportem); domyślnie tylko nieprzypisane
   const by = new Map(); (S.gpsOdometer || []).forEach(g => { if (!by.has(g.vehicleId)) by.set(g.vehicleId, []); by.get(g.vehicleId).push(g); });
   const out = [];
   by.forEach((xs, vid) => {
@@ -177,10 +177,11 @@ function noDriverDays(from, to){
     xs.sort((a, b) => a.day < b.day ? -1 : 1);
     for (let i = 1; i < xs.length; i++){
       const d = xs[i].day; if (d < from || d > to) continue;
-      const km = Number(xs[i].km) - Number(xs[i - 1].km); if (!(km > 50) || diffDays(xs[i - 1].day, d) > 3) continue;
+      const km = Number(xs[i].km) - Number(xs[i - 1].km); if (!(km >= (typeof KM_FREE_MIN!=='undefined' ? KM_FREE_MIN : 10)) || km > 2500 || diffDays(xs[i - 1].day, d) > 3) continue;   // > 2500 km/dzień = błąd lokalizatora
       const cov = S.bookings.some(b => b.vehicleId===vid && b.pickup && (b.pickupTs ? wawDay(b.pickupTs) : String(b.pickup.at).slice(0, 10)) <= d
         && (b.returned ? (b.returnTs ? wawDay(b.returnTs) : String(b.returned.at).slice(0, 10)) : today()) >= d);
-      if (!cov) out.push({vid, day: d, km: Math.round(km)});
+      const as = !cov && typeof kmAsOf==='function' ? kmAsOf(vid, d) : null;
+      if (!cov && (opt.all || !as)) out.push({vid, day: d, km: Math.round(km), as});
     }
   });
   return out.sort((a, b) => a.day < b.day ? 1 : a.day > b.day ? -1 : b.km - a.km);
@@ -190,7 +191,7 @@ function noDriverPanel(){
   const xs = noDriverDays(from, to < today() ? to : addDays(today(), -1)).filter(x => !ocVeh || x.vid===ocVeh);
   if (!xs.length) return '';
   const nf = n => new Intl.NumberFormat('pl-PL').format(n), sum = xs.reduce((a, x) => a + x.km, 0);
-  return `<details class="panel fold"><summary class="sec-head"><h3>Jazda bez kierowcy w aplikacji</h3><span class="muted small">${xs.length} ${isPlural(xs.length, 'dzień', 'dni', 'dni')} · ${nf(sum)} km wg GPS</span></summary>
-    ${xs.slice(0, 60).map(x => `<div class="mini">${vPlate(x.vid)}<span><b>${fdate(x.day)}</b><span class="sub">auto przejechało ${nf(x.km)} km, a nikt go nie miał przejętego w aplikacji</span></span><span class="mini-r num"><b>${nf(x.km)} km</b></span></div>`).join('')}
-    <p class="muted small sec-empty">Liczniki dzienne z GPS. Takie km nie trafiają do rankingu kierowców ani do spalania – sprawdź w grafiku, kto jechał, i przypomnij o przejęciu auta w aplikacji.</p></details>`;
+  return `<details class="panel fold"><summary class="sec-head"><h3>Km nieprzypisane</h3><span class="muted small">${xs.length} ${isPlural(xs.length, 'dzień', 'dni', 'dni')} · ${nf(sum)} km wg GPS</span></summary>
+    ${xs.slice(0, 60).map(x => `<div class="mini">${vPlate(x.vid)}<span><b>${fdate(x.day)}</b><span class="sub">auto przejechało ${nf(x.km)} km, a nikt go nie miał przejętego w aplikacji</span></span><span class="mini-r num"><b>${nf(x.km)} km</b>${typeof pzOn==='function' && pzOn() ? ` <button type="button" class="small" data-km-as="${esc(x.vid)}|${x.day}|${x.km}">Przypisz</button>` : ''}</span></div>`).join('')}
+    <p class="muted small sec-empty">Liczniki dzienne z GPS. Takie km nie trafiają do rankingu kierowców ani do spalania – „Przypisz” wpisuje, kto jechał i po co (np. Szef, prywatnie). Raport i koszt paliwa: Paliwo → Poza transportem.</p></details>`;
 }
