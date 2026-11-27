@@ -280,7 +280,10 @@ async function costFxUi(){
   const sel = g('stationSel')?.value;
   const other = $('#wrap-costs-stationOther'); if (other) other.hidden = sel!=='Inna';
   // kierowca wpisuje kwotę z paragonu (brutto); kierownik – netto, chyba że zaznaczy „brutto” (migracja 064)
-  const gr = P().costs==='own' || !!g('gross')?.checked, lab = $('#wrap-costs-amount label'); if (lab) lab.textContent = P().costs==='own' ? `Kwota z paragonu – brutto (${cur==="PLN"?"zł":cur}) *` : `Kwota ${gr ? 'brutto, z VAT' : 'netto'} (${cur==='PLN'?'zł':cur}) *`;
+  const quick = editing.base && editing.base.mode==='quick';
+  // nowy koszt kierownika: „Kwota jest brutto” domyślnie zaznaczona przy paliwie (paragon), odznaczona przy innych kosztach – dopóki nie kliknie sam
+  const gch = g('gross'); if (gch && !editing.id && !gch.dataset.touched){ gch.checked = FUEL_CATS.includes(g('category')?.value || 'Paliwo'); if (!gch.dataset.bound){ gch.dataset.bound = '1'; gch.addEventListener('change', () => { gch.dataset.touched = '1'; }); } }
+  const gr = P().costs==='own' || quick || !!g('gross')?.checked, lab = $('#wrap-costs-amount label'); if (lab) lab.textContent = P().costs==='own' || quick ? `Kwota z paragonu – brutto (${cur==="PLN"?"zł":cur}) *` : `Kwota ${gr ? 'brutto, z VAT' : 'netto'} (${cur==='PLN'?'zł':cur}) *`;
   ['fxManual','fxRate'].forEach(k => { const w = $('#wrap-costs-'+k); if (w) w.hidden = !foreign; });
   const man = g('fxManual')?.checked; const wr = $('#wrap-costs-fxRate'); if (wr && foreign) wr.hidden = !man;
   const box = $('#fx-prev'); if (!box) return;
@@ -437,6 +440,8 @@ $('#dialog').addEventListener('submit', async e => {
       if (data.full && data.category==='Paliwo' && Number(data.liters) > 0 && Number(data.liters) < tank * 0.4 && !editing.fillOk){
         editing.fillOk = true; const w = $('#dlg-warn'); w.textContent = `Tylko ${String(data.liters).replace('.', ',')} l przy baku ${tank} l. Jeśli to na pewno do pełna, kliknij Zapisz jeszcze raz – jeśli nie, wybierz „Dotankowanie”.`; w.hidden = false; return; }
     } else data.full = false;
+    // tankowanie z „Moje auto” (tryb szybki) – kwota z paragonu, zawsze brutto, także gdy wpisuje kierownik
+    if (base.mode==='quick' && FUEL_CATS.includes(data.category)) data.gross = true;
     if (asDriver && myDriverId()) data.driverId = myDriverId();
     // podwójna obsada: tankowanie w trakcie wspólnego dnia pracy potwierdza drugi kierowca
     if (asDriver && FUEL_CATS.includes(data.category) && !id){
