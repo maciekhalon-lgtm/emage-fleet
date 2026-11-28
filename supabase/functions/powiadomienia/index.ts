@@ -436,7 +436,7 @@ export function borderCrossings(pts: {t: number; lat: number; lng: number}[], cs
 export type WorkTrip = {start: number; stop: number; km: number; lat?: number; lng?: number};
 export type WorkEv = {kind: 'jazda' | 'praca' | 'postoj' | 'gotowosc'; start: number; end: number; km: number; country: string | null; cross_country: string | null; cross_ts: number | null};
 /* Oś dnia od przejęcia (P) do zdania (R, a bez zdania – teraz): przejazdy = jazda; przerwy < 15 min wliczone w jazdę;
-   postój ≥ 15 min u klienta / na bazie (≤ 400 m od punktu z Planera) = praca inna, gdzie indziej = postój;
+   zatrzymanie ≥ 2 min u klienta / na bazie (≤ 400 m od punktu z Planera) = praca inna, gdzie indziej ≥ 15 min = postój;
    przed pierwszym wyjazdem i po ostatnim przejeździe do zdania = praca inna. */
 export function buildWork(P: number, R: number, returned: boolean, trips0: WorkTrip[], places: {lat: number; lng: number}[], cross: {startCountry: string | null; crossings: {t: number; to: string}[]}, near: (a: {lat: number; lng: number}, b: {lat: number; lng: number}) => number){
   const MIN = 60000, GAP = 15 * MIN;
@@ -456,9 +456,10 @@ export function buildWork(P: number, R: number, returned: boolean, trips0: WorkT
       push('jazda', t.start, t.stop, t.km || 0);
       const nx = trips[i + 1];
       if (nx){
-        const gap = nx.start - t.stop;
-        if (gap < GAP) push('jazda', t.stop, nx.start);
-        else push(t.lat != null && t.lng != null && places.some(p => near({lat: t.lat as number, lng: t.lng as number}, p) <= 0.4) ? 'praca' : 'postoj', t.stop, nx.start);
+        const gap = nx.start - t.stop, atPlace = t.lat != null && t.lng != null && places.some(p => near({lat: t.lat as number, lng: t.lng as number}, p) <= 0.4);
+        if (atPlace && gap >= 2 * MIN) push('praca', t.stop, nx.start);   // u klienta / na bazie: rozładunek, załadunek – także krótki
+        else if (gap < GAP) push('jazda', t.stop, nx.start);
+        else push('postoj', t.stop, nx.start);
       } else if (R - t.stop >= MIN){
         if (returned) push('praca', t.stop, R);
         else push(t.lat != null && t.lng != null && places.some(p => near({lat: t.lat as number, lng: t.lng as number}, p) <= 0.4) ? 'praca' : 'postoj', t.stop, R);
