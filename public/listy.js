@@ -209,6 +209,7 @@ function wbEditor(){
       <label>Magazyn nadawczy (opcjonalnie)<textarea data-wb-f="senderWh" rows="2" placeholder="nazwa magazynu, adres">${esc(d.senderWh || '')}</textarea></label>
       <label class="check" id="wb-sndsave" ${known ? 'hidden' : ''}><input type="checkbox" data-wb-savesnd ${d.saveSender ? 'checked' : ''}> Zapisz tego nadawcę do wyboru przy następnych listach</label>`; })();
   return `<div class="bar"><h2>${d.id ? `Edycja listu ${esc(wbNo(d))}` : 'Nowy list przewozowy'}</h2><div class="tools">${acts}</div></div>
+    ${!d.id && typeof zwPending!=='undefined' && zwPending && zwPending.length ? `<div class="notice"><span>Po wystawieniu do specyfikacji tego listu dołączy się <b>${zwPending.length}</b> ${isPlural(zwPending.length, 'zwrot', 'zwroty', 'zwrotów')} zaznaczonych w „Zwroty”.</span></div>` : ''}
   <div class="panel wb-form">
     <div class="wb-3"><label>Data listu<input type="date" data-wb-f="date" value="${esc(d.date || '')}"></label>
       <div class="wb-nohint"><span class="label">Numer</span><b>${d.id ? esc(wbNo(d)) : 'nada się sam'}</b></div></div>
@@ -270,6 +271,7 @@ async function wbSave(andPrint){
     await ref.set({date: d.date || today(), sender, senderWh: String(d.senderWh || '').trim(), recipientId: recId, rName: d.rName.trim(), rAddress: d.rAddress || '', rRegon: d.rRegon || '', rNip: d.rNip || '', whName: d.whName || '', whAddress: d.whAddress || '',
       items, pallets: wbTot(items).paleta, weightKg: d.weightKg==='' || d.weightKg==null ? null : Number(d.weightKg), vehicleId: d.vehicleId || null, plate: v ? v.plate : '', departDate: d.departDate || null,
       note: d.note || '', status: d.status || 'wystawiony', ...(d.id ? {} : {printedAt: null, printedBy: null})});
+    if (!d.id && typeof zwAfterWbSave==='function') await zwAfterWbSave(ref.id);   // zwroty zaznaczone w „Zwroty”
     const saved = byId('waybills', ref.id);
     toast(d.id ? 'Zapisano zmiany listu' : `Wystawiono list ${saved ? wbNo(saved) : ''}`);
     wbEdit = null; wbView = ref.id; render(); scrollTo(0, 0);
@@ -332,7 +334,7 @@ document.addEventListener('click', async e => {
   if (d.wbRestore){ try { await db.collection('waybills').doc(d.wbRestore).update({status: 'wystawiony'}); toast('List przywrócony'); render(); } catch(err){ handleWriteErr(err); } return; }
   if (d.wbPrint) return wbPrint(d.wbPrint);
   if (d.wbSave!=null) return wbSave(d.wbSave==='print');
-  if (d.wbDiscard!=null){ const id = wbEdit && wbEdit.id; wbEdit = null; wbSndEdit = null; wbView = id || null; return render(); }
+  if (d.wbDiscard!=null){ if (typeof zwPending!=='undefined') zwPending = null; const id = wbEdit && wbEdit.id; wbEdit = null; wbSndEdit = null; wbView = id || null; return render(); }
   if (d.wbAdd!=null){ wbEdit.items.push(wbBlankItem(wbEdit)); render(); const el = document.querySelector(`[data-wb-i="${wbEdit.items.length - 1}"][data-wb-k="name"]`); if (el) el.focus(); return; }
   if (d.wbDel!=null){ wbEdit.items.splice(Number(d.wbDel), 1); return render(); }
   if (d.wbRecopen){ wbRecEdit = d.wbRecopen; return render(); }

@@ -5,6 +5,7 @@
 const zwOn = () => optOn('returns');
 const zwMyOpen = () => (S.returns || []).filter(r => r.driverId===myDriverId() && r.status==='u_kierowcy').length;
 const ZW_SRC = {kamera: 'aparat', zdjecie: 'zdjęcie', reka: 'ręcznie'};
+let zwSel = new Set(), zwPending = null;   // zaznaczone w „Zwroty” / czekające na nowy list
 let zwHandArm = 0, zwLast = null, zwF = {from: '', to: '', drv: '', st: ''}, zwPick = new Set(), zwPickOpen = false;
 const zwTs = ts => { const d = new Date(ts); return {day: d.toLocaleDateString('sv-SE', {timeZone: 'Europe/Warsaw'}), time: d.toLocaleTimeString('pl-PL', {timeZone: 'Europe/Warsaw', hour: '2-digit', minute: '2-digit', second: '2-digit'})}; };
 const zwWhen = ts => { const x = zwTs(ts); return `${fdate(x.day)} ${x.time}`; };
@@ -143,11 +144,22 @@ function viewReturns(){
       <select data-zw-f="drv" aria-label="Kierowca"><option value="">Wszyscy kierowcy</option>${drvs.map(d => `<option value="${esc(d.id)}" ${zwF.drv===d.id ? 'selected' : ''}>${esc(d.name)}</option>`).join('')}</select>
       <select data-zw-f="st" aria-label="Status"><option value="">Każdy status</option>${[['u_kierowcy', 'U kierowcy'], ['zdany', 'Na magazynie, bez listu'], ['lista', 'Na liście przewozowym']].map(([k, l]) => `<option value="${k}" ${zwF.st===k ? 'selected' : ''}>${l}</option>`).join('')}</select></div>`;
   if (!rows.length) return head + `<div class="panel empty"><p>${all.length ? 'Brak zwrotów dla tych filtrów.' : 'Kierowcy nie zeskanowali jeszcze żadnych zwrotów. Skanują je w swoim panelu: „Skanuj zwroty”.'}</p></div>`;
-  const shown = rows.slice(0, 1000);
-  return head + `<p class="muted small">${rows.length} ${isPlural(rows.length, 'zwrot', 'zwroty', 'zwrotów')}${rows.length > shown.length ? ` – pokazuję ${shown.length} najnowszych, w Excelu są wszystkie` : ''}</p>
-    <div class="panel tablewrap"><table class="zw-tbl stack"><thead><tr><th>Lp.</th><th>Kod zwrotu</th><th>Data skanu</th><th>Godzina</th><th>Kierowca</th><th>Auto</th><th>Status</th><th>Zdany na magazyn</th><th></th></tr></thead><tbody>
+  const shown = rows.slice(0, 1000), canSel = r => r.status==='zdany' && !r.waybillId;
+  [...zwSel].forEach(id => { const r = byId('returns', id); if (!r || !canSel(r)) zwSel.delete(id); });
+  const selable = shown.filter(canSel), allOn = selable.length && selable.every(r => zwSel.has(r.id));
+  const wbs = (S.waybills || []).filter(w => w.status!=='anulowany').sort((a, b) => (b.year - a.year) || (b.no - a.no)).slice(0, 60);
+  const bar = zwSel.size ? `<div class="zw-selbar"><b>Zaznaczono: ${zwSel.size}</b>
+      <select data-zw-towb aria-label="List przewozowy"><option value="">Wybierz list przewozowy…</option>${wbs.map(w => `<option value="${esc(w.id)}">${esc(wbNo(w))} · ${fdate(w.date)} · ${esc(w.rName || '')}</option>`).join('')}</select>
+      <button type="button" class="primary" data-zw-addwb>Dodaj do specyfikacji listu</button>
+      <button type="button" class="ghost" data-zw-newwb>${ic('plus')}Nowy list z tymi zwrotami</button>
+      <button type="button" class="ghost" data-zw-selclear>Odznacz</button></div>`
+    : `<p class="muted small zw-selhint">Zaznacz ptaszkiem zwroty zdane na magazyn, żeby dodać je do specyfikacji listu przewozowego. Zwrotów, które są jeszcze u kierowcy, nie można dodać.</p>`;
+  return head + bar + `<p class="muted small">${rows.length} ${isPlural(rows.length, 'zwrot', 'zwroty', 'zwrotów')}${rows.length > shown.length ? ` – pokazuję ${shown.length} najnowszych, w Excelu są wszystkie` : ''}</p>
+    <div class="panel tablewrap"><table class="zw-tbl stack"><thead><tr><th class="zw-ck">${selable.length ? `<input type="checkbox" data-zw-selall ${allOn ? 'checked' : ''} aria-label="Zaznacz wszystkie zdane">` : ''}</th><th>Lp.</th><th>Kod zwrotu</th><th>Data skanu</th><th>Godzina</th><th>Kierowca</th><th>Auto</th><th>Status</th><th>Zdany na magazyn</th><th></th></tr></thead><tbody>
     ${shown.map((r, i) => { const t = zwTs(r.scannedAt);
-      return `<tr><td class="num" data-l="Lp.">${rows.length - i}</td><td data-l="Kod"><b class="zw-code">${esc(r.code)}</b>${r.note ? `<span class="sub">${esc(r.note)}</span>` : ''}</td><td class="num" data-l="Data">${fdate(t.day)}</td><td class="num" data-l="Godzina">${t.time}</td>
+      const ck = canSel(r) ? `<input type="checkbox" data-zw-sel="${esc(r.id)}" ${zwSel.has(r.id) ? 'checked' : ''} aria-label="Zaznacz ${esc(r.code)}">`
+        : `<input type="checkbox" disabled title="${r.waybillId ? 'Już na liście przewozowym' : 'Niezdany na magazyn – nie może trafić na specyfikację'}" aria-label="Niedostępny">`;
+      return `<tr class="${zwSel.has(r.id) ? 'zw-on' : ''}"><td class="zw-ck">${ck}</td><td class="num" data-l="Lp.">${rows.length - i}</td><td data-l="Kod"><b class="zw-code">${esc(r.code)}</b>${r.note ? `<span class="sub">${esc(r.note)}</span>` : ''}</td><td class="num" data-l="Data">${fdate(t.day)}</td><td class="num" data-l="Godzina">${t.time}</td>
         <td data-l="Kierowca">${esc(zwDrvName(r.driverId))}</td><td data-l="Auto">${esc(zwPlate(r.vehicleId))}</td><td data-l="Status">${zwStatusPill(r)}</td><td class="num" data-l="Zdany">${r.handedAt ? esc(zwWhen(r.handedAt)) : '—'}</td>
         <td class="r"><button type="button" class="ghost small" data-zw-mdel="${esc(r.id)}" title="Usuń zwrot" aria-label="Usuń zwrot ${esc(r.code)}">${ic('x')}</button></td></tr>`; }).join('')}</tbody></table></div>`;
 }
@@ -161,6 +173,16 @@ function zwExcel(rows, name){
 }
 
 /* ---------- list przewozowy: specyfikacja zwrotów ---------- */
+// tylko zwroty zdane na magazyn i jeszcze bez listu (baza też tego pilnuje – migracja 074)
+async function zwAttachIds(ids, wid){
+  const ok = ids.filter(id => { const r = byId('returns', id); return r && r.status==='zdany' && !r.waybillId; });
+  if (ok.length < ids.length) toast(`${ids.length - ok.length} pominięto – niezdane na magazyn albo już na liście`);
+  try { for (const id of ok) await db.collection('returns').doc(id).update({waybillId: wid}); return ok.length; } catch(e){ handleWriteErr(e); return 0; }
+}
+async function zwAfterWbSave(wid){   // nowy list wystawiony z „Nowy list z tymi zwrotami”
+  if (!zwPending || !zwPending.length) return; const ids = zwPending; zwPending = null;
+  const n = await zwAttachIds(ids, wid); if (n) toast(`Do specyfikacji listu dołączono ${n} ${isPlural(n, 'zwrot', 'zwroty', 'zwrotów')}`);
+}
 const zwOfWaybill = id => zwSort((S.returns || []).filter(r => r.waybillId===id)).reverse();
 function zwSpecHtml(w){
   const xs = zwOfWaybill(w.id); if (!xs.length) return '';
@@ -209,11 +231,13 @@ document.addEventListener('change', async e => {
   const t = e.target; if (!t.dataset) return;
   if (t.dataset.zwPhoto!=null){ const f = t.files && t.files[0]; t.value = ''; if (f) zwPhoto(f); return; }
   if (t.dataset.zwF){ zwF[t.dataset.zwF] = t.value; return render(); }
+  if (t.dataset.zwSel){ if (t.checked) zwSel.add(t.dataset.zwSel); else zwSel.delete(t.dataset.zwSel); return render(); }
+  if (t.dataset.zwSelall!=null){ const ok = zwFiltered().slice(0, 1000).filter(r => r.status==='zdany' && !r.waybillId); if (t.checked) ok.forEach(r => zwSel.add(r.id)); else ok.forEach(r => zwSel.delete(r.id)); return render(); }
   if (t.dataset.zwPick){ if (t.checked) zwPick.add(t.dataset.zwPick); else zwPick.delete(t.dataset.zwPick); return render(); }
   if (t.dataset.zwPickall!=null){ const free = (S.returns || []).filter(r => r.status==='zdany' && !r.waybillId); zwPick = new Set(t.checked ? free.map(r => r.id) : []); return render(); }
 });
 document.addEventListener('click', async e => {
-  const b = e.target.closest('[data-zw-cam],[data-zw-camstop],[data-zw-torch],[data-zw-del],[data-zw-hand],[data-zw-xlsx],[data-zw-mdel],[data-zw-pickopen],[data-zw-pickclose],[data-zw-attach],[data-zw-detach],[data-zw-specprint]');
+  const b = e.target.closest('[data-zw-addwb],[data-zw-newwb],[data-zw-selclear],[data-zw-cam],[data-zw-camstop],[data-zw-torch],[data-zw-del],[data-zw-hand],[data-zw-xlsx],[data-zw-mdel],[data-zw-pickopen],[data-zw-pickclose],[data-zw-attach],[data-zw-detach],[data-zw-specprint]');
   if (!b) return;
   const d = b.dataset;
   if (d.zwCam!=null) return zwCamStart();
@@ -229,9 +253,14 @@ document.addEventListener('click', async e => {
   if (d.zwXlsx!=null) return zwExcel(zwFiltered(), `Zwroty_${zwF.from || 'od'}_${zwF.to || 'do'}.xlsx`);
   if (d.zwMdel){ if (b.dataset.armed!=='1'){ b.dataset.armed = '1'; b.classList.add('danger'); b.title = 'Kliknij ponownie, żeby usunąć'; setTimeout(() => { b.dataset.armed = ''; b.classList.remove('danger'); }, 4000); return; }
     try { await db.collection('returns').doc(d.zwMdel).delete(); toast('Usunięto zwrot'); render(); } catch(err){ handleWriteErr(err); } return; }
+  if (d.zwSelclear!=null){ zwSel = new Set(); return render(); }
+  if (d.zwAddwb!=null){ const wid = ($('[data-zw-towb]') || {}).value; if (!wid) return toast('Wybierz list przewozowy');
+    const n = await zwAttachIds([...zwSel], wid); if (n){ zwSel = new Set(); const w = byId('waybills', wid); toast(`Dodano ${n} ${isPlural(n, 'zwrot', 'zwroty', 'zwrotów')} do specyfikacji listu ${w ? wbNo(w) : ''}`); render(); } return; }
+  if (d.zwNewwb!=null){ zwPending = [...zwSel]; zwSel = new Set(); wbEdit = wbNewDraft(); wbView = null; wbSet = null; location.hash = '#listy'; render(); scrollTo(0, 0);
+    toast(`Wystaw list – ${zwPending.length} ${isPlural(zwPending.length, 'zwrot dołączy', 'zwroty dołączą', 'zwrotów dołączy')} się do jego specyfikacji`); return; }
   if (d.zwPickopen!=null){ zwPickOpen = true; zwPick = new Set(); return render(); }
   if (d.zwPickclose!=null){ zwPickOpen = false; zwPick = new Set(); return render(); }
-  if (d.zwAttach){ const ids = [...zwPick];
+  if (d.zwAttach){ const ids = [...zwPick].filter(id => { const r = byId('returns', id); return r && r.status==='zdany'; });
     try { for (const id of ids) await db.collection('returns').doc(id).update({waybillId: d.zwAttach}); toast(`Dołączono ${ids.length} ${isPlural(ids.length, 'zwrot', 'zwroty', 'zwrotów')} do listu`); zwPickOpen = false; zwPick = new Set(); render(); } catch(err){ handleWriteErr(err); } return; }
   if (d.zwDetach){ try { await db.collection('returns').doc(d.zwDetach).update({waybillId: null}); toast('Zwrot odłączony – wraca do „na magazynie”'); render(); } catch(err){ handleWriteErr(err); } return; }
   if (d.zwSpecprint) return zwSpecPrint(d.zwSpecprint);

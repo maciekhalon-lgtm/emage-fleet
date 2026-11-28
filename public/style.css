@@ -2263,3 +2263,8 @@ html.zw-cam-open,html.zw-cam-open body{overflow:hidden}
 .zw-spec-t td.r{text-align:right;width:8mm}
 .zw .d-main.warn{background:var(--warn);color:#fff}
 .zw-body{padding:0 16px 16px}.zw-hist summary{padding:16px}
+.zw-selbar{position:sticky;top:8px;z-index:5;display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--surface);border:2px solid var(--accent);border-radius:14px;padding:10px 12px;margin:0 0 12px;box-shadow:var(--shadow-sm)}
+.zw-selbar select{min-width:240px;flex:1 1 240px}
+.zw-tbl .zw-ck{width:34px}.zw-tbl .zw-ck input{width:20px;height:20px}
+.zw-tbl tr.zw-on td{background:color-mix(in srgb,var(--accent) 12%,transparent)}
+@media (max-width:640px){.zw-tbl.stack td.zw-ck{grid-column:1/-1}.zw-tbl.stack td.zw-ck::before{content:none}}
