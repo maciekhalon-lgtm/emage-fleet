@@ -621,11 +621,18 @@ async function workSync(sb: any, key: (k: string) => string, opt: {dry?: boolean
   q = opt.booking ? q.eq('id', opt.booking) : q.gte('pickup_ts', from + 'T00:00:00+01:00');
   const {data: all} = await q.order('pickup_ts', {ascending: false}).limit(opt.limit || 400);
   const ids0 = (all || []).map((b: Row) => b.id);
-  const {data: have} = ids0.length ? await sb.from('work_events').select('booking_id, source').in('booking_id', ids0) : {data: []};
+  const have: Row[] = [];   // stronami – serwer zwraca najwyżej 1000 wierszy naraz
+  for (let i = 0; i < ids0.length; i += 100){
+    for (let p = 0; ; p += 1000){
+      const {data} = await sb.from('work_events').select('booking_id, source').in('booking_id', ids0.slice(i, i + 100)).order('id').range(p, p + 999);
+      have.push(...(data || [])); if (!data || data.length < 1000) break;
+    }
+  }
   const manual = new Set((have || []).filter((m: Row) => m.source === 'manual').map((m: Row) => m.booking_id)), done = new Set((have || []).map((m: Row) => m.booking_id));
-  // liczymy: przejęcia trwające, zdane w ciągu 36 h i te bez żadnych wpisów (np. po „Przywróć dane z GPS”); najwyżej 25 na raz
+  // liczymy: przejęcia trwające i zdane w ciągu 36 h, a do tego najwyżej 25 bez żadnych wpisów (np. po „Przywróć dane z GPS” albo wstecz)
   const recent = Date.now() - 36 * 3600000;
-  const bks = (all || []).filter((b: Row) => opt.booking || !b.return_ts || Date.parse(b.return_ts) > recent || !done.has(b.id)).slice(0, opt.booking ? 1 : 25);
+  const live = (all || []).filter((b: Row) => opt.booking || !b.return_ts || Date.parse(b.return_ts) > recent);
+  const bks = opt.booking ? live.slice(0, 1) : [...live, ...(all || []).filter((b: Row) => !live.includes(b) && !done.has(b.id)).slice(0, 25)];
   const {data: cl} = await sb.from('clients').select('lat, lng').not('lat', 'is', null);
   const places = (cl || []).filter((c: Row) => c.lat && c.lng).map((c: Row) => ({lat: Number(c.lat), lng: Number(c.lng)}));
   const out: Row[] = []; let saved = 0;
