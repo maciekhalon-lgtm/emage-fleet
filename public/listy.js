@@ -91,7 +91,8 @@ async function wbPrint(id){
   const w = byId('waybills', id); if (!w) return;
   const who = me && (me.full_name || me.email) || '';
   let el = $('#print-area'); if (!el){ el = document.createElement('div'); el.id = 'print-area'; document.body.appendChild(el); }
-  el.innerHTML = `<div class="pa wb-print">${wbDocHtml(w, who)}</div>`;
+  const spec = typeof zwSpecHtml==='function' ? zwSpecHtml(w) : '';   // specyfikacja zwrotów – druga strona
+  el.innerHTML = `<div class="pa wb-print">${wbDocHtml(w, who)}</div>${spec ? `<div class="pa wb-print pa-page">${spec}</div>` : ''}`;
   document.documentElement.classList.add('print-doc');
   setTimeout(() => { window.print(); document.documentElement.classList.remove('print-doc'); }, 60);
   try { await db.collection('waybills').doc(id).update({printedAt: new Date().toISOString(), printedBy: who}); } catch(_){}   // kto i kiedy drukował – tylko informacja
@@ -174,7 +175,8 @@ function wbPreview(w){
       ${w.status!=='anulowany' ? `<button class="${armed ? 'danger armed' : 'danger'}" data-wb-cancel="${esc(w.id)}">${armed ? 'Na pewno anulować?' : 'Anuluj list'}</button>` : `<button class="ghost" data-wb-restore="${esc(w.id)}">Przywróć</button>`}
       <button class="primary" data-wb-print="${esc(w.id)}">Drukuj / PDF</button></div></div>
     ${w.printedAt ? `<p class="muted small">Ostatni wydruk: ${fdate(String(w.printedAt).slice(0, 10))} ${String(new Date(w.printedAt).toLocaleTimeString('pl-PL', {hour: '2-digit', minute: '2-digit'}))}${w.printedBy ? ` · ${esc(w.printedBy)}` : ''}</p>` : ''}
-    <div class="wb-paper">${wbDocHtml(w, me && (me.full_name || me.email))}</div>`;
+    <div class="wb-paper">${wbDocHtml(w, me && (me.full_name || me.email))}</div>
+    ${typeof zwWaybillPanel==='function' ? zwWaybillPanel(w) : ''}`;
 }
 
 /* ---------- formularz ---------- */

@@ -154,6 +154,7 @@ function viewMyCar(){
       qa(`data-new="issues" data-veh="${esc(v.id)}"`, 'wrench', 'Usterka', 'coś nie działa'),
       qa(`data-accident="${esc(v.id)}"`, 'alert', 'Szkoda', 'kolizja, zdjęcia', 'bad'),
       loadingRoutesOk() ? qa('data-action="loading"', 'box', 'Załadunek', loadingCount() ? `zaznaczone: ${loadingCount()}` : 'czyj towar wiozę') : '',
+      optOn('returns') && myDriverId() ? qa('href="#moje-zwroty"', 'scan', 'Skanuj zwroty', zwMyOpen() ? `do zdania: ${zwMyOpen()}` : 'kody zwrotów') : '',
       hasDocs ? qa(`data-mydocs="${esc(v.id)}"`, 'clip', 'Dokumenty', 'dowód, polisa') : '',
       v.assistancePhone ? qa(`href="tel:${esc(String(v.assistancePhone).replace(/\s/g, ''))}"`, 'phone', 'Assistance', esc(v.assistancePhone)) : ''].filter(Boolean).join('');
   } else if (meDriver() && meDriver().active===false){
@@ -183,7 +184,8 @@ function viewMyCar(){
       loadingRoutesOk() ? qa('data-action="loading"', 'box', 'Załadunek', loadingCount() ? `zaznaczone: ${loadingCount()}` : 'czyj towar wiozę') : '',
       P().mycar ? '' : qa('href="#moj-grafik"', 'cal', 'Grafik', 'kiedy jadę'),
       P().mycar ? '' : qa('href="#moja-historia"', 'hist', 'Historia', 'tankowania, trasy'),
-      optOn('workEvents') && myDriverId() ? qa('href="#moja-karta"', 'clip', 'Karta pracy', 'godziny z GPS') : ''].filter(Boolean);
+      optOn('workEvents') && myDriverId() ? qa('href="#moja-karta"', 'clip', 'Karta pracy', 'godziny z GPS') : '',
+      optOn('returns') && myDriverId() ? qa('href="#moje-zwroty"', 'scan', 'Skanuj zwroty', zwMyOpen() ? `do zdania: ${zwMyOpen()}` : 'kody zwrotów') : ''].filter(Boolean);
     // „Inne auto” zostaje nawet sam – inaczej kierowca z „Twoim busem” nie ma jak wybrać innego auta
     quick = quick.join('');
   }
