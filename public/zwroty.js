@@ -189,8 +189,8 @@ function zwSpecHtml(w){
   return `<div class="wb-doc zw-spec">
     <h1 class="wb-title">SPECYFIKACJA ZWROTÓW <small>do listu przewozowego nr</small> <b>${esc(wbNo(w))}</b> <small>z dnia</small> <b>${fdate(w.date)}</b></h1>
     <div class="wb-kv"><span>Odbiorca:</span><div>${esc(w.rName || '')}</div></div>
-    <table class="zw-spec-t"><thead><tr><th>Lp.</th><th>Kod zwrotu</th><th>Data i godzina skanu</th><th>Kierowca</th><th>Nr rej.</th><th>Zdany na magazyn</th></tr></thead><tbody>
-      ${xs.map((r, i) => `<tr><td class="r">${i + 1}</td><td><b>${esc(r.code)}</b>${r.note ? `<br><small>${esc(r.note)}</small>` : ''}</td><td>${esc(zwWhen(r.scannedAt))}</td><td>${esc(zwDrvName(r.driverId))}</td><td>${esc(zwPlate(r.vehicleId))}</td><td>${r.handedAt ? esc(zwWhen(r.handedAt)) : ''}</td></tr>`).join('')}
+    <table class="zw-spec-t"><thead><tr><th>Lp.</th><th>Kod zwrotu</th><th>Data skanowania</th><th>Godzina skanowania</th></tr></thead><tbody>
+      ${xs.map((r, i) => { const t = zwTs(r.scannedAt); return `<tr><td class="r">${i + 1}</td><td><b>${esc(r.code)}</b></td><td>${fdate(t.day)}</td><td>${t.time}</td></tr>`; }).join('')}
     </tbody></table>
     <p class="wb-big">ŁĄCZNA LICZBA ZWROTÓW: <b>${xs.length}</b></p>
     <div class="wb-sign"><div><span>.................................</span>Podpis magazyniera wydającego</div><div><span>...................................</span>Podpis odbierającego</div></div>
