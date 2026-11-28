@@ -3,12 +3,13 @@
    Spalanie: tankowania wpisane w aplikacji – litry tankowania / km od poprzedniego tankowania tego auta,
    odcinek należy do kierowcy, który tankował. Karty paliwowe tylko sprawdzają wpisy (powiadomienia „karta”). */
 'use strict';
-let rkView = 'veh', rkPer = '30', rkSort = {drv: ['diff', 1], veh: ['rate', 1]};   // auta: w swojej klasie od najniższego spalania; kierowcy: względem średniej klasy
+let rkView = 'veh', rkPer = 'mies', rkSort = {drv: ['diff', 1], veh: ['rate', 1]};   // auta: w swojej klasie od najniższego spalania; kierowcy: względem średniej klasy
 const rkOn = () => !!P().manage;
-function rkRange(){
-  const t = today();
-  if (rkPer==='mies') return [t.slice(0, 8) + '01', t];
-  return [addDays(t, -(Number(rkPer) - 1)), t];
+function rkRange(){   // ten miesiąc / poprzedni / ogółem od początku rozliczeń
+  const t = today(), m0 = t.slice(0, 8) + '01';
+  if (rkPer==='prev') return settleClamp(prevMonth(t.slice(0, 7)) + '-01', addDays(m0, -1));
+  if (rkPer==='all') return [settleStart(), t];
+  return settleClamp(m0, t);
 }
 /* odcinki spalania z wpisów kierowców: {vid, drv, km, l, date} */
 /* Spalanie metodą „do pełna – do pełna”: odcinek zaczyna się od tankowania do pełna albo od przejęcia auta
@@ -55,7 +56,8 @@ function rkVehLegsRaw(vid){
 }
 function rkLegs(from, to){
   const out = [];
-  S.vehicles.forEach(v => rkVehLegs(v.id).forEach(x => { if (x.date >= from && x.date <= to) out.push(x); }));
+  const s0 = settleStart();   // odcinek zaczęty przed początkiem rozliczeń, a zamknięty po nim – nie liczy się
+  S.vehicles.forEach(v => rkVehLegs(v.id).forEach(x => { if (x.date >= from && x.date <= to && !(x.d0 < s0 && x.date >= s0)) out.push(x); }));
   return out;
 }
 /* Spalanie kierowców: każdy odcinek auta dzielimy między kierowców według km, które faktycznie przejechali
@@ -133,11 +135,12 @@ function viewRankingFleet(drvTab){
   if (!drvTab) rkView = 'veh';
   if (!rkOn()) return `<div class="bar"><h2>Ranking</h2></div><div class="panel empty"><p>Ranking widzi kierownik floty.</p></div>`;
   const R = rkData(), nf = new Intl.NumberFormat('pl-PL'), f1 = x => x.toFixed(1).replace('.', ',');
-  const pers = [['30', '30 dni'], ['90', '90 dni'], ['mies', 'Ten miesiąc']];
+  const pers = [['mies', 'Ten miesiąc'], ['prev', 'Poprzedni'], ['all', `Ogółem (od ${fdate(settleStart())})`]];
   const isDrv = rkView==='drv';
   const head = `<div class="bar"><h2>Ranking</h2><div class="tools">
       <div class="seg"><button type="button" class="${isDrv ? '' : 'on'}" data-rk-go="ranking">Auta</button><button type="button" class="${isDrv ? 'on' : ''}" data-rk-go="ranking-kierowcy">Kierowcy</button></div>
       <div class="seg">${pers.map(([k, l]) => `<button type="button" class="${rkPer===k ? 'on' : ''}" data-rk-per="${k}">${l}</button>`).join('')}</div></div></div>
+    ${rkPer==='all' && today() < settleStart() ? `<div class="notice"><span>Nowy okres rozliczeniowy zaczyna się <b>${fdate(settleStart())}</b>. „Ogółem” policzy się od tego dnia – wcześniejsze tankowania nie wpływają na wyniki (miesiąc można obejrzeć osobno).</span></div>` : ''}
     <div class="rk-sum">${WCLS.map(([k, l]) => `<div><span>Średnia ${esc(l.toLowerCase())}</span><b>${R.clsRate[k]!=null ? f1(R.clsRate[k]) : '—'}</b><em>l/100 km</em></div>`).join('')}
       <div><span>Okres</span><b class="rk-per">${fdate(R.from)} – ${fdate(R.to)}</b><em>${isDrv ? `${R.drv.filter(x => x.rate!=null).length} z ${R.drv.length} kierowców z wynikiem` : `${R.veh.filter(x => x.rate!=null).length} z ${R.veh.length} aut z wynikiem`}</em></div></div>`;
   const [sk, dir] = rkSort[rkView];

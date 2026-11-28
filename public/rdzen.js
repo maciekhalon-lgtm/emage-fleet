@@ -174,6 +174,11 @@ const fuelVatOf = d => { const x = String(d || '').slice(0, 10); let best = null
   fuelVatPeriods().forEach(p => { if (p && p.from && x >= p.from && x <= (p.to || '9999-12-31') && (!best || p.from > best.from)) best = p; });
   return best ? Number(best.rate) : null; };
 const fuelVat = d => fuelVatOf(d) ?? 23;
+/* początek okresu rozliczeniowego kierowców i aut (Ustawienia → Firma, settings 'period'.start). Wyniki „ogółem” liczą się od tej daty;
+   odcinek spalania zaczęty przed nią a zamknięty po niej nie liczy się; miesiąc sprzed tej daty można oglądać osobno. */
+const SETTLE_DEF = '2026-12-01';
+const settleStart = () => { const s = (typeof S!=='undefined' && S.settings || []).find(x => x.id==='period'); return (s && s.start) || SETTLE_DEF; };
+const settleClamp = (from, to) => { const s0 = settleStart(); return from < s0 && to >= s0 ? [s0, to] : [from, to]; };
 /* klasa auta: do 2,5 t / powyżej 2,5 t – spalanie porównujemy w obrębie klasy */
 const WCLS = [['pow25', 'Powyżej 2,5 t'], ['do25', 'Do 2,5 t']];
 const wcls = v => v && v.weightClass==='do25' ? 'do25' : 'pow25';

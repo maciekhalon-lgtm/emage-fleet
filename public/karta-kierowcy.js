@@ -5,6 +5,7 @@
 let drvCardDays = 30;
 
 function drvCardStats(id, from, to){
+  [from, to] = settleClamp(from, to);   // wyniki kierowcy od początku rozliczeń
   const d = byId('drivers', id) || {}, name = d.name || '';
   const days = new Set();
   S.bookings.forEach(b => { if (!crewOf(b).includes(id)) return;

@@ -5,21 +5,22 @@
 let spPer = 'mies';
 function spRange(per = spPer){
   const t = today(), m0 = t.slice(0, 8) + '01';
-  if (per==='prev'){ const p = prevMonth(t.slice(0, 7)); return [p + '-01', addDays(m0, -1)]; }
-  if (per==='3m') return [addDays(t, -89), t];
-  return [m0, t];
+  if (per==='prev'){ const p = prevMonth(t.slice(0, 7)); return settleClamp(p + '-01', addDays(m0, -1)); }
+  if (per==='all') return [settleStart(), t];
+  return settleClamp(m0, t);
 }
 /* okres do porównania: poprzedni miesiąc (albo 3 miesiące wcześniej dla „3 miesiące”) */
 function spPrevRange(){
-  const [from, to] = spRange();
-  if (spPer==='3m') return [addDays(from, -90), addDays(from, -1)];
-  const p = prevMonth(from.slice(0, 7)); return [p + '-01', addDays(from, -1)];
+  const [from] = spRange();
+  if (spPer==='all') return null;
+  const p = prevMonth(from.slice(0, 7)), r = [p + '-01', addDays(from, -1)];
+  return from >= settleStart() && r[0] < settleStart() ? null : r;   // bez porównań z okresem sprzed początku rozliczeń
 }
 const spRate = lg => { const km = lg.reduce((a, x) => a + x.km, 0), l = lg.reduce((a, x) => a + x.l, 0); return {km, l, rate: km >= 300 ? l / km * 100 : null}; };
 let spSort = ['diff', -1];   // domyślnie: najbardziej powyżej średniej swojej klasy na górze
 const SP_SORTS = [['diff', 'vs średnia klasy'], ['own', 'vs własna średnia'], ['rate', 'Spalanie'], ['km', 'Km']];
 function spData(){
-  const [from, to] = spRange(), legs = rkLegs(from, to), [pf, pt] = spPrevRange(), prev = rkLegs(pf, pt), ownFrom = addDays(to, -179);
+  const [from, to] = spRange(), legs = rkLegs(from, to), pr0 = spPrevRange(), prev = pr0 ? rkLegs(pr0[0], pr0[1]) : [], ownFrom = settleClamp(addDays(to, -179), to)[0];
   const rows = S.vehicles.filter(v => v.status!=='wycofany').map(v => {
     const {km, l, rate} = spRate(legs.filter(x => x.vid===v.id)), pr = spRate(prev.filter(x => x.vid===v.id)).rate;
     const ownL = rkVehLegs(v.id).filter(x => x.date >= ownFrom && x.date <= to);
@@ -36,7 +37,7 @@ function spData(){
 }
 function viewFuelSimple(){
   const D = spData(), nf = new Intl.NumberFormat('pl-PL'), f1 = x => x.toFixed(1).replace('.', ',');
-  const head = `<div class="bar"><h2>Spalanie</h2><div class="tools"><div class="seg">${[['mies', 'Ten miesiąc'], ['prev', 'Poprzedni'], ['3m', '3 miesiące']].map(([k, l]) => `<button type="button" class="${spPer===k ? 'on' : ''}" data-sp-per="${k}">${l}</button>`).join('')}</div></div></div>`;
+  const head = `<div class="bar"><h2>Spalanie</h2><div class="tools"><div class="seg">${[['mies', 'Ten miesiąc'], ['prev', 'Poprzedni'], ['all', `Ogółem (od ${fdate(settleStart())})`]].map(([k, l]) => `<button type="button" class="${spPer===k ? 'on' : ''}" data-sp-per="${k}">${l}</button>`).join('')}</div></div></div>${spPer==='all' && today() < settleStart() ? `<div class="notice"><span>Nowy okres rozliczeniowy zaczyna się <b>${fdate(settleStart())}</b>. „Ogółem” policzy się od tego dnia – wcześniejsze tankowania nie wpływają na wyniki (miesiąc można obejrzeć osobno).</span></div>` : ''}`;
   const kpi = `<div class="panel sp-kpi">${WCLS.filter(([k]) => D.cls[k].n).map(([k, l]) => `<div><span class="label">Średnia – ${l.toLowerCase()}</span><b class="num">${f1(D.cls[k].avg)} l/100 km</b><span class="sub">${D.cls[k].n} ${isPlural(D.cls[k].n, 'auto', 'auta', 'aut')}</span></div>`).join('')
     || `<div><span class="label">Średnie spalanie</span><b class="num">—</b></div>`}
     <div><span class="label">Km</span><b class="num">${nf.format(Math.round(D.km))}</b></div><div><span class="label">Litry</span><b class="num">${nf.format(Math.round(D.l))}</b></div></div>`;
@@ -51,7 +52,7 @@ function viewFuelSimple(){
     <td class="r">${r.own!=null ? `<span class="num">${f1(r.own)}</span> ${delta(r.vsOwn, 'teraz względem własnej średniej auta')}` : '<span class="muted">—</span>'}</td>
     <td class="r">${delta(r.chg, r.prev!=null ? 'poprzednio ' + f1(r.prev) + ' l/100 km' : '')}</td>
     <td class="r num">${nf.format(Math.round(r.km))}</td><td class="r num">${nf.format(Math.round(r.l))}</td></tr>`;
-  const thead = `<thead><tr><th>Auto</th><th class="r">Spalanie l/100</th><th class="r">vs średnia klasy</th><th class="r">Średnia auta (6 mies.)</th><th class="r">${spPer==='3m' ? 'Zmiana do 3 mies. wcześniej' : 'Zmiana do poprz. miesiąca'}</th><th class="r">Km</th><th class="r">Litry</th></tr></thead>`;
+  const thead = `<thead><tr><th>Auto</th><th class="r">Spalanie l/100</th><th class="r">vs średnia klasy</th><th class="r">Średnia auta (6 mies.)</th><th class="r">Zmiana do poprz. miesiąca</th><th class="r">Km</th><th class="r">Litry</th></tr></thead>`;
   const sections = WCLS.map(([k, l]) => { const xs = D.ok.filter(r => r.cls===k).sort(cmp); if (!xs.length) return '';
     return `<div class="panel tablewrap"><div class="sec-head"><h3>${l}</h3><span class="muted small">średnia klasy <b>${f1(D.cls[k].avg)} l/100 km</b> · ${nf.format(Math.round(D.cls[k].km))} km</span></div>
       <table class="sp-tbl">${thead}<tbody>${xs.map(row).join('')}</tbody></table></div>`; }).join('');

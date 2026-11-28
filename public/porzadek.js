@@ -144,6 +144,18 @@ function viewDrivers(){
 }
 
 /* ---------- ustawienia (kierownik floty) ---------- */
+/* początek okresu rozliczeniowego (settings 'period'.start) – od tej daty liczą się wyniki „ogółem” kierowców i aut */
+function settlePanel(){
+  if (!P().manage) return '';
+  return `<div class="panel"><div class="sec-head"><h3>Początek rozliczeń</h3><span class="pill">${fdate(settleStart())}</span></div><div class="re-box">
+    <p class="muted" style="margin:0">Od tej daty liczą się wyniki „ogółem” w Rankingu, Spalaniu i kartach kierowców. Odcinek spalania zaczęty wcześniej, a zakończony po tej dacie, nie liczy się. Wcześniejsze miesiące można obejrzeć osobno, ale nie wchodzą do sum, średnich ani porównań.</p>
+    <div class="row-act" style="justify-content:flex-start;align-items:end"><label style="display:grid;gap:4px">Rozliczenia od<input type="date" id="settle-start" value="${esc(settleStart())}" style="width:auto"></label><button type="button" class="small primary" data-settle-save>Zapisz</button></div></div></div>`;
+}
+document.addEventListener('click', async e => {
+  if (!e.target.closest('[data-settle-save]')) return;
+  const v = ($('#settle-start') || {}).value; if (!v) return toast('Wybierz datę');
+  try { await db.collection('settings').doc('period').set({start: v}); rkStamp = (typeof rkStamp==='number' ? rkStamp + 1 : 0); toast('Rozliczenia od ' + fdate(v)); render(); } catch(err){ handleWriteErr(err); }
+});
 function budgetPanel(){
   const fb = Number(budget().monthly) || 0;
   return `<div class="panel"><div class="sec-head"><h3>Budżet floty</h3></div><div class="budget"><div><span class="label">Miesięcznie (zł)</span>
@@ -191,7 +203,7 @@ document.addEventListener('click', async e => {
 /* Ustawienia w sekcjach – widać jedną naraz (wybór pamiętany w tej przeglądarce) */
 let setSec = (() => { try { return localStorage.getItem('ef-set-sec') || 'firma'; } catch(_){ return 'firma'; } })();
 const SET_SECS = [
-  ['firma', 'Firma i budżet', () => dataQualityPanel() + budgetPanel() + fuelVatPanel()],
+  ['firma', 'Firma i budżet', () => dataQualityPanel() + settlePanel() + budgetPanel() + fuelVatPanel()],
   ['powiadomienia', 'Powiadomienia', () => pushSetupPanel() + (typeof fuelWatchPanel==='function' ? fuelWatchPanel() : '') + (typeof reportEmailPanel==='function' ? reportEmailPanel() : '') + calendarPanel()],
   ['gps', 'Lokalizatory GPS', () => typeof geotabPanel==='function' ? geotabPanel() : ''],
   ['moduly', 'Moduły i kontrole', () => modulesPanel() + checklistPanel()],
