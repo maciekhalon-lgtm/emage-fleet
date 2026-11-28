@@ -2210,3 +2210,9 @@ td.num .sub,td.r .sub{white-space:normal}
 .wc-sum>div{display:flex;flex-direction:column;gap:2px}
 .wc-sum .label{font-size:12px;color:var(--muted)}
 .wc-sum b{font-size:16px}
+/* ranking kierowców – prosty układ */
+.rk-line{margin:0 0 12px;color:var(--muted);font-size:14px}.rk-line b{color:var(--ink);font-variant-numeric:tabular-nums}
+.rk-drv td{vertical-align:middle}.rk-drv .pos{color:var(--ok)}.rk-drv .neg{color:var(--bad)}
+.rk-drv td.small{max-width:220px;line-height:1.35}
+.rk-nores summary{line-height:1.5}
+@media (max-width:640px){.rk-drv th:nth-child(4),.rk-drv td:nth-child(4),.rk-drv th:nth-child(7),.rk-drv td:nth-child(7),.rk-drv th:nth-child(8),.rk-drv td:nth-child(8){display:none}.rk-drv td,.rk-drv th{padding-left:8px;padding-right:8px}}

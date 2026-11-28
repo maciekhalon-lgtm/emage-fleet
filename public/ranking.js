@@ -3,7 +3,7 @@
    Spalanie: tankowania wpisane w aplikacji – litry tankowania / km od poprzedniego tankowania tego auta,
    odcinek należy do kierowcy, który tankował. Karty paliwowe tylko sprawdzają wpisy (powiadomienia „karta”). */
 'use strict';
-let rkView = 'veh', rkPer = 'mies', rkSort = {drv: ['diff', 1], veh: ['rate', 1]};   // auta: w swojej klasie od najniższego spalania; kierowcy: względem średniej klasy
+let rkView = 'veh', rkPer = 'mies', rkSort = {drv: ['dL', 1], veh: ['rate', 1]};   // auta: w swojej klasie od najniższego spalania; kierowcy: względem średniej klasy
 const rkOn = () => !!P().manage;
 function rkRange(){   // ten miesiąc / poprzedni / ogółem od początku rozliczeń
   const t = today(), m0 = t.slice(0, 8) + '01';
@@ -101,7 +101,9 @@ function rkData(){
     const rate = lkm >= RK_DRV_MIN_KM ? ll / lkm * 100 : null;
     // ile by spalił „przeciętny” kierowca na tych samych odcinkach (średnia klasy każdego auta) → różnica w %
     const expL = lg.reduce((a, x) => a + x.km * (clsRate[clsOf(x.vid)] || fleetRate || 0) / 100, 0);
+    const norm = lkm > 0 && expL > 0 ? expL / lkm * 100 : null;   // norma = średnie spalanie aut, którymi jeździł (ważone jego km)
     return {d, name: d.name, km: Math.round(km), days: days.size, fills: fills.length, liters: fills.reduce((a, c) => a + Number(c.liters || 0), 0), rate, diff: rate!=null && expL > 0 ? (ll - expL) / expL * 100 : null,
+      norm, dL: rate!=null && norm!=null ? rate - norm : null, plates: [...new Set(lg.map(x => x.vid))],
       card: cardEv.filter(e => e.driverId===d.id).length, veh: veh.size, lkm, fullFills: fills.filter(c => c.full!==false).length};
   }).filter(x => x.km || x.fills || x.days);
   const rkSt = settleRange(from, to);   // koszty netto aut – jak w Koszty → Według aut
@@ -141,8 +143,8 @@ function viewRankingFleet(drvTab){
       <div class="seg"><button type="button" class="${isDrv ? '' : 'on'}" data-rk-go="ranking">Auta</button><button type="button" class="${isDrv ? 'on' : ''}" data-rk-go="ranking-kierowcy">Kierowcy</button></div>
       <div class="seg">${pers.map(([k, l]) => `<button type="button" class="${rkPer===k ? 'on' : ''}" data-rk-per="${k}">${l}</button>`).join('')}</div></div></div>
     ${rkPer==='all' && today() < settleStart() ? `<div class="notice"><span>Nowy okres rozliczeniowy zaczyna się <b>${fdate(settleStart())}</b>. „Ogółem” policzy się od tego dnia – wcześniejsze tankowania nie wpływają na wyniki (miesiąc można obejrzeć osobno).</span></div>` : ''}
-    <div class="rk-sum">${WCLS.map(([k, l]) => `<div><span>Średnia ${esc(l.toLowerCase())}</span><b>${R.clsRate[k]!=null ? f1(R.clsRate[k]) : '—'}</b><em>l/100 km</em></div>`).join('')}
-      <div><span>Okres</span><b class="rk-per">${fdate(R.from)} – ${fdate(R.to)}</b><em>${isDrv ? `${R.drv.filter(x => x.rate!=null).length} z ${R.drv.length} kierowców z wynikiem` : `${R.veh.filter(x => x.rate!=null).length} z ${R.veh.length} aut z wynikiem`}</em></div></div>`;
+    ${isDrv ? `<p class="rk-line">${fdate(R.from)} – ${fdate(R.to)} · średnie spalanie aut: ${WCLS.filter(([k]) => R.clsRate[k]!=null).map(([k, l]) => `${esc(l.toLowerCase())} <b>${f1(R.clsRate[k])}</b>`).join(', ') || '—'} l/100 km · wynik ma ${R.drv.filter(x => x.rate!=null).length} z ${R.drv.length} kierowców</p>` : `<div class="rk-sum">${WCLS.map(([k, l]) => `<div><span>Średnia ${esc(l.toLowerCase())}</span><b>${R.clsRate[k]!=null ? f1(R.clsRate[k]) : '—'}</b><em>l/100 km</em></div>`).join('')}
+      <div><span>Okres</span><b class="rk-per">${fdate(R.from)} – ${fdate(R.to)}</b><em>${R.veh.filter(x => x.rate!=null).length} z ${R.veh.length} aut z wynikiem</em></div></div>`}`;
   const [sk, dir] = rkSort[rkView];
   const cmp = (a, b) => { const x = a[sk], y = b[sk]; if (x==null && y==null) return 0; if (x==null) return 1; if (y==null) return -1; return (x > y ? 1 : x < y ? -1 : 0) * dir; };
   const th = (k, l, r) => `<th class="${r ? 'r' : ''} click" data-rk-sort="${k}">${l}${sk===k ? (dir > 0 ? ' ▲' : ' ▼') : ''}</th>`;
@@ -156,14 +158,19 @@ function viewRankingFleet(drvTab){
       ${rows.map(x => `<div class="rk-none-row click" ${attr(x)}><span>${nameOf(x)}</span><span class="muted small">${esc(rkWhy(x))}</span></div>`).join('')}</div>` : '';
   if (isDrv){
     const xs = R.drv.map(x => ({...x, id: x.d.id})), withR = xs.filter(x => x.rate!=null).sort(cmp), none = xs.filter(x => x.rate==null).sort((a, b) => b.lkm - a.lkm || b.km - a.km);
-    const {top, low} = marks(withR);
-    return head + rkGpsNote() + (withR.length ? `<div class="panel tablewrap"><table class="rk2-tbl"><thead><tr><th>#</th>${th('name', 'Kierowca')}${th('rate', 'Spalanie l/100', 1)}${th('diff', 'vs średnia klasy', 1)}${th('km', 'Km', 1)}${th('days', 'Dni pracy', 1)}${th('fills', 'Tankowania', 1)}${th('card', 'Niezgodne z kartą', 1)}</tr></thead><tbody>
-      ${withR.map((x, i) => `<tr class="click ${top.has(x.id) ? 'rk-top' : low.has(x.id) ? 'rk-low' : ''}" data-drv-hist="${esc(x.id)}"><td class="num">${i + 1}</td><td><b>${esc(x.d.name)}</b>${x.veh ? `<span class="sub">${x.veh} ${isPlural(x.veh, 'auto', 'auta', 'aut')}</span>` : ''}</td>
-        <td class="r">${rateCell(x)}</td><td class="r">${diffCell(x)}</td><td class="r num">${x.km ? nf.format(x.km) : '—'}</td><td class="r num">${x.days || '—'}</td>
-        <td class="r num">${x.fills ? `${x.fills} <span class="muted small">· ${nf.format(Math.round(x.liters))} l</span>` : '—'}</td><td class="r">${cardCell(x)}</td></tr>`).join('')}</tbody></table></div>`
+    const verdict = x => x.dL==null ? '' : x.dL <= -0.5 ? '<span class="pill ok">oszczędny</span>' : x.dL < 0.5 ? '<span class="pill off">w normie</span>' : x.dL < 1 ? '<span class="pill warn">trochę za dużo</span>' : '<span class="pill bad">za dużo</span>';
+    const dCell = x => x.dL==null ? '<span class="muted">—</span>' : `<b class="num ${x.dL >= 0.5 ? 'neg' : x.dL <= -0.5 ? 'pos' : ''}">${x.dL > 0 ? '+' : x.dL < 0 ? '−' : ''}${f1(Math.abs(x.dL))} l</b>`;
+    const plates = x => x.plates.map(id => { const v = byId('vehicles', id); return v ? esc(v.plate) : ''; }).filter(Boolean).join(', ');
+    const cardIco = x => x.card ? ` <span class="pill bad" title="Tankowania niezgodne z kartą paliwową">karta: ${x.card}</span>` : '';
+    return head + (withR.length ? `<div class="panel tablewrap"><table class="rk2-tbl rk-drv"><thead><tr><th>#</th>${th('name', 'Kierowca')}${th('rate', 'Spalanie', 1)}${th('norm', 'Norma jego aut', 1)}${th('dL', 'Różnica', 1)}<th>Ocena</th>${th('lkm', 'Km do wyniku', 1)}<th>Auta</th></tr></thead><tbody>
+      ${withR.map((x, i) => `<tr class="click" data-drv-hist="${esc(x.id)}"><td class="num">${i + 1}</td><td><b>${esc(x.d.name)}</b>${cardIco(x)}</td>
+        <td class="r"><span class="num">${f1(x.rate)}</span></td><td class="r"><span class="num muted">${x.norm!=null ? f1(x.norm) : '—'}</span></td><td class="r">${dCell(x)}</td><td>${verdict(x)}</td>
+        <td class="r num">${nf.format(Math.round(x.lkm))}</td><td class="small muted">${plates(x)}</td></tr>`).join('')}</tbody></table></div>
+      <p class="muted small">Spalanie i norma w litrach na 100 km. Norma to średnie spalanie aut, którymi kierowca jeździł – dlatego kierowcy dużych i małych aut są porównani uczciwie. Kolejność: od najbardziej oszczędnego. Kliknij kierowcę, żeby zobaczyć jego tankowania, przejęcia i zdania.</p>`
       : `<div class="panel empty"><p>Nikt nie ma jeszcze ${nf.format(RK_MIN_KM)} km od pełnego baku w tym okresie.</p></div>`)
-      + noRes(none, 'kierowców', x => `<b>${esc(x.d.name)}</b>`, x => `data-drv-hist="${esc(x.id)}"`)
-      + `<p class="muted small">Kliknij kierowcę, żeby zobaczyć historię jego tankowań, przejęć i zdań.</p>` + how;
+      + (none.length ? `<details class="rk-how rk-nores"><summary>Bez wyniku – za mało danych (${none.length}): ${none.map(x => esc(x.d.name)).join(', ')}</summary>
+        <div class="panel rk-none">${none.map(x => `<div class="rk-none-row click" data-drv-hist="${esc(x.id)}"><span><b>${esc(x.d.name)}</b></span><span class="muted small">${esc(rkWhy(x))}</span></div>`).join('')}</div></details>` : '')
+      + how.replace('</p></details>', ' ' + rkGpsNote().replace(/<\/?p[^>]*>/g, '') + '</p></details>');
   }
   const zl2 = x => new Intl.NumberFormat('pl-PL', {minimumFractionDigits: 2, maximumFractionDigits: 2}).format(x);
   const all = R.veh.map(x => ({...x, id: x.v.id, name: x.v.plate}));
@@ -219,7 +226,7 @@ document.addEventListener('click', e => {
   const g = e.target.closest('[data-rk-go]'); if (g){ location.hash = g.dataset.rkGo; return; }
   const p = e.target.closest('[data-rk-per]'); if (p){ rkPer = p.dataset.rkPer; render(); return; }
   const s = e.target.closest('[data-rk-sort]'); if (s){ const k = s.dataset.rkSort, cur = rkSort[rkView];
-    rkSort[rkView] = [k, cur[0]===k ? -cur[1] : (k==='rate' || k==='name' || k==='card' || k==='diff' || k==='costKm' ? 1 : -1)]; render(); }
+    rkSort[rkView] = [k, cur[0]===k ? -cur[1] : (k==='rate' || k==='name' || k==='card' || k==='diff' || k==='dL' || k==='norm' || k==='costKm' ? 1 : -1)]; render(); }
 });
 
 /* kiedy ostatnio dociągnięto liczniki z GPS (co 15 min) – nowe wpisy liczą się od razu z licznika kierowcy */
