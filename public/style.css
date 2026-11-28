@@ -2215,4 +2215,5 @@ td.num .sub,td.r .sub{white-space:normal}
 .rk-drv td{vertical-align:middle}.rk-drv .pos{color:var(--ok)}.rk-drv .neg{color:var(--bad)}
 .rk-drv td.small{max-width:220px;line-height:1.35}
 .rk-nores summary{line-height:1.5}
-@media (max-width:640px){.rk-drv th:nth-child(4),.rk-drv td:nth-child(4),.rk-drv th:nth-child(7),.rk-drv td:nth-child(7),.rk-drv th:nth-child(8),.rk-drv td:nth-child(8){display:none}.rk-drv td,.rk-drv th{padding-left:8px;padding-right:8px}}
+@media (max-width:640px){.rk-drv th:nth-child(6),.rk-drv td:nth-child(6){display:none}.rk-drv td,.rk-drv th{padding-left:8px;padding-right:8px}}
+.rk-clsbar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:0 0 12px}.rk-clsbar .rk-line{margin:0}
