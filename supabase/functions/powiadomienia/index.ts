@@ -629,10 +629,10 @@ async function workSync(sb: any, key: (k: string) => string, opt: {dry?: boolean
     }
   }
   const manual = new Set((have || []).filter((m: Row) => m.source === 'manual').map((m: Row) => m.booking_id)), done = new Set((have || []).map((m: Row) => m.booking_id));
-  // liczymy: przejęcia trwające i zdane w ciągu 36 h, a do tego najwyżej 25 bez żadnych wpisów (np. po „Przywróć dane z GPS” albo wstecz)
+  // liczymy: przejęcia trwające i zdane w ciągu 36 h, a do tego najwyżej 5 bez żadnych wpisów (limit pamięci funkcji) (np. po „Przywróć dane z GPS” albo wstecz)
   const recent = Date.now() - 36 * 3600000;
   const live = (all || []).filter((b: Row) => opt.booking || !b.return_ts || Date.parse(b.return_ts) > recent);
-  const bks = opt.booking ? live.slice(0, 1) : [...live, ...(all || []).filter((b: Row) => !live.includes(b) && !done.has(b.id)).slice(0, 25)];
+  const bks = opt.booking ? live.slice(0, 1) : [...live, ...(all || []).filter((b: Row) => !live.includes(b) && !done.has(b.id)).slice(0, 5)];
   const {data: cl} = await sb.from('clients').select('lat, lng').not('lat', 'is', null);
   const places = (cl || []).filter((c: Row) => c.lat && c.lng).map((c: Row) => ({lat: Number(c.lat), lng: Number(c.lng)}));
   const out: Row[] = []; let saved = 0;
