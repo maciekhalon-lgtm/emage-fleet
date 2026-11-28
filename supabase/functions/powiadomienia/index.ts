@@ -613,15 +613,18 @@ async function workSync(sb: any, key: (k: string) => string, opt: {dry?: boolean
   const {data: cfg} = await sb.from('settings').select('value').eq('key', 'workcard').maybeSingle();
   const from = String((cfg && cfg.value && cfg.value.from) || '2026-11-28');
   let q = sb.from('bookings').select('id, vehicle_id, driver_id, pickup_ts, return_ts, return_km').not('pickup_ts', 'is', null);
-  q = opt.booking ? q.eq('id', opt.booking) : q.gte('pickup_ts', from + 'T00:00:00+01:00').or(`return_ts.is.null,return_ts.gt.${new Date(Date.now() - 36 * 3600000).toISOString()}`);
-  const {data: bks} = await q.order('pickup_ts', {ascending: false}).limit(opt.limit || 60);
-  const ids = (bks || []).map((b: Row) => b.id);
-  const {data: man} = ids.length ? await sb.from('work_events').select('booking_id').in('booking_id', ids).eq('source', 'manual') : {data: []};
-  const manual = new Set((man || []).map((m: Row) => m.booking_id));
+  q = opt.booking ? q.eq('id', opt.booking) : q.gte('pickup_ts', from + 'T00:00:00+01:00');
+  const {data: all} = await q.order('pickup_ts', {ascending: false}).limit(opt.limit || 400);
+  const ids0 = (all || []).map((b: Row) => b.id);
+  const {data: have} = ids0.length ? await sb.from('work_events').select('booking_id, source').in('booking_id', ids0) : {data: []};
+  const manual = new Set((have || []).filter((m: Row) => m.source === 'manual').map((m: Row) => m.booking_id)), done = new Set((have || []).map((m: Row) => m.booking_id));
+  // liczymy: przejęcia trwające, zdane w ciągu 36 h i te bez żadnych wpisów (np. po „Przywróć dane z GPS”); najwyżej 25 na raz
+  const recent = Date.now() - 36 * 3600000;
+  const bks = (all || []).filter((b: Row) => opt.booking || !b.return_ts || Date.parse(b.return_ts) > recent || !done.has(b.id)).slice(0, opt.booking ? 1 : 25);
   const {data: cl} = await sb.from('clients').select('lat, lng').not('lat', 'is', null);
   const places = (cl || []).filter((c: Row) => c.lat && c.lng).map((c: Row) => ({lat: Number(c.lat), lng: Number(c.lng)}));
   const out: Row[] = []; let saved = 0;
-  for (const b of bks || []){
+  for (const b of bks){
     if (manual.has(b.id) && !opt.dry) continue;
     const dev = devOf.get(b.vehicle_id); if (!dev) continue;
     const P = Date.parse(b.pickup_ts), returned = !!b.return_ts, R = returned ? Date.parse(b.return_ts) : Date.now();
@@ -645,7 +648,7 @@ async function workSync(sb: any, key: (k: string) => string, opt: {dry?: boolean
     if (rows.length){ const ins = await sb.from('work_events').insert(rows); if (ins.error) return {work: 'błąd zapisu: ' + ins.error.message}; }
     saved += rows.length; out.push({booking: b.id, rows: rows.length, crossings: cross.crossings.length});
   }
-  return {work: true, bookings: (bks || []).length, saved, report: out};
+  return {work: true, bookings: bks.length, saved, report: out};
 }
 
 const json = (o: unknown, status = 200) => new Response(JSON.stringify(o), {status, headers: {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type'}});

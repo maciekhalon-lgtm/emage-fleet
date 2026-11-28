@@ -14,7 +14,7 @@ const VIEWAS_MSG = 'Podgląd jako kierowca – tylko do oglądania, zmiany są z
 })();
 
 /* nazwa w aplikacji → tabela w bazie */
-const TABLES = {kmAssign:'km_assignments', waybills:'waybills', wbRecipients:'waybill_recipients', gpsOdometer:'gps_odometer', odoGps:'odo_gps', events:'events', workOrders:'work_orders', woItems:'work_order_items', vehicles:'vehicles', drivers:'drivers', deadlines:'deadlines', bookings:'bookings', costs:'costs', issues:'issues', docs:'documents', settings:'settings', routeStops:'route_stops', fleetCosts:'fleet_costs', tires:'tires', contracts:'vehicle_contracts', equipment:'equipment', workshops:'workshops', visits:'service_visits', requests:'data_change_requests', crewChanges:'crew_changes', routes:'routes', serviceEntries:'service_entries', blockOverrides:'block_overrides', loadings:'loadings', loadingReports:'loading_reports', fuelCardImports:'fuel_card_imports', fuelCardRows:'fuel_card_rows', clients:'clients', routePlans:'route_plans', planCalc:'route_plan_calc', members:'profiles'};
+const TABLES = {workEvents:'work_events', kmAssign:'km_assignments', waybills:'waybills', wbRecipients:'waybill_recipients', gpsOdometer:'gps_odometer', odoGps:'odo_gps', events:'events', workOrders:'work_orders', woItems:'work_order_items', vehicles:'vehicles', drivers:'drivers', deadlines:'deadlines', bookings:'bookings', costs:'costs', issues:'issues', docs:'documents', settings:'settings', routeStops:'route_stops', fleetCosts:'fleet_costs', tires:'tires', contracts:'vehicle_contracts', equipment:'equipment', workshops:'workshops', visits:'service_visits', requests:'data_change_requests', crewChanges:'crew_changes', routes:'routes', serviceEntries:'service_entries', blockOverrides:'block_overrides', loadings:'loadings', loadingReports:'loading_reports', fuelCardImports:'fuel_card_imports', fuelCardRows:'fuel_card_rows', clients:'clients', routePlans:'route_plans', planCalc:'route_plan_calc', members:'profiles'};
 const COL_OF = Object.fromEntries(Object.entries(TABLES).map(([a, b]) => [b, a]));
 
 /* pole w aplikacji → kolumna w bazie */
@@ -204,6 +204,8 @@ async function refresh(col){
   if ((col==='tires' || col==='contracts' || col==='equipment' || col==='workshops' || col==='visits' || col==='gpsOdometer' || col==='odoGps' || col==='workOrders' || col==='woItems' || col==='events') && !P().manage && !P().service){ got[col] = true; return; }
   if (col==='serviceEntries' && !P().service) return;
   if (col==='planCalc' && !P().manage){ got[col] = true; return; }
+  if (col==='workEvents'){   // karta pracy: wpisy wczytuje widok (kierowca + miesiąc); tu tylko sprawdzamy, czy tabela jest
+    const {error} = await sb.from(table).select('id').limit(1); got[col] = true; OPT[col] = !error; S[col] = []; if (typeof wcCache!=='undefined') wcCache.clear(); return; }
   if ((col==='waybills' || col==='wbRecipients' || col==='kmAssign') && !P().manage){ got[col] = true; return; }   // listy przewozowe – tylko kierownik floty   // koszty planów tras – tylko kierownictwo
   // Supabase oddaje najwyżej 1000 wierszy na zapytanie – pobieramy partiami aż do końca
   const key = col==='settings' ? 'key' : 'id', PAGE = 1000, data = [];
@@ -262,7 +264,7 @@ function queueRefresh(col){
 let channel = null, stopsChannel = null, stopsReady = false, fcChannel = null, fleetCostsReady = false;
 /* Tabele z nowszych migracji (027 opony, 028 wyposażenie, 029 umowy, 030 warsztaty): dopóki SQL nie jest uruchomiony, moduł jest ukryty,
    a reszta aplikacji działa normalnie. OPT[col] = true, gdy tabela istnieje i dane się wczytały. */
-const OPT = {kmAssign: false, waybills: false, wbRecipients: false, clients: false, routePlans: false, planCalc: false, tires: false, contracts: false, equipment: false, workshops: false, visits: false, gpsOdometer: false, odoGps: false, workOrders: false, woItems: false, events: false}, optChannels = {};
+const OPT = {workEvents: false, kmAssign: false, waybills: false, wbRecipients: false, clients: false, routePlans: false, planCalc: false, tires: false, contracts: false, equipment: false, workshops: false, visits: false, gpsOdometer: false, odoGps: false, workOrders: false, woItems: false, events: false}, optChannels = {};
 const optOn = col => !!OPT[col];
 /* od migracji 063 wyliczenia kosztów planów są w osobnej tabeli (tylko kierownictwo) – w pamięci dalej jako plan.calc */
 function mergePlanCalc(){ S.routePlans.forEach(p => { const c = S.planCalc.find(x => x.id===p.id); p.calc = c && c.calc || {}; }); }

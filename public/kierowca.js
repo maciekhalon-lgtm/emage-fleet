@@ -182,7 +182,8 @@ function viewMyCar(){
     quick = [v ? qa('href="#wybierz"', 'truck', 'Inne auto', 'wolne auta') : '',
       loadingRoutesOk() ? qa('data-action="loading"', 'box', 'Załadunek', loadingCount() ? `zaznaczone: ${loadingCount()}` : 'czyj towar wiozę') : '',
       P().mycar ? '' : qa('href="#moj-grafik"', 'cal', 'Grafik', 'kiedy jadę'),
-      P().mycar ? '' : qa('href="#moja-historia"', 'hist', 'Historia', 'tankowania, trasy')].filter(Boolean);
+      P().mycar ? '' : qa('href="#moja-historia"', 'hist', 'Historia', 'tankowania, trasy'),
+      optOn('workEvents') && myDriverId() ? qa('href="#moja-karta"', 'clip', 'Karta pracy', 'godziny z GPS') : ''].filter(Boolean);
     // „Inne auto” zostaje nawet sam – inaczej kierowca z „Twoim busem” nie ma jak wybrać innego auta
     quick = quick.join('');
   }

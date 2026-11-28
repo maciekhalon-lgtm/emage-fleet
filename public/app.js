@@ -1,8 +1,8 @@
 /* Emage FLEET — aplikacja: nawigacja, odświeżanie widoków i obsługa kliknięć */
 'use strict';
 /* ---------- routing ---------- */
-const DRIVER_VIEWS = ['moje','wybierz','moje-dane','moj-grafik','moja-historia','moja-mapa'];
-const TABS = ['moje','wybierz','moje-dane','moj-grafik','moja-historia','moja-mapa','pulpit','pojazdy','trasy','terminy','usterki','ksiazka','przydzial','mapa-tras','koszty','wydatki','karty','oplaty','opony','wyposazenie','umowy','plan','zlecenia','listy','poza','serwis-terminy','ranking','ranking-kierowcy','spalanie','liczniki','raporty','rozliczenie','historia','kierowcy','uzytkownicy','ustawienia'];
+const DRIVER_VIEWS = ['moje','wybierz','moje-dane','moj-grafik','moja-historia','moja-mapa','moja-karta'];
+const TABS = ['moje','wybierz','moje-dane','moj-grafik','moja-historia','moja-mapa','moja-karta','karta-pracy','pulpit','pojazdy','trasy','terminy','usterki','ksiazka','przydzial','mapa-tras','koszty','wydatki','karty','oplaty','opony','wyposazenie','umowy','plan','zlecenia','listy','poza','serwis-terminy','ranking','ranking-kierowcy','spalanie','liczniki','raporty','rozliczenie','historia','kierowcy','uzytkownicy','ustawienia'];
 const homeTab = () => P().mycar ? 'moje' : 'pulpit';
 let pendingCard = null;
 let tab = TABS.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'pulpit', q = '', costMonth = today().slice(0,7), dlFilter = 'urgent';
@@ -31,7 +31,7 @@ function render(){
     if (!DRIVER_VIEWS.includes(tab)) tab = 'moje';
     renderNotices();
     const v = $('#view');
-    morph(v, tab==='moja-mapa' ? viewDriverMap() : tab==='wybierz' ? viewPickCar() : tab==='moje-dane' ? viewMyData() : tab==='moj-grafik' ? viewMySchedule() : tab==='moja-historia' ? viewMyHistory() : viewMyCar());
+    morph(v, tab==='moja-mapa' ? viewDriverMap() : tab==='wybierz' ? viewPickCar() : tab==='moje-dane' ? viewMyData() : tab==='moj-grafik' ? viewMySchedule() : tab==='moja-historia' ? viewMyHistory() : tab==='moja-karta' ? viewWorkCard(true) : viewMyCar());
     hydrateFiles(v);
     return;
   }
@@ -71,6 +71,8 @@ function render(){
   else if (tab==='moje-dane') html = viewMyData();
   else if (tab==='moj-grafik') html = viewMySchedule();
   else if (tab==='moja-historia') html = viewMyHistory();
+  else if (tab==='moja-karta') html = viewWorkCard(true);
+  else if (tab==='karta-pracy') html = viewWorkCard(false);
   else if (tab==='moje') html = viewMyCar();
   else if (tab==='pulpit') html = viewDashboard();
   else if (tab==='trasy') html = viewRoutes();
