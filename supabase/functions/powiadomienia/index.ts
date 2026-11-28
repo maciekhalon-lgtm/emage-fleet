@@ -588,9 +588,9 @@ async function geotabSync(sb: any, key: (k: string) => string, days: number, fue
    z Geotab → wpisy work_events (źródło 'gps'). Dni poprawione ręcznie (wpisy 'manual') zostają bez zmian.
    body.dry = true – tylko zwraca wyliczone wpisy, nic nie zapisuje; body.booking – jedno przejęcie. */
 let bordersCache: Country[] | null = null;
-async function workSync(sb: any, key: (k: string) => string, opt: {dry?: boolean; booking?: string; limit?: number} = {}){
+async function workConn(sb: any, key: (k: string) => string){
   const db = key('GEOTAB_DATABASE'), user = (Deno.env.get('GEOTAB_USER') || '').trim(), pass = (Deno.env.get('GEOTAB_PASSWORD') || '').trim();
-  if (!db || !user || !pass) return {work: 'brak sekretów Geotab'};
+  if (!db || !user || !pass) return null;
   const host0 = (Deno.env.get('GEOTAB_SERVER') || 'my.geotab.com').trim().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
   const rpc = async (host: string, method: string, params: Record<string, unknown>) => {
     const r = await fetch(`https://${host}/apiv1`, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({method, params})});
@@ -610,6 +610,11 @@ async function workSync(sb: any, key: (k: string) => string, opt: {dry?: boolean
     const topo = await (await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-50m.json')).json();
     bordersCache = topoCountries(topo);
   }
+  return {rpc, host, cred, map, devOf};
+}
+async function workSync(sb: any, key: (k: string) => string, opt: {dry?: boolean; booking?: string; limit?: number} = {}){
+  const cn = await workConn(sb, key); if (!cn) return {work: 'brak sekretów Geotab'};
+  const {rpc, host, cred, map, devOf} = cn;
   const {data: cfg} = await sb.from('settings').select('value').eq('key', 'workcard').maybeSingle();
   const from = String((cfg && cfg.value && cfg.value.from) || '2026-11-28');
   let q = sb.from('bookings').select('id, vehicle_id, driver_id, pickup_ts, return_ts, return_km').not('pickup_ts', 'is', null);
@@ -649,6 +654,62 @@ async function workSync(sb: any, key: (k: string) => string, opt: {dry?: boolean
     saved += rows.length; out.push({booking: b.id, rows: rows.length, crossings: cross.crossings.length});
   }
   return {work: true, bookings: bks.length, saved, report: out};
+}
+
+/* ===== Karta pracy wstecz – tylko z GPS (tryb „workHistory”, np. listopad 2026) =====
+   Przejazdy auta z całego okresu dzielimy na zmiany (przerwa ≥ 4 h). Zmiana, w czasie której ktoś miał auto przejęte w aplikacji,
+   jest liczona zwykłym trybem „work” i tu ją pomijamy. Pozostałe zmiany przypisujemy kierowcy z grafiku tego auta:
+   dzień rozpoczęcia zmiany, a dla nocnych – dzień następny (start ≥ 18:00) albo poprzedni (start < 6:00).
+   Wpisy mają notatkę 'gps-historia'; ponowne uruchomienie je zastępuje. */
+async function workHistory(sb: any, key: (k: string) => string, opt: {vehicle: string; from: string; to: string}){
+  const cn = await workConn(sb, key); if (!cn) return {work: 'brak sekretów Geotab'};
+  const {rpc, host, cred, devOf} = cn, dev = devOf.get(opt.vehicle);
+  if (!dev) return {vehicle: opt.vehicle, work: 'auto bez lokalizatora'};
+  const W = (iso: string, h: number) => Date.parse(new Date(Date.parse(iso + 'T00:00:00Z')).toISOString()) + h * 3600000 - 3600000;   // północ czasu polskiego (zima) + h
+  const t0 = W(opt.from, 0), t1 = W(addDays(opt.to, 1), 0);
+  const trips: Row[] = await rpc(host, 'Get', {typeName: 'Trip', credentials: cred, resultsLimit: 5000, search: {deviceSearch: {id: dev}, fromDate: new Date(t0).toISOString(), toDate: new Date(t1).toISOString()}});
+  const tr: WorkTrip[] = (trips || []).filter((t: Row) => t.start && t.stop).map((t: Row) => ({start: Date.parse(t.start), stop: Date.parse(t.stop), km: Number(t.distance) || 0,
+    lat: t.stopPoint ? Number(t.stopPoint.y) : undefined, lng: t.stopPoint ? Number(t.stopPoint.x) : undefined})).filter(t => t.start >= t0 && t.start < t1).sort((a, b) => a.start - b.start);
+  const shifts: WorkTrip[][] = [];
+  tr.forEach(t => { const cur = shifts[shifts.length - 1]; if (cur && t.start - cur[cur.length - 1].stop < 4 * 3600000) cur.push(t); else shifts.push([t]); });
+  const {data: bks} = await sb.from('bookings').select('id, driver_id, date_from, date_to, pickup_ts, return_ts').eq('vehicle_id', opt.vehicle).lte('date_from', addDays(opt.to, 1)).gte('date_to', addDays(opt.from, -1));
+  const picked = (bks || []).filter((b: Row) => b.pickup_ts).map((b: Row) => [Date.parse(b.pickup_ts), b.return_ts ? Date.parse(b.return_ts) : Date.now()]);
+  const {data: cl} = await sb.from('clients').select('lat, lng').not('lat', 'is', null);
+  const places = (cl || []).filter((c: Row) => c.lat && c.lng).map((c: Row) => ({lat: Number(c.lat), lng: Number(c.lng)}));
+  const wday = (ms: number) => new Intl.DateTimeFormat('sv-SE', {timeZone: 'Europe/Warsaw'}).format(new Date(ms));
+  const whour = (ms: number) => Number(new Intl.DateTimeFormat('en-GB', {timeZone: 'Europe/Warsaw', hour: '2-digit', hour12: false}).format(new Date(ms)));
+  const ids = (bks || []).map((k: Row) => k.id);
+  const {data: man} = ids.length ? await sb.from('work_events').select('booking_id').in('booking_id', ids).eq('source', 'manual') : {data: []};
+  const manual = new Set((man || []).map((m: Row) => m.booking_id));
+  const rows: Row[] = [], unmatched: string[] = []; let skipped = 0, matched = 0;
+  const todo: {sh: WorkTrip[]; b: Row}[] = [];
+  for (const sh of shifts){
+    const s0 = sh[0].start, s1 = sh[sh.length - 1].stop;
+    if (sh.reduce((a, t) => a + t.km, 0) < 3) continue;   // samo przestawienie auta
+    if (picked.some(([p, r]) => Math.min(s1, r) - Math.max(s0, p) > 30 * 60000)){ skipped++; continue; }
+    const d = wday(s0), h = whour(s0), days = [d, ...(h >= 18 ? [addDays(d, 1)] : h < 6 ? [addDays(d, -1)] : [])];
+    let b: Row | undefined; for (const x of days){ b = (bks || []).find((k: Row) => !k.pickup_ts && k.date_from <= x && k.date_to >= x); if (b) break; }
+    if (!b){ unmatched.push(d + ' ' + String(h).padStart(2, '0') + ':00'); continue; }
+    if (manual.has(b.id)){ skipped++; continue; }   // kierownik poprawił ręcznie – nie nadpisujemy
+    todo.push({sh, b});
+  }
+  for (let i = 0; i < todo.length; i += 8){
+    const part = todo.slice(i, i + 8);
+    const res: Row[][] = await rpc(host, 'ExecuteMultiCall', {credentials: cred, calls: part.map(x => ({method: 'Get', params: {typeName: 'LogRecord', resultsLimit: 50000,
+      search: {deviceSearch: {id: dev}, fromDate: new Date(x.sh[0].start).toISOString(), toDate: new Date(x.sh[x.sh.length - 1].stop).toISOString()}}}))});
+    part.forEach((x, j) => {
+      const pts = (res[j] || []).filter((l: Row) => l.latitude && l.longitude && l.dateTime).map((l: Row) => ({t: Date.parse(l.dateTime), lat: Number(l.latitude), lng: Number(l.longitude)})).sort((a, c) => a.t - c.t);
+      const cross = borderCrossings(pts, bordersCache as Country[]);
+      const ev = buildWork(x.sh[0].start, x.sh[x.sh.length - 1].stop, true, x.sh, places, cross, haversineKm);
+      matched++;
+      ev.forEach(e => rows.push({booking_id: x.b.id, driver_id: x.b.driver_id, vehicle_id: opt.vehicle, kind: e.kind, start_ts: new Date(e.start).toISOString(), end_ts: new Date(e.end).toISOString(),
+        country: e.country, cross_country: e.cross_country, cross_ts: e.cross_ts ? new Date(e.cross_ts).toISOString() : null, km: Math.round(e.km * 10) / 10, source: 'gps', note: 'gps-historia'}));
+    });
+  }
+  const del = await sb.from('work_events').delete().eq('vehicle_id', opt.vehicle).eq('note', 'gps-historia').eq('source', 'gps').gte('start_ts', new Date(t0 - 86400000).toISOString()).lt('start_ts', new Date(t1 + 86400000).toISOString());
+  if (del.error) return {vehicle: opt.vehicle, work: 'błąd zapisu: ' + del.error.message};
+  for (let i = 0; i < rows.length; i += 500){ const ins = await sb.from('work_events').insert(rows.slice(i, i + 500)); if (ins.error) return {vehicle: opt.vehicle, work: 'błąd zapisu: ' + ins.error.message}; }
+  return {history: true, vehicle: opt.vehicle, trips: tr.length, shifts: shifts.length, matched, skippedPickup: skipped, unmatched, rows: rows.length};
 }
 
 const json = (o: unknown, status = 200) => new Response(JSON.stringify(o), {status, headers: {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type'}});
@@ -728,6 +789,11 @@ Deno.serve(async (req) => {
     return json({event: true, users: out.length, report: out});
   }
 
+  // karta pracy wstecz z samego GPS: {mode:'workHistory', vehicle:'…', from:'2026-11-01', to:'2026-11-30'}
+  if (isCron && body && body.mode === 'workHistory' && body.vehicle && /^\d{4}-\d{2}-\d{2}$/.test(String(body.from)) && /^\d{4}-\d{2}-\d{2}$/.test(String(body.to))){
+    try { return json(await workHistory(sb, key, {vehicle: String(body.vehicle), from: String(body.from), to: String(body.to)})); }
+    catch (e) { return json({vehicle: body.vehicle, work: 'błąd: ' + String((e as Error).message || e)}); }
+  }
   // karta pracy z GPS (harmonogram emage-fleet-praca); {mode:'work', dry:true, booking:'…'} – podgląd bez zapisu
   if (isCron && body && body.mode === 'work'){
     try { return json(await workSync(sb, key, {dry: !!body.dry, booking: body.booking ? String(body.booking) : undefined, limit: Number(body.limit) || undefined})); }
