@@ -2268,3 +2268,10 @@ html.zw-cam-open,html.zw-cam-open body{overflow:hidden}
 .zw-tbl .zw-ck{width:34px}.zw-tbl .zw-ck input{width:20px;height:20px}
 .zw-tbl tr.zw-on td{background:color-mix(in srgb,var(--accent) 12%,transparent)}
 @media (max-width:640px){.zw-tbl.stack td.zw-ck{grid-column:1/-1}.zw-tbl.stack td.zw-ck::before{content:none}}
+.zw-client{display:flex;flex-direction:column;gap:6px}
+.zw-client input{font-size:17px;font-weight:600}
+.zw-geo{min-width:52px;min-height:52px;justify-content:center;padding:0}
+.zw-hint{font-size:13.5px}
+.zw-filters #zw-q{flex:1 1 260px;min-width:220px}
+.zw-clin{width:100%;min-width:150px;font-size:14px;padding:6px 8px;border:1px solid transparent;border-radius:8px;background:transparent;color:inherit}
+.zw-clin:hover,.zw-clin:focus{border-color:var(--line-2);background:var(--surface)}

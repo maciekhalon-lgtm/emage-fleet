@@ -19,6 +19,45 @@ function zwStatusPill(r){
   return '<span class="pill warn">u kierowcy</span>';
 }
 
+/* ---------- klient zwrotu: wybór, wpis ręczny, podpowiedź z lokalizacji telefonu ---------- */
+let zwCl = null, zwGeo = {state: '', at: 0, near: null, dist: null};   // zwCl = {id, name, gps}
+try { const x = JSON.parse(localStorage.getItem('zw-klient') || 'null'); if (x && x.name) zwCl = {id: x.id || null, name: x.name}; } catch(_){}
+const zwClSave = () => { try { localStorage.setItem('zw-klient', JSON.stringify(zwCl ? {id: zwCl.id, name: zwCl.name} : null)); } catch(_){} };
+const zwClName = r => r.clientName || (r.clientId && byId('clients', r.clientId) ? byId('clients', r.clientId).name : '');
+function zwClientList(){   // klienci z dzisiejszej trasy kierowcy na górze, potem wszyscy
+  const act = typeof myActive==='function' ? myActive() : null, rid = act && act.routeId, seen = new Set(), out = [];
+  const add = (id, name, tag) => { const k = String(name || '').trim(); if (!k || seen.has(k.toLowerCase())) return; seen.add(k.toLowerCase()); out.push({id: id || null, name: k, tag}); };
+  if (rid) (S.routeStops || []).filter(x => x.routeId===rid).sort((a, b) => (a.pos || 0) - (b.pos || 0)).forEach(x => { const c = x.clientId && byId('clients', x.clientId); add(c ? c.id : null, c ? c.name : x.client, 'trasa'); });
+  (S.clients || []).slice().sort((a, b) => String(a.name).localeCompare(b.name, 'pl')).forEach(c => add(c.id, c.name, ''));
+  return out;
+}
+function zwMatchClient(name){ const k = String(name || '').trim().toLowerCase(); if (!k) return null;
+  const c = zwClientList().find(x => x.name.toLowerCase()===k); return c ? {id: c.id, name: c.name} : {id: null, name: String(name).trim().slice(0, 120)}; }
+function zwLocate(auto){   // najbliższy klient z bazy (z punktem na mapie) w promieniu 500 m od telefonu
+  if (!navigator.geolocation){ if (!auto) toast('Lokalizacja niedostępna w tej przeglądarce'); return; }
+  zwGeo = {...zwGeo, state: 'szukam'}; if (!auto) render();
+  navigator.geolocation.getCurrentPosition(p => {
+    const me_ = {lat: p.coords.latitude, lng: p.coords.longitude}, R_ = 6371, rad = x => x * Math.PI / 180;
+    const d = c => { const dl = rad(c.lat - me_.lat), dg = rad(c.lng - me_.lng), a = Math.sin(dl / 2) ** 2 + Math.cos(rad(me_.lat)) * Math.cos(rad(c.lat)) * Math.sin(dg / 2) ** 2; return 2 * R_ * Math.asin(Math.sqrt(a)); };
+    const best = (S.clients || []).filter(c => c.lat!=null && c.lng!=null).map(c => ({c, km: d(c)})).sort((a, b) => a.km - b.km)[0];
+    zwGeo = {state: 'ok', at: Date.now(), near: best && best.km <= 0.5 ? best.c : null, dist: best ? best.km : null};
+    if (zwGeo.near && (!zwCl || zwCl.gps || auto)) { zwCl = {id: zwGeo.near.id, name: zwGeo.near.name, gps: true}; zwClSave(); }
+    render();
+  }, () => { zwGeo = {...zwGeo, state: 'brak'}; if (!auto) toast('Brak dostępu do lokalizacji – wybierz klienta z listy'); render(); }, {enableHighAccuracy: true, timeout: 12000, maximumAge: 60000});
+}
+function zwClientBox(){
+  const list = zwClientList(), g = zwGeo;
+  const hint = g.state==='szukam' ? 'Szukam klienta po lokalizacji…'
+    : zwCl && zwCl.gps ? `Podpowiedź z lokalizacji: jesteś u tego klienta${g.dist!=null ? ` (${Math.round(g.dist * 1000)} m)` : ''}.`
+    : g.state==='ok' && !g.near ? 'W pobliżu nie ma klienta z bazy – wybierz z listy albo wpisz nazwę.' : '';
+  return `<div class="zw-client"><label for="zw-cl">Klient (zwroty od)</label>
+    <div class="zw-row"><input id="zw-cl" list="zw-cl-list" data-zw-cl value="${esc(zwCl ? zwCl.name : '')}" placeholder="Wybierz albo wpisz nazwę klienta" autocomplete="off">
+      <button type="button" class="btn ghost zw-geo" data-zw-geo title="Znajdź klienta po lokalizacji telefonu" aria-label="Znajdź klienta po lokalizacji">${ic('pin')}</button>
+      ${zwCl ? `<button type="button" class="btn ghost zw-geo" data-zw-clx title="Bez klienta" aria-label="Wyczyść klienta">${ic('x')}</button>` : ''}</div>
+    <datalist id="zw-cl-list">${list.map(c => `<option value="${esc(c.name)}">${c.tag==='trasa' ? 'z Twojej trasy' : ''}</option>`).join('')}</datalist>
+    ${hint ? `<span class="zw-hint">${esc(hint)}</span>` : ''}</div>`;
+}
+
 /* ---------- dodawanie skanu ---------- */
 let zwLastCode = '', zwLastAt = 0, zwAc = null;
 function zwBeep(ok = true){
@@ -34,8 +73,8 @@ async function zwAdd(raw, src){
   const act = typeof myActive==='function' ? myActive() : null;
   const dup = (S.returns || []).find(r => r.code===code);
   try {
-    await db.collection('returns').doc().set({code, scannedAt: new Date().toISOString(), driverId: drv, vehicleId: act ? act.vehicleId : null, bookingId: act ? act.id : null, src, note: '', status: 'u_kierowcy', handedAt: null, waybillId: null});
-    zwLast = {code, at: Date.now(), dup: !!dup}; zwBeep(!dup);
+    await db.collection('returns').doc().set({code, scannedAt: new Date().toISOString(), driverId: drv, vehicleId: act ? act.vehicleId : null, bookingId: act ? act.id : null, src, note: '', status: 'u_kierowcy', handedAt: null, waybillId: null, clientId: zwCl ? zwCl.id : null, clientName: zwCl ? zwCl.name : null});
+    zwLast = {code, at: Date.now(), dup: !!dup, cl: zwCl ? zwCl.name : ''}; zwBeep(!dup);
     zwCamMsg();
     if (!$('#zw-cam')) render();
     return true;
@@ -53,7 +92,7 @@ function zwLoadLib(){
 function zwCamMsg(){
   const el = $('#zw-cam-last'); if (!el) return;
   const n = (S.returns || []).filter(r => r.status==='u_kierowcy' && r.driverId===myDriverId()).length;
-  el.innerHTML = zwLast ? `<b>${esc(zwLast.code)}</b>${zwLast.dup ? '<span class="pill warn">ten kod już był skanowany</span>' : ''}<span>do zdania: ${n}</span>` : `<span>Nakieruj kod w ramkę</span>`;
+  el.innerHTML = zwLast ? `<b>${esc(zwLast.code)}</b>${zwLast.cl ? `<span>klient: ${esc(zwLast.cl)}</span>` : ''}${zwLast.dup ? '<span class="pill warn">ten kod już był skanowany</span>' : ''}<span>do zdania: ${n}</span>` : `<span>Nakieruj kod w ramkę${zwCl ? ` · klient: ${esc(zwCl.name)}` : ''}</span>`;
   const box = $('#zw-cam'); if (box && zwLast && Date.now() - zwLast.at < 600){ box.classList.add('hit'); setTimeout(() => box.classList.remove('hit'), 400); }
 }
 function zwCamStop(){
@@ -95,6 +134,7 @@ async function zwPhoto(file){
 
 /* ---------- kierowca: Skanuj zwroty ---------- */
 function viewMyReturns(){
+  if (zwOn() && Date.now() - zwGeo.at > 120000 && zwGeo.state!=='szukam' && zwGeo.state!=='brak' && (S.clients || []).some(c => c.lat!=null)) setTimeout(() => zwLocate(true), 0);
   const back = `<a class="ghost btn small" href="#moje">${ic('back')}Wróć</a>`;
   if (!zwOn()) return `<div class="section driver"><div class="bar"><h2>Zwroty</h2><div class="tools">${back}</div></div>${loadingOr('returns', `<div class="panel empty"><p>Skanowanie zwrotów nie jest jeszcze włączone.</p></div>`)}</div>`;
   const me_ = myDriverId(), mine = zwSort((S.returns || []).filter(r => r.driverId===me_)), open = mine.filter(r => r.status==='u_kierowcy');
@@ -102,13 +142,14 @@ function viewMyReturns(){
   const armed = Date.now() - zwHandArm < 5000;
   const row = r => { const v = zwPlate(r.vehicleId);
     return `<li class="zw-item${zwLast && zwLast.code===r.code && Date.now() - zwLast.at < 3000 ? ' flash' : ''}"><div><b class="zw-code">${esc(r.code)}</b>${codeCount.get(r.code) > 1 ? ' <span class="pill warn" title="Ten sam kod zeskanowano więcej niż raz">powtórzony</span>' : ''}
-      <span class="muted small">${esc(zwWhen(r.scannedAt))}${v ? ' · ' + esc(v) : ''}${r.src ? ' · ' + esc(ZW_SRC[r.src] || r.src) : ''}</span></div>
+      <span class="muted small">${zwClName(r) ? `<b>${esc(zwClName(r))}</b> · ` : ''}${esc(zwWhen(r.scannedAt))}${v ? ' · ' + esc(v) : ''}${r.src ? ' · ' + esc(ZW_SRC[r.src] || r.src) : ''}</span></div>
       <button type="button" class="ghost small zw-del" data-zw-del="${esc(r.id)}" aria-label="Usuń skan ${esc(r.code)}">${ic('x')}</button></li>`; };
   const handed = mine.filter(r => r.status!=='u_kierowcy'), byDay = new Map();
   handed.forEach(r => { const k = zwTs(r.handedAt || r.scannedAt).day; byDay.set(k, (byDay.get(k) || 0) + 1); });
   return `<div class="section driver zw">
     <div class="bar"><h2>Skanuj zwroty</h2><div class="tools">${back}</div></div>
     <section class="zw-scan">
+      ${zwClientBox()}
       <button type="button" class="d-main zw-cambtn" data-zw-cam>${ic('scan')}Skanuj aparatem</button>
       <div class="zw-row"><label class="btn ghost zw-photo">${ic('camera')}Zdjęcie kodu<input type="file" accept="image/*" capture="environment" data-zw-photo hidden></label></div>
       <form class="zw-form" data-zw-form autocomplete="off"><label for="zw-code">Albo wpisz kod / zeskanuj czytnikiem i Enter</label>
@@ -126,9 +167,11 @@ function viewMyReturns(){
 
 /* ---------- kierownik: Zwroty ---------- */
 function zwFiltered(){
-  const f = zwF;
+  const f = zwF, q = String(f.q || '').trim().toLowerCase();
+  // wyszukiwanie po kodzie / kliencie – we wszystkich zwrotach, bez względu na okres
   return zwSort((S.returns || []).filter(r => { const d = zwTs(r.scannedAt).day;
-    return (!f.from || d >= f.from) && (!f.to || d <= f.to) && (!f.drv || r.driverId===f.drv) && (!f.st || zwStatus(r)===f.st); }));
+    if (q) return String(r.code).toLowerCase().includes(q) || zwClName(r).toLowerCase().includes(q);
+    return (!f.from || d >= f.from) && (!f.to || d <= f.to) && (!f.drv || r.driverId===f.drv) && (!f.st || zwStatus(r)===f.st) && (!f.cl || zwClName(r)===f.cl); }));
 }
 function viewReturns(){
   if (!P().manage) return '';
@@ -136,12 +179,15 @@ function viewReturns(){
   if (!zwF.from && !zwF.to){ zwF.from = today().slice(0, 8) + '01'; zwF.to = today(); }
   const rows = zwFiltered(), all = S.returns || [];
   const cnt = k => all.filter(r => zwStatus(r)===k).length;
+  const cls = [...new Set(all.map(zwClName).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pl'));
   const drvs = [...new Set(all.map(r => r.driverId).filter(Boolean))].map(id => byId('drivers', id)).filter(Boolean).sort((a, b) => a.name.localeCompare(b.name, 'pl'));
   const head = `<div class="bar"><h2>Zwroty</h2><div class="tools"><button class="ghost" data-zw-xlsx ${rows.length ? '' : 'disabled'}>${ic('download')}Excel</button></div></div>
     <div class="zw-sum"><div><b>${cnt('u_kierowcy')}</b><span>u kierowców</span></div><div><b>${cnt('zdany')}</b><span>na magazynie, bez listu</span></div><div><b>${cnt('lista')}</b><span>na listach przewozowych</span></div></div>
     <div class="wb-filters zw-filters">
+      <input type="search" id="zw-q" data-zw-q placeholder="Szukaj po kodzie zwrotu lub kliencie…" value="${esc(zwF.q || '')}" aria-label="Szukaj zwrotu">
       <label>Od <input type="date" data-zw-f="from" value="${esc(zwF.from)}"></label><label>Do <input type="date" data-zw-f="to" value="${esc(zwF.to)}"></label>
       <select data-zw-f="drv" aria-label="Kierowca"><option value="">Wszyscy kierowcy</option>${drvs.map(d => `<option value="${esc(d.id)}" ${zwF.drv===d.id ? 'selected' : ''}>${esc(d.name)}</option>`).join('')}</select>
+      ${cls.length ? `<select data-zw-f="cl" aria-label="Klient"><option value="">Wszyscy klienci</option>${cls.map(c => `<option ${zwF.cl===c ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select>` : ''}
       <select data-zw-f="st" aria-label="Status"><option value="">Każdy status</option>${[['u_kierowcy', 'U kierowcy'], ['zdany', 'Na magazynie, bez listu'], ['lista', 'Na liście przewozowym']].map(([k, l]) => `<option value="${k}" ${zwF.st===k ? 'selected' : ''}>${l}</option>`).join('')}</select></div>`;
   if (!rows.length) return head + `<div class="panel empty"><p>${all.length ? 'Brak zwrotów dla tych filtrów.' : 'Kierowcy nie zeskanowali jeszcze żadnych zwrotów. Skanują je w swoim panelu: „Skanuj zwroty”.'}</p></div>`;
   const shown = rows.slice(0, 1000), canSel = r => r.status==='zdany' && !r.waybillId;
@@ -154,21 +200,23 @@ function viewReturns(){
       <button type="button" class="ghost" data-zw-newwb>${ic('plus')}Nowy list z tymi zwrotami</button>
       <button type="button" class="ghost" data-zw-selclear>Odznacz</button></div>`
     : `<p class="muted small zw-selhint">Zaznacz ptaszkiem zwroty zdane na magazyn, żeby dodać je do specyfikacji listu przewozowego. Zwrotów, które są jeszcze u kierowcy, nie można dodać.</p>`;
-  return head + bar + `<p class="muted small">${rows.length} ${isPlural(rows.length, 'zwrot', 'zwroty', 'zwrotów')}${rows.length > shown.length ? ` – pokazuję ${shown.length} najnowszych, w Excelu są wszystkie` : ''}</p>
-    <div class="panel tablewrap"><table class="zw-tbl stack"><thead><tr><th class="zw-ck">${selable.length ? `<input type="checkbox" data-zw-selall ${allOn ? 'checked' : ''} aria-label="Zaznacz wszystkie zdane">` : ''}</th><th>Lp.</th><th>Kod zwrotu</th><th>Data skanu</th><th>Godzina</th><th>Kierowca</th><th>Auto</th><th>Status</th><th>Zdany na magazyn</th><th></th></tr></thead><tbody>
+  return head + bar + `<p class="muted small">${zwF.q ? 'Wyniki wyszukiwania we wszystkich zwrotach (bez filtra okresu): ' : ''}${rows.length} ${isPlural(rows.length, 'zwrot', 'zwroty', 'zwrotów')}${rows.length > shown.length ? ` – pokazuję ${shown.length} najnowszych, w Excelu są wszystkie` : ''}</p>
+    <div class="panel tablewrap"><table class="zw-tbl stack"><thead><tr><th class="zw-ck">${selable.length ? `<input type="checkbox" data-zw-selall ${allOn ? 'checked' : ''} aria-label="Zaznacz wszystkie zdane">` : ''}</th><th>Lp.</th><th>Kod zwrotu</th><th>Klient</th><th>Data skanu</th><th>Godzina</th><th>Kierowca</th><th>Auto</th><th>Status</th><th>Zdany na magazyn</th><th></th></tr></thead><tbody>
     ${shown.map((r, i) => { const t = zwTs(r.scannedAt);
       const ck = canSel(r) ? `<input type="checkbox" data-zw-sel="${esc(r.id)}" ${zwSel.has(r.id) ? 'checked' : ''} aria-label="Zaznacz ${esc(r.code)}">`
         : `<input type="checkbox" disabled title="${r.waybillId ? 'Już na liście przewozowym' : 'Niezdany na magazyn – nie może trafić na specyfikację'}" aria-label="Niedostępny">`;
-      return `<tr class="${zwSel.has(r.id) ? 'zw-on' : ''}"><td class="zw-ck">${ck}</td><td class="num" data-l="Lp.">${rows.length - i}</td><td data-l="Kod"><b class="zw-code">${esc(r.code)}</b>${r.note ? `<span class="sub">${esc(r.note)}</span>` : ''}</td><td class="num" data-l="Data">${fdate(t.day)}</td><td class="num" data-l="Godzina">${t.time}</td>
+      return `<tr class="${zwSel.has(r.id) ? 'zw-on' : ''}"><td class="zw-ck">${ck}</td><td class="num" data-l="Lp.">${rows.length - i}</td><td data-l="Kod"><b class="zw-code">${esc(r.code)}</b>${r.note ? `<span class="sub">${esc(r.note)}</span>` : ''}</td>
+        <td data-l="Klient"><input class="zw-clin" list="zw-cl-all" data-zw-setcl="${esc(r.id)}" value="${esc(zwClName(r))}" placeholder="przypisz klienta" aria-label="Klient zwrotu ${esc(r.code)}"></td><td class="num" data-l="Data">${fdate(t.day)}</td><td class="num" data-l="Godzina">${t.time}</td>
         <td data-l="Kierowca">${esc(zwDrvName(r.driverId))}</td><td data-l="Auto">${esc(zwPlate(r.vehicleId))}</td><td data-l="Status">${zwStatusPill(r)}</td><td class="num" data-l="Zdany">${r.handedAt ? esc(zwWhen(r.handedAt)) : '—'}</td>
-        <td class="r"><button type="button" class="ghost small" data-zw-mdel="${esc(r.id)}" title="Usuń zwrot" aria-label="Usuń zwrot ${esc(r.code)}">${ic('x')}</button></td></tr>`; }).join('')}</tbody></table></div>`;
+        <td class="r"><button type="button" class="ghost small" data-zw-mdel="${esc(r.id)}" title="Usuń zwrot" aria-label="Usuń zwrot ${esc(r.code)}">${ic('x')}</button></td></tr>`; }).join('')}</tbody></table></div>
+    <datalist id="zw-cl-all">${[...new Set([...(S.clients || []).map(c => c.name), ...cls])].filter(Boolean).sort((a, b) => a.localeCompare(b, 'pl')).map(n => `<option value="${esc(n)}">`).join('')}</datalist>`;
 }
 function zwExcel(rows, name){
-  const H = ['Lp.', 'Kod zwrotu', 'Data skanu', 'Godzina skanu', 'Kierowca', 'Nr rej.', 'Źródło', 'Status', 'Zdany na magazyn', 'List przewozowy', 'Notatka'];
+  const H = ['Lp.', 'Kod zwrotu', 'Klient', 'Data skanu', 'Godzina skanu', 'Kierowca', 'Nr rej.', 'Źródło', 'Status', 'Zdany na magazyn', 'List przewozowy', 'Notatka'];
   const data = zwSort(rows).reverse().map((r, i) => { const t = zwTs(r.scannedAt), w = r.waybillId && byId('waybills', r.waybillId);
-    return [{v: i + 1, s: 9}, {v: String(r.code), s: 9}, {v: {date: t.day}, s: 6}, {v: t.time, s: 9}, {v: zwDrvName(r.driverId), s: 9}, {v: zwPlate(r.vehicleId), s: 9}, {v: ZW_SRC[r.src] || r.src || '', s: 9},
+    return [{v: i + 1, s: 9}, {v: String(r.code), s: 9}, {v: zwClName(r), s: 9}, {v: {date: t.day}, s: 6}, {v: t.time, s: 9}, {v: zwDrvName(r.driverId), s: 9}, {v: zwPlate(r.vehicleId), s: 9}, {v: ZW_SRC[r.src] || r.src || '', s: 9},
       {v: r.waybillId ? 'na liście' : r.status==='zdany' ? 'na magazynie' : 'u kierowcy', s: 9}, {v: r.handedAt ? zwWhen(r.handedAt) : '', s: 9}, {v: w ? wbNo(w) : '', s: 9}, {v: r.note || '', s: 9}]; });
-  const blob = xlsxMini({sheets: [{name: 'Zwroty', cols: [6, 26, 12, 13, 24, 12, 10, 14, 20, 15, 30], rows: [H.map(v => ({v, s: 3})), ...data]}]}), a = document.createElement('a');
+  const blob = xlsxMini({sheets: [{name: 'Zwroty', cols: [6, 26, 28, 12, 13, 24, 12, 10, 14, 20, 15, 30], rows: [H.map(v => ({v, s: 3})), ...data]}]}), a = document.createElement('a');
   a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
 }
 
@@ -227,8 +275,17 @@ document.addEventListener('submit', e => {
   e.preventDefault(); const i = $('#zw-code'); const v = i ? i.value : ''; if (i) i.value = '';
   zwAdd(v, 'reka').then(() => { const n = $('#zw-code'); if (n) n.focus(); });
 });
+let zwQT = 0;
+document.addEventListener('input', e => {
+  const t = e.target; if (!t || t.id!=='zw-q') return;
+  zwF.q = t.value; clearTimeout(zwQT);
+  zwQT = setTimeout(() => { const el = $('#zw-q'); if (!el || el.value!==zwF.q) return; const pos = el.selectionStart; zwSel = new Set(); render(); const n = $('#zw-q'); if (n){ n.focus(); n.setSelectionRange(pos, pos); } }, 250);
+});
 document.addEventListener('change', async e => {
   const t = e.target; if (!t.dataset) return;
+  if (t.dataset.zwCl!=null){ zwCl = zwMatchClient(t.value); zwClSave(); return render(); }
+  if (t.dataset.zwSetcl && P().manage){ const c = zwMatchClient(t.value);
+    try { await db.collection('returns').doc(t.dataset.zwSetcl).update({clientId: c ? c.id : null, clientName: c ? c.name : null}); toast(c ? `Klient: ${c.name}` : 'Usunięto klienta przy zwrocie'); } catch(err){ handleWriteErr(err); } return; }
   if (t.dataset.zwPhoto!=null){ const f = t.files && t.files[0]; t.value = ''; if (f) zwPhoto(f); return; }
   if (t.dataset.zwF){ zwF[t.dataset.zwF] = t.value; return render(); }
   if (t.dataset.zwSel){ if (t.checked) zwSel.add(t.dataset.zwSel); else zwSel.delete(t.dataset.zwSel); return render(); }
@@ -237,9 +294,11 @@ document.addEventListener('change', async e => {
   if (t.dataset.zwPickall!=null){ const free = (S.returns || []).filter(r => r.status==='zdany' && !r.waybillId); zwPick = new Set(t.checked ? free.map(r => r.id) : []); return render(); }
 });
 document.addEventListener('click', async e => {
-  const b = e.target.closest('[data-zw-addwb],[data-zw-newwb],[data-zw-selclear],[data-zw-cam],[data-zw-camstop],[data-zw-torch],[data-zw-del],[data-zw-hand],[data-zw-xlsx],[data-zw-mdel],[data-zw-pickopen],[data-zw-pickclose],[data-zw-attach],[data-zw-detach],[data-zw-specprint]');
+  const b = e.target.closest('[data-zw-geo],[data-zw-clx],[data-zw-addwb],[data-zw-newwb],[data-zw-selclear],[data-zw-cam],[data-zw-camstop],[data-zw-torch],[data-zw-del],[data-zw-hand],[data-zw-xlsx],[data-zw-mdel],[data-zw-pickopen],[data-zw-pickclose],[data-zw-attach],[data-zw-detach],[data-zw-specprint]');
   if (!b) return;
   const d = b.dataset;
+  if (d.zwGeo!=null) return zwLocate(false);
+  if (d.zwClx!=null){ zwCl = null; zwClSave(); render(); const i = $('#zw-cl'); if (i) i.focus(); return; }
   if (d.zwCam!=null) return zwCamStart();
   if (d.zwCamstop!=null) return zwCamStop();
   if (d.zwTorch!=null){ try { const tr = zwStream.getVideoTracks()[0]; zwTorch = !zwTorch; await tr.applyConstraints({advanced: [{torch: zwTorch}]}); b.textContent = zwTorch ? 'Latarka: wł.' : 'Latarka'; } catch(_){ toast('Latarka niedostępna'); } return; }
