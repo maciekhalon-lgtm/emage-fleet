@@ -40,7 +40,7 @@ function rkVehLegsRaw(vid){
   const ev = [...fills, ...picks].sort((a, b) => a.odo - b.odo || (a.t===b.t ? 0 : a.t==='f' ? -1 : 1) || typed(a) - typed(b)
     || (a.t==='f' && b.t==='f' ? (a.c.full===false ? 0 : 1) - (b.c.full===false ? 0 : 1) : 0) || String(a.date).localeCompare(b.date)
     || String(a.c && a.c.createdAt || '').localeCompare(String(b.c && b.c.createdAt || '')));
-  let anchor = null, aDate = null, acc = 0, soft = null, sDate = null, sAcc = 0; const out = [];
+  let anchor = null, aDate = null, acc = 0, soft = null, sDate = null, sAcc = 0; const out = [], odd = [];
   ev.forEach(e => {
     if (e.t==='p'){ anchor = e.odo; aDate = e.date; acc = 0; soft = null; return; }
     if (e.t==='pd'){ soft = e.odo; sDate = e.date; sAcc = 0; return; }
@@ -50,23 +50,26 @@ function rkVehLegsRaw(vid){
     if (soft!=null && (a==null || rate==null || rate < RK_MIN_RATE)){ a = soft; d0 = sDate; l = sAcc; km = e.odo - a; rate = km > 0 ? l / km * 100 : null; }
     // poniżej RK_MIN_RATE l/100 spalanie jest nierealne (brakuje wpisu tankowania) – odcinka nie liczymy
     if (a!=null && km >= 50 && km <= 5000 && rate >= RK_MIN_RATE && rate <= 40) out.push({vid, drv: fillDriver(e.c) || e.c.driverId || '', km, l, date: e.c.date, d0: d0 || e.c.date, c: e.c, rate, a, z: e.odo});
+    else if (a!=null && km >= 100 && km <= 5000 && rate < RK_MIN_RATE) odd.push({vid, drv: fillDriver(e.c) || e.c.driverId || '', km, l, date: e.c.date, d0: d0 || e.c.date, c: e.c, rate, a, z: e.odo, odd: true});   // brakuje wpisu tankowania
     anchor = e.odo; aDate = e.c.date; acc = 0; soft = null;
   });
+  out.odd = odd;
   return out;
 }
-function rkLegs(from, to){
+function rkLegs(from, to, odd){
   const out = [];
   const s0 = settleStart();   // odcinek zaczęty przed początkiem rozliczeń, a zamknięty po nim – nie liczy się
-  S.vehicles.forEach(v => rkVehLegs(v.id).forEach(x => { if (x.date >= from && x.date <= to && !(x.d0 < s0 && x.date >= s0)) out.push(x); }));
+  S.vehicles.forEach(v => { const L = rkVehLegs(v.id); (odd ? L.odd || [] : L).forEach(x => { if (x.date >= from && x.date <= to && !(x.d0 < s0 && x.date >= s0)) out.push(x); }); });
   return out;
 }
 /* Spalanie kierowców: każdy odcinek auta dzielimy między kierowców według km, które faktycznie przejechali
    (przejęcie → zdanie, z GPS). Kierowca dostaje swoje km i litry wg spalania auta na odcinku – nie zależy od tego,
    kto akurat tankował. Km odcinka bez przydziału (np. luka w danych) – na kierowcę, który zamknął bak. */
 const RK_MIN_KM = 500, RK_DRV_MIN_KM = RK_MIN_KM;    // wynik auta i kierowcy pokazujemy od 500 km – pojedyncze tankowanie „do pełna” waha się o ±5–10 l
-function rkDrvParts(from, to){
+const RK_DRV_PRE_KM = 300;   // kierowca: od 300 km wynik „wstępny” (zwykle jedna zmiana), od 500 km – pełny
+function rkDrvParts(from, to, odd){
   const out = [];
-  rkLegs(from, to).forEach(L => {
+  rkLegs(from, to, odd).forEach(L => {
     if (L.a==null || L.z==null || !(L.z > L.a)){ if (L.drv) out.push({vid: L.vid, drv: L.drv, km: L.km, l: L.l, date: L.date}); return; }
     const bs = S.bookings.filter(b => b.vehicleId===L.vid && b.pickup), seg = new Map(); let done = 0;
     bs.forEach(b => {
@@ -82,7 +85,7 @@ function rkDrvParts(from, to){
   return out;
 }
 function rkData(){
-  const [from, to] = rkRange(), legs = rkLegs(from, to), dparts = rkDrvParts(from, to);
+  const [from, to] = rkRange(), legs = rkLegs(from, to), dparts = rkDrvParts(from, to), oparts = rkDrvParts(from, to, true);
   const fleetKm = legs.reduce((a, x) => a + x.km, 0), fleetL = legs.reduce((a, x) => a + x.l, 0);
   const fleetRate = fleetKm >= 300 ? fleetL / fleetKm * 100 : null;
   // średnia klasy (do 2,5 t / powyżej) – auta i kierowców porównujemy z autami tej samej klasy
@@ -100,14 +103,17 @@ function rkData(){
       if (p && r && r.at >= from && r.at <= to && bkKm(b) > 0){ const k = bkKm(b); if (k < 20000){ km += k / crew.length; veh.add(b.vehicleId); } } });
     const fills = appFuel().filter(c => (fillDriver(c) || c.driverId)===d.id && c.date >= from && c.date <= to && inCls(c.vehicleId));
     const lg = dparts.filter(x => x.drv===d.id && inCls(x.vid)), lkm = lg.reduce((a, x) => a + x.km, 0), ll = lg.reduce((a, x) => a + x.l, 0);
-    const rate = lkm >= RK_DRV_MIN_KM ? ll / lkm * 100 : null;
+    const rate = lkm >= RK_DRV_PRE_KM ? ll / lkm * 100 : null, pre = rate!=null && lkm < RK_DRV_MIN_KM;
+    // odcinki z nierealnie niskim spalaniem (brak wpisu tankowania): ile litrów brakuje do średniej klasy
+    const og = oparts.filter(x => x.drv===d.id && inCls(x.vid)), okm = og.reduce((a, x) => a + x.km, 0), ol = og.reduce((a, x) => a + x.l, 0);
+    const miss = okm > 0 ? Math.max(0, okm * (clsRate[rkCls] || 7) / 100 - ol) : 0;
     // ile by spalił „przeciętny” kierowca na tych samych odcinkach (średnia klasy każdego auta) → różnica w %
     const expL = lg.reduce((a, x) => a + x.km * (clsRate[clsOf(x.vid)] || fleetRate || 0) / 100, 0);
     const norm = lkm > 0 && expL > 0 ? expL / lkm * 100 : null;   // norma = średnie spalanie aut, którymi jeździł (ważone jego km)
     return {d, name: d.name, km: Math.round(km), days: days.size, fills: fills.length, liters: fills.reduce((a, c) => a + Number(c.liters || 0), 0), rate, diff: rate!=null && expL > 0 ? (ll - expL) / expL * 100 : null,
-      norm, dL: rate!=null && norm!=null ? rate - norm : null, plates: [...new Set(lg.map(x => x.vid))],
+      pre, okm, miss, norm, dL: rate!=null && norm!=null ? rate - norm : null, plates: [...new Set(lg.map(x => x.vid))],
       card: cardEv.filter(e => e.driverId===d.id && (!e.vehicleId || inCls(e.vehicleId))).length, veh: veh.size, lkm, fullFills: fills.filter(c => c.full!==false).length};
-  }).filter(x => x.km || x.fills || x.days);
+  }).filter(x => x.km || x.fills || x.days || x.okm);
   const rkSt = settleRange(from, to);   // koszty netto aut – jak w Koszty → Według aut
   const veh = S.vehicles.filter(v => v.status!=='wycofany').map(v => {
     let km = 0; const days = new Set(), who = new Set();
@@ -128,9 +134,9 @@ function rkData(){
 const RK_CLS = [['do25', 'Do 2,5 t'], ['pow25', 'Do 3,5 t']], rkClsName = () => (RK_CLS.find(x => x[0]===rkCls) || RK_CLS[0])[1];
 function viewRankingDrivers(){ rkView = 'drv'; return viewRankingFleet(true); }
 /* powód braku wyniku – zamiast samego „—” */
-function rkWhy(x){
+function rkWhy(x, min = RK_MIN_KM){
   const nf = new Intl.NumberFormat('pl-PL');
-  if (x.lkm > 0) return `${nf.format(Math.round(x.lkm))} z ${nf.format(RK_MIN_KM)} km od pełnego baku`;
+  if (x.lkm > 0) return `${nf.format(Math.round(x.lkm))} z ${nf.format(min)} km od pełnego baku`;
   if (x.fullFills===1) return 'jedno tankowanie do pełna – odcinek zamknie następne tankowanie do pełna';
   if (x.fills) return 'tankowania bez „do pełna” – brak zamkniętego odcinka';
   if (x.km || x.days) return 'brak tankowań w aplikacji';
@@ -161,20 +167,21 @@ function viewRankingFleet(drvTab){
   const noRes = (rows, label, nameOf, attr) => rows.length ? `<div class="panel rk-none"><div class="sec-head"><h3>Bez wyniku – za mało danych <span class="muted">(${rows.length})</span></h3></div>
       ${rows.map(x => `<div class="rk-none-row click" ${attr(x)}><span>${nameOf(x)}</span><span class="muted small">${esc(rkWhy(x))}</span></div>`).join('')}</div>` : '';
   if (isDrv){
-    const xs = R.drv.map(x => ({...x, id: x.d.id})), withR = xs.filter(x => x.rate!=null).sort(cmp), none = xs.filter(x => x.rate==null).sort((a, b) => b.lkm - a.lkm || b.km - a.km);
+    const xs = R.drv.map(x => ({...x, id: x.d.id})), withR = [...xs.filter(x => x.rate!=null).sort(cmp), ...xs.filter(x => x.rate==null && x.miss >= 5).sort((a, b) => b.miss - a.miss)], none = xs.filter(x => x.rate==null && !(x.miss >= 5)).sort((a, b) => b.lkm - a.lkm || b.km - a.km);
     const avg = R.clsRate[rkCls];   // ocena względem średniej aut tej klasy
     const verdict = x => { if (avg==null) return ''; const d = x.rate - avg;
       return d <= -0.5 ? '<span class="pill ok">oszczędny</span>' : d < 0.5 ? '<span class="pill off">w normie</span>' : d < 1 ? '<span class="pill warn">trochę za dużo</span>' : '<span class="pill bad">za dużo</span>'; };
     const plates = x => x.plates.map(id => { const v = byId('vehicles', id); return v ? esc(v.plate) : ''; }).filter(Boolean).join(', ');
+    const missIco = x => x.miss >= 5 ? ` <span class="pill bad" title="Na ${nf.format(Math.round(x.okm))} km spalanie wychodzi poniżej ${f1(RK_MIN_RATE)} l/100 – brakuje wpisu tankowania, tej trasy nie liczymy">brakuje tankowań – ok. ${nf.format(Math.max(5, Math.round(x.miss / 5) * 5))} l</span>` : '';
     const cardIco = x => x.card ? ` <span class="pill bad" title="Tankowania niezgodne z kartą paliwową">karta: ${x.card}</span>` : '';
     return head + (withR.length ? `<div class="panel tablewrap"><table class="rk2-tbl rk-drv"><thead><tr><th>#</th>${th('name', 'Kierowca')}${th('rate', 'Spalanie l/100 km', 1)}<th>Ocena</th>${th('lkm', 'Km do wyniku', 1)}<th>Auta</th></tr></thead><tbody>
-      ${withR.map((x, i) => `<tr class="click" data-drv-hist="${esc(x.id)}"><td class="num">${i + 1}</td><td><b>${esc(x.d.name)}</b>${cardIco(x)}</td>
-        <td class="r"><b class="num">${f1(x.rate)}</b></td><td>${verdict(x)}</td>
-        <td class="r num">${nf.format(Math.round(x.lkm))}</td><td class="small muted">${plates(x)}</td></tr>`).join('')}</tbody></table></div>
-      <p class="muted small">Liczą się tylko auta ${esc(rkClsName().toLowerCase())} – drugi ranking jest osobny i nie wpływa na ten. Kolejność: od najniższego spalania. Ocena porównuje ze średnią aut tej klasy. Kliknij kierowcę, żeby zobaczyć jego tankowania, przejęcia i zdania.</p>`
-      : `<div class="panel empty"><p>Nikt nie ma jeszcze ${nf.format(RK_MIN_KM)} km od pełnego baku autami ${esc(rkClsName().toLowerCase())} w tym okresie.</p></div>`)
+      ${withR.map((x, i) => `<tr class="click" data-drv-hist="${esc(x.id)}"><td class="num">${i + 1}</td><td><b>${esc(x.d.name)}</b>${missIco(x)}${cardIco(x)}</td>
+        <td class="r">${x.rate!=null ? `<b class="num">${f1(x.rate)}</b>` : '<span class="muted">—</span>'}</td><td>${x.rate==null ? '<span class="muted small">brak wyniku</span>' : verdict(x) + (x.pre ? ' <span class="pill off" title="Mniej niż 500 km – wynik z jednej, dwóch zmian, jeszcze niepewny">wstępny</span>' : '')}</td>
+        <td class="r num">${x.lkm ? nf.format(Math.round(x.lkm)) : '—'}</td><td class="small muted">${plates(x)}</td></tr>`).join('')}</tbody></table></div>
+      <p class="muted small">Liczą się tylko auta ${esc(rkClsName().toLowerCase())} – drugi ranking jest osobny i nie wpływa na ten. Kolejność: od najniższego spalania. Ocena porównuje ze średnią aut tej klasy. „Wstępny” – mniej niż 500 km (jedna, dwie zmiany), wynik jeszcze się wyrówna. „Brakuje tankowań” – na trasie wyszło poniżej 5,5 l/100, więc brakuje wpisu tankowania i ta trasa się nie liczy. Kliknij kierowcę, żeby zobaczyć jego tankowania, przejęcia i zdania.</p>`
+      : `<div class="panel empty"><p>Nikt nie ma jeszcze ${nf.format(RK_DRV_PRE_KM)} km od pełnego baku autami ${esc(rkClsName().toLowerCase())} w tym okresie.</p></div>`)
       + (none.length ? `<details class="rk-how rk-nores"><summary>Bez wyniku – za mało danych (${none.length}): ${none.map(x => esc(x.d.name)).join(', ')}</summary>
-        <div class="panel rk-none">${none.map(x => `<div class="rk-none-row click" data-drv-hist="${esc(x.id)}"><span><b>${esc(x.d.name)}</b></span><span class="muted small">${esc(rkWhy(x))}</span></div>`).join('')}</div></details>` : '')
+        <div class="panel rk-none">${none.map(x => `<div class="rk-none-row click" data-drv-hist="${esc(x.id)}"><span><b>${esc(x.d.name)}</b></span><span class="muted small">${esc(rkWhy(x, RK_DRV_PRE_KM))}</span></div>`).join('')}</div></details>` : '')
       + how.replace('</p></details>', ' ' + rkGpsNote().replace(/<\/?p[^>]*>/g, '') + '</p></details>');
   }
   const zl2 = x => new Intl.NumberFormat('pl-PL', {minimumFractionDigits: 2, maximumFractionDigits: 2}).format(x);
